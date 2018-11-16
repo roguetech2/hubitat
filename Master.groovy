@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.0.01
+*  Version: 0.0.02
 *
 ***********************************************************************************************************************/
 
@@ -56,6 +56,9 @@ def mainPage() {
                 app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
             }
             section("Alerts settings:") {
+                app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
+			}
+            section("Presence settings:") {
                 app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
             }
         }
@@ -446,4 +449,24 @@ def reschedule(device){
 			Child.reschedule(device)
 		}
 	}
+}
+
+
+def singleUnlock(device, childId = "Master"){
+    child = getAppLabel(childId)
+    device.unlock()
+    log.info "$child: Unlocked $device."
+}
+
+def multiUnlock(device, childId = "Master"){
+    device.each{
+        singleUnlock(it,childId)
+    }
+}
+
+def changeMode(mode) {
+    child = getAppLabel(childId)
+    oldMode = location.mode
+ 	setLocationMode(mode)
+    log.info "$child: Changed Mode from $oldMode to $mode."
 }
