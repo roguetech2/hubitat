@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.0.02
+*  Version: 0.0.03
 *
 ***********************************************************************************************************************/
 
@@ -59,7 +59,7 @@ def mainPage() {
                 app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
 			}
             section("Presence settings:") {
-                app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
+                app(name: "childApps", appName: "Master - Presense", namespace: "master", title: "New Alert", multiple: true)
             }
         }
     }
