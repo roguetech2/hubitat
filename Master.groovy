@@ -16,6 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
+*  Version: 0.0.01
 *
 ***********************************************************************************************************************/
 
