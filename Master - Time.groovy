@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.0.02
+*  Version: 0.0.03
 *
 ***********************************************************************************************************************/
 
@@ -539,6 +539,7 @@ def runMultiSchedule(){
 				defaultLevel = getDefaultLevel(it)
 					if(defaultLevel != it.currentLevel) {
 					//mode
+						/*
 					//If don't dim and is dimmer
 					if(timeLevelIfLower == "Lower"){
 						if(it.currentLevel > timeLevelOn) return 
@@ -547,41 +548,37 @@ def runMultiSchedule(){
 					if(timeLevelIfLower == "Higher"){
 						if(it.currentLevel < timeLevelOn) return
 					}
+*/
 					if(timeLevelIfLower == "Lower"){
-						if(it.currentLevel > defaultLevel) return 
+						if(it.currentLevel < defaultLevel) return 
 					}
 					if(timeLevelIfLower == "Higher"){
-						if(it.currentLevel < defaultLevel) return
+						if(it.currentLevel > defaultLevel) return
 					}
 					parent.setToLevel(it,defaultLevel,app.getId())
 				}
 			}
 			if(timeTempOn && parent.isTemp(it)){
 				defaultTemp = getDefaultTemp(it)
-				log.debug "defaultTemp: $defaultTemp"
 				
-					log.debug "temp.4"
 				if(defaultTemp - it.currentColorTemperature > 4 || defaultTemp - it.currentColorTemperature < -4) {
 					//mode
-					log.debug "temp.5"
+					/*
 					//If don't dim and is dimmer
 					if(timeTempIfLower == "Lower"){
-						if(it.currentColorTemperature > timeTempOn) return 
+						if(it.currentColorTemperature < timeTempOn) return 
 					}
-					log.debug "temp1"
 					//If don't brighten and is brighter
 					if(timeTempIfLower == "Higher"){
-						if(it.currentColorTemperature < timeTempOn) return
+						if(it.currentColorTemperature > timeTempOn) return
 					}
-					log.debug "temp2"
+*/
 					if(timeTempIfLower == "Lower"){
-						if(it.currentTemp > defaultTemp) return 
+						if(it.currentColorTemperature < defaultTemp) return 
 					}
-					log.debug "temp3"
 					if(timeTempIfLower == "Higher"){
-						if(it.currentTemp < defaultTemp) return
+						if(it.currentColorTemperature > defaultTemp) return
 					}
-					log.debug "temp4"
 					parent.singleTemp(it,defaultTemp,app.getId())
 				}
 			}
