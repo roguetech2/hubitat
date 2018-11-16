@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.0.01
+*  Version: 0.0.02
 * 
 ***********************************************************************************************************************/
 
@@ -79,12 +79,16 @@ def updated() {
 
 def initialize() {
     log.debug "Contact initialized"
+	unschedule(scheduleOpen)
+	unschedule(scheduleClose)
     subscribe(contactDevice, "contact.open", contactOpen)
     subscribe(contactDevice, "contact.closed", contactClosed)
 }
 
 def contactOpen(evt){
+	def appId = app.getId()
 	unschedule(scheduleOpen)
+	unschedule(scheduleClose)
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
 	if(contactOpenWait){
@@ -97,16 +101,17 @@ def contactOpen(evt){
 	if(!timeStartIfMode || location.mode == timeStartIfMode) {
 		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
 			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				if(contactOpen1On) parent.multiOn(contactOpen1On)
-				if(contactOpen1Off) parent.multiOff(contactOpen1Off)
-				if(contactOpen1Toggle) parent.toggle(contactOpen1Toggle)
-				if(contactSetModeOpen) setLocationMode(contactSetModeOpen)
+				if(contactOpen1On) parent.multiOn(contactOpen1On,appId)
+				if(contactOpen1Off) parent.multiOff(contactOpen1Off,appId)
+				if(contactOpen1Toggle) parent.toggle(contactOpen1Toggle,appId)
+				if(contactSetModeOpen) setLocationMode(contactSetModeOpen,appId)
 			}
 		}
 	}
 }
 
 def contactClosed(evt){
+	def appId = app.getId()
 	unschedule(scheduleClose)
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
@@ -120,27 +125,29 @@ def contactClosed(evt){
 	if(!timeStartIfMode || location.mode == timeStartIfMode) {
 		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
 			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				if(contactClose1On) parent.multiOn(contactClose1On)
-				if(contactClose1Off) parent.multiOff(contactClosen1Off)
-				if(contactClose1Toggle) parent.toggle(contactClose1Toggle)
-				if(contactSetModeClose) setLocationMode(contactSetModeClose)
+				if(contactClose1On) parent.multiOn(contactClose1On,appId)
+				if(contactClose1Off) parent.multiOff(contactClosen1Off,appId)
+				if(contactClose1Toggle) parent.toggle(contactClose1Toggle,appId)
+				if(contactSetModeClose) setLocationMode(contactSetModeClose,appId)
 			}
 		}
 	}
 }
 
 def scheduleOpen(){
+	def appId = app.getId()
 	if(timeStartIfMode && location.mode != timeStartIfMode) return
-	if(contactOpen2On) parent.multiOn(contactOpen2On)
-	if(contactOpen2Off) parent.multiOff(contactOpen2Off)
-	if(contactOpen2Toggle) parent.toggle(contactOpen2Toggle)
-	if(contactSetModeOpen) setLocationMode(contactSetModeOpen)
+	if(contactOpen2On) parent.multiOn(contactOpen2On,appId)
+	if(contactOpen2Off) parent.multiOff(contactOpen2Off,appId)
+	if(contactOpen2Toggle) parent.toggle(contactOpen2Toggle,appId)
+	if(contactSetModeOpen) setLocationMode(contactSetModeOpen,appId)
 }
 
 def scheduleClose(){
+	def appId = app.getId()
 	if(timeStartIfMode && location.mode != timeStartIfMode) return
-	if(contactClose2On) parent.multiOn(contactClose2On)
-	if(contactClose2Off) parent.multiOff(contactClose2Off)
-	if(contactClose2Toggle) parent.toggle(contactClose2Toggle)
-	if(contactSetModeClose) setLocationMode(contactSetModeClose)
+	if(contactClose2On) parent.multiOn(contactClose2On,appId)
+	if(contactClose2Off) parent.multiOff(contactClose2Off,appId)
+	if(contactClose2Toggle) parent.toggle(contactClose2Toggle,appId)
+	if(contactSetModeClose) setLocationMode(contactSetModeClose,appId)
 }
