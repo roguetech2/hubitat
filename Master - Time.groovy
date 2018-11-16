@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.0.01
+*  Version: 0.0.02
 *
 ***********************************************************************************************************************/
 
@@ -194,6 +194,7 @@ def getDefaultLevel(device){
 	if(timeLevelOn == device.currentLevel && !timeLevelOff) device.currentLevel
 	if(state.debug) log.debug "getDefaultLevel - $device: 8"
 	//If don't dim and is dimmer
+	/*
 	if(timeLevelIfLower == "Lower"){
 	if(state.debug) log.debug "getDefaultLevel - $device: 8.1"
 		if(parent.stateOn(device) == true && device.currentLevel > timeLevelOn) device.currentLevel 
@@ -203,6 +204,7 @@ def getDefaultLevel(device){
 	if(state.debug) log.debug "getDefaultLevel - $device: 8.2"
 		if(parent.stateOn(device) == true && device.currentLevel < timeLevelOn) return device.currentLevel
 	}
+*/
 	if(state.debug) log.debug "getDefaultLevel - $device: 9"
 	// If after time stop
 	if(timeStop && timeLevelOff){
@@ -246,16 +248,16 @@ def getDefaultTemp(device){
 	//If no defult level
 	if(!timeTempOn) return
 	if(timeDisable || state.timeDisableAll) return
-	//If not mode
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
-	}
 	//If no device match
 	match = false
 	timeDevice.each{
 		if(it.id == device.id) match = true
 	}
 	if(match == false) return
+	//If not mode
+	if(timeStartIfMode){
+		if(location.mode != timeStartIfMode) return
+	}
 	//If before start time
 	if(timeStart){
 		if(now() < timeToday(timeStart, location.timeZone).time) return
@@ -271,14 +273,21 @@ def getDefaultTemp(device){
 		def day = df.format(new Date())
 		if(!timeDays.contains(day)) return
 	}
+	//If no stop time, return start temp
+	if(!timeStop) return timeTempOn
+	//If default temp is the current level
+	if(timeTempOn > device.currentColorTemperature - 4 &&  timeTempOn < device.currentColorTemperature + 4 && !timeTempOff) return device.currentColorTemperature
+	/*
 	//If don't dim and is dimmer
 	if(timeTempIfLower == "Lower"){
-		if(parent.stateOn(device) == true && device.currentColorTemperature > timeTempOn) return device.currentColorTemperature
-	}
-	//If don't brighten and is brighter
-	if(timeTempIfLower == "Higher"){
 		if(parent.stateOn(device) == true && device.currentColorTemperature < timeTempOn) return device.currentColorTemperature
 	}
+	log.debug "8"
+	//If don't brighten and is brighter
+	if(timeTempIfLower == "Higher"){
+		if(parent.stateOn(device) == true && device.currentColorTemperature > timeTempOn) return device.currentColorTemperature
+	}
+*/
 	if(!timeStop) return timeTempOn
 	// If after time stop
 	if(timeStop && timeTempOff){
@@ -303,13 +312,14 @@ def getDefaultTemp(device){
 
 	//If don't dim and is dimmer
 	if(timeTempIfLower == "Lower"){
-		if(parent.stateOn(device) == true && device.currentColorTemperature > timeTempOn) return
+		if(parent.stateOn(device) == true && device.currentColorTemperature > timeTempOn) return device.currentColorTemperature
 	}
 	//If don't brighten and is brighter
 	if(timeTempIfLower == "Higher"){
-		if(parent.stateOn(device) == true && device.currentColorTemperature < timeTempOn) return
+		if(parent.stateOn(device) == true && device.currentColorTemperature < timeTempOn) return device.currentColorTemperature
 	}
 
+	log.debug "19"
 	return timeTempOn
 }
 
@@ -505,9 +515,11 @@ def runMultiSchedule(){
 		if(location.mode != timeStartIfMode) return
 	}
 	
+					log.debug "temp0.1"
 	// If nothing to do, exit
 	if((!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) || timeOn == "Turn Off") return
 	
+					log.debug "temp0.2"
 	// If after time stop
     if(timeStop){
         if(now() > timeToday(timeStop, location.timeZone).time) return
@@ -546,22 +558,30 @@ def runMultiSchedule(){
 			}
 			if(timeTempOn && parent.isTemp(it)){
 				defaultTemp = getDefaultTemp(it)
+				log.debug "defaultTemp: $defaultTemp"
+				
+					log.debug "temp.4"
 				if(defaultTemp - it.currentColorTemperature > 4 || defaultTemp - it.currentColorTemperature < -4) {
 					//mode
+					log.debug "temp.5"
 					//If don't dim and is dimmer
 					if(timeTempIfLower == "Lower"){
 						if(it.currentColorTemperature > timeTempOn) return 
 					}
+					log.debug "temp1"
 					//If don't brighten and is brighter
 					if(timeTempIfLower == "Higher"){
 						if(it.currentColorTemperature < timeTempOn) return
 					}
+					log.debug "temp2"
 					if(timeTempIfLower == "Lower"){
 						if(it.currentTemp > defaultTemp) return 
 					}
+					log.debug "temp3"
 					if(timeTempIfLower == "Higher"){
 						if(it.currentTemp < defaultTemp) return
 					}
+					log.debug "temp4"
 					parent.singleTemp(it,defaultTemp,app.getId())
 				}
 			}
