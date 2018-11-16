@@ -590,7 +590,7 @@ def weekDaysToNum(){
 		}
 		if(it == "Sunday") {
 			if(dayString) dayString += ","
-			dayString += "7"
+			dayString += "7" 
 		}
 	}
 	return dayString
