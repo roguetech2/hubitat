@@ -59,7 +59,7 @@ def mainPage() {
                 app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
 			}
             section("Presence settings:") {
-                app(name: "childApps", appName: "Master - Presense", namespace: "master", title: "New Alert", multiple: true)
+                app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
             }
         }
     }
