@@ -72,8 +72,6 @@ preferences {
     page(name: "setup", install: true, uninstall: true) {
         section() {
 
-				
-					log.debug "1"
 				// Set disable all
 				if(timeDisableAll) {
 					state.timeDisable = true
@@ -81,7 +79,6 @@ preferences {
 					state.timeDisable = false
 				}
 
-					log.debug "1"
 				// If all disabled, force reenable
 				if(state.timeDisable){
 					input "timeDisableAll", "bool", title: "All schedules are disabled. Reenable?", defaultValue: false, submitOnChange:true
