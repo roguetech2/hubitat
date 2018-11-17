@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.0.03
+*  Version: 0.0.04
 *
 ***********************************************************************************************************************/
 
@@ -47,10 +47,10 @@ def mainPage() {
                 app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
             }
             section("Picos:") {
-                app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Mapping", multiple: true)
+                app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Pico", multiple: true)
             }
             section("MagicCubes:") {
-                app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New Mapping", multiple: true)
+                app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New MagicCube", multiple: true)
             }
             section("Contact sensors:") {
                 app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
@@ -166,7 +166,6 @@ def multiOn(device,childId="Master"){
 				if(tempDefaultLevel) defaultLevel = tempDefaultLevel
                 if(isTemp(it)) tempDefaultTemp = Child.getDefaultTemp(it)
 				if(tempDefaultTemp) defaultTemp = tempDefaultTemp
-				log.debug "mutliOn - defaultLevel = $defaultLevel"
 				if(isColor(it)){
 					tempDefaultHue = Child.getDefaultHue(it)
 					if(tempDefaultHue) defaultHue = tempDefaultHue
