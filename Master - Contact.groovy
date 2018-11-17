@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.0.02
+*  Version: 0.1.01
 * 
 ***********************************************************************************************************************/
 
@@ -33,35 +33,58 @@ definition(
 
 preferences {
     page(name: "setup", install: true, uninstall: true) {
+		
         section() {
-            label title: "<b>Assign a name:</b>", required: true
-			paragraph "<font color=\"#000099\"><b>Select which sensor(s).</b></font>"
-            input "contactDevice", "capability.contactSensor", title: "Contact Sensor", multiple: true, required: true
-        }
-		section("• <font color=\"#000099\"><b>When opened</b></font>"){
-			input "contactSetModeOpen", "mode", title: "Set Mode to:", required: false
-			input "contactOpen1On", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "contactOpen1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-			input "contactOpen1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-			input "contactOpenWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
-			input "contactOpen2On", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "contactOpen2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-			input "contactOpen2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-        }
-        section("• <font color=\"#000099\"><b>When closed</b></font>"){
-			input "contactSetModeClose", "mode", title: "Set Mode to:", required: false
-			input "contactClose1On", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "contactClose1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-			input "contactClose1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-			input "contactCloseWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
-			input "contactClose2On", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "contactClose2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-			input "contactClose2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-        }
-		section("• <font color=\"#000099\"><b>Only if:</b></font>"){
-			input "contactIfMode", "mode", title: "<b>Mode is already:</b> (Optional)", required: false, width: 12
-			input "contactStart", "time", title: "<b>Time is between</b> (12:00AM if all day; Optional)", required: true, width: 6
-			input "contactStop", "time", title: "<b>and</b> (11:59PM for remaining day; Optional)", required: false, width: 6
+			// Set disable all
+			if(timeDisableAll) {
+				state.contactDisable = true
+			} else {
+				state.contactDisable = false
+			}
+			
+			// If all disabled, force reenable
+			if(state.timeDisable){
+				input "contactDisableAll", "bool", title: "All contact sensors are disabled. Reenable?", defaultValue: false, submitOnChange:true
+			} else if(contactDisable){
+				label title: "<b>Assign a name:</b>", required: true
+				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
+				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
+				input "contactDisable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
+			} else {
+			
+				label title: "<b>Assign a name:</b>", required: true
+				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
+				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
+				input "contactDisable", "bool", title: "<b><font color=\"#000099\">Disable this contact sensor?</font></b>", submitOnChange:true
+
+				if(contactDevice){
+					paragraph "• <font color=\"#000099\"><b>When opened</b></font>"
+					input "contactSetModeOpen", "mode", title: "Set Mode to:", required: false
+					input "contactOpen1On", "capability.switch", title: "Turn On", multiple: true, required: false
+					input "contactOpen1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
+					input "contactOpen1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+					input "contactOpenWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
+					input "contactOpen2On", "capability.switch", title: "Turn On", multiple: true, required: false
+					input "contactOpen2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
+					input "contactOpen2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+
+					paragraph "• <font color=\"#000099\"><b>When closed</b></font>"
+					input "contactSetModeClose", "mode", title: "Set Mode to:", required: false
+					input "contactClose1On", "capability.switch", title: "Turn On", multiple: true, required: false
+					input "contactClose1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
+					input "contactClose1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+					input "contactCloseWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
+					input "contactClose2On", "capability.switch", title: "Turn On", multiple: true, required: false
+					input "contactClose2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
+					input "contactClose2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+					paragraph " ", width: 12
+					input "contactIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
+					paragraph "• <font color=\"#000099\"><b>Only if time is between:</b></font>"
+					input "contactStart", "time", title: "<b>Start time</b> (12:00AM if all day; Optional)", required: true, width: 6
+					input "contactStop", "time", title: "<b>Stop time</b> (11:59PM for remaining day; Optional)", required: false, width: 6
+					input "contactDisableAll", "bool", title: "Disable <b>ALL</b> contact sensors?", defaultValue: false, submitOnChange:true
+				}
+			}
 		}
     }
 
@@ -81,11 +104,15 @@ def initialize() {
     log.debug "Contact initialized"
 	unschedule(scheduleOpen)
 	unschedule(scheduleClose)
-    subscribe(contactDevice, "contact.open", contactOpen)
-    subscribe(contactDevice, "contact.closed", contactClosed)
+	
+	if(!contactDisable && !state.contactDisableAll) {
+		subscribe(contactDevice, "contact.open", contactOpen)
+		subscribe(contactDevice, "contact.closed", contactClosed)
+	}
 }
 
 def contactOpen(evt){
+	if(contactDisable || state.contactDisableAll) return
 	def appId = app.getId()
 	unschedule(scheduleOpen)
 	unschedule(scheduleClose)
@@ -111,6 +138,7 @@ def contactOpen(evt){
 }
 
 def contactClosed(evt){
+	if(contactDisable || state.contactDisableAll) return
 	def appId = app.getId()
 	unschedule(scheduleClose)
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
