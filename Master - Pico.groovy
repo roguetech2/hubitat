@@ -1,3 +1,25 @@
+/***********************************************************************************************************************
+*
+*  Copyright (C) 2018 roguetech
+*
+*  License:
+*  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
+*  General Public License as published by the Free Software Foundation, either version 3 of the License, or
+*  (at your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+*  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+*  for more details.
+*
+*  You should have received a copy of the GNU General Public License along with this program.
+*  If not, see <http://www.gnu.org/licenses/>.
+*
+*  Name: Master
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
+*  Version: 0.1.01
+*
+***********************************************************************************************************************/
+
 definition(
     name: "Master - Pico",
     namespace: "master",
@@ -21,112 +43,323 @@ preferences {
         }
     }
     page(name: "setup2", install: true, uninstall: true){
-        section("Instructions") {
+        section("<div style=\"background-color:BurlyWood\"><b>Instructions</b>") {
             paragraph "For each action, select which lights or fans to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/fan (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
         }
         if(buttonDevice) {
-            section("• <font color=\"#000099\"><b>Push</b> - $buttonDevice</font>"){
+            section("<div style=\"background-color:BurlyWood\">• <font color=\"#000099\"><b>Push: For each button, select device(s) for desired action</b> - $buttonDevice</font>"){
             }
         } else {
-            section("• <font color=\"#000099\"><b>Push</b></font>"){
+            section("<div style=\"background-color:BurlyWood\">• <font color=\"#000099\"><b>Push: For each button, select device(s) for desired action</b></font>"){
             }
         }
-        section(hideable: true, hidden: true, "\"On\" Button") {
-            input "button_1_push_on", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "button_1_push_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-            input "button_1_push_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_1_push_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_1_push_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+        section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+			if(button_1_push_on) {
+				input "button_1_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				 input "button_1_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_push_off) {
+            	input "button_1_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_push_toggle) {
+            	input "button_1_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_push_dim) {
+            	input "button_1_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_push_brighten) {
+            	input "button_1_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
         }
         if(numButton == "4 button" || numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Brighten\" Button") {
-                input "button_2_push_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-                input "button_2_push_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_2_push_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_2_push_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_2_push_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
+            section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_2_push_brighten) {
+                	input "button_2_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_push_toggle) {
+                	input "button_2_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_push_on) {
+                	input "button_2_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_2_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_push_off) {
+                	input "button_2_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_push_dim) {
+                	input "button_2_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_2_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
 
             }
         }
         if(numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Middle\" Button") {
-                input "button_3_push_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_3_push_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_3_push_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_3_push_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-                input "button_3_push_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+            section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_3_push_toggle) {
+                	input "button_3_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_3_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_push_on) {
+                	input "button_3_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_3_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_push_off) {
+                	input "button_3_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_3_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_push_dim) {
+               		input "button_3_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_3_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_push_brighten) {
+                	input "button_3_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
             }
         }
         if(numButton == "4 button" || numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Dim\" Button") {
-                input "button_4_push_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-                input "button_4_push_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_4_push_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_4_push_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_4_push_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+			section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_4_push_dim) {
+                	input "button_4_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:truee
+				} else {
+                	input "button_4_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_push_toggle) {
+                	input "button_4_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_4_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_push_on) {
+                	input "button_4_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_4_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_push_off) {
+                	input "button_4_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_4_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_push_brighten) {
+                	input "button_4_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+                	input "button_4_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
             }
         }
 
-        section(hideable: true, hidden: true, "\"Off\" Button") {
-            input "button_5_push_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-            input "button_5_push_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_5_push_on", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "button_5_push_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_5_push_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+        section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+			if(button_5_push_off) {
+            	input "button_5_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false
+			} else {
+				input "button_5_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
+			}
+			if(button_5_push_toggle) {
+				input "button_5_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false
+			} else {
+				input "button_5_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
+			}
+			if(button_5_push_on) {
+				input "button_5_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false
+			} else {
+				input "button_5_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
+			}
+			if(button_5_push_dim) {
+				input "button_5_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_5_push_brighten) {
+				input "button_5_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
         }
         if(buttonDevice) {
-            section("• <font color=\"#000099\"><b>Long Push/Hold</b> - $buttonDevice</font>"){
+            section("<div style=\"background-color:BurlyWood\">• <font color=\"#000099\"><b>Long Push/Hold: For each button, select device(s) for desired action</b> - $buttonDevice</font>"){
             }
         } else {
-            section("• <b><font color=\"#000099\">Long Push/Hold</font></b>"){
+            section("<div style=\"background-color:BurlyWood\">• <b><font color=\"#000099\">Long Push/Hold: For each button, select device(s) for desired action</font></b>"){
             }
         }
-        section(hideable: true, hidden: true, "\"On\" Button") {
-            input "button_1_hold_on", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "button_1_hold_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_1_hold_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-            input "button_1_hold_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_1_hold_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+        section(hideable: true, hidden: true, "Top Button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+			if(button_1_hold_on) {
+				input "button_1_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_hold_toggle) {
+				input "button_1_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_hold_off) {
+				input "button_1_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_hold_dim) {
+				input "button_1_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_hold_brighten) {
+				input "button_1_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_1_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
         }
         if(numButton == "4 button" || numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Brighten\" Button") {
-                input "button_2_hold_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-                input "button_2_hold_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_2_hold_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_2_hold_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_2_hold_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
+            section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_2_hold_brighten) {
+					input "button_2_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_hold_toggle) {
+					input "button_2_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_hold_on) {
+					input "button_2_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_hold_off) {
+					input "button_2_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_hold_dim) {
+					input "button_2_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
             }
         }
         if(numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Middle\" Button") {
-                input "button_3_hold_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_3_hold_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_3_hold_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_3_hold_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-                input "button_3_hold_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+            section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_3_hold_toggle) {
+					input "button_3_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_hold_on) {
+					input "button_3_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_hold_off) {
+					input "button_3_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_hold_dim) {
+					input "button_3_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_hold_brighten) {
+					input "button_3_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
             }
         }
         if(numButton == "4 button" || numButton == "5 button"){
-            section(hideable: true, hidden: true, "\"Dim\" Button") {
-                input "button_4_hold_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-                input "button_4_hold_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-                input "button_4_hold_on", "capability.switch", title: "Turn On", multiple: true, required: false
-                input "button_4_hold_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-                input "button_4_hold_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+            section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_4_hold_dim) {
+					input "button_4_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_4_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+
+				}
+				if(button_4_hold_toggle) {
+                	input "button_4_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_4_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_hold_on) {
+					input "button_4_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_4_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_hold_off) {
+					input "button_4_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_4_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_4_hold_brighten) {
+					input "button_4_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_4_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
             }
         }
-        section(hideable: true, hidden: true, "\"Off\" Button") {
-            input "button_5_hold_off", "capability.switch", title: "Turn Off", multiple: true, required: false
-            input "button_5_hold_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_5_hold_on", "capability.switch", title: "Turn On", multiple: true, required: false
-            input "button_5_hold_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_5_hold_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
+        section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+			if(button_5_hold_off) {
+				input "button_5_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_5_hold_toggle) {
+				input "button_5_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_5_hold_on) {
+				input "button_5_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_5_hold_dim) {
+				input "button_5_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_5_hold_brighten) {
+				input "button_5_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+			} else {
+				input "button_5_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+			}
         }
-        section() {
-            input "pushMultiplier", "decimal", required: false, title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
-            input "holdMultiplier", "decimal", required: false, title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
-            paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99. For instance, 2.0 doubles the brightness each time (eg from 25% to 50%, then 100%)."
-        }
+		if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+			section() {
+				if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
+					input "pushMultiplier", "decimal", required: false, title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
+				} else {
+					paragraph "", width: 6
+				}
+				if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+				input "holdMultiplier", "decimal", required: false, title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
+				} else {
+					paragraph "", width: 6
+				}
+				paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99. For instance, 2.0 doubles the brightness each time (eg from 25% to 50%, then 100%)."
+			}
+		}
     }
 
 }
