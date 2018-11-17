@@ -16,7 +16,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - MagicCube.groovy
-*  Version: 0.0.01
+*  Version: 0.1.01
 * 
 ***********************************************************************************************************************/
 
@@ -38,65 +38,69 @@ preferences {
         }
         section() {
 			paragraph "<font color=\"#000099\"><b>Select which MagicCube(s).</b></font>"
-            input "buttonDevice", "capability.pushableButton", title: "The Cube", multiple: false, required: true
+            input "buttonDevice", "capability.pushableButton", title: "The Cube", multiple: false, required: true, submitOnChange:true
         }
 
-        section("Instructions") {
-            paragraph "For each action, select which lights or fans to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/fan (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-        }
-        section(hideable: true, hidden: true, "Shake") {
-            input "button_1_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_1_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_1_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_1_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_1_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-         section(hideable: true, hidden: true, "Slide") {
-            input "button_4_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_4_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_4_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_4_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_4_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Rotate clockwise") {
-            input "button_6_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_6_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_6_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_6_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_6_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Rotate counter clockwise") {
-            input "button_7_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_7_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_7_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_7_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_7_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "90° flip") {
-            input "button_2_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_2_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_2_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_2_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_2_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-         section(hideable: true, hidden: true, "180° flip") {
-            input "button_3_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_3_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_3_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_3_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_3_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-          section(hideable: true, hidden: true, "Knock") {
-            input "button_5_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "button_5_on", "capability.switch", title: "On", multiple: true, required: false
-            input "button_5_off", "capability.switch", title: "Off", multiple: true, required: false
-            input "button_5_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false
-            input "button_5_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false
-        }
-        section(){
-            input "multiplier", "decimal", required: false, title: "<b>Multiplier.</b> (Optional. Default 1.2.)"
-            paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99. For instance, 2.0 doubles the brightness each time (eg from 25% to 50%, then 100%)."
-        }
+		if(buttonDevice){
+			section("Instructions") {
+				paragraph "For each action, select which lights or fans to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/fan (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+			}
+			section(hideable: true, hidden: true, "Shake") {
+				input "button_1_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_1_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_1_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_1_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_1_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			 section(hideable: true, hidden: true, "Slide") {
+				input "button_4_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_4_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_4_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_4_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_4_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			section(hideable: true, hidden: true, "Rotate clockwise") {
+				input "button_6_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_6_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_6_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_6_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_6_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			section(hideable: true, hidden: true, "Rotate counter clockwise") {
+				input "button_7_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_7_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_7_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_7_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_7_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			section(hideable: true, hidden: true, "90° flip") {
+				input "button_2_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_2_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_2_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_2_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_2_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			 section(hideable: true, hidden: true, "180° flip") {
+				input "button_3_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_3_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_3_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_3_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_3_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			  section(hideable: true, hidden: true, "Knock") {
+				input "button_5_toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
+				input "button_5_on", "capability.switch", title: "On", multiple: true, required: false
+				input "button_5_off", "capability.switch", title: "Off", multiple: true, required: false
+				input "button_5_dim", "capability.switchLevel", title: "Dim", multiple: true, required: false, submitOnChange:true
+				input "button_5_brighten", "capability.switchLevel", title: "Brighten", multiple: true, required: false, submitOnChange:true
+			}
+			if(button_1_dim || button_1_brighten || button_2_dim || button_2_brighten || button_3_dim || button_3_brighten || button_4_dim || button_4_brighten || button_5_dim || button_5_brighten || button_6_dim || button_6_brighten || button_7_dim || button_7_brighten){
+				section(){
+					input "multiplier", "decimal", required: false, title: "<b>Multiplier.</b> (Optional. Default 1.2.)"
+					paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99. For instance, 2.0 doubles the brightness each time (eg from 25% to 50%, then 100%)."
+				}
+			}
+		}
     }
 }
 
