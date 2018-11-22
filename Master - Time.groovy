@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.1.01
+*  Version: 0.3.01
 *
 ***********************************************************************************************************************/
 
@@ -32,43 +32,6 @@ definition(
 )
 
 preferences {
-	/*
-    page(name: "setup", install: true, uninstall: true) {
-		option = 2
-		if(option == 1){
-			section() {
-				label title: "• <b><font color=\"#000099\">Assign a name:</font></b>", required: true
-			}
-			section("• <b><font color=\"#000099\">With what to do things?</font></b>") {
-				input "timeDevice", "capability.switch", title: "<b>Devices to control:</b>", multiple: true, required: true
-				paragraph "Options can be combined. To have a default brightness of 50% after 9pm, set start time and start level (but do not have turn on). To have device turn on at 7am and gradually brighten for a half hour from 1% to 100%, set start time of 7am, stop time of 7:30am, and at start time turn on with level of 1, and a stop time of 7:30a, with a level of 100."
-			}
-			section("• <b><font color=\"#000099\">When to do things?</font></b>") {
-				input "timeStart", "time", title: "<b>Start Time</b> (12:00AM if all day; Optional)", required: true, width:6
-				input "timeStop", "time", title: "<b>Stop Time</b> (11:59PM for remaining day; Optional)", required: false, width:6
-				input "timeDays", "enum", title: "<b>On these days:</b>", required: false, multiple: true, width:6, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
-				input "timeStartIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width:6
-
-			}
-			section("• <b><font color=\"#000099\">What to do at start time?</font></b>") {
-				input "timeOn", "enum", title: "<b>Turn On/Off?</b> (Optional)", multiple: false, required: false, width:6, options: ["Turn On", "Turn Off", "Toggle"]
-				input "timeModeChangeOn", "mode", title: "<b>Change Mode?</b> (Optional)", required: false, width:6
-				input "timeLevelOn", "number", title: "<b>Set brightness level to:</b> (Only if on; Optional: 1-100)", required: false, width:6
-				input "timeTempOn", "number", title: "<b>Set temperature color to:</b> (Only if on; Optional: 2200-4500)", required: false, width:6
-				input "timeLevelIfLower", "enum", title: "<b>Don't change Level if already:</b> (Optional)", multiple: false, required: false, width:6, options: ["Lower", "Brighter"]
-				input "timeTempIfLower", "enum", title: "<b>Don't change temperature color if already:</b> (Optional)", multiple: false, required: false, width:6, options: ["Lower", "Cooler"]
-
-			}
-			section("• <b><font color=\"#000099\">What to do at stop time? (Optional)</font></b>") {
-				input "timeOff", "enum", title: "<b>Turn On/Off?</b> (Optional)", multiple: false, required: false, width:6, options: ["Turn On", "Turn Off", "Toggle"]
-				input "timeModeChangeOff", "mode", title: "<b>Change Mode?</b> (Optional)", required: false, width:6
-				input "timeLevelOff", "number", title: "<b>Set brightness level to:</b> (Optional: 1-100)", required: false, width:6
-				input "timeTempOff", "number", title: "<b>Set temperature color to:</b> (Optional: 2200-4500)", required: false, width:6
-			}
-		} else {
-		*/
-
-		
     page(name: "setup", install: true, uninstall: true) {
         section() {
 
@@ -93,16 +56,16 @@ preferences {
 						paragraph "<center><b><font color=\"#000099\">• Starting •</font></b></center>", width: 6
 						// If time start not entered, don't show stop time
 						if(timeStart){
-							paragraph "<td><center><b><font color=\"#000099\">• Stopping •</font></b></center>", width: 6
+							paragraph "<center><b><font color=\"#000099\">• Stopping •</font></b></center>", width: 6
 						} else {
-							paragraph "", width: 6
+							paragraph "<font color=\"LightGray\">Stopping</font>", width: 6
 						}
 						input "timeStart", "time", title: "<b>Start Time</b> (12:00AM if all day; Optional)", required: true, width: 6,enable:false
 						// If time start not entered, don't show stop time
 						if(timeStart){
 							input "timeStop", "time", title: "<b>Stop Time</b> (11:59PM for remaining day; Optional)", required: false, width: 6
 						} else {
-							paragraph "", width: 6
+							paragraph "<font color=\"LightGray\">Stop Time</font>", width: 6
 						}
 						input "timeDays", "enum", title: "<b>On these days</b> (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 					}
@@ -122,7 +85,7 @@ preferences {
 						if(timeStart){
 							paragraph "<td><center><b><font color=\"#000099\">• Stopping •</font></b></center>", width: 6
 						} else {
-							paragraph "", width: 6
+							paragraph "<font color=\"LightGray\">Stopping (set Start Time)</font>", width: 6
 						}
 
 						// Start Time field
@@ -132,7 +95,7 @@ preferences {
 						if(timeStart){
 							input "timeStop", "time", title: "<b>Stop Time</b> (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
 						} else {
-							paragraph "", width: 6
+							paragraph "<font color=\"LightGray\">Stop Time</font>", width: 6
 						}
 
 						// Days
@@ -145,9 +108,9 @@ preferences {
 
 							// Stop On/Off/Toggle: Only show if Stop Time entered
 							if(timeStop){
-								input "timeOff", "enum", title: "<b><b>Turn device(s) on/off at stop time?</b> (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+								input "timeOff", "enum", title: "<b>Turn device(s) on/off at stop time?</b> (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
 							} else {
-								paragraph "", width: 6
+								paragraph "<font color=\"LightGray\">Set Stop Time for options</font>", width: 6
 							}
 
 							// Start Level
@@ -225,13 +188,6 @@ preferences {
     }
 }
 
-def dimSpeed(){
-    if(settings.multiplier != null){
-        return settings.multiplier
-    }else{
-        return 1.2
-    }
-}
 
 def installed() {
 	if(app.getLabel().length() < 4)  app.updateLabel("Time - " + app.getLabel())
@@ -266,37 +222,56 @@ def initialize() {
 	
 }
 
+def dimSpeed(){
+    if(settings.multiplier != null){
+        return settings.multiplier
+    }else{
+        return 1.2
+    }
+}
+
 def getDefaultLevel(device){
 	// *******************************************************************************
 	// ** TO DO: Merge level,temp, hue and sat into one function (and return array) **
 	// *******************************************************************************
-
-	// If no default level, return null
-	if(!timeLevelOn) return
-	
-	// If disabled, return null
-	if(timeDisable || state.timeDisableAll) return
+	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 	
 	// If no device match, return null
 	match = false
 	timeDevice.each{
 		if(it.id == device.id)  match = true
 	}
-	if(match == false) return
+	if(match == false) return defaults
+	
+	// Set map with fake values (must test if equals "a" as if null
+	
+	// If no default level, return null
+	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) return defaults
+	
+	// If disabled, return null
+	if(timeDisable || state.timeDisableAll) return defaults
+	
+	// If no device match, return null
+	match = false
+	timeDevice.each{
+		if(it.id == device.id)  match = true
+	}
+	if(match == false) return defaults
+	
 
 	// If mode set and node doesn't match, return null
 	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
+		if(location.mode != timeStartIfMode) return defaults
 	}
 
 	// If before start time, return null
 	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return
+		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
 	}
 
 	// If after time stop, return null
 	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return
+		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
 	}
 
 	// If not correct day, return null
@@ -304,297 +279,209 @@ def getDefaultLevel(device){
 		def df = new java.text.SimpleDateFormat("EEEE")
 		df.setTimeZone(location.timeZone)
 		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return
+		if(!timeDays.contains(day)) return defaults
 	}
 
 	// Get current level
 	currentLevel = device.currentLevel
-
+	currentTemp = device.currentColorTemperature
+	currentHue = device.currentHue
+	currentSat = device.currentSaturation
+	
 	// If no stop time or no start level, return start level
-	if(!timeStop || !timeLevelOff) {
-		// If start level is too dim, and set not to dim, return current level
-		if(timeLevelIfLower == "Lower"){
-			if(parent.stateOn(device) == true && currentLevel < timeLevelOn) return currentLevel
+	if(!timeStop) {
+		if(timeLevelOn && !timeLevelOff){
+			defaults = [level: timeLevelOn]
+			// If start level is too dim, and set not to dim, return current level
+			if(timeLevelIfLower){
+				if(timeLevelIfLower == "Lower"){
+					if(parent.stateOn(device) && currentLevel < timeLevelOn) defaults = [level: currentLevel]
+				// If start level is too bright, and set not to brighten, return current level
+				} else if(timeLevelIfLower == "Higher"){
+					if(parent.stateOn(device) && currentLevel > timeLevelOn) defaults = [level: currentLevel]
+				}
+			}
 		}
-		// If start level is too bright, and set not to brighten, return current level
-		if(timeLevelIfLower == "Higher"){
-			if(parent.stateOn(device) == true && currentLevel > timeLevelOn) return currentLevel
+
+		if(timeTempOn && !timeTempOff){
+			defaults = [temp: timeTempOn]
+			// If start temp is too low, and set not to go lower, return current level
+			if(timeTempIfLower){
+				if(timeTempIfLower == "Lower"){
+					if(parent.stateOn(device) && currentTemp < timeTempOn) defaults = [temp: currentTemp]
+				// If start temp is too high, and set not to go higher, return current level
+				} else if(timeTempIfLower == "Higher"){
+					if(parent.stateOn(device) && currentTemp > timeTempOn) defaults = [temp: currentTemp]
+				}
+			}
 		}
-		// Otherwise, return start level
-		return timeLevelOn
+		if(timeHueOn && !timeHueOff){
+			// Return start level
+			if(timeHueOn) defaults = [hue: timeHueOn]
+		}
+		if(timeSatOn && !timeSatOff){
+			// Return start level
+			if(timeSatOn) defaults = [sat: timeSatOn]
+		}
 	}
 
 	// If default level is the current level, return current level
-	if(timeLevelOn == currentLevel && !timeLevelOff) currentLevel
+	if(timeLevelOn && timeLevelOn == currentLevel && !timeLevelOff && !defaults.level) defaults = [level: currentLevel]
+	if(timeTempOn && timeTempOn == currentTemp && !timeTempOff && !defaults.temp) defaults = [temp: currentTemp]
+	if(timeHueOn && timeHueOn == currentHue && !timeHueOff && !defaults.hue) defaults = [hue: currentHue]
+	if(timeSatOn && timeSatOn == currentSat && !timeSatOff && !defaults.sat) defaults = [sat: currentSat]
 
 	// If there's a stop time and stop level, and after start time
-	if(timeStop && timeLevelOff){
-		if(timeStart){
-			// Calculate proportion of time already passed from start time to endtime
-			hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes2 = new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds2 = new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			// Calculate new level
-			newLevel = (timeLevelOff - timeLevelOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeLevelOn as int
 
-			// If new level is too dim, and set not to dim, return current level
-			if(timeLevelIfLower == "Lower"){
-				if(parent.stateOn(device) == true && currentLevel < newLevel) return currentLevel
-			}
-			// If new level is too bright, and set not to brighten, return current level
-			if(timeLevelIfLower == "Higher"){
-				if(parent.stateOn(device) == true && currentLevel > newLevel) return currentLevel
-			}
-			
-			// If device is a fan, round it to a third
-			if(parent.isFan(device)) newLevel = roundFanLevel(newLevel)
-			
-			// Return the new level
-			return newLevel
+	if(timeStart && timeStop){
+		// Calculate proportion of time already passed from start time to endtime
+		hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
+		minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
+		seconds1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
+		hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
+		minutes2 = new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
+		seconds2 = new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
+		// Calculate new level
+		if(timeLevelOff && timeLevelOn) {
+			newLevel = (timeLevelOff - timeLevelOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeLevelOn as int
+		} else if(timeLevelOn) {
+			newLevel = timeLevelOn
 		}
+		if(timeTempOff && timeTempOn) {
+			newTemp = (timeTempOff - timeTempOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeTempOn as int
+		} else if(timeTempOn){
+			newTemp = timeTempOn
+		}
+		
+		if(timeHueOff && timeHueOn) {
+			newHue = (timeHueOff - timeHueOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeHueOn as int
+		} else if(timeHueOn){
+			newHue = timeHueOn
+		}
+		if(timeSatOff && timeSatOn) {
+			newSat = (timeSatOff - timeSatOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeSatOn as int
+		} else if (timeSatOn){
+			newSat = timeSatOn
+		}
+
+		if(newLevel && defaults.level == "Null"){
+			// If new level is too dim, and set not to dim, return current level
+			if(timeLevelIfLower){
+				if(timeLevelIfLower == "Lower"){
+					if(parent.stateOn(device) && currentLevel < newLevel) defaults.put("level",currentLevel)
+				}
+				// If new level is too bright, and set not to brighten, return current level
+				if(timeLevelIfLower == "Higher"){
+					if(parent.stateOn(device) && currentLevel > newLevel) defaults.put("level",currentLevel)
+				}
+			}
+		}
+
+		if(defaults.level == "Null" && newLevel) defaults.put("level",newLevel)
+		if(parent.isFan(device) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
+
+		// Set temp
+		if(newTemp && defaults.temp == "Null"){
+			// If new level is too low, and set not to go lower, return current level
+			if(timeTempIfLower){
+				if(timeTempIfLower == "Lower"){
+					if(parent.stateOn(device) && currentTemp < newTemp) defaults.put("temp",currentTemp)
+				}
+				// If new level is too high, and set not to go higher, return current level
+				if(timeTempIfLower == "Higher"){
+					if(parent.stateOn(device) && currentTemp > newTemp) defaults.put("temp",currentTemp)
+				}
+			}
+		}
+		if(defaults.temp == "Null" && newTemp) defaults.put("temp",newTemp)
+		// Set hue
+		if(defaults.hue == "Null" && newHue) defaults.put("hue",newHue)
+		// Set sat
+		if(defaults.sat == "Null" && newSat) defaults.put("sat",newSat)
 	}
 
 	// Should be all the options, but let's return current level just in case, and log an error
-	log.debug "Time: No default level match found for $device."
-	return currentLevel
+	if(defaults.level == "Null") log.debug "Time: No default level match found for $device."
+	return defaults
 }
 
-def getDefaultTemp(device){
-	// If no default temp, return null
-	if(!timeTempOn) return
+// New schedule initializer
+// Not completed or implemented
+// Will replace setDaySchedule (perhaps others)
+// Fixes: wasn't creating day schedule for mode only change
+//        Incorrectly creating increment schedule when nothing is on
+//        Failing to create increment schedule immediatly (when initializing)
+def initializeSchedules(){
+	if(!timeStart) return
+	
+	// ****************************
+	// TO-DO - make sure reenabling reschedules
+	// *****************************
 	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return
-
-	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id) match = true
-	}
-	if(match == false) return
-
-	// If mode set and node doesn't match, return null
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
-	}
 	
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return
-	}
-
-	// If after time stop, return null
+	// Immediately start incremental schedules
+	// If incremental
 	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return
-	}
-	
-	// If not correct day, return null
-	if(timeDays){
-		def df = new java.text.SimpleDateFormat("EEEE")
-		df.setTimeZone(location.timeZone)
-		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return
-	}
-	
-	// Get current temp
-	currentTemp = device.currentColorTemperature
-	
-	//If no stop time or no start level, return start level
-	if(!timeStop || !timeTempOff) {
-		// If start temp is too low, and set not to lower, return current temp
-		if(timeLevelIfLower == "Lower"){
-			if(parent.stateOn(device) == true && currentTemp < timeTempOn) return currentTemp
-		}
-		// If start temp is too high, and set not to raise, return current temp
-		if(timeLevelIfLower == "Higher"){
-			if(parent.stateOn(device) == true && currentTemp > timeTempOn) return currentTemp
-		}
-		// Otherwise, return start level
-		return timeTempOn
-	}
-	
-	// If default temp is the current temp, return current temp
-	if(timeLevelOn == currentTemp && !timeLevelOff) currentTemp
-
-	//If default temp is the current level (plus or minus four, because temp isn't exact)
-	if(timeTempOn > currentTemp - 4 &&  timeTempOn < currentTemp + 4 && !timeTempOff) return currentTemp
-
-	// If there's a stop time and stop temp, and after start time
-	if(timeStop && timeTempOff){
-		if(timeStart){
-			// Calculate proportion of time already passed from start time to endtime
-			hours1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes2=new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds2=new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			// Calculate new temp
-			newTemp = (timeTempOff - timeTempOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeTempOn as int
-
-			// If new level is too low, and set not to lower, return current temp
-			if(timeTempIfLower == "Lower"){
-				if(parent.stateOn(device) == true && currentTemp < newTemp) return currentTemp
+		// If correct Mode
+		if(timeStartIfMode && location.mode != timeStartIfMode){
+			// If correct day
+			def df = new java.text.SimpleDateFormat("EEEE")
+			df.setTimeZone(location.timeZone)
+			def day = df.format(new Date())
+			if(timeDays && timeDays.contains(day)){
+				// If between start and stop time
+				if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone).time){
+					// If anything is on
+					if(parent.multiStateOn(timeDevice)){
+						secondStageSchedule()
+					}
+				}
 			}
-			// If new level is too high, and set not to raise, return current temp
-			if(timeTempIfLower == "Higher"){
-				if(parent.stateOn(device) == true && currentTemp > newTemp) return currentTemp
+		}
+	}
+
+	// Get start time cron data
+	weekDays = weekDaysToNum()
+	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
+	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
+
+	// Schedule next day incrementals, if no start action to be scheduled 
+	// Change to scheduling both - just skip secondStageSchedule
+	// FIrst, check if a day schedule - if so, add 20 seconds
+	// Otherwise, schedule without seconds
+	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) {
+		if(weekDays) {
+			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, secondStageSchedule)
+		} else {
+			schedule("0 " + minutes + " " + hours + " * * ?", secondStageSchedule)
+		}
+	// Schedule next day's starting on/off/toggle
+	} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle" || timeModeChangeOn){
+		if(weekDays) {
+			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
+		} else {
+			schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
+		}
+	}
+																									 
+	// Schedule next day's ending on/off/toggle														  
+	if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle" || timeModeChangeOff){
+		if(timeStop){
+			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
+			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
+			if(weekDays) {
+				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
+			}else {
+				schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
 			}
-			
-			// Return the new level
-			return newTemp
 		}
-	}
-
-	// Should be all the options, but let's return current temp just in case, and log an error
-	log.debug "Time: No default temp match found for $device."
-	return currentTemp
+	}															  
 }
 
-def getDefaultHue(device){
-	// If no default hue, return null
-	if(!timeHueOn) return
-	
-	// If disabled, return null
-	if(timeDisable || state.timeDisableAll) return
-	
-	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id)  match = true
-	}
-	if(match == false) return
-	
-	// If mode set and node doesn't match, return null
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
-	}
-	
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return
-	}
-
-	// If after time stop, return null
-	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return
-	}
-	
-	// If not correct day, return null
-	if(timeDays){
-		def df = new java.text.SimpleDateFormat("EEEE")
-		df.setTimeZone(location.timeZone)
-		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return
-	}
-	
-	// Get current level
-	currentHue = device.currentHue
-	
-	// If no stop time or no stop level, return start hue
-	if(!timeStop || !timeHueOff) {
-		// Otherwise, return start hue
-		return timeHueOn
-	}
-
-	// If default hue is the current hue, return current hue
-	if(timeHueOn == currentHue && !timeHueOff) currentHue
-	
-	// If there's a stop time and stop level, and after start time
-	if(timeStop && timeHueOff){
-		if(timeStart){
-			// Calculate proportion of time already passed from start time to endtime
-			hours1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes2=new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds2=new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			// Calculate new hue and return
-			newTemp = (timeHueOff - timeHueOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeHueOn as int
-			return newHue
-		}
-	}
-
-	// Should be all the options, but let's return current hue just in case, and log an error
-	log.debug "Time: No default hue match found for $device."
-	return currentHue
-}
-
-
-def getDefaultSat(device){
-	// If no default level, return null
-	if(!timeSatOn) return
-	
-	// If disabled, return null
-	if(timeDisable || state.timeDisableAll) return
-	
-	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id)  match = true
-	}
-	if(match == false) return
-
-	// If mode set and node doesn't match, return null
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
-	}
-	
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return
-	}
-	
-	// If after time stop, return null
-	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return
-	}
-	
-	// If not correct day, return null
-	if(timeDays){
-		def df = new java.text.SimpleDateFormat("EEEE")
-		df.setTimeZone(location.timeZone)
-		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return
-	}
-	
-	// Get current sat
-	currentSat = device.currentSaturation
-	
-	// If no stop time or no start sat, return start sat
-	if(!timeStop || !timeSatOff) {
-		return timeSatOn
-	}
-	
-	// If default sat is the current sat, return current sat
-	if(timeSatOn == currentSat && !timeLevelOff) currentSat
-	
-	// If there's a stop time and stop sat, and after start time
-	if(timeStop && timeSatOff){
-		if(timeStart){
-			// Calculate proportion of time already passed from start time to endtime
-			hours1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds1=Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-			minutes2=new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-			seconds2=new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
-			// Calculate new and return new sat
-			newTemp = (timeSatOff - timeSatOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeSatOn as int
-			return newTemp
-		}
-	}
-
-	// Should be all the options, but let's return current sat just in case, and log an error
-	log.debug "Time: No default saturation match found for $device."
-	return currentSat
-}
-
-// Set on/off day schedule event
+// Setup on/off day schedule event
+// Called from initialize (then loops from runDayOnSchedule and runDayOffSchedule)
 def setDaySchedule(){
 	if(!timeStart) return
 	if(timeDisable || state.timeDisableAll) return
@@ -642,10 +529,11 @@ def setDaySchedule(){
 }
 
 def reschedule(device){
+	match = false
 	timeDevice.each{
-		log.debug "time.reshedule - device id = $device.id (matching on $it.id)"
-		if(it.id == device.id) firstStageSchedule()
-    }
+		if(it.id == device.id) match = true
+	}
+	if(match) firstStageSchedule()
 }
 
 // Allows pausing scheduling for a minute
@@ -659,7 +547,13 @@ def firstStageSchedule(){
 
 //settings up schedules for level/temp
 def secondStageSchedule(){
+	// Probably don't need this, but maybe possible to have multiple schedules??
 	unschedule(secondStageSchedule)
+	
+	// If no default level, return null
+	if(!timeLevelOn) return
+	
+	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return
 	if(!timeStop) return
 	var = parent.multiStateOn(settings.timeDevice)
@@ -678,102 +572,85 @@ def secondStageSchedule(){
 	log.info "Time: Scheduling update for 20 seconds for $timeDevice."
 }
 
-// run scheduled level/temp
+// run scheduled level/temp incremental changes
+// scheduled function called from secondStageSchedule
 def runMultiSchedule(){
 	if(timeDisable || state.timeDisableAll) return
+	
+	// If no stop time, then don't need incremental changes
 	if(!timeStop) return
+
 	// If nothing is on, exit
 	if(!parent.multiStateOn(timeDevice)) return
 	
+	// If mode set and node doesn't match, exit
 	if(timeStartIfMode){
 		if(location.mode != timeStartIfMode) return
 	}
 	
-					log.debug "temp0.1"
-	// If nothing to do, exit
-	if((!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) || timeOn == "Turn Off") return
-	
-					log.debug "temp0.2"
-	// If after time stop
-    if(timeStop){
-        if(now() > timeToday(timeStop, location.timeZone).time) return
-    }
-	
-	if(timeDays){
-		// If not correct day, exit
-		def df = new java.text.SimpleDateFormat("EEEE")
-		df.setTimeZone(location.timeZone)
-		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return
-	}
-	
+	// Loop through devices
 	timeDevice.each{
-		if(parent.stateOn(it) == true){
+		// Ignore devices that aren't on
+		if(parent.stateOn(it)){
+			// Set level
 			if(timeLevelOn && parent.isDimmable(it)){
+				currentLevel = it.currentlLevel
 				defaultLevel = getDefaultLevel(it)
-					if(defaultLevel != it.currentLevel) {
-					//mode
-						/*
-					//If don't dim and is dimmer
-					if(timeLevelIfLower == "Lower"){
-						if(it.currentLevel > timeLevelOn) return 
+				if(defaultLevel){
+					if(defaultLevel != currentLevel) {
+						if(timeLevelIfLower == "Lower"){
+							if(currentLevel < defaultLevel) return 
+						}
+						if(timeLevelIfLower == "Higher"){
+							if(currentLevel > defaultLevel) return
+						}
+						parent.setToLevel(it,defaultLevel,app.getId())
 					}
-					//If don't brighten and is brighter
-					if(timeLevelIfLower == "Higher"){
-						if(it.currentLevel < timeLevelOn) return
-					}
-*/
-					if(timeLevelIfLower == "Lower"){
-						if(it.currentLevel < defaultLevel) return 
-					}
-					if(timeLevelIfLower == "Higher"){
-						if(it.currentLevel > defaultLevel) return
-					}
-					parent.setToLevel(it,defaultLevel,app.getId())
 				}
 			}
+			// Set temp
 			if(timeTempOn && parent.isTemp(it)){
+				currentTemp = it.currentColorTemperature
 				defaultTemp = getDefaultTemp(it)
-				
-				if(defaultTemp - it.currentColorTemperature > 4 || defaultTemp - it.currentColorTemperature < -4) {
-					//mode
-					/*
-					//If don't dim and is dimmer
-					if(timeTempIfLower == "Lower"){
-						if(it.currentColorTemperature < timeTempOn) return 
+				if(defaultTemp){
+					if(defaultTemp - currentTemp > 4 || defaultTemp - currentTemp < -4) {
+						if(timeTempIfLower == "Lower"){
+							if(currentTemp < defaultTemp) return 
+						}
+						if(timeTempIfLower == "Higher"){
+							if(currentTemp > defaultTemp) return
+						}
+						parent.singleTemp(it,defaultTemp,app.getId())
 					}
-					//If don't brighten and is brighter
-					if(timeTempIfLower == "Higher"){
-						if(it.currentColorTemperature > timeTempOn) return
-					}
-*/
-					if(timeTempIfLower == "Lower"){
-						if(it.currentColorTemperature < defaultTemp) return 
-					}
-					if(timeTempIfLower == "Higher"){
-						if(it.currentColorTemperature > defaultTemp) return
-					}
-					parent.singleTemp(it,defaultTemp,app.getId())
 				}
 			}
 			
+			// Set hue and sat
 			if(timeHueOn && parent.isColor(it)){
 				defaultHue = getDefaultHue(it)
-				parent.singleTemp(it,defaultTemp,app.getId())
 			}
 			if(timeHueOn && parent.isColor(it)){
 				defaultSat = getDefaultSat(it)
 			}
-			if(timeHueOn || timeSatOn) parent.singleColor(it,defaultHue,defaultSat,app.getId())
+			// If either Hue or Sat, but not both, set the other to current
+			if(defaultHue || defaultSat) {
+				if(!defaultHue) defaultHue = it.currentHue
+				if(!defaultSat) defaultSat = it.currentSaturation
+				parent.singleColor(it,defaultHue,defaultSat,app.getId())
+			}
 		}
 	}
 }
 
+//Scheduled function called from setDaySchedule
 def runDayOnSchedule(){
 	if(timeDisable || state.timeDisableAll) return
-	if(timeModeChangeOn) setLocationMode(timeModeChangeOn)
 	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle") return
 	// if mode return
+	if(timeStartIfMode){
+		if(location.mode != timeStartIfMode) return
+	}
+	if(timeModeChangeOn) setLocationMode(timeModeChangeOn)
 	if(timeOn == "Turn On"){
 		parent.multiOn(timeDevice,app.getId())
 	} else if(timeOn == "Turn Off"){
@@ -781,14 +658,18 @@ def runDayOnSchedule(){
 	} else if(timeOn == "Toggle"){
 		parent.toggle(timeDevice,app.getId())
 	}
-	//firstStageSchedule()
+	setDaySchedule()
 }
 
+//Scheduled function called from setDaySchedule
 def runDayOffSchedule(){
 	if(timeDisable || state.timeDisableAll) return
 	if(timeModeChangeOff) setLocationMode(timeModeChangeOff)
 	if(timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle") return
 	// if mode return
+	if(timeStartIfMode){
+		if(location.mode != timeStartIfMode) return
+	}
 	if(timeOff == "Turn On"){
 	   parent.multiOn(timeDevice,app.getId())
 	} else if(timeOff == "Turn Off"){
@@ -796,7 +677,7 @@ def runDayOffSchedule(){
 	} else if(timeOff == "Toggle"){
 	   parent.toggle(timeDevice,app.getId())
 	}
-	//firstStageSchedule()
+	setDaySchedule()
 }
 
 def weekDaysToNum(){
