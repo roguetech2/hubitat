@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.0.04
+*  Version: 0.1.01
 *
 ***********************************************************************************************************************/
 
@@ -157,23 +157,21 @@ def singleOff(device,child = "Master"){
 
 def multiOn(device,childId="Master"){
     device.each{
-		log.debug "mutliOn - $device: 1"
 		// Using temp vars since each app will overwrite with null
         childApps.each {Child->
             if(Child.label.substring(0,4) == "Time") {
-				log.debug "Master - childId = $childId (matching on $Child.id)"
-                if(isDimmable(it)) tempDefaultLevel = Child.getDefaultLevel(it)
-				if(tempDefaultLevel) defaultLevel = tempDefaultLevel
-                if(isTemp(it)) tempDefaultTemp = Child.getDefaultTemp(it)
-				if(tempDefaultTemp) defaultTemp = tempDefaultTemp
+				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
+				defaults = Child.getDefaultLevel(it)
+	
+				log.debug "Master - childId = $childId (matching on $Child.id) with device id = $it.id"
+				
+				if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
+                if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
 				if(isColor(it)){
-					tempDefaultHue = Child.getDefaultHue(it)
-					if(tempDefaultHue) defaultHue = tempDefaultHue
+					if(defaults.hue != "Null") defaultHue = defaults.hue
+					if(defaults.sat != "Null") defaultSat = defaults.sat
 				}
-				if(isColor(it)){
-					tempDefaultSat = Child.getDefaultSat(it)
-					if(tempDefaultSat) defaultSat = tempDefaultSat
-				}
+
 				if(defaultHue && !defaultSat){
 					defaultSat = 100
 				} else if(!defaultHue && defaultSat){
@@ -184,19 +182,16 @@ def multiOn(device,childId="Master"){
         }
 		if(!defaultLevel) defaultLevel = 100
 		if(!defaultTemp) defaultTemp = 3400
+		log.debug "level: $defaultLevel temp: $defaultTemp hue: $defaultHue sat: $defaultSat"
         if(isDimmable(it)){
-			log.debug "mutliOn - $device: 2"
             if(isFan(it)){
-			log.debug "mutliOn - $device: 3"
                 reschedule(it)
                 setToLevel(it,roundFanLevel(defaultLevel),childId)
             } else {
-			log.debug "mutliOn - $device: 4"
                 reschedule(it)
             	setToLevel(it,defaultLevel,childId)
             }
         } else {
-			log.debug "mutliOn - $device: 5"
             reschedule(it)
             singleOn(it,childId)
         }
@@ -216,39 +211,32 @@ def multiOff(device,childId="Master"){
 
 def toggle(device,childId="Master"){
     device.each{
-		// Using temp vars since each app will overwrite with null
-        childApps.each {Child->
-            if(Child.label.substring(0,4) == "Time") {
-				log.debug "Master - childId = $childId (matching on $Child.id)"
-                if(isDimmable(it)) tempDefaultLevel = Child.getDefaultLevel(it)
-				if(tempDefaultLevel) defaultLevel = tempDefaultLevel
-                if(isTemp(it)) tempDefaultTemp = Child.getDefaultTemp(it)
-				if(tempDefaultTemp) defaultTemp = tempDefaultTemp
-				log.debug "mutliOn - defaultLevel = $defaultLevel"
-				if(isColor(it)){
-					tempDefaultHue = Child.getDefaultHue(it)
-					if(tempDefaultHue) defaultHue = tempDefaultHue
+		if(!stateOn(it)){
+			// Using temp vars since each app will overwrite with null
+			childApps.each {Child->
+				if(Child.label.substring(0,4) == "Time") {
+					defaults = Child.getDefaultLevel(it)
+					log.debug "Master - childId = $childId (matching on $Child.id) with device = $it.id"
+					if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
+					if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
+					if(isColor(it) && defaults.hue != "Null") defaultHue = defaults.hue
+					if(isColor(it) && defaults.sat != "Null") defaultSat = defaults.sat
+					if(defaultHue && !defaultSat){
+						defaultSat = 100
+					} else if(!defaultHue && defaultSat){
+						defaultHue = false
+						defaultSat = false
+					}
 				}
-				if(isColor(it)){
-					tempDefaultSat = Child.getDefaultSat(it)
-					if(tempDefaultSat) defaultSat = tempDefaultSat
-				}
-				if(defaultHue && !defaultSat){
-					defaultSat = 100
-				} else if(!defaultHue && defaultSat){
-					defaultHue = false
-					defaultSat = false
-				}
-            }
-        }
-		if(!defaultLevel) defaultLevel = 100
-		if(!defaultTemp) defaultTemp = 3400
-        if (!stateOn(it)){
-            if(isDimmable(it)){
-                setToLevel(it,defaultLevel,childId)
-            } else {
-                singleOn(it,defaultLevel,childId)
-            }
+			}
+			if(!defaultLevel) defaultLevel = 100
+			if(!defaultTemp) defaultTemp = 3400
+			
+			if(isDimmable(it)){
+				setToLevel(it,defaultLevel,childId)
+			} else {
+				singleOn(it,defaultLevel,childId)
+			}
 			if(defaultTemp && isTemp(it)) singleTemp(it,defaultTemp,childId)
 			if(defaultHue && defaultSat && isColor(it)) singleColor(it,defaultHue,defaultSat,childId)
         } else {
