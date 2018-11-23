@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.03
+*  Version: 0.1.04
 *
 ***********************************************************************************************************************/
 
@@ -172,7 +172,7 @@ def presenceHandler(evt) {
 
 	// Text first (just in case error)
 	/* ***************************************** */
-	/* TO DO: Built lock code                    */
+	/* TO DO: Built text code                    */
 	/* ***************************************** */
 	
 	// Set mode
@@ -191,7 +191,7 @@ def presenceHandler(evt) {
 
 	// Lock/unlock doors
 	/* ***************************************** */
-	/* TO DO                                     */
+	/* TO DO: Build lock code                    */
 	/* ***************************************** */
 
 	// Flash alert
