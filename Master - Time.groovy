@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.03
+*  Version: 0.3.04
 *
 ***********************************************************************************************************************/
 
@@ -44,141 +44,197 @@ preferences {
 
 				// If all disabled, force reenable
 				if(state.timeDisable){
-					input "timeDisableAll", "bool", title: "All schedules are disabled. Reenable?", defaultValue: false, submitOnChange:true
+					input "timeDisableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", defaultValue: false, submitOnChange:true
 				// If schedule disabled, show only basic options
 				} else if(timeDisable){
-					label title: "• <b><font color=\"#000099\">Assign a name:</font></b>", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this schedule:</b></div>"
+					label title: "Schedule name?", required: true, submitOnChange:true
 					if(app.label){
-						paragraph "• <b><font color=\"#000099\">Device(s) to control?</font></b>"
-						input "timeDevice", "capability.switch", title: "<b>Device(s):</b>", multiple: true, required: true, submitOnChange:true
-						input "timeDisable", "bool", title: "<b><font color=\"#000099\">This schedule is disabled.</font></b> Reenable it?", submitOnChange:true
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices to schedule:</b></div>"
+						input "timeDevice", "capability.switch", title: "Device(s)?", multiple: true, required: true, submitOnChange:true
+						input "timeDisable", "bool", title: "<b><font color=\"#000099\">Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
 						// If no devices selected, don't show anything else (except disabling)
 						if(timeDevice){
-							paragraph "<center><b><font color=\"#000099\">• Starting •</font></b></center>", width: 6
-							// If time start not entered, don't show stop time
-							if(timeStart){
-								paragraph "<center><b><font color=\"#000099\">• Stopping •</font></b></center>", width: 6
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
+							if(timeStop){
+								input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
 							} else {
-								paragraph "<font color=\"LightGray\">Stopping</font>", width: 6
+								input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
 							}
-							input "timeStart", "time", title: "<b>Start Time</b> (12:00AM if all day; Optional)", required: true, width: 6,enable:false
-							// If time start not entered, don't show stop time
 							if(timeStart){
-								input "timeStop", "time", title: "<b>Stop Time</b> (11:59PM for remaining day; Optional)", required: false, width: 6
+								input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
 							} else {
-								paragraph "<font color=\"LightGray\">Stop Time</font>", width: 6
+								input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
 							}
-							input "timeDays", "enum", title: "<b>On these days</b> (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 						}
 					}
 					
 					input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
 				// If not disabled, show all options
 				} else {
-					label title: "• <b><font color=\"#000099\">Assign a name:</font></b>", required: true, submitOnChange:true
-					if(app.label){
-						paragraph "• <b><font color=\"#000099\">Device(s) to control?</font></b>"
-						input "timeDevice", "capability.switch", title: "<b>Device(s):</b>", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this schedule:</b></div>"
+					label title: "Schedule name?", required: true, submitOnChange:true
+					if(!app.label){
+						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+					} else if(app.label){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices to schedule:</b></div>"
+						input "timeDevice", "capability.switch", title: "Device(s)?", multiple: true, required: true, submitOnChange:true
 						input "timeDisable", "bool", title: "Disable this schedule?", defaultValue: false, submitOnChange:true
+						if(!timeDevice){
+							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						// If no devices selected, don't show anything else (except disabling)
-						if(timeDevice){
-							paragraph "<center><b><font color=\"#000099\">• Starting •</font></b></center>", width: 6
-
-							// Stop column label: If no start time, don't show
-							if(timeStart){
-								paragraph "<td><center><b><font color=\"#000099\">• Stopping •</font></b></center>", width: 6
+						} else if(timeDevice){
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Enter time or mode (Optional):</b></div>"
+							if(timeStop){
+								input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
 							} else {
-								paragraph "<font color=\"LightGray\">Stopping (set Start Time)</font>", width: 6
+								input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
 							}
-
-							// Start Time field
-							input "timeStart", "time", title: "<b>Start Time</b> (12:00AM if all day; Optional)", required: true, width: 6, submitOnChange:true
-
-							// Stop Time field: Only show if start time entered
 							if(timeStart){
-								input "timeStop", "time", title: "<b>Stop Time</b> (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+								input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
 							} else {
-								paragraph "<font color=\"LightGray\">Stop Time</font>", width: 6
+								input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
 							}
-
-							// Days
-							input "timeDays", "enum", title: "<b>On these days</b> (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
-
+							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+							if(!timeStart) {
+								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+				
 							// If no start time, don't show any start or stop options
-							if(timeStart){
+							} else if(timeStart){
 								// Start On/Off/Toggle
-								input "timeOn", "enum", title: "<b>Turn device(s) on/off at start time?</b> (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Select whether to turn on or off:</b></div>"
+								input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is). Click to continue setting level, colors and mode.", submitOnChange:true
+								if(!timeOnOffDisable) input "timeOn", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
 
 								// Stop On/Off/Toggle: Only show if Stop Time entered
-								if(timeStop){
-									input "timeOff", "enum", title: "<b>Turn device(s) on/off at stop time?</b> (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
-								} else {
-									paragraph "<font color=\"LightGray\">Set Stop Time for options</font>", width: 6
+								if(!timeOnOffDisable) {
+									if(timeStop){
+										input "timeOff", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+									} else {
+										paragraph "Set stop time for options", width: 6
+									}
 								}
 
-								// Start Level
-								input "timeLevelOn", "number", title: "<b>Starting default brightness:</b> (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+								if(!timeOnOffDisable && !timeOn && !timeOff){
+									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+								} else if(timeOnOffDisable || timeOn || timeOff){
+									if(timeStop){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending brightness:</b></div>"
+									} else {
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default brightness for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+									}
+									input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b> Click to continue setting colors and mode.", submitOnChange:true
+									// Start Level
+									if(!timeLevelDisable){
+										if(timeStop){
+											input "timeLevelOn", "number", title: "Beginning brightness at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+										} else {
+											input "timeLevelOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default brightness? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+										}
 
-								// Stop Level: Only show if Stop Time entered
-								if(timeStop){
-									input "timeLevelOff", "number", title: "<b>Ending default brightness:</b> (Optional: 1-100)", required: false, width: 6
-								} else {
-									paragraph "", width: 6
+										// Stop Level: Only show if Stop Time entered
+										if(timeStop){
+											input "timeLevelOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change brightness to? (Optional: 1-100)", required: false, width: 6
+										} else {
+											paragraph "Set stop time for options", width: 6
+										}
+										
+										input "timeLevelIfLower", "enum", title: "Don't change Level if light it's already dimmer or brighter? (Optional)", multiple: false, required: false, options: ["Lower":"Brighter", "Higher":"Dimmer"]
+									}
+									if(!timeLevelOn && !timeLevelDisable){
+										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+									} else if(timeLevelOn || timeLevelDisable){
+										if(timeStop){
+											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending temperature color:</b></div>"
+										} else {
+											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default temperature color for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+										}
+										input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b> Click to continue setting colors and mode.", submitOnChange:true
+										paragraph "Temperature color is a range from about 2200 to about 4500, where lower numbers are more \"warm\" and orange, and higher numbers are more \"cool\" and blue."
+										if(!timeTempDisable){
+											// Start Temp
+											if(timeStop){
+												input "timeTempOn", "number", title: "Beginning temperature at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
+											} else {
+												input "timeTempOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default temperature? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
+											}
+
+											// Stop Level: Only show if Stop Time entered
+											if(timeStop){
+												input "timeTempOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change temperature to? (Optional: 2200-4500)", required: false, width: 6
+											} else {
+												paragraph "Set stop time for options", width: 6
+											}
+											
+											input "timeTempIfLower", "enum", title: "Don't change temperature color if light is already warmer or cooler? (Optional)", multiple: false, required: false, options: ["Lower":"Warmer", "Higher":"Cooler"]
+										}
+										if(!timeTempOn && !timeTempDisable){
+											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+										} else if(timeTempOn || timeTempDisable){
+											if(timeStop){
+												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending color hue and saturation:</b></div>"
+											} else {
+												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default color hue and saturation for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+											}
+											input "timeHueDisable", "bool", title: "<b>Don't change color.</b> Click to continue setting mode.", submitOnChange:true
+											if(timeHueDisable){
+												paragraph "Color change allows setting hue and saturation for custom colors."
+											} else if(!timeHueDisable){
+												paragraph "Color hue is a \"wheel\" of colors starting at red (1), and going through green (33) and blue (66), then back to red again (100). Color saturation is a range from 1 to 100 of \"amount\" of hue color, from lighter colors to deeper colors. If hue is set, saturation is required."
+												// Start Hue
+												if(timeStop){
+													input "timeHueOn", "number", title: "Beginning hue at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", required: false, width: 6, submitOnChange:true
+												} else {
+													input "timeHueOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default hue? (Optional)", required: false, width: 6, submitOnChange:true
+												}
+
+												// Stop Level: Only show if Stop Time entered
+												if(timeStop){
+													input "timeHueOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change hue to? (Optional)", required: false, width: 6
+												} else {
+													paragraph "Set stop time for options", width: 6
+												}
+
+												// Start Sat
+												input "timeSatOn", "number", title: "Saturation?", required: false, width: 6, submitOnChange:true
+
+												// Stop Saturation: Only show if Stop Time entered
+												if(timeStop){
+													input "timeSatOff", "number", title: "Saturation?", required: false, width: 6
+												} else {
+													paragraph "", width: 6
+												}
+											}
+
+											// If color entry is disable, or not entered correcly
+											if(!timeHueDisable && !timeSatOn && !timeHueOn || ((timeSatOff && !timeHueOff) && (timeHueOff && !timeSatOff))){
+												paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+											} else {
+												if(timeStop){
+													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + " and/or " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ".</b></div>"
+												} else {
+													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ".</b></div>"
+												}
+
+												// Change Mode on Start
+												input "timeModeChangeOn", "mode", title: "<b>At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", change Mode to?</b> (Optional)", required: false, width: 6
+
+												// Change Mode on Stop: Only show if Time Stop entered
+												if(timeStop){
+													input "timeModeChangeOff", "mode", title: "<b>At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change Mode to?</b> (Optional)", required: false, width: 6
+												} else {
+													paragraph "", width: 6
+												}
+												
+												// Start only if Mode
+												input "timeStartIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
+												paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
+											}
+										}
+									}
+									paragraph "Options can be combined. To have a default brightness of 50% after 9pm, set start time and start level (but do not have turn on). To have device turn on at 7am and gradually brighten for a half hour from 1% to 100%, set start time of 7am, stop time of 7:30am, and at start time turn on with level of 1, and a stop time of 7:30a, with a level of 100."
 								}
-
-								// Start Temp
-								input "timeTempOn", "number", title: "<b>Starting temperature color:</b> (Optional: 2200-4500; Default 100)", required: false, width: 6, submitOnChange:true
-
-								// Stop Temp: Only show if Stop Time entered
-								if(timeStop){
-									input "timeTempOff", "number", title: "<b>Ending temperature color:</b> (Optional: 2200-4500)", required: false, width: 6
-								} else {
-									paragraph "", width: 6
-								}
-
-								// Start Hue
-								input "timeHueOn", "number", title: "<b>Starting color hue:</b> (Optional: 0-100; 1/100 = red, 33 = green, 66 = blue)", required: false, width: 6
-
-								// Stop Hue: Only show if Stop Time entered
-								if(timeStop){
-									input "timeHueOff", "number", title: "<b>Ending color hue:</b> (Optional: 0-100)", required: false, width: 6
-								} else {
-									paragraph "", width: 6
-								}
-
-								//Start Saturation
-								input "timeSatOn", "number", title: "<b>Starting color saturation:</b> (Optional: 0-100; Default 100)", required: false, width: 6
-
-								// Stop Saturation: Only show if Stop Time entered
-								if(timeStop){
-									input "timeSatOff", "number", title: "<b>Ending color saturation:</b> (Optional: 0-100)", required: false, width: 6
-								} else {
-									paragraph "", width: 6
-								}
-
-								// Change Mode on Start
-								input "timeModeChangeOn", "mode", title: "<b>Change Mode at start?</b> (Optional)", required: false, width: 6
-
-								// Change Mode on Stop: Only show if Time Stop entered
-								if(timeStop){
-									input "timeModeChangeOff", "mode", title: "<b>Change Mode at stop?</b> (Optional)", required: false, width: 6
-								} else {
-									paragraph "", width: 6
-								}
-
-								// Start only if Mode
-								input "timeStartIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
-								if(timeLevelOn){
-									input "timeLevelIfLower", "enum", title: "<b>Don't change Level if already:</b> (Optional)", multiple: false, required: false, width: 6, options: ["Lower", "Higher"]
-								} else {
-									paragraph "", width: 6
-								}
-								if(timeTempOn){
-									input "timeTempIfLower", "enum", title: "<b>Don't change temperature color if already:</b> (Optional)", multiple: false, required: false, width: 6, options: ["Lower", "Higher"]
-								} else {
-									paragraph "", width: 6
-								}
-								paragraph "Options can be combined. To have a default brightness of 50% after 9pm, set start time and start level (but do not have turn on). To have device turn on at 7am and gradually brighten for a half hour from 1% to 100%, set start time of 7am, stop time of 7:30am, and at start time turn on with level of 1, and a stop time of 7:30a, with a level of 100."
 							}
 						}
 					}
