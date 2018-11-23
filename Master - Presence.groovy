@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.04
+*  Version: 0.1.05
 *
 ***********************************************************************************************************************/
 
@@ -35,31 +35,31 @@ preferences {
 	page(name: "setup", install: true, uninstall: true) {
 		section() {
 			// Set disable all
-			if(timeDisableAll) {
-				state.timeDisable = true
+			if(presenceDisableAll) {
+				state.presenceDisable = true
 			} else {
-				state.timeDisable = false
+				state.presenceDisable = false
 			}
 
 			// If all disabled, force reenable
-			if(state.timeDisable){
-				input "timeDisableAll", "bool", title: "All schedules are disabled. Reenable?", defaultValue: false, submitOnChange:true
+			if(state.presenceDisable){
+				input "presenceDisableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", defaultValue: false, submitOnChange:true
 			} else if(presenceDisable){
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Select name for this presence routine:</b></div>"
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
 				label title: "Routine name?", required: true, submitOnChange:true
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Select which people:</b></div>"
-				input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
-				if(presenceDisable){
-					input "presenceDisable", "bool", title: "<b><font color=\"#000099\">Presence is disabled.</font></b> Reenable it?", submitOnChange:true
-				} else {
-					input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
+				if(app.label){
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select which people:</b></div>"
+					input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
 				}
-				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
+				input "presenceDisable", "bool", title: "<b><font color=\"#000099\">Presence is disabled.</font></b> Reenable it?", submitOnChange:true
+				input "presenceDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
 
 			} else {
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Select name for this presence routine:</b></div>"
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
 				label title: "", required: true, submitOnChange:true
-				if(app.label){
+				if(!app.label){
+					paragraph "<div style=\"background-color:BurlyWood\"><b> </b></div>"
+				} else if(app.label){
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select people for this routine:</b></div>"
 					input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
 					input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
@@ -84,19 +84,19 @@ preferences {
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else if(switches || locks || noDevice){
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do:</b></div>"
-									if(switches) input "actionSwitches", "enum", title: "What to do with lights/switches? (optional)", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-									if(locks) input "actionLocks", "enum", title: "What to do with locks? (optional)", required: false, multiple: false, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+									if(switches) input "actionSwitches", "enum", title: "What to do with lights/switches? (Optional)", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+									if(locks) input "actionLocks", "enum", title: "What to do with locks? (Optional)", required: false, multiple: false, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
 									if(flashColor) {
-										input "flashColor", "color", title: "Flash all color lights? (optional)", required: false, default: flashColor
+										input "flashColor", "color", title: "Flash all color lights? (Optional)", required: false, default: flashColor
 									} else {
-										input "flashColor", "color", title: "Flash all color lights? (optional)", required: false
+										input "flashColor", "color", title: "Flash all color lights? (Optional)", required: false
 									}
-									input "mode", "mode", title: "Set Mode? (optional)", required: false, submitOnChange:true
-									input "phone", "phone", title: "Number to text alert? (optional)", required: false, submitOnChange:true
+									input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
+									input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
 									if(!actionSwitches && !actionLocks && !mode && !phone && !flashColor) {
 										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 									} else {
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (optional):</b></div>"
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
 										if(timeStop){
 											input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
 										} else {
@@ -107,7 +107,8 @@ preferences {
 										} else {
 											input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
 										}
-										input "ifMode", "mode", title: "Only if the Mode is already:</b> (Optional)", required: false, width: 12
+										input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+										input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
 									}
 								}
 							}
@@ -115,15 +116,15 @@ preferences {
 					}
 				}
 				paragraph " "
-				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
+				input "presenceDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
 			}
 		}
 	}
 }
 
 def installed() {
-	if(app.getLabel().length() < 8)  app.updateLabel("Presence - " + app.getLabel())
-    if(app.getLabel().substring(0,8) != "Presence") app.updateLabel("Presence - " + app.getLabel())
+	if(app.getLabel().length() < 11)  app.updateLabel("Presence - " + app.getLabel())
+    if(app.getLabel().substring(0,11) != "Presence - ") app.updateLabel("Presence - " + app.getLabel())
     initialize()
 }
 
@@ -138,11 +139,14 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
+	//TO DO: Add days to schedule
 	def appId = app.getId()
     def person = evt.value
 
+log.debug "name: $evt.name value: $evt.value diplayname: $evt.displayName evt: $evt"
+	log.debug phone
 	// If presence is disabled, return null
-	if(state.disable || presenceDisable) return
+	if(state.presenceDisable || presenceDisable) return
 	
 	// If arrival or departure doesn't match, return null
 	if( arrivingDeparting){
@@ -170,11 +174,28 @@ def presenceHandler(evt) {
 		if((occupiedHome == "unoccupied" && occupied) || (occupidHome == "occupied" && !occupied)) return
 	}
 
-	// Text first (just in case error)
-	/* ***************************************** */
-	/* TO DO: Built text code                    */
-	/* ***************************************** */
-	
+	// Text first (just in case there's an error later)
+	/* ********************************** */
+	/* TO DO: Instead of throwing error   */
+	/* here, valid number on setup        */
+	/* Also add to Master - Contact       */
+	/* ********************************** */
+	def now = new Date()
+	now = now.format("h:mm a", location.timeZone)
+	if(evt.value == "present"){
+		if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
+			log.debug "Sent SMS for $evt.displayName's arrival at $now."
+		} else {
+			log.debug "Error sending SMS for $evt.displayName's arrival at $now."
+		}
+	} else {
+		if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
+			log.debug "Sent SMS for $evt.displayName's departure at $now."
+		} else {
+			log.debug "Error sneding SMS for $evt.displayName's departure at $now."
+		}
+	}
+
 	// Set mode
 	if(mode) parent.changeMode(mode, childId)
 	
