@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.0.02
+*  Version: 0.1.01
 *
 ***********************************************************************************************************************/
 
@@ -32,172 +32,99 @@ definition(
 )
 
 preferences {
-    page(name: "setup", nextPage: "arriving") {
- 
-        section() {
-            input "presenceAdult", "capability.presenceSensor", title: "Adults", multiple: true, required: true
-            input "presenceChild", "capability.presenceSensor", title: "Children", multiple: true, required: false
-        }
-    }
-    page(name: "arriving", nextPage: "leaving"){
-        section("• <b><font color=\"#000099\">Arriving</font></b>") {
+	page(name: "setup", install: true, uninstall: true) {
+		section() {
+			// Set disable all
+			if(timeDisableAll) {
+				state.timeDisable = true
+			} else {
+				state.timeDisable = false
+			}
 
-        }
+			// If all disabled, force reenable
+			if(state.timeDisable){
+				input "timeDisableAll", "bool", title: "All schedules are disabled. Reenable?", defaultValue: false, submitOnChange:true
+			} else if(presenceDisable){
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Select name for this presence routine:</b></div>"
+				label title: "Routine name?", required: true, submitOnChange:true
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Select which people:</b></div>"
+				input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
+				if(presenceDisable){
+					input "presenceDisable", "bool", title: "<b><font color=\"#000099\">Presence is disabled.</font></b> Reenable it?", submitOnChange:true
+				} else {
+					input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
+				}
+				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
 
-        section(hideable: true, hidden: true, "Anyone arrives home") {
-            input "arriveAnyMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Anyone arrives home alone") {
-            input "arriveAnyAloneMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyAloneOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyAloneOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyAloneToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyAloneLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyAloneUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any adult arrives home") {
-            input "arriveAnyAdultMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyAdultOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyAdultOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyAdultToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyAdultLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyAdultUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any adult arrives home alone") {
-            input "arriveAnyAdultAloneMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyAdultAloneOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyAdultAloneOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyAdultAloneToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyAdultAloneLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyAdultAloneUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any child arrives home") {
-            input "arriveAnyChildMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyChildOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyChildOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyChildToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyChildLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyChildUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-            input "arriveAnyChildText", "phone", title: "Send Text to Phone #", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any child arrives home alone") {
-            input "arriveAnyChildAloneMode", "mode", title: "Set Mode",  required: false
-            input "arriveAnyChildAloneOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAnyChildAloneOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAnyChildAloneToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAnyChildAloneLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAnyChildAloneUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-            input "arriveAnyChildAloneText", "phone", title: "Send Text to Phone #", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "All adults are home") {
-            input "arriveAllAdultMode", "mode", title: "Set Mode",  required: false
-            input "arriveAllAdultOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAllAdultOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAllAdultToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAllAdultLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAllAdultUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "All children are home") {
-            input "arriveAllChildMode", "mode", title: "Set Mode",  required: false
-            input "arriveAllChildOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAllChildOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAllChildToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAllChildLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAllChildUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Everyone is home") {
-            input "arriveAllMode", "mode", title: "Set Mode",  required: false
-            input "arriveAllOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "arriveAllOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "arriveAllToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "arriveAllLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "arriveAllUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-         }
-    page(name: "leaving", nextPage: "colors"){
-        section("• <b><font color=\"#000099\">Leaving</font></b>") {
-
-        }
-        section(hideable: true, hidden: true, "No one is home") {
-            input "departAllMode", "mode", title: "Set Mode",  required: false
-            input "departAllOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAllOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "departAllToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAllLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAllUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "No adults are home") {
-            input "departAllAdultMode", "mode", title: "Set Mode",  required: false
-            input "departAllAdultOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAllAdultOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "departAllAdultToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAllAdultLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAllAdultUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "No children are home") {
-            input "departAllChildMode", "mode", title: "Set Mode",  required: false
-            input "departAllChildOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAllChildOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "departAllChildToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAllChildLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAllChildUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any adults leaves") {
-            input "departAnyAdultMode", "mode", title: "Set Mode",  required: false
-            input "departAnyAdultOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAnyAdultOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "departAnyAdultToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAnyAdultLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAnyAdultUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Any child leaves") {
-            input "departAnyChildMode", "mode", title: "Set Mode",  required: false
-            input "departAnyChildOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAnyChildOff", "capability.switch", title: "Turn off", multiple: true, required: f
-            input "departAnyChildToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAnyChildLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAnyChildUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-            input "departAnyChildText", "phone", title: "Send Text to Phone #", multiple: true, required: false
-        }
-        section(hideable: true, hidden: true, "Anyone leaves") {
-            input "departAnyMode", "mode", title: "Set Mode",  required: false
-            input "departAnyOn", "capability.switch", title: "Turn on", multiple: true, required: false
-            input "departAnyOff", "capability.switch", title: "Turn off", multiple: true, required: false
-            input "departAnyToggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-            input "departAnyLock", "capability.lock", title: "Lock", multiple: true, required: false
-            input "departAnyUnlock", "capability.lock", title: "Unlock", multiple: true, required: false
-        }
-         }
-    page(name: "colors", install: true, uninstall: true){
-        section("• <b><font color=\"#000099\">Arrivals Flash Colors</font></b>") {
-
-        }
-        section(hideable: true, hidden: true, "Person 1"){
-			input "flashPerson1", "capability.presenceSensor", title: "Person 1", multiple: true, required: false
-            input "flashDevice1", "capability.switch", title: "Flash", required: false
-            input "flashColor1", "color", title: "Flash Color", required: false
-        }
-        section(hideable: true, hidden: true, "Person 2"){
-            input "flashPerson2", "capability.presenceSensor", title: "Person 2", multiple: true, required: false
-            input "flashDevice2", "capability.switch", title: "Flash", required: false
-            input "flashColor2", "color", title: "Flash Color", required: false
-        }
-        section(hideable: true, hidden: true, "Person 3"){
-            input "flashPerson3", "capability.presenceSensor", title: "Person 3", multiple: true, required: false
-            input "flashDevice3", "capability.switch", title: "Flash", required: false
-            input "flashColor3", "color", title: "Flash Color", required: false
-        }
-        section(hideable: true, hidden: true, "Person 4"){
-            input "flashPerson4", "capability.presenceSensor", title: "Person 4", multiple: true, required: false
-            input "flashDevice4", "capability.switch", title: "Flash", required: false
-            input "flashColor4", "color", title: "Flash Color", required: false
-        }
-    }
+			} else {
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Select name for this presence routine:</b></div>"
+				label title: "Routine name?", required: true, submitOnChange:true
+				if(app.label){
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select everyone in the house:</b></div>"
+					input "everyone", "capability.presenceSensor", title: "Everyone (check all):", multiple: true, required: true, submitOnChange:true
+					if(everyone){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select people for this routine:</b></div>"
+						input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
+						input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
+						if(!person){
+							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+						} else if(person){
+							paragraph("<div style=\"background-color:BurlyWood\"><b> Select if with arrivals or depatures (or both):</b></div>")
+							input "arrivingDeparting", "enum", title: "Arriving or Departing?", required: true, multiple: false, width: 12, options: ["present":"Arriving", "not present":"Departing", "both":"Both arriving and departing"], submitOnChange:true
+							if(!arrivingDeparting) {
+								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+							} else if(arrivingDeparting){
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Select if with arrivals to empty or occupied house (or either):</b></div>"
+								input "occupiedHome", "enum", title: "Empty or occupied?", required: true, multiple: false, width: 12, options: ["unoccupied":"Only if home is otherwise unoccupied", "occupied":"Only if home is already occupied", "both":"Either empty or occupied"], submitOnChange:true
+								if(!occupiedHome) {
+									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+								} else if(occupiedHome){
+									paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices:</b></div>"
+									if(!switches && !locks)	input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if only setting mode or sending text alert.", defaultValue: false, submitOnChange:true
+									if(!noDevice) input "switches", "capability.switchLevel", title: "Lights and switches?", multiple: true, required: false, submitOnChange:true
+									if(!noDevice) input "locks", "capability.lock", title: "Locks?", multiple: true, required: false, submitOnChange:true
+									if(!switches && !locks && !noDevice)	{
+										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+									} else if(switches || locks || noDevice){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do:</b></div>"
+										if(switches) input "actionSwitches", "enum", title: "What to do with lights/switches? (optional)", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(switches) {
+											if(flashColor) {
+												input "flashColor", "color", title: "Flash all color lights? (optional)", required: false, default: flashColor
+											} else {
+												input "flashColor", "color", title: "Flash all color lights? (optional)", required: false
+											}
+										}
+										if(locks) input "actionLocks", "enum", title: "What to do with locks? (optional)", required: false, multiple: false, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+										input "mode", "mode", title: "Set Mode? (optional)", required: false, submitOnChange:true
+										input "phone", "phone", title: "Number to text alert? (optional)", required: false, submitOnChange:true
+										if(!actionSwitches && !actionLocks && !mode && !phone && !flashColor) {
+											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+										} else {
+											paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (optional):</b></div>"
+											if(timeStop){
+												input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
+											} else {
+												input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+											}
+											if(timeStart){
+												input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: true, width: 6, submitOnChange:true
+											} else {
+												input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+											}
+											input "ifMode", "mode", title: "Only if the Mode is already:</b> (Optional)", required: false, width: 12
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				paragraph " "
+				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
+			}
+		}
+	}
 }
 
 def installed() {
@@ -213,251 +140,68 @@ def updated() {
 
 def initialize() {
     log.debug "Presence initialized"
-    subscribe(presenceAdult, "presence", presenceHandlerAdult) 
-    subscribe(presenceChild, "presence", presenceHandlerChild) 
-   
+    subscribe(person, "presence", presenceHandler)
 }
 
-def presenceHandlerAdult(evt) {
+def presenceHandler(evt) {
 	def appId = app.getId()
     def person = evt.value
 
-    if(evt.value == "present") {
-        //anyone arrives
-        if(arriveAnyMode != null) parent.changeMode(arriveAnyMode)
-        parent.multiOn(arriveAnyOn,appId)
-        parent.multiOff(arriveAnyOff,appId)
-        parent.toggle(arriveAnyToggle,appId)
-        parent.multiLock(arriveAnyLock,appId)
-        parent.multiUnlock(arriveAnyUnlock,appId)
-        
-        //anyone arrives alon
-        anyonePresent = false
-        presenceAdult.each {
-            if(it == "present" && evt.displayName != it) anyonePresent = true
-        }
-        presenceChild.each{
-            if(it == "present" && evt.displayName != it) anyonePresent = true
-        }
-        if(anyonePresent == false){
-            log.debug "Presense: Someone arrived alone."
-            if(arriveAnyAloneMode != null) parent.changeMode(arriveAnyAloneMode)
-            parent.multiOn(arriveAnyAloneOn,appId)
-            parent.multiOff(arriveAnyAlonetOff,appId)
-            parent.toggle(arriveAnyAloneToggle,appId)
-            parent.multiLock(arriveAnyAloneLock,appId)
-            parent.multiUnlock(arriveAnyAloneUnlock,appId)
-        }
-
-        //any adult is home
-        log.debug "Presense: Adult arrived."
-        if(arriveAnyAdultMode != null) parent.changeMode(arriveAnyAdultMode)
-        parent.multiOn(arriveAnyAdultOn,appId)
-        parent.multiOff(arriveAnyAdultOff,appId)
-        parent.toggle(arriveAnyAdultToggle,appId)
-        parent.multiLock(arriveAnyAdultLock,appId)
-        parent.multiUnlock(arriveAnyAdultUnlock,appId)
-
-                
-        //any adult arrives alone
-        anyAdultPresent = false
-        presenceAdult.each{
-            if(it == "present" && evt.displayName != it) anyAdultPresent = true
-        }
-        if(anyAdultPresent == false){
-            log.debug "Presense: Adult arrived home."
-            if(arriveAnyAdultAloneMode != null) parent.changeMode(arriveAnyAdultAloneMode)
-            parent.multiOn(arriveAnyAdultAloneOn,appId)
-            parent.multiOff(arriveAnyAdultAlonetOff,appId)
-            parent.toggle(arriveAnyAdultAloneToggle,appId)
-            parent.multiLock(arriveAnyAdultAloneLock,appId)
-            parent.multiUnlock(arriveAnyAdultAloneUnlock,appId)
-        }
-
-        //All adults are home
-        allAdultsPresent = true
-        presenceAdult.each{
-            if(it == "not present") allAdultsPresent = false
-        }
-        if(allAdultsPresent == true){
-            log.debug "Presense: All adults home."
-            if(arriveAllAdultMode != null) parent.changeMode(arriveAllAdultMode)
-            parent.multiOn(arriveAllAdultOn,appId)
-            parent.multiOff(arriveAllAdultOff,appId)
-            parent.toggle(arriveAllAdultToggle,appId)
-            parent.multiLock(arriveAllAdultLock,appId)
-            parent.multiUnlock(arriveAllAdultUnlock,appId)
-        }
-
-		//Everyone is home
-        allPresent = true
-        presenceAdult.each{
-            if(it == "not present") allAdultsPresent = false
-        }
-        presenceChild.each{
-            if(it == "not present") allPresent = false
-        }
-        if(allPresent == true){
-            log.debug "Presense: Everyone is home."
-            if(arriveAllMode != null) parent.changeMode(arriveAllMode)
-            parent.multiOn(arriveAllOn,appId)
-            parent.multiOff(arriveAllOff,appId)
-            parent.toggle(arriveAllToggle,appId)
-            parent.multiLock(arriveAllLock,appId)
-            parent.multiUnlock(arriveAllUnlock,appId)
-        }
-    } else if(evt.value == "not present"){
-        //anyone
-        if(departAnyMode != null) parent.changeMode(departAnyMode)
-        parent.multiOn(departAnyOn,appId)
-        parent.multiOff(departAnyOff,appId)
-        parent.toggle(departAnyToggle,appId)
-        parent.multiLock(departAnyLock,appId)
-        parent.multiUnlock(departAnyUnlock,appId)
-
-        //any adult
-        log.debug "Presense: Adult left."
-        if(departAnyAdultMode != null) parent.changeMode(departAnyAdultMode)
-        parent.multiOn(departAnyAdultOn,appId)
-        parent.multiOff(departAnyAdultOff,appId)
-        parent.toggle(departAnyAdultToggle,appId)
-        parent.multiLock(departAnyAdultLock,appId)
-        parent.multiUnlock(departAnyAdultUnlock,appId)
-
-        //All adults
-        allAdultsPresent = false
-        presenceAdult.each{
-            if(it == "present") allAdultsPresent = true
-        }
-        if(allAdultsPresent == false){
-        log.debug "Presense: All adults left."
-            if(departAllAdultMode != null) parent.changeMode(departAllAdultMode)
-            parent.multiOn(departAllAdultOn,appId)
-            parent.multiOff(departAllAdultOff,appId)
-            parent.toggle(departAllAdultToggle,appId)
-            parent.multiLock(departAllAdultLock,appId)
-            parent.multiUnlock(departAllAdultUnlock,appId)
-        }
-
-		//Everyone
-        allPresent = false
-        presenceAdult.each{
-            if(it == "present") allPresent = true
-        }
-       presenceChild.each{
-            if(it == "present") allPresent = true
-        }
-        if(allPresent == false){
-            
-        log.debug "Presense: Everyone left."
-            if(departAllMode != null) parent.changeMode(departAllMode)
-            parent.multiOn(departAllOn,appId)
-            parent.multiOff(departAllOff,appId)
-            parent.toggle(departAllToggle,appId)
-            parent.multiLock(departAllLock,appId)
-            parent.multiUnlock(departAllUnlock,appId)
-        }
-    }
-}
-
-def presenceHandlerChild(evt){
-	def appId = app.getId()
-    def person = evt.value
+	if(state.disable || presenceDisable) return
 	
-    if(evt.value == "present"){
-        //anyone
-        if(arriveAnyMode != null) parent.changeMode(arriveAnyMode)
-        parent.multiOn(arriveAnyOn,appId)
-        parent.multiOff(arriveAnyOff,appId)
-        parent.toggle(arriveAnyToggle,appId)
-        parent.multiLock(arriveAnyLock,appId)
-        parent.multiUnlock(arriveAnyUnlock,appId)
+	// If arrival or departure doesn't match, return null
+	if( arrivingDeparting){
+		if(evt.value != arrivingDeparting && arrivingDeparting != "both") return
+	}
+		
+	// If mode set and node doesn't match, return null
+	if(ifMode && location.mode != ifMode) return
+	// If before start time, return null
+	if(timeStart){
+		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
+	}
 
-        //any child
-        if(arriveAnyChildMode != null) parent.changeMode(arriveAnyAdultMode)
-        parent.multiOn(arriveAnyChildOn,appId)
-        parent.multiOff(arriveAnyChildOff,appId)
-        parent.toggle(arriveAnyChildToggle,appId)
-        parent.multiLock(arriveAnyChildLock,appId)
-        parent.multiUnlock(arriveAnyChildUnlock,appId)
+	// If after time stop, return null
+	if(timeStop){
+		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
+	}
 
-        //All children
-        allChildPresent = "true"
-        presenceChild.each{
-            if(it == "not present") allChildPresent = "false"
-        }
-        if(allChildPresent == "true"){
-            if(arriveAllChildMode != null) parent.changeMode(arriveAllChildMode)
-            parent.multiOn(arriveAllChildOn,appId)
-            parent.multiOff(arriveAllChildOff,appId)
-            parent.toggle(arriveAllChildToggle,appId)
-            parent.multiLock(arriveAllChildLock,appId)
-            parent.multiUnlock(arriveAllChildUnlock,appId)
-        }
+	// If occupied or unoccupied doesn't match, return null
+	if(occupiedHome != "both"){
+		occupied = false
+		everyone.each{
+			if(it == "present") occupied = true
+		}
+		if((occupiedHome == "unoccupied" && occupied) || (occupidHome == "occupied" && !occupied)) return
+	}
 
-		//Everyone
-        allPresent = "true"
-        presenceChild.each{
-            if(it == "not present") allPresent = "false"
-        }
-       presenceAdult.each{
-            if(it == "not present") allPresent = "false"
-        }
-        if(allPresent == "true"){
-            if(arriveAllMode != null) parent.changeMode(arriveAllMode)
-            parent.multiOn(arriveAllOn,appId)
-            parent.multiOff(arriveAllOff,appId)
-            parent.toggle(arriveAllToggle,appId)
-            parent.multiLock(arriveAllLock,appId)
-            parent.multiUnlock(arriveAllUnlock,appId)
-        }
-    } else if(evt.value == "not present"){
-        //anyone
-        if(departAnyMode != null) parent.changeMode(departAnyMode)
-        parent.multiOn(departAnyOn,appId)
-        parent.multiOff(departAnyOff,appId)
-        parent.toggle(departAnyToggle,appId)
-        parent.multiLock(departAnyLock,appId)
-        parent.multiUnlock(departAnyUnlock,appId)
+	// Text first (just in case error)
+	/* ***************************************** */
+	/* TO DO                                     */
+	/* ***************************************** */
+	
+	// Set mode
+	if(mode) parent.changeMode(mode)
+	
+	// Turn on/off lights
+	if(switches){
+		if(actionSwitches == "on") {
+			parent.multiOn(actionSwitches)
+		} else if(actionSwtiches == "off"){
+			parent.multiOff(actionSwitches)
+		} else if(actionSwitches == "toggle"){
+			parent.toggle(actionSwitches)
+		}
+	}
 
-        //any child
-        if(departAnyChildMode != null) parent.changeMode(departAnyChildMode)
-        parent.multiOn(departAnyChildOn,appId)
-        parent.multiOff(departAnyChildOff,appId)
-        parent.multiToggle(departAnyChildToggle,appId)
-        parent.multiLock(departAnyChildLock,appId)
-        parent.multiUnlock(departAnyChildUnlock,appId)
+	// Lock/unlock doors
+	/* ***************************************** */
+	/* TO DO                                     */
+	/* ***************************************** */
 
-        //All children
-        allChildPresent = "false"
-        presenceChild.each{
-            if(it == "present") allChildPresent = "true"
-        }
-        if(allChildPresent == "false"){
-            if(departAllChildMode != null) parent.changeMode(departAllChildMode)
-            parent.multiOn(departAllChildOn,appId)
-            parent.multiOff(departAllChildOff,appId)
-            parent.toggle(departAllChildToggle,appId)
-            parent.mutliLock(departAllChildLock,appId)
-            parent.multiUnlock(departAllChildUnlock,appId)
-        }
-
-		//Everyone
-        allPresent = "false"
-        presenceChild.each{
-            if(it == "present") allChildPresent = "true"
-        }
-       presenceAdult.each{
-            if(it == "present") allPresent = "true"
-        }
-        if(allPresent == "false"){
-            if(departAllMode != null) parent.changeMode(departAllMode)
-            parent.multiOn(departAllOn,appId)
-            parent.multiOff(departAllOff,appId)
-            parent.toggle(departAllToggle,appId)
-            parent.multiLock(departAllLock,appId)
-            parent.multiUnlock(departAllUnlock,appId)
-        }
-    }
+	// Flash alert
+	/* ***************************************** */
+	/* TO DO                                     */
+	/* ***************************************** */
+	if(flashColor) log.debug flashColor
 }
-
