@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.02
+*  Version: 0.1.03
 *
 ***********************************************************************************************************************/
 
@@ -172,7 +172,7 @@ def presenceHandler(evt) {
 
 	// Text first (just in case error)
 	/* ***************************************** */
-	/* TO DO                                     */
+	/* TO DO: Built lock code                    */
 	/* ***************************************** */
 	
 	// Set mode
@@ -195,9 +195,10 @@ def presenceHandler(evt) {
 	/* ***************************************** */
 
 	// Flash alert
-	/* ***************************************** */
-	/* TO DO                                     */
-	/* ***************************************** */
+	/* ********************************** */
+	/* TO DO: Need to create multi-level  */
+	/* map to store current values        */
+	/* ********************************** */
 	/*
 	if(flashColor) {
 		colorMap = convertRgbToHsl(flashColor)
@@ -205,19 +206,24 @@ def presenceHandler(evt) {
 		sat = colorMap.sat
 		level = colorMap.level
 		parent.colorlights.each{
-			// need to create multi-level map to store current values
-			currentHue = it.currentHue
-			currentSat = it.currentSaturation
-			currentLevel = it.currentLevel
-			newValue = [hue: hue, saturation: sat]
-			it.setColor(newValue)
-		}
-		pause(750)
+
+		currentHue = it.currentHue
+		currentSat = it.currentSaturation
+		currentLevel = it.currentLevel
+		newValue = [hue: hue, saturation: sat]
+		it.setColor(newValue)
+	}
+	pause(750)
 */
 		// loop through multi-level map to restore old values.		
 }
 
 def convertRgbToHsl(color){
+	/* ************************************* */
+	/* TO DO: Can we convert it once         */
+	/* and store in hidden input variable??  */
+	/* ************************************* */
+
 	// Split the hex string in three
 	red = color.substring(1,3)
 	blue = color.substring(3,5)
