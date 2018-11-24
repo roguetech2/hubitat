@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.3.02
+*  Version: 0.3.03
 *
 ***********************************************************************************************************************/
 
@@ -143,16 +143,16 @@ preferences {
 				section() {
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
 					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				}
 			} else if(app.label && buttonDevice && !numButton){
 				section() {
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
 					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"><b>Set type of Pico:</b></div>"
 					input "numButton", "enum", title: "Pico buttons?", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
@@ -161,8 +161,8 @@ preferences {
 				section() {
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
 					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
 					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 
@@ -241,8 +241,8 @@ preferences {
 				section() {
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
 					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
 					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 
