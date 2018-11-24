@@ -16,7 +16,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - MagicCube.groovy
-*  Version: 0.2.01
+*  Version: 0.2.02
 * 
 ***********************************************************************************************************************/
 
@@ -44,14 +44,14 @@ preferences {
 				if(!buttonDevice){
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				} else if(buttonDevice){
-					paragraph "For each action, select which lights or fans to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/fan (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
 					if(!advancedSetup){
 						input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
 					} else {
 						input "advancedSetup", "bool", title: "<b>Advanced setup.</b> Clck to hide advanced options.", defaultValue: false, submitOnChange:true
 					}
 					if(!multiDevice){
-						input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for MagicCube to independantly control different sets of lights/switches.", defaultValue: false, submitOnChange:true
+						input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for MagicCube to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
 						paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
 						input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
 					} else {
@@ -241,7 +241,7 @@ preferences {
 				if(button_3_toggle){
 					input "button_3_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
 				} else {
-					input "button_3_toggle", "capability.switch", title: "<b>Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					input "button_3_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
 				}
 				if(advancedSetup){
 					if(button_3_dim){
