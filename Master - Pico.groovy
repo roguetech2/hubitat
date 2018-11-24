@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.2.02
+*  Version: 0.2.03
 *
 ***********************************************************************************************************************/
 
@@ -462,21 +462,6 @@ preferences {
 	}
 }
 
-def dimSpeed(){
-    if(settings.multiplier != null){
-        return settings.pushMultiplier
-    }else{
-        return 1.2
-    }
-}
-
-def holdDimSpeed(){
-    if(settings.multiplier != null){
-        return settings.holdMultiplier
-    }else{
-        return 1.4
-    }
-}
 
 def installed() {
 	if(app.getLabel().length() < 4)  app.updateLabel("Pico - " + app.getLabel())
@@ -501,9 +486,6 @@ def buttonPushed(evt){
     def buttonNumber = evt.value
     def colorSwitch
     def whiteSwitch
-    def between1 = false
-    def between2 = false
-    def between3 = false
 
     log.info "Pico: $evt.displayName button $buttonNumber $evt.name."
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,appId)
@@ -609,6 +591,39 @@ def buttonHeld(evt){
     def colorSwitch
     def whiteSwitch
 
+	
+	if(!replicateHold){
+		if(button_1_push_on) button_1_hold_on = button_1_push_on
+		if(button_2_push_on) button_2_hold_on = button_2_push_on
+		if(button_3_push_on) button_3_hold_on = button_3_push_on
+		if(button_4_push_on) button_4_hold_on = button_4_push_on
+		if(button_5_push_on) button_5_hold_on = button_5_push_on
+		
+		if(button_1_push_brighten) button_1_hold_brighten = button_1_push_brighten
+		if(button_2_push_brighten) button_2_hold_brighten = button_2_push_brighten
+		if(button_3_push_brighten) button_3_hold_brighten = button_3_push_brighten
+		if(button_4_push_brighten) button_4_hold_brighten = button_4_push_brighten
+		if(button_5_push_brighten) button_5_hold_brighten = button_5_push_brighten
+
+		if(button_1_push_toggle) button_1_hold_toggle = button_1_push_toggle
+		if(button_2_push_toggle) button_2_hold_toggle = button_2_push_toggle
+		if(button_3_push_toggle) button_3_hold_toggle = button_3_push_toggle
+		if(button_4_push_toggle) button_4_hold_toggle = button_4_push_toggle
+		if(button_5_push_toggle) button_5_hold_toggle = button_5_push_toggle
+		
+		if(button_1_push_dim) button_1_hold_dim = button_1_push_dim
+		if(button_2_push_dim) button_2_hold_dim = button_2_push_dim
+		if(button_3_push_dim) button_3_hold_dim = button_3_push_dim
+		if(button_4_push_dim) button_4_hold_dim = button_4_push_dim
+		if(button_5_push_dim) button_5_hold_dim = button_5_push_dim
+		
+		if(button_1_push_off) button_1_hold_off = button_1_push_off
+		if(button_2_push_off) button_2_hold_off = button_2_push_off
+		if(button_3_push_off) button_3_hold_off = button_3_push_off
+		if(button_4_push_off) button_4_hold_off = button_4_push_off
+		if(button_5_push_off) button_5_hold_off = button_5_push_off
+	}
+
     log.info "Pico: $evt.displayName button $buttonNumber $evt.name."
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,appId)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,appId)
@@ -703,6 +718,22 @@ def buttonReleased(evt){
     def buttonNumber = evt.value
     if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
         unschedule()
+    }
+}
+
+def dimSpeed(){
+    if(settings.multiplier != null){
+        return settings.pushMultiplier
+    }else{
+        return 1.2
+    }
+}
+
+def holdDimSpeed(){
+    if(settings.multiplier != null){
+        return settings.holdMultiplier
+    }else{
+        return 1.4
     }
 }
 
