@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.04
+*  Version: 0.3.05
 *
 ***********************************************************************************************************************/
 
@@ -104,8 +104,12 @@ preferences {
 							} else if(timeStart){
 								// Start On/Off/Toggle
 								paragraph "<div style=\"background-color:BurlyWood\"><b> Select whether to turn on or off:</b></div>"
-								input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is). Click to continue setting level, colors and mode.", submitOnChange:true
-								if(!timeOnOffDisable) input "timeOn", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+								if(!timeOnOffDisable) {
+									input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is). Click to continue setting level, colors and mode.", submitOnChange:true
+									input "timeOn", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+								} else {
+									input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is).", submitOnChange:true
+								}
 
 								// Stop On/Off/Toggle: Only show if Stop Time entered
 								if(!timeOnOffDisable) {
@@ -124,9 +128,11 @@ preferences {
 									} else {
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default brightness for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
 									}
-									input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b> Click to continue setting colors and mode.", submitOnChange:true
 									// Start Level
-									if(!timeLevelDisable){
+									if(timeLevelDisable){
+										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b>", submitOnChange:true
+									} else if(!timeLevelDisable){
+										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b> Click to continue setting colors and mode.", submitOnChange:true
 										if(timeStop){
 											input "timeLevelOn", "number", title: "Beginning brightness at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
 										} else {
@@ -150,7 +156,12 @@ preferences {
 										} else {
 											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default temperature color for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
 										}
-										input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b> Click to continue setting colors and mode.", submitOnChange:true
+										if(!timeTempDisable){
+											input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b> Click to continue setting colors and mode.", submitOnChange:true
+										} else {
+											input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b>", submitOnChange:true
+										}
+											
 										paragraph "Temperature color is a range from about 2200 to about 4500, where lower numbers are more \"warm\" and orange, and higher numbers are more \"cool\" and blue."
 										if(!timeTempDisable){
 											// Start Temp
@@ -177,10 +188,12 @@ preferences {
 											} else {
 												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default color hue and saturation for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
 											}
-											input "timeHueDisable", "bool", title: "<b>Don't change color.</b> Click to continue setting mode.", submitOnChange:true
+											
 											if(timeHueDisable){
+												input "timeHueDisable", "bool", title: "<b>Don't change color.</b>", submitOnChange:true
 												paragraph "Color change allows setting hue and saturation for custom colors."
 											} else if(!timeHueDisable){
+												input "timeHueDisable", "bool", title: "<b>Don't change color.</b>", submitOnChange:true
 												paragraph "Color hue is a \"wheel\" of colors starting at red (1), and going through green (33) and blue (66), then back to red again (100). Color saturation is a range from 1 to 100 of \"amount\" of hue color, from lighter colors to deeper colors. If hue is set, saturation is required."
 												// Start Hue
 												if(timeStop){
