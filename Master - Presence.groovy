@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.05
+*  Version: 0.1.06
 *
 ***********************************************************************************************************************/
 
@@ -58,11 +58,19 @@ preferences {
 				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
 				label title: "", required: true, submitOnChange:true
 				if(!app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> </b></div>"
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				} else if(app.label){
+					input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select people for this routine:</b></div>"
 					input "person", "capability.presenceSensor", title: "Person/people", multiple: true, required: true, submitOnChange:true
-					input "presenceDisable", "bool", title: "Disable this presence?", submitOnChange:true
+					if(person && person.size() > 1 && arrivingDeparting != "both"){
+						paragraph("<div style=\"background-color:BurlyWood\"><b> Select if all or any of the people:</b></div>")
+						if(!peopleAll){
+							input "peopleAll", "bool", title: "Any of these people. Click to change.", submitOnChange:true
+						} else {
+							input "peopleAll", "bool", title: "All of these people. Click to change.", submitOnChange:true
+						}
+					}
 					if(!person){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(person){
@@ -77,46 +85,56 @@ preferences {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 							} else if(occupiedHome){
 								paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices:</b></div>"
-								if(!switches && !locks)	input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY flashing color lights, setting mode, sending text alert.", defaultValue: false, submitOnChange:true
+								if(!switches && !locks)	input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, or sending text alert.", defaultValue: false, submitOnChange:true
 								if(!noDevice) input "switches", "capability.switchLevel", title: "Lights and switches?", multiple: true, required: false, submitOnChange:true
 								if(!noDevice) input "locks", "capability.lock", title: "Locks?", multiple: true, required: false, submitOnChange:true
-								if(!switches && !locks && !noDevice)	{
+								if(!switches && !locks && !noDevice) {
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-								} else if(switches || locks || noDevice){
+								} else if((switches || locks) && !noDevice){
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do:</b></div>"
 									if(switches) input "actionSwitches", "enum", title: "What to do with lights/switches? (Optional)", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 									if(locks) input "actionLocks", "enum", title: "What to do with locks? (Optional)", required: false, multiple: false, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
-									if(flashColor) {
-										input "flashColor", "color", title: "Flash all color lights? (Optional)", required: false, default: flashColor
-									} else {
-										input "flashColor", "color", title: "Flash all color lights? (Optional)", required: false
+									if((switches && !actionSwitches) || (locks && !actionLocks)){
+										paragraph "<div style=\"background-color:BurlyWood\">1 </div>"
 									}
-									input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
-									input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
-									if(!actionSwitches && !actionLocks && !mode && !phone && !flashColor) {
-										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-									} else {
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
-										if(timeStop){
-											input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
-										} else {
-											input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+								}
+									if(((switches && actionSwitches) || (locks && actionLocks)) || noDevice){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Miscellaneous actions (Optional):</b></div>"
+										input "noFlashColor", "bool", title: "Flash all color lights?", defaultValue: false, submitOnChange:true
+										if(noFlashColor){
+											if(flashColor) {
+												input "flashColor", "color", title: "Flash all color lights?", required: false, default: flashColor
+											} else {
+												input "flashColor", "color", title: "Flash all color lights?", required: false
+											}
 										}
-										if(timeStart){
-											input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+										input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
+										input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
+										if(((!switches && !locks) && !noDevice) || (!actionSwitches && !actionLocks && !mode && !phone)) {
+											paragraph "<div style=\"background-color:BurlyWood\">2 </div>"
 										} else {
-											input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+											paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
+											paragraph "Schedule and mode restriction applies to all actions."
+											if(timeStop){
+												input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
+											} else {
+												input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+											}
+											if(timeStart){
+												input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+											} else {
+												input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+											}
+											input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+											input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
 										}
-										input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
-										input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
-									}
 								}
 							}
 						}
 					}
+					paragraph " "
+					input "presenceDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
 				}
-				paragraph " "
-				input "presenceDisableAll", "bool", title: "Disable <b>ALL</b> presence routines?", defaultValue: false, submitOnChange:true
 			}
 		}
 	}
@@ -139,19 +157,26 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	//TO DO: Add days to schedule
 	def appId = app.getId()
-    def person = evt.value
 
-log.debug "name: $evt.name value: $evt.value diplayname: $evt.displayName evt: $evt"
-	log.debug phone
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
 	
 	// If arrival or departure doesn't match, return null
-	if( arrivingDeparting){
+	if(arrivingDeparting){
 		if(evt.value != arrivingDeparting && arrivingDeparting != "both") return
 	}
+	
+	// If all people set, and not matched, return null
+	if(peopleAll && arrivingDeparting != "both"){
+		people.each{
+			anyAll = true
+			if(arrivingDeparting == "present" && it != "present") anyAll = false
+			if(arrivingDeparting == "not present" && it != "not present") anyAll = false
+		}
+		if(!anyAll) return
+	}
+			
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) return
@@ -164,11 +189,19 @@ log.debug "name: $evt.name value: $evt.value diplayname: $evt.displayName evt: $
 	if(timeStop){
 		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
 	}
+	
+	// If not correct day, return null
+	if(timeDays){
+		def df = new java.text.SimpleDateFormat("EEEE")
+		df.setTimeZone(location.timeZone)
+		def day = df.format(new Date())
+		if(!timeDays.contains(day)) return null
+	}
 
 	// If occupied or unoccupied doesn't match, return null
 	if(occupiedHome != "both"){
 		occupied = false
-		everyone.each{
+		parent.everyone.each{
 			if(it == "present") occupied = true
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupidHome == "occupied" && !occupied)) return
@@ -177,36 +210,37 @@ log.debug "name: $evt.name value: $evt.value diplayname: $evt.displayName evt: $
 	// Text first (just in case there's an error later)
 	/* ********************************** */
 	/* TO DO: Instead of throwing error   */
-	/* here, valid number on setup        */
+	/* here, validate number on setup     */
 	/* Also add to Master - Contact       */
 	/* ********************************** */
-	def now = new Date()
-	now = now.format("h:mm a", location.timeZone)
-	if(evt.value == "present"){
-		if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
-			log.debug "Sent SMS for $evt.displayName's arrival at $now."
+	if(phone){
+		def now = new Date()
+		now = now.format("h:mm a", location.timeZone)
+		if(evt.value == "present"){
+			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
+				log.debug "Sent SMS for $evt.displayName's arrival at $now."
+			} else {
+				log.debug "Error sending SMS for $evt.displayName's arrival at $now."
+			}
 		} else {
-			log.debug "Error sending SMS for $evt.displayName's arrival at $now."
-		}
-	} else {
-		if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
-			log.debug "Sent SMS for $evt.displayName's departure at $now."
-		} else {
-			log.debug "Error sneding SMS for $evt.displayName's departure at $now."
+			if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
+				log.debug "Sent SMS for $evt.displayName's departure at $now."
+			} else {
+				log.debug "Error sending SMS for $evt.displayName's departure at $now."
+			}
 		}
 	}
 
 	// Set mode
-	if(mode) parent.changeMode(mode, childId)
-	
+	if(mode) parent.changeMode(mode, appId)
 	// Turn on/off lights
 	if(switches){
 		if(actionSwitches == "on") {
-			parent.multiOn(actionSwitches, childId)
+			parent.multiOn(actionSwitches, appId)
 		} else if(actionSwtiches == "off"){
-			parent.multiOff(actionSwitches, childId)
+			parent.multiOff(actionSwitches, appId)
 		} else if(actionSwitches == "toggle"){
-			parent.toggle(actionSwitches, childId)
+			parent.toggle(actionSwitches, appId)
 		}
 	}
 
@@ -216,27 +250,30 @@ log.debug "name: $evt.name value: $evt.value diplayname: $evt.displayName evt: $
 	/* ***************************************** */
 
 	// Flash alert
-	/* ********************************** */
-	/* TO DO: Need to create multi-level  */
-	/* map to store current values        */
-	/* ********************************** */
-	/*
-	if(flashColor) {
+	if(flashColor && noFlashColor) {
 		colorMap = convertRgbToHsl(flashColor)
 		hue = colorMap.hue
 		sat = colorMap.sat
 		level = colorMap.level
-		parent.colorlights.each{
+		def current = [:]
 
-		currentHue = it.currentHue
-		currentSat = it.currentSaturation
-		currentLevel = it.currentLevel
-		newValue = [hue: hue, saturation: sat]
-		it.setColor(newValue)
+		// Loop through color lights to set color
+		parent.colorLights.each{
+			current[it.id] = [hue: it.currentHue, sat: it.currentSaturation, level: it.currentLevel, state: it.currentValue("switch")]
+			it.setLevel(100)
+			newValue = [hue: hue, saturation: sat]
+			it.setColor(newValue)
+		}
+		pause(1000)
+
+		// loop through again to restore old values from map
+		parent.colorLights.each{
+			newValue = [hue: current."${it.id}".hue, saturation: current."${it.id}".sat]
+			it.setLevel(current."${it.id}".level)
+			it.setColor(newValue)
+			if(current."${it.id}".state == "off") it.off()
+		}
 	}
-	pause(750)
-*/
-		// loop through multi-level map to restore old values.		
 }
 
 def convertRgbToHsl(color){
