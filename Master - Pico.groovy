@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.3.01
+*  Version: 0.3.02
 *
 ***********************************************************************************************************************/
 
@@ -52,9 +52,9 @@ preferences {
 						} else if(numButton){
 							paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
 							if(!advancedSetup){
-								input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+								input "advancedSetup", "bool", title: "<b>Simple actions.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
 							} else {
-								input "advancedSetup", "bool", title: "<b>Advanced setup.</b> Clck to hide advanced options.", defaultValue: false, submitOnChange:true
+								input "advancedSetup", "bool", title: "<b>Advanced actions.</b> Clck to hide advanced options.", defaultValue: false, submitOnChange:true
 							}
 
 							input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for Pico to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
@@ -97,7 +97,7 @@ preferences {
 
 									}
 								} else {
-									paragraph "To set different functions to each button, change to Advanced setup by clicking \"Simple setup\"."
+									paragraph "To set different functions to each button, change to Advanced actions by clicking \"Simple actions\"."
 									if(!replicateHold){ 
 										paragraph "<div style=\"background-color:GhostWhite\"> Pushing Top button (\"On\") turns on.</div>"
 										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Brighten\" button brightens.</div>"
@@ -167,13 +167,13 @@ preferences {
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 
 					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-					input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+					input "advancedSetup", "bool", title: "<b>Simple actions.</b> Click to show advanced actiions.", defaultValue: false, submitOnChange:true
 					input "multiDevice", "bool", title: "Multi-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
 					paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
 
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 
-					paragraph "To set different functions to each button, change to Advanced setup by clicking \"Simple setup\"."
+					paragraph "To set different functions to each button, change to Advanced actions by clicking \"Simple actions\"."
 					if(!replicateHold){
 						input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
@@ -247,7 +247,7 @@ preferences {
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 
 					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-					input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+					input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced actions.", defaultValue: false, submitOnChange:true
 					input "multiDevice", "bool", title: "Mutli-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
 					paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
 
