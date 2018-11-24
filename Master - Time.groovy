@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.05
+*  Version: 0.3.06
 *
 ***********************************************************************************************************************/
 
@@ -665,50 +665,51 @@ def runMultiSchedule(){
 		// Ignore devices that aren't on
 		if(parent.stateOn(it)){
 			// Set level
+			if(timeLevelOn || tiemTempOn || timeHueOn || timeSatOn) defaultLevel = getDefaultLevel(it)
+
 			if(timeLevelOn && parent.isDimmable(it)){
 				currentLevel = it.currentlLevel
-				defaultLevel = getDefaultLevel(it)
 				if(defaultLevel){
-					if(defaultLevel != currentLevel) {
+					if(defaultLevel.level != currentLevel) {
 						if(timeLevelIfLower == "Lower"){
-							if(currentLevel < defaultLevel) return 
+							if(currentLevel < defaultLevel.level) return 
 						}
 						if(timeLevelIfLower == "Higher"){
-							if(currentLevel > defaultLevel) return
+							if(currentLevel > defaultLevel.level) return
 						}
-						parent.setToLevel(it,defaultLevel,app.getId())
+						parent.setToLevel(it,defaultLevel.level,app.getId())
 					}
 				}
 			}
 			// Set temp
 			if(timeTempOn && parent.isTemp(it)){
 				currentTemp = it.currentColorTemperature
-				defaultTemp = getDefaultTemp(it)
+				defaultLevel.temp = getDefaultTemp(it)
 				if(defaultTemp){
-					if(defaultTemp - currentTemp > 4 || defaultTemp - currentTemp < -4) {
+					if(defaultLevel.temp - currentLevel.temp > 4 || defaultLevel.temp - currentLevel.temp < -4) {
 						if(timeTempIfLower == "Lower"){
-							if(currentTemp < defaultTemp) return 
+							if(currentLevel.temp < defaultLevel.temp) return 
 						}
 						if(timeTempIfLower == "Higher"){
-							if(currentTemp > defaultTemp) return
+							if(currentTemp > defaultLevel.temp) return
 						}
-						parent.singleTemp(it,defaultTemp,app.getId())
+						parent.singleTemp(it,defaultLevel.temp,app.getId())
 					}
 				}
 			}
 			
 			// Set hue and sat
 			if(timeHueOn && parent.isColor(it)){
-				defaultHue = getDefaultHue(it)
+				defaultlevel.hue = getDefaultHue(it)
 			}
 			if(timeHueOn && parent.isColor(it)){
 				defaultSat = getDefaultSat(it)
 			}
 			// If either Hue or Sat, but not both, set the other to current
 			if(defaultHue || defaultSat) {
-				if(!defaultHue) defaultHue = it.currentHue
-				if(!defaultSat) defaultSat = it.currentSaturation
-				parent.singleColor(it,defaultHue,defaultSat,app.getId())
+				if(!defaultLevel.hue) defaultLevel.hue = it.currentHue
+				if(!defaultLevel.sat) defaultLevel.sat = it.currentSaturation
+				parent.singleColor(it,defaultLevel.hue,defaultLevel.sat,app.getId())
 			}
 		}
 	}
