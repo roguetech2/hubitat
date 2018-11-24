@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.03
+*  Version: 0.1.05
 *
 ***********************************************************************************************************************/
 
@@ -43,28 +43,65 @@ def mainPage() {
             }
 
         } else {
-			section(""){
-				input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
-				input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+			if(showPresences){
+				section(""){
+					input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
+					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+				}
+				if(showSchedules){
+					section("Scheduled settings:") {
+						app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
+					}
+				}
 			}
-            section("Scheduled settings:") {
-                app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
-            }
-            section("Picos:") {
-                app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Pico", multiple: true)
-            }
-            section("MagicCubes:") {
-                app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New MagicCube", multiple: true)
-            }
-            section("Contact sensors:") {
-                app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
-            }
-            section("Alerts settings:") {
-                app(name: "childApps", appName: "Master - Alert", namespace: "master", title: "New Alert", multiple: true)
+			if(showPresences){
+				section("Presence settings:") {
+					app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
+				}
 			}
-            section("Presence settings:") {
-                app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
-            }
+			if(showPicos){
+				section("Picos:") {
+					app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Pico", multiple: true)
+				}
+			}
+			if(showMagicCubes){
+				section("MagicCubes:") {
+					app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New MagicCube", multiple: true)
+				}
+			}
+			if(showContacts){
+				section("Contact sensors:") {
+					app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
+				}
+			}
+			section(){
+				if(!showSchedules){
+					input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
+				} else {
+					input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
+				}
+				if(!showPresences){
+					input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
+				} else {
+					input "showPresences", "bool", title: "Hide presence app?", submitOnChange:true
+				}
+				if(!showPicos){
+					input "showPicos", "bool", title: "Pico app hidden. Show?", submitOnChange:true
+				} else {
+					input "showPicos", "bool", title: "Hide Pico app?", submitOnChange:true
+				}
+				if(!showMagicCubes){
+					input "showMagicCubes", "bool", title: "MagicCube app hidden. Show?", submitOnChange:true
+				} else {
+					input "showMagicCubes", "bool", title: "Hide MagicCube app?", submitOnChange:true
+				}
+				if(!showContacts){
+					input "showContacts", "bool", title: "Contact app hidden. Show?", submitOnChange:true
+				} else {
+					input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
+				}
+				paragraph "Note: Hiding apps does not disable any existing saved child apps; it only hides them from this list."
+			}
         }
     }
 }
