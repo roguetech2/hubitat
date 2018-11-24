@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.2.03
+*  Version: 0.2.04
 *
 ***********************************************************************************************************************/
 
@@ -40,8 +40,8 @@ preferences {
 				if(!app.label){
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				} else if(app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
 					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
 					if(!buttonDevice || !numButton){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
