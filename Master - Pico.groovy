@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.2.04
+*  Version: 0.3.01
 *
 ***********************************************************************************************************************/
 
@@ -33,7 +33,7 @@ definition(
 
 preferences {
     page(name: "setup", install: true, uninstall: true) {
-		if(!advancedSetup){
+		if(!multiDevice){
 			section() {
 				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
 				label title: "", required: true, submitOnChange:true
@@ -42,97 +42,216 @@ preferences {
 				} else if(app.label){
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
 					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					if(!buttonDevice || !numButton){
+					if(!buttonDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-					} else if(buttonDevice && numButton){
-						if(!replicateHold){
-							paragraph "<div style=\"background-color:BurlyWood\">For each button, select device(s) to control with Push and Long Push.</div>"
-						} else {
-							paragraph "<div style=\"background-color:BurlyWood\">For each button, select device(s) to control with Push.</div>"
+					} else if(buttonDevice){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Set type of Pico:</b></div>"
+						input "numButton", "enum", title: "Pico buttons?", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
+						if(!numButton){
+							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+						} else if(numButton){
+							paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+							if(!advancedSetup){
+								input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+							} else {
+								input "advancedSetup", "bool", title: "<b>Advanced setup.</b> Clck to hide advanced options.", defaultValue: false, submitOnChange:true
+							}
+
+							input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for Pico to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
+							paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+							input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
+
+							if(advancedSetup){
+								paragraph "<b>Pro-tip</b>: Profiles for Multi-control enabled and disabled are stored separatly, allowing toggling between two different setups. To do this, set the options both with Multi-control disabled and enabled."
+							}
+							if(!controlDevice){
+								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+							} else if(controlDevice){
+								if(advancedSetup){
+									if(!replicateHold){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
+										input "buttonPush1", "enum", title: "With Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") 
+											input "buttonPush2", "enum", title: "With \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "5 button") input "buttonPush3", "enum", title: "With Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "With \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										input "buttonPush5", "enum", title: "With Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
+									} else {
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
+										input "buttonPush1", "enum", title: "Pushing Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") 
+											input "buttonPush2", "enum", title: "ushing \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "5 button") input "buttonPush3", "enum", title: "ushing Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "ushing \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										input "buttonPush5", "enum", title: "Pushing Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+
+										input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
+
+										input "buttonHold1", "enum", title: "Holding Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") 
+											input "buttonHold2", "enum", title: "Holding \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "5 button") input "buttonHold3", "enum", title: "Holding Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") input "buttonHold4", "enum", title: "Holding \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										input "buttonHold5", "enum", title: "Holding Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+
+									}
+								} else {
+									paragraph "To set different functions to each button, change to Advanced setup by clicking \"Simple setup\"."
+									if(!replicateHold){ 
+										paragraph "<div style=\"background-color:GhostWhite\"> Pushing Top button (\"On\") turns on.</div>"
+										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Brighten\" button brightens.</div>"
+										if(numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing Center button does <b>nothing</b>.</div>"
+										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Dim\" dims.</div>"
+										paragraph "<div style=\"background-color:GhostWhite\"> Pushing Bottom button (\"Off\") turns off.</div>"
+									} else {
+										paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Top button (\"On\") turns on.</div>"
+										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Brighten\" button brightens.</div>"
+										if(numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Center button does <b>nothing</b>.</div>"
+										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Dim\" dims.</div>"
+										paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Bottom button (\"Off\") turns off.</div>"
+									}
+								}
+
+								if(!advancedSetup || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush2 == "dim" || buttonPush2 == "brighten" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold2 == "dim" || buttonHold2 == "brighten" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold5 == "dim" || buttonHold5 == "brighten"){
+									paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
+									paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+									input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+								}
+								if(!advancedSetup || buttonPush1 == "on" || buttonPush1 == "off" || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush1 == "toggle" || buttonPush2 == "on" || buttonPush2 == "off" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush3 == "toggle" || buttonPush4 == "on" || buttonPush4 == "off" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush4 == "toggle" || buttonPush5 == "on" || buttonPush5 == "off" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonPush5 == "toggle" || buttonHold1 == "on" || buttonHold1 == "off" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold1 == "toggle" || buttonHold2 == "on" || buttonHold2 == "off" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold3 == "toggle" || buttonHold4 == "on" || buttonHold4 == "off" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold4 == "toggle" || buttonHold5 == "on" || buttonHold5 == "off" || buttonHold5 == "dim" || buttonHold5 == "brighten" || buttonHold5 == "toggle"){ 
+									paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
+								} else {
+									paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
+								}
+							}
 						}
-						input "advancedSetup", "bool", title: "Simple setup. Show advanced options?", defaultValue: false, submitOnChange:true
-						input "button_1_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+
+			}
+		} else if(multiDevice){
+
+//Multi device select
+
+			if(!app.label){
+				section() {
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
+					label title: "", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+				}
+			} else if(app.label && !buttonDevice){
+				section() {
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
+					label title: "", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+				}
+			} else if(app.label && buttonDevice && !numButton){
+				section() {
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
+					label title: "", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b>Set type of Pico:</b></div>"
+					input "numButton", "enum", title: "Pico buttons?", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+				}
+			} else if(app.label && buttonDevice && numButton && !advancedSetup){
+				section() {
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
+					label title: "", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+
+					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+					input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+					input "multiDevice", "bool", title: "Multi-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
+					paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
+
+					paragraph "To set different functions to each button, change to Advanced setup by clicking \"Simple setup\"."
+					if(!replicateHold){
+						input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_2_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+							input "button_2_push_brighten", "capability.switchLevel", title: "\"Brighten\" button brigtens?", multiple: true, required: false, submitOnChange:true
 						}
 						if(numButton == "5 button"){
-							input "button_3_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+							input "button_3_push_toggle", "capability.switch", title: "Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
 						}
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_4_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+							input "button_4_push_dim", "capability.switchLevel", title: "\"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
 						}
-						input "button_5_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-						
+						input "button_5_push_off", "capability.switch", title: "Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
+
 						if(!replicateHold){
-							input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize.", submitOnChange:true, defaultValue: false
+							input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
 						} else {
 							input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
-							paragraph "<div style=\"background-color:BurlyWood\">For each button, select device(s) for Long Push</div>"
-							input "button_1_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-							if(numButton == "4 button" || numButton == "5 button"){
-								input "button_2_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							}
-							if(numButton == "5 button"){
-								input "button_3_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-							}
-							if(numButton == "4 button" || numButton == "5 button") {
-								input "button_4_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-							}
-							input "button_5_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
 						}
-						if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-							paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
-							if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
-								input "pushMultiplier", "decimal", required: false, title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
-							} else {
-								paragraph "", width: 6
-							}
-							if(!replicateHold || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-								input "holdMultiplier", "decimal", required: false, title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
-							} else {
-								paragraph "", width: 6
-							}
-						}
-						if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_1_hold_on || button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_3_hold_on || button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_4_hold_on || button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle){
-							paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
-						}
-					}
-				}
-				
-			}
 
-//Advanced setup
-		} else {
-			if(!app.label && (!buttonDevice || !numButton)){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else if(app.label && (!buttonDevice || !numButton)){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
-					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else if(app.label && buttonDevice && numButton){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
-					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					if(!replicateHold){
-						paragraph "<div style=\"background-color:BurlyWood\">For each button, select device(s) to control with Push and Long Push.</div>"
-					} else {
-						paragraph "<div style=\"background-color:BurlyWood\">For each button, select device(s) to control with Push.</div>"
+					} else if(replicateHold){
+						input "button_1_push_on", "capability.switch", title: "Pushing Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
+						if(numButton == "4 button" || numButton == "5 button"){
+							input "button_2_push_brighten", "capability.switchLevel", title: "Pushing \"Brighten\" button brigtens?", multiple: true, required: false, submitOnChange:true
+						}
+						if(numButton == "5 button"){
+							input "button_3_push_toggle", "capability.switch", title: "Pushing Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+						}
+						if(numButton == "4 button" || numButton == "5 button"){
+							input "button_4_push_dim", "capability.switchLevel", title: "Pushing \"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
+						}
+						input "button_5_push_off", "capability.switch", title: "Pushing Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
+
+						if(!replicateHold){
+							input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
+						} else {
+							input "replicateHold", "bool", title: "Holding Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
+						}
+						
+						input "button_1_hold_on", "capability.switch", title: "Holding Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
+						if(numButton == "4 button" || numButton == "5 button"){
+							input "button_2_hold_brighten", "capability.switchLevel", title: "Holding \"Brighten\" button brigtens?", multiple: true, required: false, submitOnChange:true
+						}
+						if(numButton == "5 button"){
+							input "button_3_hold_toggle", "capability.switch", title: "Holding Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+						}
+						if(numButton == "4 button" || numButton == "5 button"){
+							input "button_4_hold_dim", "capability.switchLevel", title: "Holding \"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
+						}
+						input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
 					}
-					input "advancedSetup", "bool", title: "Advanced setup. Hide advanced options?", defaultValue: false, submitOnChange:true
+
+					
+					if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
+						paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+						input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+					}
+					if(button_1_push_on || button_2_push_brighten || button_4_push_toggle || button_4_push_dim || button_5_push_off || button_1_hold_on || button_2_hold_brighten || button_4_hold_toggle || button_4_hold_dim || button_5_hold_off){
+						paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
+					} else {
+						paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
+					}
+				}
+			} else if(app.label && buttonDevice && numButton && advancedSetup){
+				section() {
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
+					label title: "", required: true, submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico sensors to setup:</b></div>"
+					input "buttonDevice", "capability.pushableButton", title: "Pico Device", multiple: true, required: true, submitOnChange:true
+					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+
+					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+					input "advancedSetup", "bool", title: "<b>Simple setup.</b> Click to show advanced options.", defaultValue: false, submitOnChange:true
+					input "multiDevice", "bool", title: "Mutli-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
+					paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 				}
 
 				section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
@@ -456,6 +575,10 @@ preferences {
 					section(){
 						paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
 					}
+				} else {
+					section(){
+						paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
+					}
 				}
 			}
 		}
@@ -486,6 +609,48 @@ def buttonPushed(evt){
     def buttonNumber = evt.value
     def colorSwitch
     def whiteSwitch
+
+	// TO DO - see if these can be moved so doesn't need to precess at every button click
+	if(!multiDevice && !advancedSetup){
+		button_1_push_on = controlDevice
+		if(numButton == "4 button" || numButton == "5 button") button_2_push_brighten = controlDevice
+		if(numButton == "5 button") button_3_push_toggle = controlDevice
+		if(numButton == "4 button" || numButton == "5 button") button_4_push_dim = controlDevice
+		button_5_push_off = controlDevice
+	} else if(!multiDevice && advanceSetup){
+		if(buttonPush1 && buttonPush1 == "on") button_1_push_on = controlDevice
+		if(buttonPush1 && buttonPush1 == "off") button_1_push_off = controlDevice
+		if(buttonPush1 && buttonPush1 == "dim") button_1_push_dim = controlDevice
+		if(buttonPush1 && buttonPush1 == "brighten") button_1_push_brighten = controlDevice
+		if(buttonPush1 && buttonPush1 == "toggle") button_1_push_toggle = controlDevice
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonPush2 && buttonPush2 == "on") button_2_push_on = controlDevice
+			if(buttonPush2 && buttonPush2 == "off") button_2_push_off = controlDevice
+			if(buttonPush2 && buttonPush2 == "dim") button_2_push_dim = controlDevice
+			if(buttonPush2 && buttonPush2 == "brighten") button_2_push_brighten = controlDevice
+			if(buttonPush2 && buttonPush2 == "toggle") button_2_push_toggle = controlDevice
+		}
+		if(numButton == "5 button"){
+			if(buttonPush3 && buttonPush3 == "on") button_3_push_on = controlDevice
+			if(buttonPush3 && buttonPush3 == "off") button_3_push_off = controlDevice
+			if(buttonPush3 && buttonPush3 == "dim") button_3_push_dim = controlDevice
+			if(buttonPush3 && buttonPush3 == "brighten") button_3_push_brighten = controlDevice
+			if(buttonPush3 && buttonPush3 == "toggle") button_3_push_toggle = controlDevice
+		}
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonPush4 && buttonPush4 == "on") button_4_push_on = controlDevice
+			if(buttonPush4 && buttonPush4 == "off") button_4_push_off = controlDevice
+			if(buttonPush4 && buttonPush4 == "dim") button_4_push_dim = controlDevice
+			if(buttonPush4 && buttonPush4 == "brighten") button_4_push_brighten = controlDevice
+			if(buttonPush4 && buttonPush4 == "toggle") button_4_push_toggle = controlDevice
+		}
+		if(buttonPush5 && buttonPush5 == "on") button_5_push_on = controlDevice
+		if(buttonPush5 && buttonPush5 == "off") button_5_push_off = controlDevice
+		if(buttonPush5 && buttonPush5 == "dim") button_5_push_dim = controlDevice
+		if(buttonPush5 && buttonPush5 == "brighten") button_5_push_brighten = controlDevice
+		if(buttonPush5 && buttonPush5 == "toggle") button_5_push_toggle = controlDevice
+	}
+		
 
     log.info "Pico: $evt.displayName button $buttonNumber $evt.name."
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,appId)
@@ -591,8 +756,78 @@ def buttonHeld(evt){
     def colorSwitch
     def whiteSwitch
 
-	
-	if(!replicateHold){
+// TO DO - see if these can be moved so doesn't need to precess at every button click
+	if(!multiDevice && !advancedSetup && !replicateHold){
+		button_1_hold_on = controlDevice
+		if(numButton == "4 button" || numButton == "5 button") button_2_hold_brighten = controlDevice
+		if(numButton == "5 button") button_3_hold_toggle = controlDevice
+		if(numButton == "4 button" || numButton == "5 button") button_4_hold_dim = controlDevice
+		button_5_hold_off = controlDevice
+	} else if(!multiDevice && advanceSetup && !replicateHold){
+		if(buttonPush1 && buttonPush1 == "on") button_1_hold_on = controlDevice
+		if(buttonPush1 && buttonPush1 == "off") button_1_hold_off = controlDevice
+		if(buttonPush1 && buttonPush1 == "dim") button_1_hold_dim = controlDevice
+		if(buttonPush1 && buttonPush1 == "brighten") button_1_hold_brighten = controlDevice
+		if(buttonPush1 && buttonPush1 == "toggle") button_1_hold_toggle = controlDevice
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonPush2 && buttonPush2 == "on") button_2_hold_on = controlDevice
+			if(buttonPush2 && buttonPush2 == "off") button_2_hold_off = controlDevice
+			if(buttonPush2 && buttonPush2 == "dim") button_2_hold_dim = controlDevice
+			if(buttonPush2 && buttonPush2 == "brighten") button_2_hold_brighten = controlDevice
+			if(buttonPush2 && buttonPush2 == "toggle") button_2_hold_toggle = controlDevice
+		}
+		if(numButton == "5 button"){
+			if(buttonPush3 && buttonPush3 == "on") button_3_hold_on = controlDevice
+			if(buttonPush3 && buttonPush3 == "off") button_3_hold_off = controlDevice
+			if(buttonPush3 && buttonPush3 == "dim") button_3_hold_dim = controlDevice
+			if(buttonPush3 && buttonPush3 == "brighten") button_3_hold_brighten = controlDevice
+			if(buttonPush3 && buttonPush3 == "toggle") button_3_hold_toggle = controlDevice
+		}
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonPush4 && buttonPush4 == "on") button_4_hold_on = controlDevice
+			if(buttonPush4 && buttonPush4 == "off") button_4_hold_off = controlDevice
+			if(buttonPush4 && buttonPush4 == "dim") button_4_hold_dim = controlDevice
+			if(buttonPush4 && buttonPush4 == "brighten") button_4_hold_brighten = controlDevice
+			if(buttonPush4 && buttonPush4 == "toggle") button_4_hold_toggle = controlDevice
+		}
+		if(buttonPush5 && buttonPush5 == "on") button_5_hold_on = controlDevice
+		if(buttonPush5 && buttonPush5 == "off") button_5_holdhold_off = controlDevice
+		if(buttonPush5 && buttonPush5 == "dim") button_5_hold_dim = controlDevice
+		if(buttonPush5 && buttonPush5 == "brighten") button_5_hold_brighten = controlDevice
+		if(buttonPush5 && buttonPush5 == "toggle") button_5_hold_toggle = controlDevice
+	} else if(!multiDevice && advanceSetup && replicateHold){
+		if(buttonHold1 && buttonHold1 == "on") button_1_hold_on = controlDevice
+		if(buttonHold1 && buttonHold1 == "off") button_1_hold_off = controlDevice
+		if(buttonHold1 && buttonHold1 == "dim") button_1_hold_dim = controlDevice
+		if(buttonHold1 && buttonHold1 == "brighten") button_1_hold_brighten = controlDevice
+		if(buttonHold1 && buttonHold1 == "toggle") button_1_hold_toggle = controlDevice
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonHold2 && buttonHold2 == "on") button_2_hold_on = controlDevice
+			if(buttonHold2 && buttonHold2 == "off") button_2_hold_off = controlDevice
+			if(buttonHold2 && buttonHold2 == "dim") button_2_hold_dim = controlDevice
+			if(buttonHold2 && buttonHold2 == "brighten") button_2_hold_brighten = controlDevice
+			if(buttonHold2 && buttonHold2 == "toggle") button_2_hold_toggle = controlDevice
+		}
+		if(numButton == "5 button"){
+			if(buttonHold3 && buttonHold3 == "on") button_3_hold_on = controlDevice
+			if(buttonHold3 && buttonHold3 == "off") button_3_hold_off = controlDevice
+			if(buttonHold3 && buttonHold3 == "dim") button_3_hold_dim = controlDevice
+			if(buttonHold3 && buttonHold3 == "brighten") button_3_hold_brighten = controlDevice
+			if(buttonHold3 && buttonHold3 == "toggle") button_3_hold_toggle = controlDevice
+		}
+		if(numButton == "4 button" || numButton == "5 button"){
+			if(buttonHold4 && buttonHold4 == "on") button_4_hold_on = controlDevice
+			if(buttonHold4 && buttonHold4 == "off") button_4_hold_off = controlDevice
+			if(buttonHold4 && buttonHold4 == "dim") button_4_hold_dim = controlDevice
+			if(buttonHold4 && buttonHold4 == "brighten") button_4_hold_brighten = controlDevice
+			if(buttonHold4 && buttonHold4 == "toggle") button_4_hold_toggle = controlDevice
+		}
+		if(buttonHold5 && buttonHold5 == "on") button_5_hold_on = controlDevice
+		if(buttonHold5 && buttonHold5 == "off") button_5_hold_off = controlDevice
+		if(buttonHold5 && buttonHold5 == "dim") button_5_hold_dim = controlDevice
+		if(buttonHold5 && buttonHold5 == "brighten") button_5_hold_brighten = controlDevice
+		if(buttonHold5 && buttonHold5 == "toggle") button_5_hold_toggle = controlDevice
+	} else if(multiDevice && !replicateHold){
 		if(button_1_push_on) button_1_hold_on = button_1_push_on
 		if(button_2_push_on) button_2_hold_on = button_2_push_on
 		if(button_3_push_on) button_3_hold_on = button_3_push_on
