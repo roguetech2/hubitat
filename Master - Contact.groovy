@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.1.01
+*  Version: 0.3.01
 * 
 ***********************************************************************************************************************/
 
@@ -46,43 +46,73 @@ preferences {
 			if(state.timeDisable){
 				input "contactDisableAll", "bool", title: "All contact sensors are disabled. Reenable?", defaultValue: false, submitOnChange:true
 			} else if(contactDisable){
-				label title: "<b>Assign a name:</b>", required: true
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
+				label title: "", required: true
 				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
-				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
+				input "contact", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
 				input "contactDisable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
 			} else {
-			
-				label title: "<b>Assign a name:</b>", required: true
-				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
-				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
-				input "contactDisable", "bool", title: "<b><font color=\"#000099\">Disable this contact sensor?</font></b>", submitOnChange:true
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this contact sensor routine:</b></div>"
+				label title: "", required: true, submitOnChange:true
+				if(!app.label){
+					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+				} else if(app.label){
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Select door sensors for routine:</b></div>"
+					input "contact", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
+					input "contactDisable", "bool", title: "Disable this contact sensor?", submitOnChange:true
+					if(!contact){
+						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+					} else if(contact){
+						paragraph "<div style=\"background-color:BurlyWood\"><b>Select which devices to control:</b></div>"
+						if(!switches && !locks) input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, or sending text alert.", defaultValue: false, submitOnChange:true
+						if(!noDevice) input "switches", "capability.switchLevel", title: "Lights/switches?", multiple: true, required: false, submitOnChange:true
+						if(!noDevice) input "locks", "capability.lock", title: "Locks?", multiple: true, required: false, submitOnChange:true
+						if((!switches && !locks) || noDevice) {
+							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+						} else if((switches || locks) && !noDevice) {
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches or locks:</b></div>"
+							if(switches) {
+								input "actionOpenSwitches", "enum", title: "What to do with lights/switches on open? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+								input "actionCloseSwitches", "enum", title: "What to do with lights/switches on close? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+							}
+							if(locks) {
+								input "actionOpenLocks", "enum", title: "What to do with locks on open? (Optional)", required: false, multiple: false, width: 6, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+								input "actionCloseLocks", "enum", title: "What to do with locks on close? (Optional)", required: false, multiple: false, width: 6, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+							}
+							input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
+							input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
+							if(!actionOpenSwitches && !actionCloseSwitches && !actionOpenLocks && !actionCloseLocks && !mode && !phone) {
+								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+							} else {
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Set wait time before setting lights:</b></div>"
+								if(!openWait && !closeWait) input "noWaitTime", "bool", title: "<b>No pause.</b> Click to continue to set schedule and mode.", defaultValue: false, submitOnChange:true
+								if(!noWaitTime){
+									if(!noWaitTime) input "openWait", "number", title: "Wait seconds for opening action.", defaultValue: false, width: 6, submitOnChange:true
+									if(!noWaitTime) input "closeWait", "number", title: "Wait seconds for closing action.", defaultValue: false, width: 6, submitOnChange:true
+								}
 
-				if(contactDevice){
-					paragraph "• <font color=\"#000099\"><b>When opened</b></font>"
-					input "contactSetModeOpen", "mode", title: "Set Mode to:", required: false
-					input "contactOpen1On", "capability.switch", title: "Turn On", multiple: true, required: false
-					input "contactOpen1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-					input "contactOpen1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-					input "contactOpenWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
-					input "contactOpen2On", "capability.switch", title: "Turn On", multiple: true, required: false
-					input "contactOpen2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-					input "contactOpen2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-
-					paragraph "• <font color=\"#000099\"><b>When closed</b></font>"
-					input "contactSetModeClose", "mode", title: "Set Mode to:", required: false
-					input "contactClose1On", "capability.switch", title: "Turn On", multiple: true, required: false
-					input "contactClose1Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-					input "contactClose1Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-					input "contactCloseWait", "number", required: false, title: "<b>Then after seconds</b> (Optional. Default 0.)"
-					input "contactClose2On", "capability.switch", title: "Turn On", multiple: true, required: false
-					input "contactClose2Off", "capability.switch", title: "Turn Off", multiple: true, required: false
-					input "contactClose2Toggle", "capability.switch", title: "Toggle (if on, turn off; if off, turn on)", multiple: true, required: false
-					paragraph " ", width: 12
-					input "contactIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
-					paragraph "• <font color=\"#000099\"><b>Only if time is between:</b></font>"
-					input "contactStart", "time", title: "<b>Start time</b> (12:00AM if all day; Optional)", required: true, width: 6
-					input "contactStop", "time", title: "<b>Stop time</b> (11:59PM for remaining day; Optional)", required: false, width: 6
-					input "contactDisableAll", "bool", title: "Disable <b>ALL</b> contact sensors?", defaultValue: false, submitOnChange:true
+								if(!openWait && !closeWait && !noWaitTime){
+									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+								} else {
+									paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
+									if(timeStop){
+										input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
+									} else {
+										input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+									}
+									if(timeStart){
+										input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+									} else {
+										input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+									}
+									input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+									input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
+									paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
+								}
+							}
+						}
+						input "contactDisableAll", "bool", title: "Disable <b>ALL</b> contact sensors?", defaultValue: false, submitOnChange:true
+					}
 				}
 			}
 		}
@@ -114,68 +144,139 @@ def initialize() {
 def contactOpen(evt){
 	if(contactDisable || state.contactDisableAll) return
 	def appId = app.getId()
-	unschedule(scheduleOpen)
-	unschedule(scheduleClose)
+	
+	
+	// If presence is disabled, return null
+	if(state.presenceDisable || presenceDisable) return
+	
+	// If mode set and node doesn't match, return null
+	if(ifMode && location.mode != ifMode) return
+
+	// If before start time, return null
+	if(timeStart){
+		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
+	}
+
+	// If after time stop, return null
+	if(timeStop){
+		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
+	}
+	
+	// If not correct day, return null
+	if(timeDays){
+		def df = new java.text.SimpleDateFormat("EEEE")
+		df.setTimeZone(location.timeZone)
+		def day = df.format(new Date())
+		if(!timeDays.contains(day)) return null
+	}
+
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
-	if(contactOpenWait){
-		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
-			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				runIn(contactOpenWait,scheduleOpen)
+	// Unschedule pevious events
+	unschedule(scheduleOpen)
+	unschedule(scheduleClose)
+
+	// Schedule open events
+	if(openWait) {
+		runIn(openWait,scheduleOpen)
+	} else {
+		if(switches) {
+			if(actionOpenSwitches == "on") {
+				parent.multiOn(switches,appId)
+			} else if(actionOpenSwitches == "off"){
+				parent.multiOff(switches,appId)
+			} else if(actionOpenSwitches == "toggle"){
+				parent.toggle(switches,appId)
 			}
 		}
-	}
-	if(!timeStartIfMode || location.mode == timeStartIfMode) {
-		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
-			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				if(contactOpen1On) parent.multiOn(contactOpen1On,appId)
-				if(contactOpen1Off) parent.multiOff(contactOpen1Off,appId)
-				if(contactOpen1Toggle) parent.toggle(contactOpen1Toggle,appId)
-				if(contactSetModeOpen) setLocationMode(contactSetModeOpen,appId)
-			}
-		}
+		/* ***************************************** */
+		/* TO DO: Build lock code                    */
+		/* ***************************************** */
 	}
 }
 
 def contactClosed(evt){
 	if(contactDisable || state.contactDisableAll) return
 	def appId = app.getId()
-	unschedule(scheduleClose)
+	
+	// If presence is disabled, return null
+	if(state.presenceDisable || presenceDisable) return
+	
+	// If mode set and node doesn't match, return null
+	if(ifMode && location.mode != ifMode) return
+
+	// If before start time, return null
+	if(timeStart){
+		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
+	}
+
+	// If after time stop, return null
+	if(timeStop){
+		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
+	}
+	
+	// If not correct day, return null
+	if(timeDays){
+		def df = new java.text.SimpleDateFormat("EEEE")
+		df.setTimeZone(location.timeZone)
+		def day = df.format(new Date())
+		if(!timeDays.contains(day)) return null
+	}
+
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
-	if(contactCloseWait){
-		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
-			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				runIn(contactCloseWait,scheduleClose)
+	// Unschedule pevious close events
+	unschedule(scheduleClose)
+
+	// Schedule open events
+	if(closeWait) {
+		runIn(closeWait,scheduleClose)
+	} else {
+		if(switches) {
+			if(actionCloseSwitches == "on") {
+				parent.multiOn(switches,appId)
+			} else if(actionCloseSwitches == "off"){
+				parent.multiOff(switches,appId)
+			} else if(actionCloseSwitches == "toggle"){
+				parent.toggle(switches,appId)
 			}
 		}
-	}
-	if(!timeStartIfMode || location.mode == timeStartIfMode) {
-		if(!contactStart || now() > timeToday(contactStart, location.timeZone).time){
-			if(!contactStop || now() < timeToday(contactStop, location.timeZone).time){
-				if(contactClose1On) parent.multiOn(contactClose1On,appId)
-				if(contactClose1Off) parent.multiOff(contactClosen1Off,appId)
-				if(contactClose1Toggle) parent.toggle(contactClose1Toggle,appId)
-				if(contactSetModeClose) setLocationMode(contactSetModeClose,appId)
-			}
-		}
+		/* ***************************************** */
+		/* TO DO: Build lock code                    */
+		/* ***************************************** */
 	}
 }
 
 def scheduleOpen(){
 	def appId = app.getId()
-	if(timeStartIfMode && location.mode != timeStartIfMode) return
-	if(contactOpen2On) parent.multiOn(contactOpen2On,appId)
-	if(contactOpen2Off) parent.multiOff(contactOpen2Off,appId)
-	if(contactOpen2Toggle) parent.toggle(contactOpen2Toggle,appId)
-	if(contactSetModeOpen) setLocationMode(contactSetModeOpen,appId)
+
+	if(switches) {
+		if(actionOpenSwitches == "on") {
+			parent.multiOn(switches,appId)
+		} else if(actionOpenSwitches == "off"){
+			parent.multiOff(switches,appId)
+		} else if(actionOpenSwitches == "toggle"){
+			parent.toggle(switches,appId)
+		}
+	}
+	/* ***************************************** */
+	/* TO DO: Build lock code                    */
+	/* ***************************************** */
 }
 
 def scheduleClose(){
 	def appId = app.getId()
-	if(timeStartIfMode && location.mode != timeStartIfMode) return
-	if(contactClose2On) parent.multiOn(contactClose2On,appId)
-	if(contactClose2Off) parent.multiOff(contactClose2Off,appId)
-	if(contactClose2Toggle) parent.toggle(contactClose2Toggle,appId)
-	if(contactSetModeClose) setLocationMode(contactSetModeClose,appId)
+
+	if(switches) {
+		if(actionCloseSwitches == "on") {
+			parent.multiOn(switches,appId)
+		} else if(actionCloseSwitches == "off"){
+			parent.multiOff(switches,appId)
+		} else if(actionCloseSwitches == "toggle"){
+			parent.toggle(switches,appId)
+		}
+	}
+	/* ***************************************** */
+	/* TO DO: Build lock code                    */
+	/* ***************************************** */
 }
