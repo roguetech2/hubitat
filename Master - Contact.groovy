@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.01
+*  Version: 0.3.02
 * 
 ***********************************************************************************************************************/
 
@@ -175,6 +175,33 @@ def contactOpen(evt){
 	// Unschedule pevious events
 	unschedule(scheduleOpen)
 	unschedule(scheduleClose)
+	
+	// Text first (just in case there's an error later)
+	/* ********************************** */
+	/* TO DO: Instead of throwing error   */
+	/* here, validate number on setup     */
+	/* Also add to Master - Contact       */
+	/* ********************************** */
+	if(phone){
+		def now = new Date()
+		now = now.format("h:mm a", location.timeZone)
+		if(evt.value == "present"){
+			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
+				log.debug "Sent SMS for $evt.displayName's arrival at $now."
+			} else {
+				log.debug "Error sending SMS for $evt.displayName's arrival at $now."
+			}
+		} else {
+			if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
+				log.debug "Sent SMS for $evt.displayName's departure at $now."
+			} else {
+				log.debug "Error sending SMS for $evt.displayName's departure at $now."
+			}
+		}
+	}
+
+	// Set mode
+	if(mode) parent.changeMode(mode, appId)
 
 	// Schedule open events
 	if(openWait) {
