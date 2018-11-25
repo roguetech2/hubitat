@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.02
+*  Version: 0.3.03
 * 
 ***********************************************************************************************************************/
 
@@ -95,15 +95,47 @@ preferences {
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else {
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
-									if(timeStop){
-										input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
-									} else {
-										input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+									if(!timeStartSunrise && !timeStartSundown){
+										if(timeStop){
+											input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
+										} else {
+											input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
+										}
+									} else if(timeStartSunrise) {
+										paragraph "Between sunrise", width: 6
+									} else if(timeStartSundown){
+										paragraph "Between sundown", width: 6
 									}
-									if(timeStart){
-										input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+									if(!timeStopSunrise && !timeStopSundown){
+										if(timeStart){
+											input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
+										} else {
+											input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
+										}
+									} else if(timeStopSunrise){
+										paragraph "and sunrise", width: 6
+									} else if(timeStopSundown){
+										paragraph "and sundown", width: 6
+									}
+									if(!timeStartSundown){
+										input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 									} else {
-										input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+										paragraph " ", width: 6
+									}
+									if(!timeStopSundown) {
+										input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
+									} else {
+										paragraph " ", width: 6
+									}
+									if(!timeStartSunrise){
+										input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
+									} else {
+										paragraph " ", width: 6
+									}
+									if(!timeStopSunrise){
+										input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
+									} else {
+										paragraph " ", width: 6
 									}
 									input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 									input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
@@ -152,15 +184,20 @@ def contactOpen(evt){
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) return
 
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
-	}
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+	
+	// If timeStop before timeStart, add a day
+	if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
 
-	// If after time stop, return null
-	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
-	}
+	// if start time before stop time, and it's not between times
+	// Must check in this order, since it's troublesome to tell what **day** stop time might be
+	if(timeStart > timeStop && now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return defaults
+
+	// If start time after stop time, and it's earlier than start time, return null
+	if(timeStart < timeStop && now() < timeToday(timeStart, location.timeZone).time) return defaults
 	
 	// If not correct day, return null
 	if(timeDays){
@@ -232,16 +269,21 @@ def contactClosed(evt){
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) return
 
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
-	}
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
 
-	// If after time stop, return null
-	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
-	}
-	
+	// If timeStop before timeStart, add a day
+	if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+
+	// if start time before stop time, and it's not between times
+	// Must check in this order, since it's troublesome to tell what **day** stop time might be
+	if(timeStart > timeStop && now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return defaults
+
+	// If start time after stop time, and it's earlier than start time, return null
+	if(timeStart < timeStop && now() < timeToday(timeStart, location.timeZone).time) return defaults
+
 	// If not correct day, return null
 	if(timeDays){
 		def df = new java.text.SimpleDateFormat("EEEE")
