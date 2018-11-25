@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.06
+*  Version: 0.1.07
 *
 ***********************************************************************************************************************/
 
@@ -209,7 +209,7 @@ def multiOn(device,childId="Master"){
 				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
 				defaults = Child.getDefaultLevel(it)
 	
-				log.debug "Master - childId = $childId (matching on $Child.id) with device id = $it.id"
+				log.debug "Master - Checking time app $Child.id for device id $it.id (requesting child = $childId)"
 				
 				if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
                 if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
@@ -550,6 +550,9 @@ def todayInDayList(days){
 def timeBetween(timeStart, timeStop){
 	if(!timeStart) return false
 	if(!timeStop) return false
-	if(timeStart < timeStop) getTomorrow(timeStop)
-	if(timeOfDayIsBetween(timeStart, timeStop, new Date(), location.timeZone)) return true
+	if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
+		if(now() > timeToday(timeStart, location.timeZone).time || now() < timeToday(timeStop, location.timeZone).time)
+			return true
+	}
+	if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return true
 }
