@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.07
+*  Version: 0.3.08
 *
 ***********************************************************************************************************************/
 
@@ -395,19 +395,16 @@ def getDefaultLevel(device){
 	if(timeStartSundown) timeStart = parent.getSundown()
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
-	
+							
 	// If timeStop before timeStart, add a day
 	if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
-	
-	// If before start time, return null
-	if(timeStart){
-		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
-	}
 
-	// If after time stop, return null
-	if(timeStop){
-		if(now() > timeToday(timeStop, location.timeZone).time) return defaults
-	}
+	// if start time before stop time, and it's not between times
+	// Must check in this order, since it's troublesome to tell what **day** stop time might be
+	if(timeStart > timeStop && now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return defaults
+	 
+	// If start time after stop time, and it's earlier than start time, return null
+	if(timeStart < timeStop && now() < timeToday(timeStart, location.timeZone).time) return defaults
 
 	// If not correct day, return null
 	if(timeDays){
