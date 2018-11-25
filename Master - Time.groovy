@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.08
+*  Version: 0.3.09
 *
 ***********************************************************************************************************************/
 
@@ -395,7 +395,7 @@ def getDefaultLevel(device){
 
 
 	// if between start and stop time
-	if(!timeBetween(timeStart, timeStop)) return defaults
+	if(!parent.timeBetween(timeStart, timeStop)) return defaults
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) return defaults
@@ -558,7 +558,7 @@ def initializeSchedules(){
 					// If mode is correct
 					if(ifMode && location.mode == ifMode) {
 						// If between start and stop time (if start time after stop time, then if after start time)
-						if(timeBetween(timeStart, timeStop)){
+						if(parent.timeBetween(timeStart, timeStop)){
 							// If anything is on
 							if(parent.multiStateOn(timeDevice)) incrementalSchedule()
 						}
@@ -644,7 +644,7 @@ def incrementalSchedule(){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// If between start and stop time (if start time after stop time, then if after start time)
-	if(timeBetween(timeStart, timeStop)){
+	if(parent.timeBetween(timeStart, timeStop)){
 			runMultiSchedule()
 			runIn(20,incrementalSchedule)
 
