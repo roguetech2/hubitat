@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.06
+*  Version: 0.3.07
 *
 ***********************************************************************************************************************/
 
@@ -56,15 +56,47 @@ preferences {
 						// If no devices selected, don't show anything else (except disabling)
 						if(timeDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
-							if(timeStop){
-								input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
-							} else {
-								input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+							if(!timeStartSunrise && !timeStartSet){
+								if(timeStop){
+									input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStartSunrise) {
+								paragraph "Between sunrise", width: 6
+							} else if(timeStartSet){
+								paragraph "Between sundown", width: 6
 							}
-							if(timeStart){
-								input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+							if(!timeStopSunrise && !timeStopSundown){
+								if(timeStart){
+									input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStopSunrise){
+								paragraph "and sunrise", width: 6
+							} else if(timeStopSundown){
+								paragraph "and sundown", width: 6
+							}
+							if(!timeStartSundown){
+								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
-								input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+								paragraph " ", width: 6
+							}
+							if(!timeStopSundown) {
+								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStartSunrise){
+								input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStopSunrise){
+								input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
 							}
 							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 						}
@@ -86,15 +118,47 @@ preferences {
 						// If no devices selected, don't show anything else (except disabling)
 						} else if(timeDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Enter time or mode (Optional):</b></div>"
-							if(timeStop){
-								input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
-							} else {
-								input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+							if(!timeStartSunrise && !timeStartSundown){
+								if(timeStop){
+									input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStartSunrise) {
+								paragraph "Between sunrise", width: 6
+							} else if(timeStartSundown){
+								paragraph "Between sundown", width: 6
 							}
-							if(timeStart){
-								input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+							if(!timeStopSunrise && !timeStopSundown){
+								if(timeStart){
+									input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStopSunrise){
+								paragraph "and sunrise", width: 6
+							} else if(timeStopSundown){
+								paragraph "and sundown", width: 6
+							}
+							if(!timeStartSundown){
+								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
-								input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+								paragraph " ", width: 6
+							}
+							if(!timeStopSundown) {
+								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStartSunrise){
+								input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStopSunrise){
+								input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
 							}
 							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 							if(!timeStart) {
@@ -262,8 +326,8 @@ preferences {
 
 
 def installed() {
-	if(app.getLabel().length() < 4)  app.updateLabel("Time - " + app.getLabel())
-    if(app.getLabel().substring(0,4) != "Time") app.updateLabel("Time - " + app.getLabel())
+	if(app.getLabel().length() < 7)  app.updateLabel("Time - " + app.getLabel())
+    if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
     initialize()
 }
 
@@ -272,26 +336,20 @@ def updated() {
 }
 
 def initialize() {
-	    if(app.getLabel().substring(0,4) != "Time") app.updateLabel("Time - " + app.getLabel())
+	if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
     log.info "Time initialized"
 	def appId = app.getId()
-	unschedule(setDayOnSchedule)
-	unschedule(setDayOffSchedule)
-	unschedule(firstStageSchedule)
-	unschedule(secondStageSchedule)
+	unschedule(reschedule)
+	unschedule(incrementalSchedule)
+	unschedule(runDayOnSchedule)
+	unschedule(runDayOffSchedule)
+	unschedule(initializeSchedule)
 	if(timeDisableAll) {
 		state.timeDisable = true
 	} else {
 		state.timeDisable = false
-		if(!timeDisable) setDaySchedule()
+		if(!timeDisable) initializeSchedules()
 	}
-	state.debug = true
-	//if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle") runDaily(timeToday(timeStart, location.timeZone), runDaySchedule())
-	//	if(timeOn == "Turn Off") runDaily(timeToday(timeStart, location.timeZone), parent.multiOff(timeDevice,appId))
-	//	if(timeOn == "Toggle") runDaily(timeToday(timeStart, location.timeZone), parent.toggle(timeDevice,appId))
-	//	if(timeLevelOn == "Dim" && !timeOff) runDaily(timeToday(timeStart, location.timeZone), parent.dim(timeDevice,appId))
-
-	
 }
 
 def dimSpeed(){
@@ -303,9 +361,6 @@ def dimSpeed(){
 }
 
 def getDefaultLevel(device){
-	// *******************************************************************************
-	// ** TO DO: Merge level,temp, hue and sat into one function (and return array) **
-	// *******************************************************************************
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 	
 	// If no device match, return null
@@ -336,6 +391,14 @@ def getDefaultLevel(device){
 		if(location.mode != timeStartIfMode) return defaults
 	}
 
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+	
+	// If timeStop before timeStart, add a day
+	if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+	
 	// If before start time, return null
 	if(timeStart){
 		if(now() < timeToday(timeStart, location.timeZone).time) return defaults
@@ -477,37 +540,46 @@ def getDefaultLevel(device){
 	return defaults
 }
 
-// New schedule initializer
-// Not completed or implemented
-// Will replace setDaySchedule (perhaps others)
-// Fixes: wasn't creating day schedule for mode only change
-//        Incorrectly creating increment schedule when nothing is on
-//        Failing to create increment schedule immediatly (when initializing)
+// Schedule initializer
 def initializeSchedules(){
+	// If disabled, return null
+	if(timeDisable || state.timeDisableAll) return
+
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+
 	if(!timeStart) return
+
+	// If timeStop before timeStart, add a day
+	if(timeStop){
+		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+	}
 	
 	// ****************************
 	// TO-DO - make sure reenabling reschedules
 	// *****************************
 	
-	// If disabled, return null
-	if(timeDisable || state.timeDisableAll) return
-	
 	// Immediately start incremental schedules
 	// If incremental
 	if(timeStop){
-		// If correct Mode
-		if(timeStartIfMode && location.mode != timeStartIfMode){
-			// If correct day
-			def df = new java.text.SimpleDateFormat("EEEE")
-			df.setTimeZone(location.timeZone)
-			def day = df.format(new Date())
-			if(timeDays && timeDays.contains(day)){
-				// If between start and stop time
-				if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone).time){
-					// If anything is on
-					if(parent.multiStateOn(timeDevice)){
-						secondStageSchedule()
+		// Check if any incremental changes to make
+		if((timeLevelOn && timeLevelOff) || (timeTempOn && timeTempOff) || (timeHueOn && timeHueOff) || (timeSatOn && timeSatOff)){
+			// If correct Mode
+			if((timeStartIfMode && location.mode != timeStartIfMode) || !timeStartIfMode){
+				// If correct day
+				def df = new java.text.SimpleDateFormat("EEEE")
+				df.setTimeZone(location.timeZone)
+				def day = df.format(new Date())
+				if((timeDays && timeDays.contains(day)) || !timeDays){
+					// If mode is correct
+					if(ifMode && location.mode == ifMode) {
+						// If between start and stop time (if start time after stop time, then if after start time)
+						if((timeStart <  timeStop && now() > timeToday(timeStart, location.timeZone).time) || (now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone))){
+							// If anything is on
+							if(parent.multiStateOn(timeDevice)) incrementalSchedule()
+						}
 					}
 				}
 			}
@@ -518,16 +590,16 @@ def initializeSchedules(){
 	weekDays = weekDaysToNum()
 	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-
+	
 	// Schedule next day incrementals, if no start action to be scheduled 
-	// Change to scheduling both - just skip secondStageSchedule
+	// Change to scheduling both - just skip incrementalSchedule
 	// FIrst, check if a day schedule - if so, add 20 seconds
 	// Otherwise, schedule without seconds
 	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) {
 		if(weekDays) {
-			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, secondStageSchedule)
+			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, incrementalSchedule)
 		} else {
-			schedule("0 " + minutes + " " + hours + " * * ?", secondStageSchedule)
+			schedule("0 " + minutes + " " + hours + " * * ?", incrementalSchedule)
 		}
 	// Schedule next day's starting on/off/toggle
 	} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle" || timeModeChangeOn){
@@ -552,100 +624,59 @@ def initializeSchedules(){
 	}															  
 }
 
-// Setup on/off day schedule event
-// Called from initialize (then loops from runDayOnSchedule and runDayOffSchedule)
-def setDaySchedule(){
-	if(!timeStart) return
-	if(timeDisable || state.timeDisableAll) return
-	if(timeStop){
-		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) {
-			log.debug "Time: Stop time is before Start time. Cancelling schedule."
-			return
-		} else {
-			if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone).time) secondStageSchedule()
-		}
-	}
-	weekDays = weekDaysToNum()
-	if(timeStart){
-		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-		// schedule starting "second stage" increment
-		if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle") {
-			if(weekDays) {
-				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, secondStageSchedule)
-			} else {
-				schedule("0 " + minutes + " " + hours + " * * ?", secondStageSchedule)
-			}
-		// Schedule starting on/off/toggle
-		} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle"){
-			if(weekDays) {
-				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
-			} else {
-				schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
-			}
-		}
-		// schedule stopping on/off/toggle
-		if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle"){
-			if(timeStop){
-				hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
-				minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-				if(weekDays) {
-					schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
-				}else {
-					schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
-				}
-			}
-		}
-
-	}
-}
-
 def reschedule(device){
 	match = false
 	timeDevice.each{
 		if(it.id == device.id) match = true
 	}
-	if(match) firstStageSchedule()
-}
-
-// Allows pausing scheduling for a minute
-def firstStageSchedule(){
-	unschedule(firstStageSchedule)
-	unschedule(secondStageSchedule)
-	if(timeDisable || state.timeDisableAll) return
-	runIn(30,secondStageSchedule)
-	log.info "Time: Pausing updates for 30 seconds for $timeDevice."
+	if(match) {
+		unschedule(reschedule)
+		unschedule(incrementalSchedule)
+		if(timeDisable || state.timeDisableAll) return
+		runIn(30,initializeSchedules())
+		log.info "Time: Pausing updates for 30 seconds for $timeDevice."
+	}
 }
 
 //settings up schedules for level/temp
-def secondStageSchedule(){
+def incrementalSchedule(){
 	// Probably don't need this, but maybe possible to have multiple schedules??
-	unschedule(secondStageSchedule)
-	
-	// If no default level, return null
-	if(!timeLevelOn) return
-	
+	unschedule(incrementalSchedule)
+
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return
-	if(!timeStop) return
-	var = parent.multiStateOn(settings.timeDevice)
-	if(!parent.multiStateOn(timeDevice)) return
-	// If nothing to do, exit
-	if((!timeLevelOn && !timeLevelOff) || (!timeTempOn && !timeTempOff) || timeOn == "Turn Off" || !timeStart || !timeStop) return
 
-	// If before or after time frame
-    if(now() < timeToday(timeStart, location.timeZone).time) return
-    if(timeStop){
-        if(now() > timeToday(timeStop, location.timeZone).time) return
-    }
-	runMultiSchedule()
-	runIn(20,secondStageSchedule)
-	
-	log.info "Time: Scheduling update for 20 seconds for $timeDevice."
+	// If nothing is on, return null
+	if(!parent.multiStateOn(timeDevice)) return
+
+	// Check if correct day and time just so we don't keep running forever
+	def df = new java.text.SimpleDateFormat("EEEE")
+	df.setTimeZone(location.timeZone)
+	def day = df.format(new Date())
+	if(timeDays && !timeDays.contains(day)) return
+
+	// If mode set and node doesn't match, return null
+	if(ifMode && location.mode != ifMode) return
+
+	// Set timeStart and timeStop, if sunrise or sundown
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+
+	// If between start and stop time (if start time after stop time, then if after start time)
+	if((timeStart <  timeStop && now() > timeToday(timeStart, location.timeZone).time) || (now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone))){
+			runMultiSchedule()
+			runIn(20,incrementalSchedule)
+
+			log.info "Time: Scheduling update for 20 seconds for $timeDevice."
+	} else {
+		return
+	}
 }
 
 // run scheduled level/temp incremental changes
-// scheduled function called from secondStageSchedule
+// scheduled function called from incrementalSchedule
 def runMultiSchedule(){
 	if(timeDisable || state.timeDisableAll) return
 	
@@ -784,3 +815,70 @@ def weekDaysToNum(){
 	}
 	return dayString
 }
+
+/*
+// Setup on/off day schedule event
+// Called from initialize (then loops from runDayOnSchedule and runDayOffSchedule)
+def setDaySchedule(){
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+
+	if(!timeStart) return
+	if(timeDisable || state.timeDisableAll) return
+	if(timeStop){
+		// If timeStop before timeStart, add a day
+		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+
+		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) {
+			log.debug "Time: Stop time is before Start time. Cancelling schedule."
+			return
+		} else {
+			if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone).time) secondStageSchedule()
+		}
+	}
+	weekDays = weekDaysToNum()
+	if(timeStart){
+		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
+		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
+		// schedule starting "second stage" increment
+		if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle") {
+			if(weekDays) {
+				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, secondStageSchedule)
+			} else {
+				schedule("0 " + minutes + " " + hours + " * * ?", secondStageSchedule)
+			}
+		// Schedule starting on/off/toggle
+		} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle"){
+			if(weekDays) {
+				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
+			} else {
+				schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
+			}
+		}
+		// schedule stopping on/off/toggle
+		if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle"){
+			if(timeStop){
+				hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
+				minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
+				if(weekDays) {
+					schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
+				}else {
+					schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
+				}
+			}
+		}
+
+	}
+}
+
+// Allows pausing scheduling for a minute
+def firstStageSchedule(){
+	unschedule(firstStageSchedule)
+	unschedule(secondStageSchedule)
+	if(timeDisable || state.timeDisableAll) return
+	runIn(30,initializeSchedules())
+	log.info "Time: Pausing updates for 30 seconds for $timeDevice."
+}
+*/
