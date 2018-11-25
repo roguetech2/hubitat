@@ -315,8 +315,6 @@ preferences {
 							}
 						}
 					}
-
-				
 				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
 				}
 			
@@ -362,29 +360,28 @@ def dimSpeed(){
 
 def getDefaultLevel(device){
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
-	
+
 	// If no device match, return null
 	match = false
 	timeDevice.each{
 		if(it.id == device.id)  match = true
 	}
 	if(match == false) return defaults
-	
+
 	// Set map with fake values (must test if equals "a" as if null
-	
+
 	// If no default level, return null
 	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) return defaults
-	
+
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return defaults
-	
+
 	// If no device match, return null
 	match = false
 	timeDevice.each{
 		if(it.id == device.id)  match = true
 	}
 	if(match == false) return defaults
-	
 
 	// If mode set and node doesn't match, return null
 	if(timeStartIfMode){
@@ -395,31 +392,20 @@ def getDefaultLevel(device){
 	if(timeStartSundown) timeStart = parent.getSundown()
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
-							
-	// If timeStop before timeStart, add a day
-	if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
 
-	// if start time before stop time, and it's not between times
-	// Must check in this order, since it's troublesome to tell what **day** stop time might be
-	if(timeStart > timeStop && now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return defaults
-	 
-	// If start time after stop time, and it's earlier than start time, return null
-	if(timeStart < timeStop && now() < timeToday(timeStart, location.timeZone).time) return defaults
+
+	// if between start and stop time
+	if(!timeBetween(timeStart, timeStop)) return defaults
 
 	// If not correct day, return null
-	if(timeDays){
-		def df = new java.text.SimpleDateFormat("EEEE")
-		df.setTimeZone(location.timeZone)
-		def day = df.format(new Date())
-		if(!timeDays.contains(day)) return defaults
-	}
+	if(timeDays && !parent.todayInDayList(timeDays)) return defaults
 
 	// Get current level
 	currentLevel = device.currentLevel
 	currentTemp = device.currentColorTemperature
 	currentHue = device.currentHue
 	currentSat = device.currentSaturation
-	
+
 	// If no stop time or no start level, return start level
 	if(!timeStop) {
 		if(timeLevelOn && !timeLevelOff){
@@ -464,8 +450,10 @@ def getDefaultLevel(device){
 	if(timeSatOn && timeSatOn == currentSat && !timeSatOff && !defaults.sat) defaults = [sat: currentSat]
 
 	// If there's a stop time and stop level, and after start time
-
 	if(timeStart && timeStop){
+		// If timeStop before timeStart, add a day
+		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+
 		// Calculate proportion of time already passed from start time to endtime
 		hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 		minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
@@ -484,7 +472,7 @@ def getDefaultLevel(device){
 		} else if(timeTempOn){
 			newTemp = timeTempOn
 		}
-		
+
 		if(timeHueOff && timeHueOn) {
 			newHue = (timeHueOff - timeHueOn) * ((seconds2 + minutes2 * 60 + hours2 * 60 * 60) / (seconds1 + minutes1 * 60 + hours1 * 60 * 60)) + timeHueOn as int
 		} else if(timeHueOn){
@@ -566,14 +554,11 @@ def initializeSchedules(){
 			// If correct Mode
 			if((timeStartIfMode && location.mode != timeStartIfMode) || !timeStartIfMode){
 				// If correct day
-				def df = new java.text.SimpleDateFormat("EEEE")
-				df.setTimeZone(location.timeZone)
-				def day = df.format(new Date())
-				if((timeDays && timeDays.contains(day)) || !timeDays){
+				if(!timeDays || parent.todayInDayList(timeDays)){
 					// If mode is correct
 					if(ifMode && location.mode == ifMode) {
 						// If between start and stop time (if start time after stop time, then if after start time)
-						if((timeStart <  timeStop && now() > timeToday(timeStart, location.timeZone).time) || (now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone))){
+						if(timeBetween(timeStart, timeStop)){
 							// If anything is on
 							if(parent.multiStateOn(timeDevice)) incrementalSchedule()
 						}
@@ -647,10 +632,7 @@ def incrementalSchedule(){
 	if(!parent.multiStateOn(timeDevice)) return
 
 	// Check if correct day and time just so we don't keep running forever
-	def df = new java.text.SimpleDateFormat("EEEE")
-	df.setTimeZone(location.timeZone)
-	def day = df.format(new Date())
-	if(timeDays && !timeDays.contains(day)) return
+	if(timeDays && !parent.todayInDayList(timeDays)) return
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) return
@@ -662,7 +644,7 @@ def incrementalSchedule(){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// If between start and stop time (if start time after stop time, then if after start time)
-	if((timeStart <  timeStop && now() > timeToday(timeStart, location.timeZone).time) || (now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone))){
+	if(timeBetween(timeStart, timeStop)){
 			runMultiSchedule()
 			runIn(20,incrementalSchedule)
 
