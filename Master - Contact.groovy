@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.03
+*  Version: 0.3.05
 * 
 ***********************************************************************************************************************/
 
@@ -189,10 +189,10 @@ def contactOpen(evt){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if not between start and stop time
-	if(!timeBetween(timeStart, timeStop)) return defaults
+	if(!parent.timeBetween(timeStart, timeStop)) return
 	
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) return null
+	if(timeDays && !parent.todayInDayList(timeDays)) return
 
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
@@ -262,10 +262,10 @@ def contactClosed(evt){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if not between start and stop times
-	if(timeBetween(timeStart, timeStop)) return defaults
+	if(!parent.timeBetween(timeStart, timeStop)) return
 
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) return null
+	if(timeDays && !parent.todayInDayList(timeDays)) return
 
     log.debug "Contact: $evt.displayName contact sensor $evt.value"
 
