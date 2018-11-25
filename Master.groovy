@@ -16,9 +16,14 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.05
+*  Version: 0.1.06
 *
 ***********************************************************************************************************************/
+
+/* ******************************* */
+/* TO DO: Add function for mode    */
+/* change, and trigger reschedule  */
+/* ******************************* */
 
 definition(
     name: "Master",
@@ -516,4 +521,35 @@ def sendText(phone, message){
 	}
 	sendSms(phone,message)
 	return true
+}
+
+//adds a day to format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
+def getTomorrow(date){
+	day = date.substring(8,10).toInteger() + 1
+	day = String.format("%02d",day)
+	return date.substring(0,8) + day.toString() + date.substring(10,28)
+}
+
+def getSunrise(){
+	return getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+}
+
+def getSundown(){
+	return getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+}
+
+def todayInDayList(days){
+	if(!days) return false
+	def df = new java.text.SimpleDateFormat("EEEE")
+	df.setTimeZone(location.timeZone)
+	def day = df.format(new Date())
+	if(timeDays.contains(day)) return true
+}
+
+// Returns true if between two dates
+def timeBetween(timeStart, timeStop){
+	if(!timeStart) return false
+	if(!timeStop) return false
+	if(timeStart < timeStop) getTomorrow(timeStop)
+	if(timeOfDayIsBetween(timeStart, timeStop, new Date(), location.timeZone)) return true
 }
