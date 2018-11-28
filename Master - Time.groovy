@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.09
+*  Version: 0.3.10
 *
 ***********************************************************************************************************************/
 
@@ -359,6 +359,7 @@ def dimSpeed(){
 }
 
 def getDefaultLevel(device){
+	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
 	// If no device match, return null
@@ -368,20 +369,11 @@ def getDefaultLevel(device){
 	}
 	if(match == false) return defaults
 
-	// Set map with fake values (must test if equals "a" as if null
-
 	// If no default level, return null
 	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) return defaults
 
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return defaults
-
-	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id)  match = true
-	}
-	if(match == false) return defaults
 
 	// If mode set and node doesn't match, return null
 	if(timeStartIfMode){
@@ -392,7 +384,6 @@ def getDefaultLevel(device){
 	if(timeStartSundown) timeStart = parent.getSundown()
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
-
 
 	// if between start and stop time
 	if(!parent.timeBetween(timeStart, timeStop)) return defaults
@@ -453,7 +444,6 @@ def getDefaultLevel(device){
 	if(timeStart && timeStop){
 		// If timeStop before timeStart, add a day
 		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
-
 		// Calculate proportion of time already passed from start time to endtime
 		hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 		minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
