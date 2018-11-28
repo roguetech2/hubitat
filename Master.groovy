@@ -209,7 +209,7 @@ def multiOn(device,childId="Master"){
 				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
 				defaults = Child.getDefaultLevel(it)
 	
-				log.debug "Master - Checking time app $Child.id for device id $it.id (requesting child = $childId)"
+				//log.debug "Master - Checking time app $Child.id for device id $it.id (requesting child = $childId)"
 				
 				if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
                 if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
@@ -447,8 +447,8 @@ def isFan(device){
 }
 
 def flashGreen(device){
-	currentHue = it.currentHue
-	currentSat = it.currentSaturation
+	currentHue = device.currentHue
+	currentSat = device.currentSaturation
     if(!isColor(device)) return
 	newValue = [hue: 33, saturation: 100]
     device.setColor(newValue)
@@ -550,9 +550,13 @@ def todayInDayList(days){
 def timeBetween(timeStart, timeStop){
 	if(!timeStart) return false
 	if(!timeStop) return false
+
+	varNow = now()
 	if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
-		if(now() > timeToday(timeStart, location.timeZone).time || now() < timeToday(timeStop, location.timeZone).time)
-			return true
+		if(varNow > timeToday(timeStart, location.timeZone).time) return true
+		if(varNow < timeToday(timeStop, location.timeZone).time) return true
 	}
-	if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone)) return true
+	if(varNow > timeToday(timeStart, location.timeZone).time) return true
+	if(varNow < timeToday(timeStop, location.timeZone).time) return true
+
 }
