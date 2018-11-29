@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.07
+*  Version: 0.3.08
 * 
 ***********************************************************************************************************************/
 
@@ -167,6 +167,10 @@ def updated() {
 def initialize() {
 	logTrace("$app.label, app.getId(): initialized")
 	unschedule()
+	
+	// If date/time for last SMS not set, initialize it to 5 minutes ago
+	// Allows an SMS immediately
+	if(!state.contactLastSms) state.contactLastSms = now() - 360
 
 	if(!contactDisable && !state.contactDisableAll) {
 		subscribe(contactDevice, "contact", contactChange)
@@ -174,9 +178,6 @@ def initialize() {
 }
 
 def contactChange(evt){
-/* ****************************** */
-/* To-DO - Merge open and close   */
-/* ****************************** */
 	def appId = app.getId()
 	logTrace("$app.label, $appId: function contactChange started [evt: $evt ($evt.value)]")
 	if(contactDisable || state.contactDisableAll) {
@@ -220,30 +221,41 @@ def contactChange(evt){
 	}
 	
 	// Text first (just in case there's an error later)
-	/* ********************************** */
-	/* TO DO: Instead of throwing error   */
-	/* here, validate number on setup     */
-	/* Also add to Master - Contact       */
-	/* ********************************** */
+/* ********************************** */
+/* TO DO: Instead of throwing error   */
+/* here, validate number on setup     */
+/* Also add to Master - Contact       */
+/* ********************************** */
 	if(phone){
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
-/* ******************************************* */
-/* To-DO Add state for date/time, and don't    */
-/* send more than one text per... few minutes? */
-/* ******************************************* */
-		if(evt.value == "open"){
-			if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
-				log.info "Sent SMS for $evt.displayName opening at $now."
+
+		//if last text was sent less than 5 minutes ago, don't send
+/* *********************************** */
+/* TO-DO: Add option to override text  */
+/* cooldown period? Migrate new code   */
+/* to presence app.                    */
+/* *********************************** */
+		seconds = now() - state.contactLastSms
+		if(seconds> 360){
+			state.contactLastSms = now()
+
+			if(evt.value == "open"){
+				if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
+					log.info "Sent SMS for $evt.displayName opening at $now."
+				} else {
+					logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName opening")
+				}
 			} else {
-				logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName opening")
+				if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
+					log.info "Sent SMS for $evt.displayName closed at $now."
+				} else {
+					logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName closing")
+				}
 			}
 		} else {
-			if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
-				log.info "Sent SMS for $evt.displayName closed at $now."
-			} else {
-				logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName closing")
-			}
+			log.info("$evt.displayName was closed at $now. SMS not sent due to only being $seconds since last SMS.")
+		}
 	}
 
 	// Set mode
