@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.08
+*  Version: 0.3.09
 * 
 ***********************************************************************************************************************/
 
@@ -261,11 +261,13 @@ def contactChange(evt){
 	// Set mode
 	if(mode) parent.changeMode(mode, appId)
 
-	// Schedule open events
+	// Perform open events (for switches and locks)
 	if(evt.value == open){
+		// Schedule delay
 		if(openWait) {
 			logTrace("$app.label, $appId: function contactChange scheduling scheduleOpen in $openWait seconds")
 			runIn(openWait,scheduleOpen)
+		// Otherwise perform immediately
 		} else {
 			if(switches) {
 				if(actionOpenSwitches == "on") {
@@ -284,11 +286,14 @@ def contactChange(evt){
 				}
 			}
 		}
-	// Schedule close events
+
+	// Perform close events (for switches and locks)
 	} else {
+		// Schedule delay
 		if(closeWait) {
 			logTrace("$app.label, $appId: function contactChange scheduling scheduleClose in $closeWait seconds")
 			runIn(closeWait,scheduleClose)
+		// Otherwise perform immediately
 		} else {
 			if(switches) {
 				if(actionCloseSwitches == "on") {
