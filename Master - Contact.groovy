@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.11
+*  Version: 0.3.12
 * 
 ***********************************************************************************************************************/
 
@@ -89,6 +89,7 @@ preferences {
 								if(!noWaitTime){
 									if(!noWaitTime) input "openWait", "number", title: "Wait seconds for opening action.", defaultValue: false, width: 6, submitOnChange:true
 									if(!noWaitTime) input "closeWait", "number", title: "Wait seconds for closing action.", defaultValue: false, width: 6, submitOnChange:true
+									paragraph "Wait time applies to turning lights/switches and locks, not to Mode change or text alerts."
 								}
 
 								if(!openWait && !closeWait && !noWaitTime){
