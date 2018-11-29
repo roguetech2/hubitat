@@ -76,8 +76,8 @@ preferences {
 								input "actionCloseSwitches", "enum", title: "What to do with lights/switches on close? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 							}
 							if(locks) {
-								input "actionOpenLocks", "enum", title: "What to do with locks on open? (Optional)", required: false, multiple: false, width: 6, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
-								input "actionCloseLocks", "enum", title: "What to do with locks on close? (Optional)", required: false, multiple: false, width: 6, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+								input "actionOpenLocks", "enum", title: "What to do with locks on open? (Optional)", required: false, multiple: false, width: 6, options: ["lock":"Lock", "unlock":"Unlock"], submitOnChange:true
+								input "actionCloseLocks", "enum", title: "What to do with locks on close? (Optional)", required: false, multiple: false, width: 6, options: ["lock":"Lock", "unlock":"Unlock"], submitOnChange:true
 							}
 							input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
 							input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
@@ -276,9 +276,13 @@ def contactChange(evt){
 					parent.toggle(switches,appId)
 				}
 			}
-			/* ***************************************** */
-			/* TO DO: Build lock code                    */
-			/* ***************************************** */
+			if(locks){
+				if(actionOpenLocks == "lock"){
+					parent.multiLock(locks,appId)
+				} else if(actionOpenLocks == "unlock"){
+					parent.multiUnlock(locks,appId)
+				}
+			}
 		}
 	// Schedule close events
 	} else {
@@ -295,9 +299,13 @@ def contactChange(evt){
 					parent.toggle(switches,appId)
 				}
 			}
-			/* ***************************************** */
-			/* TO DO: Build lock code                    */
-			/* ***************************************** */
+			if(locks){
+				if(actionCloseLocks == "lock"){
+					parent.multiLock(locks,appId)
+				} else if(actionCloseLocks == "unlock"){
+					parent.multiUnlock(locks,appId)
+				}
+			}
 		}
 	}
 	logTrace("$app.label, $appId: function contactChange exiting")
