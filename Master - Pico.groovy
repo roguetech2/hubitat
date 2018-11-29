@@ -59,6 +59,12 @@ preferences {
 
 							input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for Pico to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
 							paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+
+/* ************************************************** */
+/* TO-DO: Add locks? Any reason someone might want to */
+/* use a Pico to lock a door?? (Ditto for             */
+/* MagicCubes.)                                       */
+/* ************************************************** */
 							input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
 
 							if(advancedSetup){
