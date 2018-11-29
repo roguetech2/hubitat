@@ -451,12 +451,12 @@ def nextLevel(level, action, childId="Master"){
 }
 
 // Changes mode to value of $mode
-/* *************************************** */
-/* TO DO: Trigger reschedule so that any   */
-/* schedules suspended due to mode will    */
-/* restart. Need to get the device id from */
-/* the requesting child app... somehow.    */
-/* *************************************** */
+/* ************************************************** */
+/* TO DO: Trigger reschedule so that any schedules    */
+/* suspended due to mode will restart. Need to get    */
+/* the device id from the requesting child app...     */
+/* somehow.                                           */
+/* ************************************************** */
 def changeMode(mode, childId = "Master", device = "Null") {
 	logTrace("$app.label, app.getId(): function changeMode starting [mode: $mode, childId: $childId]")
 	if(location.mode == mode) {
@@ -614,10 +614,10 @@ def isFan(device){
 
 // Flash lights green
 // Used by brighten function to indicate lights at 100%
-/* ********************************************* */
-/* TO-DO: Should add option to change color      */
-/* and/or disable                                */
-/* ********************************************* */
+/* ************************************************** */
+/* TO-DO: Should add option to change color and/or    */
+/* disable                                            */
+/* ************************************************** */
 def flashGreen(device){
 	logTrace("$app.label, app.getId(): function flashGreen starting [device: $device]")
 	currentHue = device.currentHue
