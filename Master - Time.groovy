@@ -336,7 +336,6 @@ def updated() {
 }
 
 def initialize() {
-	state.debug = true
 	logTrace("$app.label, app.getId(): initializing")
 	if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
 	def appId = app.getId()
@@ -833,70 +832,3 @@ def weekDaysToNum(){
 def logTrace(message){
 	if(state.debug) log.trace message
 }
-
-/*
-// Setup on/off day schedule event
-// Called from initialize (then loops from runDayOnSchedule and runDayOffSchedule)
-def setDaySchedule(){
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
-
-	if(!timeStart) return
-	if(timeDisable || state.timeDisableAll) return
-	if(timeStop){
-		// If timeStop before timeStart, add a day
-		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
-
-		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) {
-			log.debug "Time: Stop time is before Start time. Cancelling schedule."
-			return
-		} else {
-			if(now() > timeToday(timeStart, location.timeZone).time && now() < timeToday(timeStop, location.timeZone).time) secondStageSchedule()
-		}
-	}
-	weekDays = weekDaysToNum()
-	if(timeStart){
-		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-		// schedule starting "second stage" increment
-		if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle") {
-			if(weekDays) {
-				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, secondStageSchedule)
-			} else {
-				schedule("0 " + minutes + " " + hours + " * * ?", secondStageSchedule)
-			}
-		// Schedule starting on/off/toggle
-		} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle"){
-			if(weekDays) {
-				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
-			} else {
-				schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
-			}
-		}
-		// schedule stopping on/off/toggle
-		if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle"){
-			if(timeStop){
-				hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
-				minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-				if(weekDays) {
-					schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
-				}else {
-					schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
-				}
-			}
-		}
-
-	}
-}
-
-// Allows pausing scheduling for a minute
-def firstStageSchedule(){
-	unschedule(firstStageSchedule)
-	unschedule(secondStageSchedule)
-	if(timeDisable || state.timeDisableAll) return
-	runIn(30,initializeSchedules())
-	log.info "Time: Pausing updates for 30 seconds for $timeDevice."
-}
-*/
