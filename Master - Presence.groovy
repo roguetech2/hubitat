@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.12
+*  Version: 0.1.13
 *
 ***********************************************************************************************************************/
 
@@ -93,7 +93,7 @@ preferences {
 								} else if((switches || locks) && !noDevice){
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do:</b></div>"
 									if(switches) input "actionSwitches", "enum", title: "What to do with lights/switches? (Optional)", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-									if(locks) input "actionLocks", "enum", title: "What to do with locks? (Optional)", required: false, multiple: false, options: ["Unlock":"Unlock", "lock":"Lock"], submitOnChange:true
+									if(locks) input "actionLocks", "enum", title: "What to do with locks? (Optional)", required: false, multiple: false, options: ["lock":"Lock", "unlock":"Unlock", ], submitOnChange:true
 									if((switches && !actionSwitches) || (locks && !actionLocks)){
 										paragraph "<div style=\"background-color:BurlyWood\">1 </div>"
 									}
@@ -259,11 +259,10 @@ def presenceHandler(evt) {
 	}
 
 	// Text first (just in case there's an error later)
-	/* ********************************** */
-	/* TO DO: Instead of throwing error   */
-	/* here, validate number on setup     */
-	/* Also add to Master - Contact       */
-	/* ********************************** */
+/* ************************************************** */
+/* TO DO: Instead of throwing error here, validate    */
+/* number on setup.                                   */
+/* ************************************************** */
 	if(phone){
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
@@ -296,9 +295,13 @@ def presenceHandler(evt) {
 	}
 
 	// Lock/unlock doors
-	/* ***************************************** */
-	/* TO DO: Build lock code                    */
-	/* ***************************************** */
+	if(locks){
+		if(actionLocks == "lock"){
+			parent.multiLock(locks,appId)
+		} else if(actionLocks == "unlock"){
+			parent.multiUnlock(locks,appId)
+		}
+	}
 
 	// Flash alert
 	if(flashColor && noFlashColor) {
