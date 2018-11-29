@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.09
+*  Version: 0.3.10
 * 
 ***********************************************************************************************************************/
 
@@ -352,4 +352,8 @@ def scheduleClose(){
 	/* TO DO: Build lock code                    */
 	/* ***************************************** */
 	logTrace("$app.label, $appId: function scheduleClose exiting")
+}
+
+def logTrace(message){
+	if(state.debug) log.trace message
 }
