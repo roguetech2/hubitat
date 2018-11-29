@@ -610,7 +610,12 @@ def buttonPushed(evt){
     def colorSwitch
     def whiteSwitch
 
-	// TO DO - see if these can be moved so doesn't need to precess at every button click
+/* ************************************************** */
+/* TO DO - see if these can be moved so doesn't need  */
+/* to precess at every button click. If in            */
+/* Initialize function, will variables carry over?    */
+/* Or need to set them as "settings."?                */
+/* ************************************************** */
 	if(!multiDevice && !advancedSetup){
 		button_1_push_on = controlDevice
 		if(numButton == "4 button" || numButton == "5 button") button_2_push_brighten = controlDevice
@@ -1151,4 +1156,8 @@ def getLevel(device){
     if(lvl>0) lvl = Math.round(lvl/count)
     if (lvl > 100) lvl = 100
     return lvl
+}
+
+def logTrace(message){
+	if(state.debug) log.trace message
 }
