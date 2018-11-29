@@ -223,7 +223,7 @@ def contactChange(evt){
 	
 	// Text first (just in case there's an error later)
 /* ************************************************** */
-/* TO DO: Instead of throwing error (in Master,       */
+/* TO DO: Instead of throwing error (in Master),      */
 /* validate number on setup.                          */
 /* ************************************************** */
 	if(phone){
