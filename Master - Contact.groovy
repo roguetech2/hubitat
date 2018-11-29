@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.05
+*  Version: 0.3.06
 * 
 ***********************************************************************************************************************/
 
@@ -189,7 +189,9 @@ def contactOpen(evt){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if not between start and stop time
-	if(!parent.timeBetween(timeStart, timeStop)) return
+	if(timeStop){
+		if(!parent.timeBetween(timeStart, timeStop)) return
+	}
 	
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) return
