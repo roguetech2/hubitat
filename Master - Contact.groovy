@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.06
+*  Version: 0.3.07
 * 
 ***********************************************************************************************************************/
 
