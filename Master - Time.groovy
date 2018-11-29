@@ -551,9 +551,7 @@ def getDefaultLevel(device){
 // Schedule initializer
 def initializeSchedules(){
 	logTrace("$app.label, app.getId(): [device: $device] function initializeSchedules started")
-	unschedule(initializeSchedules)
-	unschedule(runDayOnSchedule)
-	unschedule(runDayOffSchedule)
+	unschedule()
 	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
@@ -567,11 +565,7 @@ def initializeSchedules(){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	if(!timeStart) return
-	
-	// ****************************
-	// TO-DO - make sure reenabling reschedules
-	// *****************************
-	
+
 	// Immediately start incremental schedules
 	// If incremental
 	if(timeStop){
