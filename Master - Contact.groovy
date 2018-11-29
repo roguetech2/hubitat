@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.10
+*  Version: 0.3.11
 * 
 ***********************************************************************************************************************/
 
@@ -221,21 +221,20 @@ def contactChange(evt){
 	}
 	
 	// Text first (just in case there's an error later)
-/* ********************************** */
-/* TO DO: Instead of throwing error   */
-/* here, validate number on setup     */
-/* Also add to Master - Contact       */
-/* ********************************** */
+/* ************************************************** */
+/* TO DO: Instead of throwing error (in Master,       */
+/* validate number on setup.                          */
+/* ************************************************** */
 	if(phone){
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
 
 		//if last text was sent less than 5 minutes ago, don't send
-/* *********************************** */
-/* TO-DO: Add option to override text  */
-/* cooldown period? Migrate new code   */
-/* to presence app.                    */
-/* *********************************** */
+/* ************************************************** */
+/* TO-DO: Add option to override text cooldown        */
+/* period? (Maybe in Master?) Migrate new code to     */
+/* presence app.                                      */
+/* ************************************************** */
 		seconds = now() - state.contactLastSms
 		if(seconds> 360){
 			state.contactLastSms = now()
@@ -329,9 +328,13 @@ def scheduleOpen(){
 			parent.toggle(switches,appId)
 		}
 	}
-	/* ***************************************** */
-	/* TO DO: Build lock code                    */
-	/* ***************************************** */
+	if(locks){
+		if(actionOpenLocks == "lock"){
+			parent.multiLock(locks,appId)
+		} else if(actionOpenLocks == "unlock"){
+			parent.multiUnlock(locks,appId)
+		}
+	}
 	logTrace("$app.label, $appId: function scheduleOpen exiting")
 }
 
@@ -348,9 +351,13 @@ def scheduleClose(){
 			parent.toggle(switches,appId)
 		}
 	}
-	/* ***************************************** */
-	/* TO DO: Build lock code                    */
-	/* ***************************************** */
+	if(locks){
+		if(actionCloseLocks == "lock"){
+			parent.multiLock(locks,appId)
+		} else if(actionCloseLocks == "unlock"){
+			parent.multiUnlock(locks,appId)
+		}
+	}
 	logTrace("$app.label, $appId: function scheduleClose exiting")
 }
 
