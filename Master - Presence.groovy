@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.10
+*  Version: 0.1.11
 *
 ***********************************************************************************************************************/
 
@@ -329,7 +329,7 @@ def presenceHandler(evt) {
 }
 
 def convertRgbToHsl(color){
-	logTrace("$app.label, $appId: function convertRgbToHsl starting [color: $color]")
+	logTrace("$app.label, $app.getId(): function convertRgbToHsl starting [color: $color]")
 	/* ************************************* */
 	/* TO DO: Can we convert it once         */
 	/* and store in hidden input variable??  */
@@ -378,7 +378,7 @@ def convertRgbToHsl(color){
 
 	// Store final values in map, and return
 	def hsl = ["hue":hue, "sat":sat, "level":level]
-	logTrace("$app.label, $appId: function convertRgbToHsl returning $hsl")
+	logTrace("$app.label, $app.getId(): function convertRgbToHsl returning $hsl")
 	return hsl
 	
 }
