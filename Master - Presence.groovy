@@ -192,7 +192,7 @@ def initialize() {
 
 def presenceHandler(evt) {
 	def appId = app.getId()
-	logTrace("$app.label, $appId: function presenceHandler [evt: $evt]")
+	logTrace("$app.label, $appId: function presenceHandler started [evt: $evt]")
 
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) {
