@@ -153,35 +153,42 @@ preferences {
 }
 
 def installed() {
+	logTrace("$app.label, app.getId(): installed")
 	if(app.getLabel().length() < 7)  app.updateLabel("Contact - " + app.getLabel())
-    if(app.getLabel().substring(0,7) != "Contact") app.updateLabel("Contact - " + app.getLabel())
-    initialize()
+	if(app.getLabel().substring(0,7) != "Contact") app.updateLabel("Contact - " + app.getLabel())
+	initialize()
 }
 
 def updated() {
-    initialize()
+	unsubscribe()
+	initialize()
 }
 
 def initialize() {
-    log.debug "Contact initialized"
-	unschedule(scheduleOpen)
-	unschedule(scheduleClose)
-	
+	logTrace("$app.label, app.getId(): initialized")
+	unschedule()
+
 	if(!contactDisable && !state.contactDisableAll) {
-		subscribe(contactDevice, "contact.open", contactOpen)
-		subscribe(contactDevice, "contact.closed", contactClosed)
+		subscribe(contactDevice, "contact", contactChange)
 	}
 }
 
-def contactOpen(evt){
-	if(contactDisable || state.contactDisableAll) return
+def contactChange(evt){
+/* ****************************** */
+/* To-DO - Merge open and close   */
+/* ****************************** */
 	def appId = app.getId()
-
-	// If presence is disabled, return null
-	if(state.presenceDisable || presenceDisable) return
+	logTrace("$app.label, $appId: function contactChange started [evt: $evt ($evt.value)]")
+	if(contactDisable || state.contactDisableAll) {
+		logTrace("$app.label, $appId: function contactChange  returning (contact disabled)")
+		return
+	}
 	
 	// If mode set and node doesn't match, return null
-	if(ifMode && location.mode != ifMode) return
+	if(ifMode && location.mode != ifMode) {
+		logTrace("$app.label, $appId: function contactChange returning (mode doesn't match)")
+		return
+	}
 
 	if(timeStartSunrise) timeStart = parent.getSunrise()
 	if(timeStartSundown) timeStart = parent.getSundown()
@@ -190,17 +197,27 @@ def contactOpen(evt){
 
 	// if not between start and stop time
 	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop)) return
+		if(!parent.timeBetween(timeStart, timeStop)) {
+			logTrace("$app.label, $appId: function contactChange returning (not between start time and stop time)")
+			return
+		}
 	}
 	
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) return
-
-    log.debug "Contact: $evt.displayName contact sensor $evt.value"
+	if(timeDays && !parent.todayInDayList(timeDays)) {
+		logTrace("$app.label, $appId: function contactChange returning (not correct day)")
+		return
+	}
 
 	// Unschedule pevious events
-	unschedule(scheduleOpen)
-	unschedule(scheduleClose)
+	
+	// New open event resets delayed action
+	// New close event won't override open
+	if(evt.value == "open"){
+		unschedule()
+	} else {
+		unschedule(scheduleClose)
+	}
 	
 	// Text first (just in case there's an error later)
 	/* ********************************** */
@@ -211,90 +228,72 @@ def contactOpen(evt){
 	if(phone){
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
-		if(evt.value == "present"){
-			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
-				log.debug "Sent SMS for $evt.displayName's arrival at $now."
+/* ******************************************* */
+/* To-DO Add state for date/time, and don't    */
+/* send more than one text per... few minutes? */
+/* ******************************************* */
+		if(evt.value == "open"){
+			if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
+				log.info "Sent SMS for $evt.displayName opening at $now."
 			} else {
-				log.debug "Error sending SMS for $evt.displayName's arrival at $now."
+				logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName opening")
 			}
 		} else {
-			if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
-				log.debug "Sent SMS for $evt.displayName's departure at $now."
+			if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
+				log.info "Sent SMS for $evt.displayName closed at $now."
 			} else {
-				log.debug "Error sending SMS for $evt.displayName's departure at $now."
+				logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName closing")
 			}
-		}
 	}
 
 	// Set mode
 	if(mode) parent.changeMode(mode, appId)
 
 	// Schedule open events
-	if(openWait) {
-		runIn(openWait,scheduleOpen)
-	} else {
-		if(switches) {
-			if(actionOpenSwitches == "on") {
-				parent.multiOn(switches,appId)
-			} else if(actionOpenSwitches == "off"){
-				parent.multiOff(switches,appId)
-			} else if(actionOpenSwitches == "toggle"){
-				parent.toggle(switches,appId)
+	if(evt.value == open){
+		if(openWait) {
+			logTrace("$app.label, $appId: function contactChange scheduling scheduleOpen in $openWait seconds")
+			runIn(openWait,scheduleOpen)
+		} else {
+			if(switches) {
+				if(actionOpenSwitches == "on") {
+					parent.multiOn(switches,appId)
+				} else if(actionOpenSwitches == "off"){
+					parent.multiOff(switches,appId)
+				} else if(actionOpenSwitches == "toggle"){
+					parent.toggle(switches,appId)
+				}
 			}
+			/* ***************************************** */
+			/* TO DO: Build lock code                    */
+			/* ***************************************** */
 		}
-		/* ***************************************** */
-		/* TO DO: Build lock code                    */
-		/* ***************************************** */
-	}
-}
-
-def contactClosed(evt){
-	if(contactDisable || state.contactDisableAll) return
-	def appId = app.getId()
-	
-	// If presence is disabled, return null
-	if(state.presenceDisable || presenceDisable) return
-	
-	// If mode set and node doesn't match, return null
-	if(ifMode && location.mode != ifMode) return
-
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
-
-	// if not between start and stop times
-	if(!parent.timeBetween(timeStart, timeStop)) return
-
-	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) return
-
-    log.debug "Contact: $evt.displayName contact sensor $evt.value"
-
-	// Unschedule pevious close events
-	unschedule(scheduleClose)
-
-	// Schedule open events
-	if(closeWait) {
-		runIn(closeWait,scheduleClose)
+	// Schedule close events
 	} else {
-		if(switches) {
-			if(actionCloseSwitches == "on") {
-				parent.multiOn(switches,appId)
-			} else if(actionCloseSwitches == "off"){
-				parent.multiOff(switches,appId)
-			} else if(actionCloseSwitches == "toggle"){
-				parent.toggle(switches,appId)
+		if(closeWait) {
+			logTrace("$app.label, $appId: function contactChange scheduling scheduleClose in $closeWait seconds")
+			runIn(closeWait,scheduleClose)
+		} else {
+			if(switches) {
+				if(actionCloseSwitches == "on") {
+					parent.multiOn(switches,appId)
+				} else if(actionCloseSwitches == "off"){
+					parent.multiOff(switches,appId)
+				} else if(actionCloseSwitches == "toggle"){
+					parent.toggle(switches,appId)
+				}
 			}
+			/* ***************************************** */
+			/* TO DO: Build lock code                    */
+			/* ***************************************** */
 		}
-		/* ***************************************** */
-		/* TO DO: Build lock code                    */
-		/* ***************************************** */
 	}
+	logTrace("$app.label, $appId: function contactChange exiting")
 }
 
 def scheduleOpen(){
 	def appId = app.getId()
+	logTrace("$app.label, $appId: function scheduleOpen started")
 
 	if(switches) {
 		if(actionOpenSwitches == "on") {
@@ -308,10 +307,12 @@ def scheduleOpen(){
 	/* ***************************************** */
 	/* TO DO: Build lock code                    */
 	/* ***************************************** */
+	logTrace("$app.label, $appId: function scheduleOpen exiting")
 }
 
 def scheduleClose(){
 	def appId = app.getId()
+	logTrace("$app.label, $appId: function scheduleClose started")
 
 	if(switches) {
 		if(actionCloseSwitches == "on") {
@@ -325,4 +326,5 @@ def scheduleClose(){
 	/* ***************************************** */
 	/* TO DO: Build lock code                    */
 	/* ***************************************** */
+	logTrace("$app.label, $appId: function scheduleClose exiting")
 }
