@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.08
+*  Version: 0.1.09
 *
 ***********************************************************************************************************************/
 
@@ -218,7 +218,9 @@ def presenceHandler(evt) {
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if not bewteen start and stop times
-	if(!parent.timeBetween(timeStart, timeStop)) return
+	if(timeStop){
+		if(!parent.timeBetween(timeStart, timeStop)) return
+	}
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) return
