@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.12
+*  Version: 0.3.13
 *
 ***********************************************************************************************************************/
 
@@ -324,12 +324,14 @@ preferences {
 
 
 def installed() {
+	logTrace("$app.label, app.getId(): installed")
 	if(app.getLabel().length() < 7)  app.updateLabel("Time - " + app.getLabel())
 	if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
 	initialize()
 }
 
 def updated() {
+	logTrace("$app.label, app.getId(): updated")
 	initialize()
 }
 
@@ -348,6 +350,7 @@ def initialize() {
 		logTrace("$app.label, app.getId(): passing to initializeSchedules")
 		initializeSchedules()
 	}
+	logTrace("$app.label, app.getId(): initialized")
 }
 
 def dimSpeed(){
