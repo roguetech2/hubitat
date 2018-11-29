@@ -656,8 +656,10 @@ def timeBetween(timeStart, timeStop){
 
 	varNow = now()
 	if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
-		if(varNow > timeToday(timeStart, location.timeZone).time) return true
-		if(varNow < timeToday(timeStop, location.timeZone).time) return true
+		if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
+			logTrace("$app.label, app.getId(): function timeBetween returning true (time stop before time start)")
+			return true
+		}
 	}
 	if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
 		logTrace("$app.label, app.getId(): function timeBetween returning true")
