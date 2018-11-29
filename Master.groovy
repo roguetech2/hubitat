@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.07
+*  Version: 0.1.08
 *
 ***********************************************************************************************************************/
 
@@ -202,13 +202,14 @@ def singleOff(device,child = "Master"){
 }
 
 def multiOn(device,childId="Master"){
+	log.debug "0.1"
     device.each{
 		// Using temp vars since each app will overwrite with null
         childApps.each {Child->
             if(Child.label.substring(0,4) == "Time") {
 				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
 				defaults = Child.getDefaultLevel(it)
-	
+	if(defaults.level != "Null") log.debug "0.2"
 				//log.debug "Master - Checking time app $Child.id for device id $it.id (requesting child = $childId)"
 				
 				if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
@@ -479,7 +480,7 @@ def getAppLabel(childId){
 def reschedule(device){
 	childApps.each {Child->
 		if(Child.label.substring(0,4) == "Time") {
-			Child.reschedule(device)
+			Child.incrementalSchedule(device)
 		}
 	}
 }
@@ -543,7 +544,7 @@ def todayInDayList(days){
 	def df = new java.text.SimpleDateFormat("EEEE")
 	df.setTimeZone(location.timeZone)
 	def day = df.format(new Date())
-	if(timeDays.contains(day)) return true
+	if(days.contains(day)) return true
 }
 
 // Returns true if between two dates
@@ -556,7 +557,6 @@ def timeBetween(timeStart, timeStop){
 		if(varNow > timeToday(timeStart, location.timeZone).time) return true
 		if(varNow < timeToday(timeStop, location.timeZone).time) return true
 	}
-	if(varNow > timeToday(timeStart, location.timeZone).time) return true
-	if(varNow < timeToday(timeStop, location.timeZone).time) return true
+	if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) return true
 
 }
