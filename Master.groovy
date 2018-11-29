@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.11
+*  Version: 0.1.12
 *
 ***********************************************************************************************************************/
 
@@ -101,6 +101,11 @@ def mainPage() {
 				input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
 			}
 			paragraph "Note: Hiding apps does not disable any existing saved child apps; it only hides them from this list."
+			if(debugging){
+				input "debugging", "bool", title: "Debugging enabled. Disable?", submitOnChange:true
+			} else {
+				input "debugging", "bool", title: "Debugging disabled. Enable?", submitOnChange:true
+			}	
 		}
         }
     }
@@ -119,7 +124,11 @@ def updated() {
 
 def initialize() {
 	logTrace("$app.label, app.getId(): initialized")
-	state.debug = true
+	if(debugging) {
+		state.debug = true
+	} else {
+		state.debug = false
+	}
 }
 
 // Functions for turning on lights/fans
