@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.11
+*  Version: 0.1.12
 *
 ***********************************************************************************************************************/
 
@@ -381,4 +381,8 @@ def convertRgbToHsl(color){
 	logTrace("$app.label, $app.getId(): function convertRgbToHsl returning $hsl")
 	return hsl
 	
+}
+
+def logTrace(message){
+	if(state.debug) log.trace message
 }
