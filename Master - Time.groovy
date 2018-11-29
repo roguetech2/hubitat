@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.10
+*  Version: 0.3.11
 *
 ***********************************************************************************************************************/
 
@@ -305,7 +305,7 @@ preferences {
 												}
 												
 												// Start only if Mode
-												input "timeStartIfMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
+												input "ifMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
 												paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
 											}
 										}
@@ -337,16 +337,16 @@ def initialize() {
 	if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
     log.info "Time initialized"
 	def appId = app.getId()
-	unschedule(reschedule)
-	unschedule(incrementalSchedule)
-	unschedule(runDayOnSchedule)
-	unschedule(runDayOffSchedule)
-	unschedule(initializeSchedule)
-	if(timeDisableAll) {
-		state.timeDisable = true
+	if(timeDisableAll || timeDisable) {
+		unschedule(initializeSchedules)
+		unschedule(runDayOnSchedule)
+		unschedule(runDayOffSchedule)
+		unschedule(incrementalSchedule)
+		
+		if(timeDisableAll) state.timeDisable = true
 	} else {
 		state.timeDisable = false
-		if(!timeDisable) initializeSchedules()
+		initializeSchedules()
 	}
 }
 
@@ -371,13 +371,18 @@ def getDefaultLevel(device){
 
 	// If no default level, return null
 	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) return defaults
+	
+	// if between start and stop time
+	if(timeStop){
+		if(!parent.timeBetween(timeStart, timeStop)) return defaults
+	}
 
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return defaults
 
 	// If mode set and node doesn't match, return null
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return defaults
+	if(ifMode){
+		if(location.mode != ifMode) return defaults
 	}
 
 	if(timeStartSunrise) timeStart = parent.getSunrise()
@@ -385,8 +390,9 @@ def getDefaultLevel(device){
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
 
-	// if between start and stop time
-	if(!parent.timeBetween(timeStart, timeStop)) return defaults
+	if(timeStop) {
+		if(!parent.timeBetween(timeStart, timeStop)) return
+	}
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) return defaults
@@ -443,11 +449,16 @@ def getDefaultLevel(device){
 	// If there's a stop time and stop level, and after start time
 	if(timeStart && timeStop){
 		// If timeStop before timeStart, add a day
-		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) {
+			newTimeStop = parent.getTomorrow(timeStop)
+		} else {
+			newTimeStop = timeStop
+		}
+	
 		// Calculate proportion of time already passed from start time to endtime
-		hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-		minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-		seconds1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
+		hours1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", newTimeStop).format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
+		minutes1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", newTimeStop).format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
+		seconds1 = Date.parse("yyyy-MM-dd'T'HH:mm:ss", newTimeStop).format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
 		hours2 = new Date().format('HH').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 		minutes2 = new Date().format('mm').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
 		seconds2 = new Date().format('ss').toInteger() - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('ss').toInteger()
@@ -517,6 +528,10 @@ def getDefaultLevel(device){
 
 // Schedule initializer
 def initializeSchedules(){
+	unschedule(initializeSchedules)
+	unschedule(runDayOnSchedule)
+	unschedule(runDayOffSchedule)
+	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return
 
@@ -526,11 +541,6 @@ def initializeSchedules(){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	if(!timeStart) return
-
-	// If timeStop before timeStart, add a day
-	if(timeStop){
-		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
-	}
 	
 	// ****************************
 	// TO-DO - make sure reenabling reschedules
@@ -541,20 +551,8 @@ def initializeSchedules(){
 	if(timeStop){
 		// Check if any incremental changes to make
 		if((timeLevelOn && timeLevelOff) || (timeTempOn && timeTempOff) || (timeHueOn && timeHueOff) || (timeSatOn && timeSatOff)){
-			// If correct Mode
-			if((timeStartIfMode && location.mode != timeStartIfMode) || !timeStartIfMode){
-				// If correct day
-				if(!timeDays || parent.todayInDayList(timeDays)){
-					// If mode is correct
-					if(ifMode && location.mode == ifMode) {
-						// If between start and stop time (if start time after stop time, then if after start time)
-						if(parent.timeBetween(timeStart, timeStop)){
-							// If anything is on
-							if(parent.multiStateOn(timeDevice)) incrementalSchedule()
-						}
-					}
-				}
-			}
+			// IncrementalSchedule does all data checks, so just run it
+			incrementalSchedule()
 		}
 	}
 
@@ -564,9 +562,6 @@ def initializeSchedules(){
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
 	
 	// Schedule next day incrementals, if no start action to be scheduled 
-	// Change to scheduling both - just skip incrementalSchedule
-	// FIrst, check if a day schedule - if so, add 20 seconds
-	// Otherwise, schedule without seconds
 	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) {
 		if(weekDays) {
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, incrementalSchedule)
@@ -585,6 +580,8 @@ def initializeSchedules(){
 	// Schedule next day's ending on/off/toggle														  
 	if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle" || timeModeChangeOff){
 		if(timeStop){
+			// Increment time stop by a day if before start time
+			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 			if(weekDays) {
@@ -596,27 +593,30 @@ def initializeSchedules(){
 	}															  
 }
 
-def reschedule(device){
-	match = false
-	timeDevice.each{
-		if(it.id == device.id) match = true
-	}
-	if(match) {
-		unschedule(reschedule)
-		unschedule(incrementalSchedule)
-		if(timeDisable || state.timeDisableAll) return
-		runIn(30,initializeSchedules())
-		log.info "Time: Pausing updates for 30 seconds for $timeDevice."
-	}
-}
-
 //settings up schedules for level/temp
-def incrementalSchedule(){
-	// Probably don't need this, but maybe possible to have multiple schedules??
-	unschedule(incrementalSchedule)
-
+def incrementalSchedule(device = "Null"){
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) return
+
+	// If "re"schedule from device state change
+	if(device != "Null"){
+		match = false
+		timeDevice.each{
+			if(it.id == device.id) match = true
+		}
+		if(!match) {
+				return
+		} else {
+			unschedule(incrementalSchedule)
+			runIn(60,incrementalSchedule)
+			log.info "Time: Pausing updates for 60 seconds for $timeDevice."
+			return
+		}
+	}
+
+	// If not increments, return null
+	if(!timeStop || !timeStart) return
+	if((!timeLevelOn || !timeLevelOff) && (!timeTempOn || !timeTempOff) && (!timeHueOn || !timeHueOff) && (!timeSatOn || !timeSatOff)) return
 
 	// If nothing is on, return null
 	if(!parent.multiStateOn(timeDevice)) return
@@ -627,6 +627,9 @@ def incrementalSchedule(){
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) return
 
+	// If nothing is on, exit
+	if(!parent.multiStateOn(timeDevice)) return
+
 	// Set timeStart and timeStop, if sunrise or sundown
 	if(timeStartSunrise) timeStart = parent.getSunrise()
 	if(timeStartSundown) timeStart = parent.getSundown()
@@ -635,10 +638,11 @@ def incrementalSchedule(){
 
 	// If between start and stop time (if start time after stop time, then if after start time)
 	if(parent.timeBetween(timeStart, timeStop)){
-			runMultiSchedule()
-			runIn(20,incrementalSchedule)
-
-			log.info "Time: Scheduling update for 20 seconds for $timeDevice."
+		runIncrementalSchedule()
+		
+		//	runIn(20,incrementalSchedule)
+		schedule("*/20 * * * * ?", incrementalSchedule)
+		log.info "Time: Scheduling update for 20 seconds for $timeDevice."
 	} else {
 		return
 	}
@@ -646,69 +650,29 @@ def incrementalSchedule(){
 
 // run scheduled level/temp incremental changes
 // scheduled function called from incrementalSchedule
-def runMultiSchedule(){
-	if(timeDisable || state.timeDisableAll) return
-	
-	// If no stop time, then don't need incremental changes
-	if(!timeStop) return
-
-	// If nothing is on, exit
-	if(!parent.multiStateOn(timeDevice)) return
-	
-	// If mode set and node doesn't match, exit
-	if(timeStartIfMode){
-		if(location.mode != timeStartIfMode) return
-	}
-	
+def runIncrementalSchedule(){	
 	// Loop through devices
 	timeDevice.each{
 		// Ignore devices that aren't on
 		if(parent.stateOn(it)){
 			// Set level
-			if(timeLevelOn || tiemTempOn || timeHueOn || timeSatOn) defaultLevel = getDefaultLevel(it)
+			defaultLevel = getDefaultLevel(it)
 
-			if(timeLevelOn && parent.isDimmable(it)){
-				currentLevel = it.currentlLevel
-				if(defaultLevel){
-					if(defaultLevel.level != currentLevel) {
-						if(timeLevelIfLower == "Lower"){
-							if(currentLevel < defaultLevel.level) return 
-						}
-						if(timeLevelIfLower == "Higher"){
-							if(currentLevel > defaultLevel.level) return
-						}
-						parent.setToLevel(it,defaultLevel.level,app.getId())
-					}
-				}
+			if(timeLevelOn && parent.isDimmable(it) && defaultLevel.level != "Null"){
+				if(defaultLevel) parent.setToLevel(it,defaultLevel.level,app.getId())
 			}
 			// Set temp
-			if(timeTempOn && parent.isTemp(it)){
+			if(timeTempOn && parent.isTemp(it) && defaultLevel.temp != "Null"){
 				currentTemp = it.currentColorTemperature
-				defaultLevel.temp = getDefaultTemp(it)
 				if(defaultTemp){
-					if(defaultLevel.temp - currentLevel.temp > 4 || defaultLevel.temp - currentLevel.temp < -4) {
-						if(timeTempIfLower == "Lower"){
-							if(currentLevel.temp < defaultLevel.temp) return 
-						}
-						if(timeTempIfLower == "Higher"){
-							if(currentTemp > defaultLevel.temp) return
-						}
+					if(defaultLevel.temp - currentTemp > 4 || defaultLevel.temp - currentTemp < -4) {
 						parent.singleTemp(it,defaultLevel.temp,app.getId())
 					}
 				}
 			}
-			
-			// Set hue and sat
-			if(timeHueOn && parent.isColor(it)){
-				defaultlevel.hue = getDefaultHue(it)
-			}
-			if(timeHueOn && parent.isColor(it)){
-				defaultSat = getDefaultSat(it)
-			}
+
 			// If either Hue or Sat, but not both, set the other to current
-			if(defaultHue || defaultSat) {
-				if(!defaultLevel.hue) defaultLevel.hue = it.currentHue
-				if(!defaultLevel.sat) defaultLevel.sat = it.currentSaturation
+			if(defaultLevel.hue != "Null" || defaultLevel.sat != "Null") {
 				parent.singleColor(it,defaultLevel.hue,defaultLevel.sat,app.getId())
 			}
 		}
@@ -718,7 +682,7 @@ def runMultiSchedule(){
 //Scheduled function called from setDaySchedule
 def runDayOnSchedule(){
 	if(timeDisable || state.timeDisableAll) return
-	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle") return
+	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) return
 	// if mode return
 	if(timeStartIfMode){
 		if(location.mode != timeStartIfMode) return
@@ -731,18 +695,19 @@ def runDayOnSchedule(){
 	} else if(timeOn == "Toggle"){
 		parent.toggle(timeDevice,app.getId())
 	}
-	setDaySchedule()
+	initializeSchedules()
 }
 
 //Scheduled function called from setDaySchedule
 def runDayOffSchedule(){
 	if(timeDisable || state.timeDisableAll) return
 	if(timeModeChangeOff) setLocationMode(timeModeChangeOff)
-	if(timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle") return
+	if(timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle" && !timeModeChangeOff) return
 	// if mode return
 	if(timeStartIfMode){
 		if(location.mode != timeStartIfMode) return
 	}
+	if(timeModeChangeOff) setLocationMode(timeModeChangeOff)
 	if(timeOff == "Turn On"){
 	   parent.multiOn(timeDevice,app.getId())
 	} else if(timeOff == "Turn Off"){
@@ -750,7 +715,7 @@ def runDayOffSchedule(){
 	} else if(timeOff == "Toggle"){
 	   parent.toggle(timeDevice,app.getId())
 	}
-	setDaySchedule()
+	initializeSchedules()
 }
 
 def weekDaysToNum(){
