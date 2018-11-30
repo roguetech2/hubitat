@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.12
+*  Version: 0.3.13
 * 
 ***********************************************************************************************************************/
 
@@ -171,7 +171,7 @@ def initialize() {
 	
 	// If date/time for last SMS not set, initialize it to 5 minutes ago
 	// Allows an SMS immediately
-	if(!state.contactLastSms) state.contactLastSms = now() - 360
+	if(!state.contactLastSms) state.contactLastSms = now().getTime() - 360
 
 	if(!contactDisable && !state.contactDisableAll) {
 		subscribe(contactDevice, "contact", contactChange)
@@ -228,7 +228,6 @@ def contactChange(evt){
 /* ************************************************** */
 	if(phone){
 		def now = new Date()
-		now = now.format("h:mm a", location.timeZone)
 
 		//if last text was sent less than 5 minutes ago, don't send
 /* ************************************************** */
@@ -236,9 +235,13 @@ def contactChange(evt){
 /* period? (Maybe in Master?) Migrate new code to     */
 /* presence app.                                      */
 /* ************************************************** */
-		seconds = now() - state.contactLastSms
-		if(seconds> 360){
-			state.contactLastSms = now()
+		// Compute seconds from last sms
+		seconds = (now.getTime()  - state.contactLastSms) / 1000
+		
+		// Convert date to friendly format for log
+		now = now.format("h:mm a", location.timeZone)
+		if(seconds > 360){
+			state.contactLastSms = new Date().getTime()
 
 			if(evt.value == "open"){
 				if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
@@ -291,7 +294,7 @@ def contactChange(evt){
 	} else {
 		// Schedule delay
 		if(closeWait) {
-			logTrace("$app.label, $appId: function contactChange scheduling scheduleClose in $closeWait seconds")
+			logTrace("$app.label: function contactChange scheduling scheduleClose in $closeWait seconds")
 			runIn(closeWait,scheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -313,12 +316,12 @@ def contactChange(evt){
 			}
 		}
 	}
-	logTrace("$app.label, $appId: function contactChange exiting")
+	logTrace("$app.label: function contactChange exiting")
 }
 
 def scheduleOpen(){
 	def appId = app.getId()
-	logTrace("$app.label, $appId: function scheduleOpen started")
+	logTrace("$app.label: function scheduleOpen started")
 
 	if(switches) {
 		if(actionOpenSwitches == "on") {
@@ -336,12 +339,12 @@ def scheduleOpen(){
 			parent.multiUnlock(locks,appId)
 		}
 	}
-	logTrace("$app.label, $appId: function scheduleOpen exiting")
+	logTrace("$app.label: function scheduleOpen exiting")
 }
 
 def scheduleClose(){
 	def appId = app.getId()
-	logTrace("$app.label, $appId: function scheduleClose started")
+	logTrace("$app.label: function scheduleClose started")
 
 	if(switches) {
 		if(actionCloseSwitches == "on") {
@@ -359,7 +362,7 @@ def scheduleClose(){
 			parent.multiUnlock(locks,appId)
 		}
 	}
-	logTrace("$app.label, $appId: function scheduleClose exiting")
+	logTrace("$app.label: function scheduleClose exiting")
 }
 
 def logTrace(message){
