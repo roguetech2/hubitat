@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.13
+*  Version: 0.3.14
 * 
 ***********************************************************************************************************************/
 
@@ -67,9 +67,9 @@ preferences {
 						if(!switches && !locks) input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, or sending text alert.", defaultValue: false, submitOnChange:true
 						if(!noDevice) input "switches", "capability.switchLevel", title: "Lights/switches?", multiple: true, required: false, submitOnChange:true
 						if(!noDevice) input "locks", "capability.lock", title: "Locks?", multiple: true, required: false, submitOnChange:true
-						if((!switches && !locks) || noDevice) {
+						if((!switches && !locks) && !noDevice) {
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-						} else if((switches || locks) && !noDevice) {
+						} else if((switches || locks) || noDevice) {
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches or locks:</b></div>"
 							if(switches) {
 								input "actionOpenSwitches", "enum", title: "What to do with lights/switches on open? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
@@ -84,15 +84,15 @@ preferences {
 							if(!actionOpenSwitches && !actionCloseSwitches && !actionOpenLocks && !actionCloseLocks && !mode && !phone) {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 							} else {
-								paragraph "<div style=\"background-color:BurlyWood\"><b> Set wait time before setting lights:</b></div>"
-								if(!openWait && !closeWait) input "noWaitTime", "bool", title: "<b>No pause.</b> Click to continue to set schedule and mode.", defaultValue: false, submitOnChange:true
-								if(!noWaitTime){
+								if(!noDevice) paragraph "<div style=\"background-color:BurlyWood\"><b> Set wait time before setting lights:</b></div>"
+								if(!openWait && !closeWait && !noDevice) input "noWaitTime", "bool", title: "<b>No pause.</b> Click to continue to set schedule and mode.", defaultValue: false, submitOnChange:true
+								if(!noWaitTime && !noDevice){
 									if(!noWaitTime) input "openWait", "number", title: "Wait seconds for opening action.", defaultValue: false, width: 6, submitOnChange:true
 									if(!noWaitTime) input "closeWait", "number", title: "Wait seconds for closing action.", defaultValue: false, width: 6, submitOnChange:true
 									paragraph "Wait time applies to turning lights/switches and locks, not to Mode change or text alerts."
 								}
 
-								if(!openWait && !closeWait && !noWaitTime){
+								if(!openWait && !closeWait && !noWaitTime && !noDevice){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else {
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
