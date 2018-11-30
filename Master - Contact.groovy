@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.14
+*  Version: 0.3.15
 * 
 ***********************************************************************************************************************/
 
@@ -171,7 +171,7 @@ def initialize() {
 	
 	// If date/time for last SMS not set, initialize it to 5 minutes ago
 	// Allows an SMS immediately
-	if(!state.contactLastSms) state.contactLastSms = now().getTime() - 360
+	if(!state.contactLastSms) state.contactLastSms = new Date().getTime() - 360000
 
 	if(!contactDisable && !state.contactDisableAll) {
 		subscribe(contactDevice, "contact", contactChange)
