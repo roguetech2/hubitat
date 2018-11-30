@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.12
+*  Version: 0.1.13
 *
 ***********************************************************************************************************************/
 
@@ -112,18 +112,18 @@ def mainPage() {
 }
 
 def installed() {
-	logTrace("$app.label, app.getId(): installed")
+	logTrace("$app.label: installed")
 	state.masterInstalled = true
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label, app.getId(): updated")
+	logTrace("$app.label: updated")
 	initialize()
 }
 
 def initialize() {
-	logTrace("$app.label, app.getId(): initialized")
+	logTrace("$app.label: initialized")
 	if(debugging) {
 		state.debug = true
 	} else {
@@ -135,7 +135,7 @@ def initialize() {
 
 // Turn on a group of switches
 def multiOn(device,childId="Master"){
-	logTrace("$app.label, app.getId(): function multiOn starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function multiOn starting [device: $device; childId: $childId]")
 	device.each{
 		// Using temp vars since each app will overwrite with null
 		childApps.each {Child->
@@ -150,7 +150,7 @@ def multiOn(device,childId="Master"){
 					if(defaults.sat != "Null") defaultSat = defaults.sat
 				}
 
-				logTrace("$app.label, app.getId(): function multiOn found defaultLevel $defaults for $device.name")
+				logTrace("$app.label: function multiOn found defaultLevel $defaults for $device.name")
 				if(defaultHue && !defaultSat){
 					defaultSat = 100
 				} else if(!defaultHue && defaultSat){
@@ -176,42 +176,42 @@ def multiOn(device,childId="Master"){
 		if(defaultTemp && isTemp(it)) singleTemp(it,defaultTemp,childId)
 		if(defaultHue && defaultSat && isColor(it)) singleColor(it,defaultHue,defaultSat,childId)
 	}
-	logTrace("$app.label, app.getId(): function multiOn exiting")
+	logTrace("$app.label: function multiOn exiting")
 }
 
 // Turn on a single switch
 def singleOn(device,child = "Master"){
-	logTrace("$app.label, app.getId(): function singleOn starting [device: $device; child: $child]")
+	logTrace("$app.label: function singleOn starting [device: $device; child: $child]")
 	device.on()
 	log.info "Turned on $device."
-	logTrace("$app.label, app.getId(): function singleOn exiting")
+	logTrace("$app.label: function singleOn exiting")
 }
 
 // Functions for turning off switches
 
 // Turn off a group of switches
 def multiOff(device,childId="Master"){
-	logTrace("$app.label, app.getId(): function multiOff starting [device: $device; child: $childId]")
+	logTrace("$app.label: function multiOff starting [device: $device; child: $childId]")
 	device.each{
 		if(stateOn(it)){
 			singleOff(it,childId)
 			reschedule(it)
 		}
 	}
-	logTrace("$app.label, app.getId(): function multiOff exiting")
+	logTrace("$app.label: function multiOff exiting")
 }
 
 // Turn off a single switch
 def singleOff(device,child = "Master"){
-	logTrace("$app.label, app.getId(): function singleOff starting [device: $device; child: $child]")
+	logTrace("$app.label: function singleOff starting [device: $device; child: $child]")
 	device.off()
 	log.info "Turned off $device."
-	logTrace("$app.label, app.getId(): function singleOff exiting")
+	logTrace("$app.label: function singleOff exiting")
 }
 
 // Toggle a group of switches
 def toggle(device,childId="Master"){
-	logTrace("$app.label, app.getId(): function toggle starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function toggle starting [device: $device; childId: $childId]")
 	device.each{
 		if(!stateOn(it)){
 			// Using temp vars since each app will overwrite with null
@@ -246,12 +246,12 @@ def toggle(device,childId="Master"){
 		}
 		reschedule(it)
 	}
-	logTrace("$app.label, app.getId(): function toggle exiting")
+	logTrace("$app.label: function toggle exiting")
 }
 
 // Dim a group of dimmers
 def dim(device,childId="Master"){
-	logTrace("$app.label, app.getId(): function dim starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function dim starting [device: $device; childId: $childId]")
 	deviceChange = false
 	device.each{
 		if(isDimmable(it)){
@@ -285,12 +285,12 @@ def dim(device,childId="Master"){
 			}
 		}
 	}
-	logTrace("$app.label, app.getId(): function dim exiting")
+	logTrace("$app.label: function dim exiting")
 }
 
 // Brighten a group of dimmers
 def brighten(device,childId="Master"){
-	logTrace("$app.label, app.getId(): function brighten starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function brighten starting [device: $device; childId: $childId]")
 	device.each{
 		if(isDimmable(it)){
 			if(isFan(it)){
@@ -324,12 +324,12 @@ def brighten(device,childId="Master"){
 			}
 		}
 	}
-	logTrace("$app.label, app.getId(): function brighten exiting")
+	logTrace("$app.label: function brighten exiting")
 }
 
 // Set level (brighten or dim) a single dimmer
 def setToLevel(device,level,child=""){
-	logTrace("$app.label, app.getId(): function setToLevel starting [device: $device; level: $level; child: $child]")
+	logTrace("$app.label: function setToLevel starting [device: $device; level: $level; child: $child]")
 	device.setLevel(level)
 	if(child == "") child = "Master"
 	// output to log with fan "high", "medium" or "low"
@@ -346,88 +346,88 @@ def setToLevel(device,level,child=""){
 	} else {
 		log.info "$child: Set level of $device to $level."
 	}
-	logTrace("$app.label, app.getId(): function setToLevel exiting")
+	logTrace("$app.label: function setToLevel exiting")
 }
 
 // Lock/unlock functions
 
 // Lock a group of locks
 def multiLock(device, childId = "Master"){
-	logTrace("$app.label, app.getId(): function multiLock starting [device: $device, childId: $childId]")
+	logTrace("$app.label: function multiLock starting [device: $device, childId: $childId]")
 	device.each{
 		singleLock(it,childId)
 	}
-	logTrace("$app.label, app.getId(): function multiLock exiting")
+	logTrace("$app.label: function multiLock exiting")
 }
 
 // Lock a single lock
 def singleLock(device, childId = "Master"){
-	logTrace("$app.label, app.getId(): function singleLock starting [device: $device, childId: $childId]")
+	logTrace("$app.label: function singleLock starting [device: $device, childId: $childId]")
 	child = getAppLabel(childId)
 	device.lock()
 	log.info "$child: $child locked $device."
-	logTrace("$app.label, app.getId(): function singleLock exiting")
+	logTrace("$app.label: function singleLock exiting")
 }
 
 // Unlock a group of locks
 def multiUnlock(device, childId = "Master"){
-	logTrace("$app.label, app.getId(): function multiUnlock starting [device: $device, childId: $childId]")
+	logTrace("$app.label: function multiUnlock starting [device: $device, childId: $childId]")
 	device.each{
 		singleUnlock(it,childId)
 	}
-	logTrace("$app.label, app.getId(): function multiUnlock exiting")
+	logTrace("$app.label: function multiUnlock exiting")
 }
 
 // Unlock a single lock
 def singleUnlock(device, childId = "Master"){
-	logTrace("$app.label, app.getId(): function singleUnlock starting [device: $device, childId: $childId]")
+	logTrace("$app.label: function singleUnlock starting [device: $device, childId: $childId]")
 	child = getAppLabel(childId)
 	device.unlock()
 	log.info "$child: $child unlocked $device."
-	logTrace("$app.label, app.getId(): function singleUnlock exiting")
+	logTrace("$app.label: function singleUnlock exiting")
 }
 
 // Set temperature color of single device
 def singleTemp(device, temp,childId="Master"){
-	logTrace("$app.label, app.getId(): function singleTemp starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function singleTemp starting [device: $device; childId: $childId]")
 	child = getAppLabel(childId)
 	if(!isTemp(device)) {
-		logTrace("$app.label, app.getId(): function singleTemp returning (device is not Temp)")
+		logTrace("$app.label: function singleTemp returning (device is not Temp)")
 		return
 	}
 	device.setColorTemperature(temp as int)
 	log.info "Set $device temperature color to $temp."
-	logTrace("$app.label, app.getId(): function singleTemp exiting")
+	logTrace("$app.label: function singleTemp exiting")
 }
 
 
 // Set color (hue and saturation) of single device
 def singleColor(device, hue, sat, childId="Master"){
-	logTrace("$app.label, app.getId(): function singleColor starting [device: $device, hue: $hue, sat: $sat, childId: $childId]")
+	logTrace("$app.label: function singleColor starting [device: $device, hue: $hue, sat: $sat, childId: $childId]")
 	child = getAppLabel(childId)
 	if(!isTemp(device)) return
 	newValue = [hue: hue, saturation: sat]
 	device.setColor(newValue)
 	log.info "Set $device color to hue $hue and satuartion $sat."
-	logTrace("$app.label, app.getId(): function singleColor exiting")
+	logTrace("$app.label: function singleColor exiting")
 }
 
 // Determine next dim or brighten level based on "multiplier
 // action = "dim" or "brighten"
 def nextLevel(level, action, childId="Master"){
-	logTrace("$app.label, app.getId(): function setToLevel starting [level: $level; action: $action; childId: $childId]")
+	logTrace("$app.label: function setToLevel starting [level: $level; action: $action; childId: $childId]")
 	if(childId != "Master"){
 		childApps.each {Child->
 			if(Child.getId() == childId) dimSpeed = Child.dimSpeed()
 		}
 		if(!dimSpeed){
 			dimSpeed = 1.2
-			logTrace("$app.label, app.getId(): function setToLevel - error: failed to find dimSpeed")
+			logTrace("$app.label: function setToLevel - error: failed to find dimSpeed")
 		}
 	}
 	if (action != "dim" && action != "brighten"){
 		child = getAppLabel(childId)
-		logTrace("$app.label, app.getId(): function setToLevel - error: invalid action ($action); exiting")
+		logTrace("$app.label: function setToLevel - error: invalid action ($action); exiting")
 		return false
 	}
 	def newLevel = level as int
@@ -446,7 +446,7 @@ def nextLevel(level, action, childId="Master"){
 	}
 	if(newLevel > 100) newLevel = 100
 	if(newLevel < 1) newLevel = 1
-	logTrace("$app.label, app.getId(): function setToLevel returning $newLevel")
+	logTrace("$app.label: function setToLevel returning $newLevel")
 	return newLevel
 }
 
@@ -458,9 +458,9 @@ def nextLevel(level, action, childId="Master"){
 /* somehow.                                           */
 /* ************************************************** */
 def changeMode(mode, childId = "Master", device = "Null") {
-	logTrace("$app.label, app.getId(): function changeMode starting [mode: $mode, childId: $childId]")
+	logTrace("$app.label: function changeMode starting [mode: $mode, childId: $childId]")
 	if(location.mode == mode) {
-		logTrace("$app.label, app.getId(): function changeMode returning (mode already $mode)")
+		logTrace("$app.label: function changeMode returning (mode already $mode)")
 		return
 	}
 	child = getAppLabel(childId)
@@ -468,12 +468,12 @@ def changeMode(mode, childId = "Master", device = "Null") {
 	setLocationMode(mode)
 	
 	log.info "$child: Changed Mode from $oldMode to $mode."
-	logTrace("$app.label, app.getId(): function changeMode exiting")
+	logTrace("$app.label: function changeMode exiting")
 }
 
 // Send SMS text message to $phone with $message
 def sendText(phone, message){
-	logTrace("$app.label, app.getId(): function sendText starting [phone: $phone, message: $message]")
+	logTrace("$app.label: function sendText starting [phone: $phone, message: $message]")
 	//Normalize phone number
 	phone = phone.replaceAll(" ","");
 	phone = phone.replaceAll("\\(","");
@@ -487,38 +487,38 @@ def sendText(phone, message){
 	} else if(phone.length() == 9 && phone.substring(0,1) == "1") {
 		phone = "+" + phone
 	}
-	log.info "Sent text to $phone for \"$message\"
+	log.info "Sent text to $phone for \"$message\""
 	sendSms(phone,message)
-	logTrace("$app.label, app.getId(): function sendText exiting")
+	logTrace("$app.label: function sendText exiting")
 	return true
 }
 
 // Test state of a group of switches
 // Return true if any are on
 def multiStateOn(device){
-	logTrace("$app.label, app.getId(): function multiStateOn starting [device: $device]")
+	logTrace("$app.label: function multiStateOn starting [device: $device]")
 	multiState = false
 	device.each{
 		if(stateOn(it) == true) multiState = true
 	}
-	logTrace("$app.label, app.getId(): function multiStateOn returning $multiState")
+	logTrace("$app.label: function multiStateOn returning $multiState")
 	return multiState
 }
 
 // Test state of a single switch
 def stateOn(device){
-	logTrace("$app.label, app.getId(): function stateOn starting")
+	logTrace("$app.label: function stateOn starting")
 	if(device.currentValue("switch") == "on") {
-		logTrace("$app.label, app.getId(): function stateOn returning true")
+		logTrace("$app.label: function stateOn returning true")
 		return true
 	}
-	logTrace("$app.label, app.getId(): function stateOn exiting")
+	logTrace("$app.label: function stateOn exiting")
 }
 
 // Validation functions
 
 def validateTemp(value, childId="Master"){
-	logTrace("$app.label, app.getId(): function validateTemp starting [value: $value, childId: $childId]")
+	logTrace("$app.label: function validateTemp starting [value: $value, childId: $childId]")
 	if(value){
 		value = value as int   
 		if(value < 2200) {
@@ -531,12 +531,12 @@ def validateTemp(value, childId="Master"){
 			log.debug "$child: Default Temp Color is invalid."
 		}
 	}
-	logTrace("$app.label, app.getId(): function validateTemp returning $value")
+	logTrace("$app.label: function validateTemp returning $value")
 	return value
 }
 
 def validateLevel(value, childId="Master"){
-	logTrace("$app.label, app.getId(): function validateLevel starting [value: $value, childId: $childId]")
+	logTrace("$app.label: function validateLevel starting [value: $value, childId: $childId]")
 	if(value){
 		value = value as int 
 		if(value < 1 || value > 100){
@@ -545,12 +545,12 @@ def validateLevel(value, childId="Master"){
 			log.debug "$child: Default Level is invalid."
 		}
 	}
-	logTrace("$app.label, app.getId(): function validateTemp returning $value")
+	logTrace("$app.label: function validateTemp returning $value")
 	return value
 }
 
 def validateMultiplier(value, childId="Master"){
-	logTrace("$app.label, app.getId(): function validateMultiplier starting [value: $value, childId: $childId]")
+	logTrace("$app.label: function validateMultiplier starting [value: $value, childId: $childId]")
 	if(value != null){
 		if(value < 1 || value > 100){
 			child = getAppLabel(childId)
@@ -558,56 +558,56 @@ def validateMultiplier(value, childId="Master"){
 			log.debug "$child: Multiplier is invalid."
 		}
 	}
-	logTrace("$app.label, app.getId(): function validateMultiplier returning $value")
+	logTrace("$app.label: function validateMultiplier returning $value")
 	return value
 }
 
 // Validation functions for device capabilities
 
 def isDimmable(device){
-	logTrace("$app.label, app.getId(): function isDimmable starting [device: $device]")
+	logTrace("$app.label: function isDimmable starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("SwitchLevel")
-	logTrace("$app.label, app.getId(): function isDimmable returning $value")
+	logTrace("$app.label: function isDimmable returning $value")
 	return value
 }
 
 def isTemp(device){
-	logTrace("$app.label, app.getId(): function isTemp starting [device: $device]")
+	logTrace("$app.label: function isTemp starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("ColorTemperature")
-	logTrace("$app.label, app.getId(): function isDimmable returning $value")
+	logTrace("$app.label: function isDimmable returning $value")
 	return value
 }
 
 def isColor(device){
-	logTrace("$app.label, app.getId(): function isColor starting [device: $device]")
+	logTrace("$app.label: function isColor starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("ColorMode")
-	logTrace("$app.label, app.getId(): function isDimmable returning $value")
+	logTrace("$app.label: function isDimmable returning $value")
 	return value
 }
 
 def isFan(device){
-	logTrace("$app.label, app.getId(): function isColor starting [device: $device]")
+	logTrace("$app.label: function isColor starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	if(deviceCapability.contains("Actuator") == true && device.name.contains("Fan") == true){
-		logTrace("$app.label, app.getId(): function isFan returning true")
+		logTrace("$app.label: function isFan returning true")
 		return true
 	} else {
-		logTrace("$app.label, app.getId(): function isFan returning false")
+		logTrace("$app.label: function isFan returning false")
 		return false
 	}
 }
@@ -619,11 +619,11 @@ def isFan(device){
 /* disable                                            */
 /* ************************************************** */
 def flashGreen(device){
-	logTrace("$app.label, app.getId(): function flashGreen starting [device: $device]")
+	logTrace("$app.label: function flashGreen starting [device: $device]")
 	currentHue = device.currentHue
 	currentSat = device.currentSaturation
 	if(!isColor(device)) {
-		logTrace("$app.label, app.getId(): function flashGreen returning (not color device)")
+		logTrace("$app.label: function flashGreen returning (not color device)")
 		return
 	}
 	newValue = [hue: 33, saturation: 100]
@@ -631,114 +631,114 @@ def flashGreen(device){
 	pause(750)
 	newValue = [hue: currentHue, saturation: currentSat]
 	singleColor(currentHue, currentSat)
-	logTrace("$app.label, app.getId(): function flashGreen exiting")
+	logTrace("$app.label: function flashGreen exiting")
 }
 
 // Round fan level to high, medium or low
 // Returns rounded value
 def roundFanLevel(level){
-	logTrace("$app.label, app.getId(): function roundFan starting [level: $level]")
+	logTrace("$app.label: function roundFan starting [level: $level]")
 	if(isFan(device)) {
 		value = Math.round(level / 33) * 33 + 1
-		logTrace("$app.label, app.getId(): function roundFan returning $value")
+		logTrace("$app.label: function roundFan returning $value")
 		return value
 	} else {
-		logTrace("$app.label, app.getId(): function roundFan returning $level")
+		logTrace("$app.label: function roundFan returning $level")
 		return level
 	}
 }
 
 // Returns app label from app id
 def getAppLabel(childId){
-	logTrace("$app.label, app.getId(): function getAppLabel starting [childId: $childId]")
+	logTrace("$app.label: function getAppLabel starting [childId: $childId]")
     childApps.each { 
         if(it.getId() == childId) child = it.label
     }
     if(child) {
-	logTrace("$app.label, app.getId(): function getAppLabel returning $child")
+	logTrace("$app.label: function getAppLabel returning $child")
         return child
     } else {
-	logTrace("$app.label, app.getId(): function getAppLabel returning $childId")
+	logTrace("$app.label: function getAppLabel returning $childId")
         return childId
     }
 }
 
 def reschedule(device){
-	logTrace("$app.label, app.getId(): function reschedule starting [device: $device]")
+	logTrace("$app.label: function reschedule starting [device: $device]")
 	childApps.each {Child->
 		if(Child.label.substring(0,4) == "Time") {
 			Child.incrementalSchedule(device)
 		}
 	}
-	logTrace("$app.label, app.getId(): function reschedule exiting")
+	logTrace("$app.label: function reschedule exiting")
 }
 
 
 // Returns date one day ahead of $date
 // Expects and returns format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getTomorrow(date){
-	logTrace("$app.label, app.getId(): function getTomorrow starting [date: $date]")
+	logTrace("$app.label: function getTomorrow starting [date: $date]")
 	day = date.substring(8,10).toInteger() + 1
 	day = String.format("%02d",day)
 	value = date.substring(0,8) + day.toString() + date.substring(10,28)
-	logTrace("$app.label, app.getId(): function getTomorrow returning $value")
+	logTrace("$app.label: function getTomorrow returning $value")
 	return value
 }
 
 // Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getSunrise(){
-	logTrace("$app.label, app.getId(): function getSunrise starting")
+	logTrace("$app.label: function getSunrise starting")
 	value = getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
-	logTrace("$app.label, app.getId(): function getSunrise returning $value")
+	logTrace("$app.label: function getSunrise returning $value")
 	return value
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getSundown(){
-	logTrace("$app.label, app.getId(): function getSundown starting")
+	logTrace("$app.label: function getSundown starting")
 	value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
-	logTrace("$app.label, app.getId(): function getSunrise returning $value")
+	logTrace("$app.label: function getSundown returning $value")
 	return value
 }
 
 // Returns true if today is in $days map
 def todayInDayList(days){
-	logTrace("$app.label, app.getId(): function todayInDayList [days: $days]")
+	logTrace("$app.label: function todayInDayList [days: $days]")
 	if(!days) return false
 	def df = new java.text.SimpleDateFormat("EEEE")
 	df.setTimeZone(location.timeZone)
 	def day = df.format(new Date())
 	if(days.contains(day)) {
-		logTrace("$app.label, app.getId(): function todayInDayList returning true")
+		logTrace("$app.label: function todayInDayList returning true")
 		return true
 	}
-	logTrace("$app.label, app.getId(): function todayInDayList exiting")
+	logTrace("$app.label: function todayInDayList exiting")
 }
 
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop){
-	logTrace("$app.label, app.getId(): function timeBetween [timeStart: $timeStart, timeStop: $timeStop]")
+	logTrace("$app.label: function timeBetween [timeStart: $timeStart, timeStop: $timeStop]")
 	if(!timeStart) {
-		logTrace("$app.label, app.getId(): function timeBetween returning false (no start time)")
+		logTrace("$app.label: function timeBetween returning false (no start time)")
 		return false
 	}
 	if(!timeStop) {
-		logTrace("$app.label, app.getId(): function timeBetween returning false (no stop time)")
+		logTrace("$app.label: function timeBetween returning false (no stop time)")
 		return false
 	}
 
 	varNow = now()
 	if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
 		if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-			logTrace("$app.label, app.getId(): function timeBetween returning true (time stop before time start)")
+			logTrace("$app.label: function timeBetween returning true (time stop before time start)")
 			return true
 		}
 	}
 	if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-		logTrace("$app.label, app.getId(): function timeBetween returning true")
+		logTrace("$app.label: function timeBetween returning true")
 		return true
 	}
-	logTrace("$app.label, app.getId(): function timeBetween exiting")
+	logTrace("$app.label: function timeBetween exiting")
 
 }
 
