@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.3.03
+*  Version: 0.3.04
 *
 ***********************************************************************************************************************/
 
@@ -87,9 +87,9 @@ preferences {
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 										input "buttonPush1", "enum", title: "Pushing Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 										if(numButton == "4 button" || numButton == "5 button") 
-											input "buttonPush2", "enum", title: "ushing \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "5 button") input "buttonPush3", "enum", title: "ushing Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "ushing \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+											input "buttonPush2", "enum", title: "Pushing \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+										if(numButton == "5 button") input "buttonPush3", "enum", title: "Pushing Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "Pushing \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
 										input "buttonPush5", "enum", title: "Pushing Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
 
 										input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
@@ -605,67 +605,104 @@ def updated() {
 
 def initialize() {
     log.debug "Pico initialized"
+
     subscribe(buttonDevice, "pushed", buttonPushed)
     subscribe(buttonDevice, "held", buttonHeld)
     subscribe(buttonDevice, "released", buttonReleased)
 }
 
 def buttonPushed(evt){
+	logTrace("$app.label: function buttonPushed starting [$evt.value]")
+	log.debug button_1_push_on
     def appId = app.getId()
     def buttonNumber = evt.value
     def colorSwitch
     def whiteSwitch
 
-/* ************************************************** */
-/* TO DO - see if these can be moved so doesn't need  */
-/* to precess at every button click. If in            */
-/* Initialize function, will variables carry over?    */
-/* Or need to set them as "settings."?                */
-/* ************************************************** */
-	if(!multiDevice && !advancedSetup){
-		button_1_push_on = controlDevice
-		if(numButton == "4 button" || numButton == "5 button") button_2_push_brighten = controlDevice
-		if(numButton == "5 button") button_3_push_toggle = controlDevice
-		if(numButton == "4 button" || numButton == "5 button") button_4_push_dim = controlDevice
-		button_5_push_off = controlDevice
-	} else if(!multiDevice && advanceSetup){
-		if(buttonPush1 && buttonPush1 == "on") button_1_push_on = controlDevice
-		if(buttonPush1 && buttonPush1 == "off") button_1_push_off = controlDevice
-		if(buttonPush1 && buttonPush1 == "dim") button_1_push_dim = controlDevice
-		if(buttonPush1 && buttonPush1 == "brighten") button_1_push_brighten = controlDevice
-		if(buttonPush1 && buttonPush1 == "toggle") button_1_push_toggle = controlDevice
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonPush2 && buttonPush2 == "on") button_2_push_on = controlDevice
-			if(buttonPush2 && buttonPush2 == "off") button_2_push_off = controlDevice
-			if(buttonPush2 && buttonPush2 == "dim") button_2_push_dim = controlDevice
-			if(buttonPush2 && buttonPush2 == "brighten") button_2_push_brighten = controlDevice
-			if(buttonPush2 && buttonPush2 == "toggle") button_2_push_toggle = controlDevice
-		}
-		if(numButton == "5 button"){
-			if(buttonPush3 && buttonPush3 == "on") button_3_push_on = controlDevice
-			if(buttonPush3 && buttonPush3 == "off") button_3_push_off = controlDevice
-			if(buttonPush3 && buttonPush3 == "dim") button_3_push_dim = controlDevice
-			if(buttonPush3 && buttonPush3 == "brighten") button_3_push_brighten = controlDevice
-			if(buttonPush3 && buttonPush3 == "toggle") button_3_push_toggle = controlDevice
-		}
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonPush4 && buttonPush4 == "on") button_4_push_on = controlDevice
-			if(buttonPush4 && buttonPush4 == "off") button_4_push_off = controlDevice
-			if(buttonPush4 && buttonPush4 == "dim") button_4_push_dim = controlDevice
-			if(buttonPush4 && buttonPush4 == "brighten") button_4_push_brighten = controlDevice
-			if(buttonPush4 && buttonPush4 == "toggle") button_4_push_toggle = controlDevice
-		}
-		if(buttonPush5 && buttonPush5 == "on") button_5_push_on = controlDevice
-		if(buttonPush5 && buttonPush5 == "off") button_5_push_off = controlDevice
-		if(buttonPush5 && buttonPush5 == "dim") button_5_push_dim = controlDevice
-		if(buttonPush5 && buttonPush5 == "brighten") button_5_push_brighten = controlDevice
-		if(buttonPush5 && buttonPush5 == "toggle") button_5_push_toggle = controlDevice
-	}
-		
-
-    log.info "Pico: $evt.displayName button $buttonNumber $evt.name."
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,appId)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,appId)
+	
+	// Simple setup
+	if(!multiDevice && !advancedSetup){
+		switch(buttonNumber){
+			case "1": parent.multiOn(controlDevice,appId)
+				break
+			case "2": parent.brighten(controlDevice,appId)
+				break
+			case "3": parent.toggle(controlDevice,appId)
+				break
+			case "4": parent.dim(controlDevice,appId)
+				break
+			case "5": parent.multiOff(controlDevice,appId)
+		}
+		logTrace("$app.label: function buttonPushed exiting (no multiDevice and no advanced setup)")
+		return
+	}
+	
+	if(!multiDevice && advanceSetup){
+		if(buttonNumber == "1"){
+			switch(buttonPush1){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.brighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.dim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "2"){
+			switch(buttonPush2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.brighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.dim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "3"){
+			switch(buttonPush2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.brighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.dim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "4"){
+			switch(buttonPush2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.brighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.dim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "5"){
+			switch(buttonPush2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.brighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.dim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		}
+		logTrace("$app.label: function buttonPushed exiting (multiDevice and no advanced setup)")
+		return
+	}
 
     if(buttonNumber == "1"){
         if(button_1_push_toggle != null) {
@@ -679,9 +716,8 @@ def buttonPushed(evt){
         if(button_1_push_off) parent.multiOff(button_1_push_off,appId)
 		if(button_1_push_dim) parent.dim(button_1_push_dim,appId)
         if(button_1_push_brighten) parent.brighten(button_1_push_brighten,appId)
-        if(!button_1_push_toggle && !button_1_push_on && !button_1_push_off && !button_1_push_dim && !button_1_push_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonPushed exiting (buttonNumber 1)")
+		return
     }
 
     if(buttonNumber == "2" && (numButton == "4 button" || numButton == "5 button")){
@@ -696,9 +732,8 @@ def buttonPushed(evt){
         if(button_2_push_off) parent.multiOff(button_2_push_off,appId)
 		if(button_2_push_dim) parent.dim(button_2_push_dim,appId)
         if(button_2_push_brighten) parent.brighten(button_2_push_brighten,appId)
-        if(!button_2_push_toggle && !button_2_push_on && !button_2_push_off && !button_2_push_dim && !button_2_push_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonPushed exiting (buttonNumber 2)")
+		return
     }
 
     if(buttonNumber == "3"){
@@ -713,9 +748,8 @@ def buttonPushed(evt){
         if(button_3_push_off) parent.multiOff(button_3_push_off,appId)
         if(button_3_push_dim) parent.dim(button_3_push_dim,appId)
         if(button_3_push_brighten) parent.brighten(button_3_push_brighten,appId)
-        if(!button_3_push_toggle && !button_3_push_on && !button_3_push_off && !button_3_push_dim && !button_3_push_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonPushed exiting (buttonNumber 3)")
+		return
     }
 
     if(buttonNumber == "4"){
@@ -730,10 +764,10 @@ def buttonPushed(evt){
         if(button_4_push_off) parent.multiOff(button_4_push_off,appId)
         if(button_4_push_dim) parent.dim(button_4_push_dim,appId)
         if(button_4_push_brighten) parent.brighten(button_4_push_brighten,appId)
-        if(!button_4_push_toggle && button_4_push_on && !button_4_push_off && !button_4_push_dim && !button_4_push_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonPushed exiting (buttonNumber 4)")
+		return
     }
+
     if(buttonNumber == "5" || (buttonNumber == "2" &&  numButton == "2 button")){
         if(button_5_push_toggle != null) {
             if (settings.color == "Separate"){
@@ -746,133 +780,170 @@ def buttonPushed(evt){
         if(button_5_push_off) parent.multiOff(button_5_push_off,appId)
         if(button_5_push_dim) parent.dim(button_5_push_dim,appId)
         if(button_5_push_brighten) parent.brighten(button_5_push_brighten,appId)
-        if(!button_5_push_toggle && !button_5_push_on && !button_5_push_off && !button_5_push_dim && !button_5_push_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonPushed exiting (buttonNumber 5)")
+		return
     }
-    if(fromTime1 != null && toTime1 != null){
-        between1 = timeOfDayIsBetween(timeToday(fromTime1, location.timeZone), timeToday(toTime1, location.timeZone), new Date(), location.timeZone)
-    }
-    if(fromTime2 != null && toTime2 != null){
-        between2 = timeOfDayIsBetween(timeToday(fromTime2, location.timeZone), timeToday(toTime2, location.timeZone), new Date(), location.timeZone)
-    }
-    if(fromTime3 != null && toTime3 != null){
-        between3 = timeOfDayIsBetween(timeToday(fromTime3, location.timeZone), timeToday(toTime3, location.timeZone), new Date(), location.timeZone)
-    }
+	logTrace("$app.label: function buttonPushed exiting")
 }
 
 def buttonHeld(evt){
+	logTrace("$app.label: function buttonHeld starting [$evt.value]")
     def appId = app.getId()
     def buttonNumber = evt.value
     def colorSwitch
     def whiteSwitch
 
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,appId)
+
 // TO DO - see if these can be moved so doesn't need to precess at every button click
 	if(!multiDevice && !advancedSetup && !replicateHold){
-		button_1_hold_on = controlDevice
-		if(numButton == "4 button" || numButton == "5 button") button_2_hold_brighten = controlDevice
-		if(numButton == "5 button") button_3_hold_toggle = controlDevice
-		if(numButton == "4 button" || numButton == "5 button") button_4_hold_dim = controlDevice
-		button_5_hold_off = controlDevice
-	} else if(!multiDevice && advanceSetup && !replicateHold){
-		if(buttonPush1 && buttonPush1 == "on") button_1_hold_on = controlDevice
-		if(buttonPush1 && buttonPush1 == "off") button_1_hold_off = controlDevice
-		if(buttonPush1 && buttonPush1 == "dim") button_1_hold_dim = controlDevice
-		if(buttonPush1 && buttonPush1 == "brighten") button_1_hold_brighten = controlDevice
-		if(buttonPush1 && buttonPush1 == "toggle") button_1_hold_toggle = controlDevice
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonPush2 && buttonPush2 == "on") button_2_hold_on = controlDevice
-			if(buttonPush2 && buttonPush2 == "off") button_2_hold_off = controlDevice
-			if(buttonPush2 && buttonPush2 == "dim") button_2_hold_dim = controlDevice
-			if(buttonPush2 && buttonPush2 == "brighten") button_2_hold_brighten = controlDevice
-			if(buttonPush2 && buttonPush2 == "toggle") button_2_hold_toggle = controlDevice
+		switch(buttonNumber){
+			case "1": parent.multiOn(controlDevice,appId)
+				break
+			case "2": parent.holdBrighten(controlDevice,appId)
+				break
+			case "3": parent.toggle(controlDevice,appId)
+				break
+			case "4": parent.holdDim(controlDevice,appId)
+				break
+			case "5": parent.multiOff(controlDevice,appId)
 		}
-		if(numButton == "5 button"){
-			if(buttonPush3 && buttonPush3 == "on") button_3_hold_on = controlDevice
-			if(buttonPush3 && buttonPush3 == "off") button_3_hold_off = controlDevice
-			if(buttonPush3 && buttonPush3 == "dim") button_3_hold_dim = controlDevice
-			if(buttonPush3 && buttonPush3 == "brighten") button_3_hold_brighten = controlDevice
-			if(buttonPush3 && buttonPush3 == "toggle") button_3_hold_toggle = controlDevice
-		}
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonPush4 && buttonPush4 == "on") button_4_hold_on = controlDevice
-			if(buttonPush4 && buttonPush4 == "off") button_4_hold_off = controlDevice
-			if(buttonPush4 && buttonPush4 == "dim") button_4_hold_dim = controlDevice
-			if(buttonPush4 && buttonPush4 == "brighten") button_4_hold_brighten = controlDevice
-			if(buttonPush4 && buttonPush4 == "toggle") button_4_hold_toggle = controlDevice
-		}
-		if(buttonPush5 && buttonPush5 == "on") button_5_hold_on = controlDevice
-		if(buttonPush5 && buttonPush5 == "off") button_5_holdhold_off = controlDevice
-		if(buttonPush5 && buttonPush5 == "dim") button_5_hold_dim = controlDevice
-		if(buttonPush5 && buttonPush5 == "brighten") button_5_hold_brighten = controlDevice
-		if(buttonPush5 && buttonPush5 == "toggle") button_5_hold_toggle = controlDevice
-	} else if(!multiDevice && advanceSetup && replicateHold){
-		if(buttonHold1 && buttonHold1 == "on") button_1_hold_on = controlDevice
-		if(buttonHold1 && buttonHold1 == "off") button_1_hold_off = controlDevice
-		if(buttonHold1 && buttonHold1 == "dim") button_1_hold_dim = controlDevice
-		if(buttonHold1 && buttonHold1 == "brighten") button_1_hold_brighten = controlDevice
-		if(buttonHold1 && buttonHold1 == "toggle") button_1_hold_toggle = controlDevice
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonHold2 && buttonHold2 == "on") button_2_hold_on = controlDevice
-			if(buttonHold2 && buttonHold2 == "off") button_2_hold_off = controlDevice
-			if(buttonHold2 && buttonHold2 == "dim") button_2_hold_dim = controlDevice
-			if(buttonHold2 && buttonHold2 == "brighten") button_2_hold_brighten = controlDevice
-			if(buttonHold2 && buttonHold2 == "toggle") button_2_hold_toggle = controlDevice
-		}
-		if(numButton == "5 button"){
-			if(buttonHold3 && buttonHold3 == "on") button_3_hold_on = controlDevice
-			if(buttonHold3 && buttonHold3 == "off") button_3_hold_off = controlDevice
-			if(buttonHold3 && buttonHold3 == "dim") button_3_hold_dim = controlDevice
-			if(buttonHold3 && buttonHold3 == "brighten") button_3_hold_brighten = controlDevice
-			if(buttonHold3 && buttonHold3 == "toggle") button_3_hold_toggle = controlDevice
-		}
-		if(numButton == "4 button" || numButton == "5 button"){
-			if(buttonHold4 && buttonHold4 == "on") button_4_hold_on = controlDevice
-			if(buttonHold4 && buttonHold4 == "off") button_4_hold_off = controlDevice
-			if(buttonHold4 && buttonHold4 == "dim") button_4_hold_dim = controlDevice
-			if(buttonHold4 && buttonHold4 == "brighten") button_4_hold_brighten = controlDevice
-			if(buttonHold4 && buttonHold4 == "toggle") button_4_hold_toggle = controlDevice
-		}
-		if(buttonHold5 && buttonHold5 == "on") button_5_hold_on = controlDevice
-		if(buttonHold5 && buttonHold5 == "off") button_5_hold_off = controlDevice
-		if(buttonHold5 && buttonHold5 == "dim") button_5_hold_dim = controlDevice
-		if(buttonHold5 && buttonHold5 == "brighten") button_5_hold_brighten = controlDevice
-		if(buttonHold5 && buttonHold5 == "toggle") button_5_hold_toggle = controlDevice
-	} else if(multiDevice && !replicateHold){
-		if(button_1_push_on) button_1_hold_on = button_1_push_on
-		if(button_2_push_on) button_2_hold_on = button_2_push_on
-		if(button_3_push_on) button_3_hold_on = button_3_push_on
-		if(button_4_push_on) button_4_hold_on = button_4_push_on
-		if(button_5_push_on) button_5_hold_on = button_5_push_on
-		
-		if(button_1_push_brighten) button_1_hold_brighten = button_1_push_brighten
-		if(button_2_push_brighten) button_2_hold_brighten = button_2_push_brighten
-		if(button_3_push_brighten) button_3_hold_brighten = button_3_push_brighten
-		if(button_4_push_brighten) button_4_hold_brighten = button_4_push_brighten
-		if(button_5_push_brighten) button_5_hold_brighten = button_5_push_brighten
-
-		if(button_1_push_toggle) button_1_hold_toggle = button_1_push_toggle
-		if(button_2_push_toggle) button_2_hold_toggle = button_2_push_toggle
-		if(button_3_push_toggle) button_3_hold_toggle = button_3_push_toggle
-		if(button_4_push_toggle) button_4_hold_toggle = button_4_push_toggle
-		if(button_5_push_toggle) button_5_hold_toggle = button_5_push_toggle
-		
-		if(button_1_push_dim) button_1_hold_dim = button_1_push_dim
-		if(button_2_push_dim) button_2_hold_dim = button_2_push_dim
-		if(button_3_push_dim) button_3_hold_dim = button_3_push_dim
-		if(button_4_push_dim) button_4_hold_dim = button_4_push_dim
-		if(button_5_push_dim) button_5_hold_dim = button_5_push_dim
-		
-		if(button_1_push_off) button_1_hold_off = button_1_push_off
-		if(button_2_push_off) button_2_hold_off = button_2_push_off
-		if(button_3_push_off) button_3_hold_off = button_3_push_off
-		if(button_4_push_off) button_4_hold_off = button_4_push_off
-		if(button_5_push_off) button_5_hold_off = button_5_push_off
+		logTrace("$app.label: function buttonHeld exiting (not multiDevice, not advancedSetup and not replicateHold)")
+		return
 	}
 
-    log.info "Pico: $evt.displayName button $buttonNumber $evt.name."
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,appId)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,appId)
+	if(!multiDevice && advanceSetup && !replicateHold){
+		if(buttonNumber == "1"){
+			switch(buttonPush1){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "2"){
+			switch(buttonPush2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "3"){
+			switch(buttonPush3){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "4"){
+			switch(buttonPush4){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "5"){
+			switch(buttonPush5){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		}
+		logTrace("$app.label: function buttonHeld exiting (not multiDevice, advancedSetup and not replicateHold)")
+		return
+	}
+
+	if(!multiDevice && advanceSetup && replicateHold){
+		if(buttonNumber == "1"){
+			switch(buttonHold1){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "2"){
+			switch(buttonHold2){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "3"){
+			switch(buttonHold3){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "4"){
+			switch(buttonHold4){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		} else if(buttonNumber == "5"){
+			switch(buttonHold5){
+				case "on": parent.multiOn(controlDevice,appId)
+					break
+				case "brighten": parent.holdBrighten(controlDevice,appId)
+					break
+				case "toggle": parent.toggle(controlDevice,appId)
+					break
+				case "dim": parent.holdDim(controlDevice,appId)
+					break
+				case "off": parent.multiOff(controlDevice,appId)
+			}
+		}
+		logTrace("$app.label: function buttonHeld exiting (not multiDevice, advancedSetup and replicateHold)")
+		return
+	}
+
 
     if(buttonNumber == "1"){
         if(button_1_hold_toggle != null) {
@@ -886,9 +957,8 @@ def buttonHeld(evt){
         if(button_1_hold_off) parent.multiOff(button_1_hold_off,appId)
         if(button_1_hold_dim) holdDim(button_1_hold_dim)
         if(button_1_hold_brighten) holdBrighten(button_1_hold_brighten)
-        if(!button_1_hold_toggle && !button_1_hold_on && !button_1_hold_off && !button_1_hold_dim && !button_1_hold_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $evt.displayName."
-        }
+		logTrace("$app.label: function buttonHeld exiting (button number 1)")
+		return
     }
 
     if(buttonNumber == "2"){
@@ -903,9 +973,8 @@ def buttonHeld(evt){
         if(button_2_hold_off) multiOff(button_2_hold_off,appId)
         if(button_2_hold_dim) holdDim(button_2_hold_dim)
         if(button_2_hold_brighten) holdBrighten(button_2_hold_brighten)
-        if(!button_2_hold_toggle && !button_2_hold_on && !button_2_hold_off && !button_2_hold_dim && !button_2_hold_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonHeld exiting (button number 2)")
+		return
     }
 
     if(buttonNumber == "3"){
@@ -920,9 +989,8 @@ def buttonHeld(evt){
         if(button_3_hold_off) parent.multiOff(button_3_hold_off,appId)
         if(button_3_hold_dim) holdDim(button_3_hold_dim)
         if(button_3_hold_brighten) holdBrighten(button_3_hold_brighten)
-        if(!button_3_hold_toggle && !button_3_hold_on && !button_3_hold_off && !button_3_hold_dim && !button_3_hold_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonHeld exiting (button number 3)")
+		return
     }
 
     if(buttonNumber == "4"){
@@ -937,9 +1005,8 @@ def buttonHeld(evt){
         if(button_4_hold_off) parent.multiOff(button_4_hold_off,appId)
         if(button_4_hold_dim) holdDim(button_4_hold_dim)
         if(button_4_hold_brighten) holdBrighten(button_4_hold_brighten)
-        if(!button_4_hold_toggle && !button_4_hold_on && !button_4_hold_off && !button_4_hold_dim && !button_4_hold_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonHeld exiting (button number 4)")
+		return
     }
 
     if(buttonNumber == "5"){
@@ -954,145 +1021,158 @@ def buttonHeld(evt){
         if(button_5_hold_off) parent.multiOff(button_5_hold_off,appId)
         if(button_5_hold_dim) holdDim(button_5_hold_dim)
         if(button_5_hold_brighten) holdBrighten(button_5_hold_brighten)
-        if(!button_5_hold_toggle && !button_5_hold_on && !button_5_hold_off && !button_5_hold_dim && !button_5_hold_brighten){
-            log.info "Pico: No action defined for button $buttonNumber of $displayName."
-        }
+		logTrace("$app.label: function buttonHeld exiting (button number 5)")
+		return
     }
+	logTrace("$app.label: function buttonHeld exiting")
 }
 
 def buttonReleased(evt){
-    def buttonNumber = evt.value
-    if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
-        unschedule()
-    }
+	logTrace("$app.label: function buttonReleased starting [$evt.value]")
+	def buttonNumber = evt.value
+	if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
+		logTrace("$app.label: function buttonHeld unscheduling all")
+		unschedule()
+	}
+	logTrace("$app.label: function buttonHeld exiting")
 }
 
 def dimSpeed(){
-    if(settings.multiplier != null){
-        return settings.pushMultiplier
-    }else{
-        return 1.2
-    }
+	logTrace("$app.label: function dimSpeed starting")
+	if(settings.multiplier != null){
+		logTrace("$app.label: function dimSpeed returning $pushMultiplier")
+		return pushMultiplier
+	} else {
+		logTrace("$app.label: function dimSpeed returning 1.2")
+		return 1.2
+	}
 }
 
 def holdDimSpeed(){
-    if(settings.multiplier != null){
-        return settings.holdMultiplier
-    }else{
-        return 1.4
-    }
+	logTrace("$app.label: function holdDimSpeed starting")
+	if(settings.multiplier != null){
+		logTrace("$app.label: function holdDimSpeed returning $holdMultiplier")
+		return holdMultiplier
+	} else {
+		logTrace("$app.label: function holdDimSpeed returning 1.4")
+		return 1.4
+	}
 }
 
 // counts number of steps for brighten and dim
 // action = "dim" or "brighten"
 def getSteps(lvl, action){
-    def steps = 0
+	logTrace("$app.label: function getSteps starting [lvl: $lvl, action: $action]")
+	def steps = 0
 
-    if (action != "dim" && action != "brighten"){
-        log.debug "Pico: Invalid action with getSteps"
-        return false
-    }
-    if(action == "dim" && lvl < 2){
-        steps = 0
-    } else if (action == "brighten" && lvl>99){
-        steps = 0
-    }
-	
-    if (action == "dim"){
-        while (lvl  > 1) {
-            steps = steps + 1
-            lvl = parent.nextLevel(lvl, action,app.getId())
-        }
-    } else if(action == "brighten"){
-        while (lvl  < 100) {
-            steps = steps + 1
-            lvl = parent.nextLevel(lvl, action,app.getId())
-        }
-    }
-    return steps
+	if (action != "dim" && action != "brighten"){
+		logTrace("$app.label: function getSteps returning null (invalid action")
+		return false
+	}
+	// If as already level 1 and dimming or 100 and brightening
+	if((action == "dim" && lvl < 2) || (action == "brighten" && lvl>99)){
+		steps = 0
+	}
+
+	if (action == "dim"){
+		while (lvl  > 1) {
+			steps = steps + 1
+			lvl = parent.nextLevel(lvl, action,app.getId())
+		}
+	} else if(action == "brighten"){
+		while (lvl  < 100) {
+			steps = steps + 1
+			lvl = parent.nextLevel(lvl, action,app.getId())
+		}
+	}
+	logTrace("$app.label: function getSteps returning $steps")
+	return steps
 }
 
 def setSubscribeLevel(data){
+	logTrace("$app.label: function setSubscribeLevel returning [date: $data]")
 	def appId = app.getId()
 	button_1_hold_dim.each{
-        if (it.id == data.device) device = it
-    }
-    if (device == null){
-        button_1_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_2_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_2_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_3_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_3_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_4_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_4_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_5_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if (device == null){
-        button_5_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
+		if (it.id == data.device) device = it
+	}
+	if (device == null){
+		button_1_hold_brighten.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_2_hold_dim.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_2_hold_brighten.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_3_hold_dim.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_3_hold_brighten.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_4_hold_dim.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_4_hold_brighten.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_5_hold_dim.each{
+			if (it.id == data.device) device = it
+		}
+	}
+	if (device == null){
+		button_5_hold_brighten.each{
+			if (it.id == data.device) device = it
+		}
+	}
 	if(device == null) {
-		log.debug "Pico: Error finding device id \"$data.device\" in setSubscribeLevel."
+		logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
 		return
 	}
 	level = data.level as int
-    parent.setToLevel(device,level,app.getId())
+	parent.setToLevel(device,level,app.getId())
+	logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
 }
 
 def toggleSeparate(device){
+	logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
 	def appId = app.getId()
-    device.each{
-        if(it.currentValue("hue") && it.currentValue("switch") == "on") {
-            colorSwitch = "on"
-        } else if(!it.currentValue("hue") && it.currentValue("switch") == "on") {
-            whiteSwitch = "on"
-        }
-    }
-    // color on, white on, turn off color
-    if (colorSwitch == "on" && whiteSwitch == "on"){
-        parent.multiOff(device,appId)
-        // color on, white off; turn white on
-    } else if (colorSwitch == "on" && whiteSwitch != "on"){
-        parent.multiOn(device,appId)
-        //color off, white on; turn off white and turn on color
-    } else if (colorSwitch != "on" && whiteSwitch == "on"){
-        parent.multiOff(device,"white",appId)
-        parent.multiOn(device,appId)
-        // both off; turn color on
-    } else if (colorSwitch != "on" && whiteSwitch != "on"){
-        parent.multiOn(device,appId)
-    }
+	device.each{
+		if(it.currentValue("hue") && it.currentValue("switch") == "on") {
+			colorSwitch = "on"
+		} else if(!it.currentValue("hue") && it.currentValue("switch") == "on") {
+			whiteSwitch = "on"
+		}
+	}
+	// color on, white on, turn off color
+	if (colorSwitch == "on" && whiteSwitch == "on"){
+		parent.multiOff(device,appId)
+	// color on, white off; turn white on
+	} else if (colorSwitch == "on" && whiteSwitch != "on"){
+		parent.multiOn(device,appId)
+	//color off, white on; turn off white and turn on color
+	} else if (colorSwitch != "on" && whiteSwitch == "on"){
+		parent.multiOff(device,"white",appId)
+		parent.multiOn(device,appId)
+	// both off; turn color on
+	} else if (colorSwitch != "on" && whiteSwitch != "on"){
+		parent.multiOn(device,appId)
+	}
 }
 
 def holdDim(dvce){
@@ -1165,5 +1245,5 @@ def getLevel(device){
 }
 
 def logTrace(message){
-	if(state.debug) log.trace message
+	//log.trace message
 }
