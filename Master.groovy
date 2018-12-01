@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.13
+*  Version: 0.1.14
 *
 ***********************************************************************************************************************/
 
@@ -125,8 +125,10 @@ def updated() {
 def initialize() {
 	logTrace("$app.label: initialized")
 	if(debugging) {
+		logTrace("$app.label: initializing - Debug logging enabled")
 		state.debug = true
 	} else {
+		logTrace("$app.label: initializing - Debug logging disabled")
 		state.debug = false
 	}
 }
@@ -135,32 +137,38 @@ def initialize() {
 
 // Turn on a group of switches
 def multiOn(device,childId="Master"){
-	logTrace("$app.label: function multiOn starting [device: $device; childId: $childId]")
+	logTrace("$app.label (140): function multiOn starting [device: $device; childId: $childId]")
 	device.each{
+		logTrace("$app.label (142): function multiOn starting device $device loop")
 		// Using temp vars since each app will overwrite with null
+		// Need to clear between devices
+		def defaultLevel
+		def defaultTemp
+		def defaultHue
+		def defaultSat
 		childApps.each {Child->
 			if(Child.label.substring(0,4) == "Time") {
 				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
-				defaults = Child.getDefaultLevel(it)
+				// Skip if all possibile values have been gotten
+				if(!defaultLevel || !defaultTemp || !defaultHue || !defaultSat) {
+					defaults = Child.getDefaultLevel(it)
 
-				if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
-				if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
-				if(isColor(it)){
+					if(defaults.level != "Null") defaultLevel = defaults.level
+					if(defaults.temp != "Null") defaultTemp = defaults.temp
 					if(defaults.hue != "Null") defaultHue = defaults.hue
 					if(defaults.sat != "Null") defaultSat = defaults.sat
-				}
-
-				logTrace("$app.label: function multiOn found defaultLevel $defaults for $device.name")
-				if(defaultHue && !defaultSat){
-					defaultSat = 100
-				} else if(!defaultHue && defaultSat){
-					defaultHue = false
-					defaultSat = false
+					logTrace("$app.label (155): function multiOn found defaultLevel $defaults for $device.name")
 				}
 			}
 		}
 		if(!defaultLevel) defaultLevel = 100
 		if(!defaultTemp) defaultTemp = 3400
+		if(defaultHue && !defaultSat){
+			defaultSat = 100
+		} else if(!defaultHue && defaultSat){
+			defaultHue = false
+			defaultSat = false
+		}
 		if(isDimmable(it)){
 			if(isFan(it)){
 				reschedule(it)
@@ -173,40 +181,41 @@ def multiOn(device,childId="Master"){
 			reschedule(it)
 			singleOn(it,childId)
 		}
+		log.debug defaultTemp
 		if(defaultTemp && isTemp(it)) singleTemp(it,defaultTemp,childId)
 		if(defaultHue && defaultSat && isColor(it)) singleColor(it,defaultHue,defaultSat,childId)
 	}
-	logTrace("$app.label: function multiOn exiting")
+	logTrace("$app.label (181): function multiOn exiting")
 }
 
 // Turn on a single switch
 def singleOn(device,child = "Master"){
-	logTrace("$app.label: function singleOn starting [device: $device; child: $child]")
+	logTrace("$app.label (186): function singleOn starting [device: $device; child: $child]")
 	device.on()
 	log.info "Turned on $device."
-	logTrace("$app.label: function singleOn exiting")
+	logTrace("$app.label (189): function singleOn exiting")
 }
 
 // Functions for turning off switches
 
 // Turn off a group of switches
 def multiOff(device,childId="Master"){
-	logTrace("$app.label: function multiOff starting [device: $device; child: $childId]")
+	logTrace("$app.label (196): function multiOff starting [device: $device; child: $childId]")
 	device.each{
 		if(stateOn(it)){
 			singleOff(it,childId)
 			reschedule(it)
 		}
 	}
-	logTrace("$app.label: function multiOff exiting")
+	logTrace("$app.label (203): function multiOff exiting")
 }
 
 // Turn off a single switch
 def singleOff(device,child = "Master"){
-	logTrace("$app.label: function singleOff starting [device: $device; child: $child]")
+	logTrace("$app.label (208): function singleOff starting [device: $device; child: $child]")
 	device.off()
 	log.info "Turned off $device."
-	logTrace("$app.label: function singleOff exiting")
+	logTrace("$app.label (211): function singleOff exiting")
 }
 
 // Toggle a group of switches
@@ -232,7 +241,6 @@ def toggle(device,childId="Master"){
 				}
 			}
 			if(!defaultLevel) defaultLevel = 100
-			if(!defaultTemp) defaultTemp = 3400
 
 			if(isDimmable(it)){
 				setToLevel(it,defaultLevel,childId)
@@ -328,10 +336,9 @@ def brighten(device,childId="Master"){
 }
 
 // Set level (brighten or dim) a single dimmer
-def setToLevel(device,level,child=""){
+def setToLevel(device,level,child="Master"){
 	logTrace("$app.label: function setToLevel starting [device: $device; level: $level; child: $child]")
 	device.setLevel(level)
-	if(child == "") child = "Master"
 	// output to log with fan "high", "medium" or "low"
 	if(isFan(device) == true){
 		if(level == 99 | level == 100){
@@ -389,7 +396,7 @@ def singleUnlock(device, childId = "Master"){
 
 // Set temperature color of single device
 def singleTemp(device, temp,childId="Master"){
-	logTrace("$app.label: function singleTemp starting [device: $device; childId: $childId]")
+	logTrace("$app.label: function singleTemp starting [device: $device; temp:$temp; childId: $childId]")
 	child = getAppLabel(childId)
 	if(!isTemp(device)) {
 		logTrace("$app.label: function singleTemp returning (device is not Temp)")
@@ -565,24 +572,24 @@ def validateMultiplier(value, childId="Master"){
 // Validation functions for device capabilities
 
 def isDimmable(device){
-	logTrace("$app.label: function isDimmable starting [device: $device]")
+	logTrace("$app.label (569): function isDimmable starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("SwitchLevel")
-	logTrace("$app.label: function isDimmable returning $value")
+	logTrace("$app.label (575): function isDimmable returning $value")
 	return value
 }
 
 def isTemp(device){
-	logTrace("$app.label: function isTemp starting [device: $device]")
+	logTrace("$app.label (580): function isTemp starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("ColorTemperature")
-	logTrace("$app.label: function isDimmable returning $value")
+	logTrace("$app.label (586): function isTemp returning $value")
 	return value
 }
 
@@ -593,12 +600,12 @@ def isColor(device){
 		deviceCapability += it.name
 	}
 	value = deviceCapability.contains("ColorMode")
-	logTrace("$app.label: function isDimmable returning $value")
+	logTrace("$app.label: function isColor returning $value")
 	return value
 }
 
 def isFan(device){
-	logTrace("$app.label: function isColor starting [device: $device]")
+	logTrace("$app.label: function isFan starting [device: $device]")
 	def deviceCapability
 	device.capabilities.each {
 		deviceCapability += it.name
@@ -743,5 +750,5 @@ def timeBetween(timeStart, timeStop){
 }
 
 def logTrace(message){
-	if(state.debug) log.trace message
+	//log.trace message
 }
