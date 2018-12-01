@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.15
+*  Version: 0.3.16
 * 
 ***********************************************************************************************************************/
 
@@ -49,7 +49,7 @@ preferences {
 				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
 				label title: "", required: true
 				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
-				input "contact", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
+				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
 				input "contactDisable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
 			} else {
 				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this contact sensor routine:</b></div>"
@@ -58,11 +58,11 @@ preferences {
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				} else if(app.label){
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select door sensors for routine:</b></div>"
-					input "contact", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
+					input "contactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
 					input "contactDisable", "bool", title: "Disable this contact sensor?", submitOnChange:true
-					if(!contact){
+					if(!contactDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-					} else if(contact){
+					} else if(contactDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"><b>Select which devices to control:</b></div>"
 						if(!switches && !locks) input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, or sending text alert.", defaultValue: false, submitOnChange:true
 						if(!noDevice) input "switches", "capability.switchLevel", title: "Lights/switches?", multiple: true, required: false, submitOnChange:true
@@ -154,7 +154,7 @@ preferences {
 }
 
 def installed() {
-	logTrace("$app.label, app.getId(): installed")
+	logTrace("$app.label: installed")
 	if(app.getLabel().length() < 7)  app.updateLabel("Contact - " + app.getLabel())
 	if(app.getLabel().substring(0,7) != "Contact") app.updateLabel("Contact - " + app.getLabel())
 	initialize()
@@ -166,7 +166,7 @@ def updated() {
 }
 
 def initialize() {
-	logTrace("$app.label, app.getId(): initialized")
+	logTrace("$app.label: initialized")
 	unschedule()
 	
 	// If date/time for last SMS not set, initialize it to 5 minutes ago
@@ -174,15 +174,16 @@ def initialize() {
 	if(!state.contactLastSms) state.contactLastSms = new Date().getTime() - 360000
 
 	if(!contactDisable && !state.contactDisableAll) {
-		subscribe(contactDevice, "contact", contactChange)
+		subscribe(contactDevice, "contact.open", contactChange)
+		subscribe(contactDevice, "contact.close", contactChange)
 	}
 }
 
 def contactChange(evt){
 	def appId = app.getId()
-	logTrace("$app.label, $appId: function contactChange started [evt: $evt ($evt.value)]")
+	logTrace("$app.label: function contactChange started [evt: $evt ($evt.value)]")
 	if(contactDisable || state.contactDisableAll) {
-		logTrace("$app.label, $appId: function contactChange  returning (contact disabled)")
+		logTrace("$app.label: function contactChange  returning (contact disabled)")
 		return
 	}
 	
@@ -200,14 +201,14 @@ def contactChange(evt){
 	// if not between start and stop time
 	if(timeStop){
 		if(!parent.timeBetween(timeStart, timeStop)) {
-			logTrace("$app.label, $appId: function contactChange returning (not between start time and stop time)")
+			logTrace("$app.label: function contactChange returning (not between start time and stop time)")
 			return
 		}
 	}
 	
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label, $appId: function contactChange returning (not correct day)")
+		logTrace("$app.label: function contactChange returning (not correct day)")
 		return
 	}
 
@@ -216,8 +217,10 @@ def contactChange(evt){
 	// New open event resets delayed action
 	// New close event won't override open
 	if(evt.value == "open"){
+		logTrace("$app.label: function contactChange unscheduling all")
 		unschedule()
 	} else {
+		logTrace("$app.label: function contactChange unscheduling scheduleClose")
 		unschedule(scheduleClose)
 	}
 	
@@ -247,13 +250,13 @@ def contactChange(evt){
 				if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
 					log.info "Sent SMS for $evt.displayName opening at $now."
 				} else {
-					logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName opening")
+					logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName opening")
 				}
 			} else {
 				if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
 					log.info "Sent SMS for $evt.displayName closed at $now."
 				} else {
-					logTrace("$app.label, $appId: function contactChange failed to send SMS for $evt.displayName closing")
+					logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName closing")
 				}
 			}
 		} else {
@@ -265,10 +268,10 @@ def contactChange(evt){
 	if(mode) parent.changeMode(mode, appId)
 
 	// Perform open events (for switches and locks)
-	if(evt.value == open){
+	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace("$app.label, $appId: function contactChange scheduling scheduleOpen in $openWait seconds")
+			logTrace("$app.label: function contactChange scheduling scheduleOpen in $openWait seconds")
 			runIn(openWait,scheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -366,5 +369,5 @@ def scheduleClose(){
 }
 
 def logTrace(message){
-	if(state.debug) log.trace message
+	//log.trace message
 }
