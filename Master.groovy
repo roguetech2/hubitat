@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.14
+*  Version: 0.1.15
 *
 ***********************************************************************************************************************/
 
@@ -124,13 +124,6 @@ def updated() {
 
 def initialize() {
 	logTrace("$app.label: initialized")
-	if(debugging) {
-		logTrace("$app.label: initializing - Debug logging enabled")
-		state.debug = true
-	} else {
-		logTrace("$app.label: initializing - Debug logging disabled")
-		state.debug = false
-	}
 }
 
 // Functions for turning on lights/fans
@@ -181,7 +174,6 @@ def multiOn(device,childId="Master"){
 			reschedule(it)
 			singleOn(it,childId)
 		}
-		log.debug defaultTemp
 		if(defaultTemp && isTemp(it)) singleTemp(it,defaultTemp,childId)
 		if(defaultHue && defaultSat && isColor(it)) singleColor(it,defaultHue,defaultSat,childId)
 	}
