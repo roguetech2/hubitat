@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.15
+*  Version: 0.3.16
 *
 ***********************************************************************************************************************/
 
@@ -383,11 +383,16 @@ def getDefaultLevel(device){
 		logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (no default level)")
 		return defaults
 	}
-	
+
+	if(timeStartSunrise) timeStart = parent.getSunrise()
+	if(timeStartSundown) timeStart = parent.getSundown()
+	if(timeStopSunrise) timeStop = parent.getSunrise()
+	if(timeStopSundown) timeStop = parent.getSundown()
+
 	// if between start and stop time
 	if(timeStop){
 		if(!parent.timeBetween(timeStart, timeStop)) {
-			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (not between start and stop time)")
+			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (not between start $timeStart and stop $timeStop)")
 			return defaults
 		}
 	}
@@ -401,15 +406,10 @@ def getDefaultLevel(device){
 	// If mode set and node doesn't match, return null
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (mode doesn't match)")
+			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (mode $ifMode doesn't match)")
 			return defaults
 		}
 	}
-
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) {
@@ -672,7 +672,7 @@ def incrementalSchedule(device = "Null"){
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label: function incrementalSchedule returning null (mode doesn't match)")
+		logTrace("$app.label: function incrementalSchedule returning null (mode $ifMode doesn't match)")
 		return
 	}
 
@@ -693,7 +693,7 @@ def incrementalSchedule(device = "Null"){
 		logTrace("$app.label: function incrementalSchedule scheduling itself")
 		log.info "Time: Scheduling update for 20 seconds for $timeDevice."
 	} else {
-		logTrace("$app.label: function incrementalSchedule returning null (not between start and stop times)")
+		logTrace("$app.label: function incrementalSchedule returning null (not between start $timeStart and stop time $timeStop)")
 		return
 	}
 }
@@ -826,5 +826,5 @@ def weekDaysToNum(){
 }
 
 def logTrace(message){
-	log.trace message
+	//log.trace message
 }
