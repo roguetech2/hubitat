@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.16
+*  Version: 0.3.17
 *
 ***********************************************************************************************************************/
 
@@ -353,34 +353,43 @@ def initialize() {
 }
 
 def dimSpeed(){
-	logTrace("$app.label: function dimSpeed started")
+	logTrace("$app.label (356): function dimSpeed started")
 	if(settings.multiplier != null){
-		logTrace("$app.label: function dimSpeed returning $settings.multiplier (user defined dimSpeed)")
+		logTrace("$app.label (358): function dimSpeed returning $settings.multiplier (user defined dimSpeed)")
 		return settings.multiplier
 	}else{
-		logTrace("$app.label: function dimSpeed returning 1.2 (default dimSpeed)")
+		logTrace("$app.label (361): function dimSpeed returning 1.2 (default dimSpeed)")
 		return 1.2
 	}
 }
 
 def getDefaultLevel(device){
-	logTrace("$app.label: [device: $device] function getDefaultLevel started")
+	logTrace("$app.label (367): [device: $device] function getDefaultLevel started")
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
+	// if no stop time
+	if(!timeStop && !timeStopSunrise && !timeStopSundown){
+			logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no stop time)")
+			return defaults
+	}
+		
 	// If no device match, return null
 	match = false
 	timeDevice.each{
-		if(it.id == device.id)  match = true
+		if(it.id == device.id) {
+			logTrace("$app.label (381): [device: $device] function getDefaultLevel matched device $device and $it")
+			match = true
+		}
 	}
 	if(match == false) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (no matching device)")
+		logTrace("$app.label (386) [$device]: function getDefaultLevel returning null (no matching device)")
 		return defaults
 	}
 
 	// If no default level, return null
 	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (no default level)")
+		logTrace("$app.label (392) [$device]: function getDefaultLevel returning null (no default level)")
 		return defaults
 	}
 
@@ -390,30 +399,28 @@ def getDefaultLevel(device){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if between start and stop time
-	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop)) {
-			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (not between start $timeStart and stop $timeStop)")
-			return defaults
-		}
+	if(!parent.timeBetween(timeStart, timeStop)) {
+		logTrace("$app.label (403) [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
+		return defaults
 	}
 
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (schedule disabled)")
+		logTrace("$app.label (409) [$device]: function getDefaultLevel returning null (schedule disabled)")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return null
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (mode $ifMode doesn't match)")
+			logTrace("$app.label (416) [$device]: function getDefaultLevel returning null (mode $ifMode doesn't match)")
 			return defaults
 		}
 	}
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning $defaults (no scheduled day)")
+		logTrace("$app.label (423) [$device]: function getDefaultLevel returning null (no scheduled day)")
 		return defaults
 	}
 
@@ -544,18 +551,18 @@ def getDefaultLevel(device){
 	// Should be all the options, but let's return current level just in case, and log an error
 	if(defaults.level == "Null") log.debug "Time: No default level match found for $device."
 
-	logTrace("$app.label [$device]: function getDefaultLevel returning $defaults")
+	logTrace("$app.label (554) [$device]: function getDefaultLevel returning $defaults")
 	return defaults
 }
 
 // Schedule initializer
 def initializeSchedules(){
-	logTrace("$app.label: function initializeSchedules started")
+	logTrace("560 $app.label: function initializeSchedules started")
 	unschedule()
 	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("$app.label: function initializeSchedules returning null (schedule disabled)")
+		logTrace("565 $app.label: function initializeSchedules returning null (schedule disabled)")
 		return
 	}
 
@@ -572,7 +579,7 @@ def initializeSchedules(){
 		// Check if any incremental changes to make
 		if((timeLevelOn && timeLevelOff) || (timeTempOn && timeTempOff) || (timeHueOn && timeHueOff) || (timeSatOn && timeSatOff)){
 			// IncrementalSchedule does all data checks, so just run it
-			logTrace("$app.label: function initializeSchedules passing to incrementalSchedule")
+			logTrace("582 $app.label: function initializeSchedules passing to incrementalSchedule")
 			incrementalSchedule()
 		}
 	}
@@ -631,7 +638,7 @@ def incrementalSchedule(device = "Null"){
 	}
 
 	// If "re"schedule from device state change
-	if(device != "Null"){
+	if(device != "Null"  && (timeStop || timeStopSunrie || timeStopSundown)){
 		match = false
 		timeDevice.each{
 			if(it.id == device.id) match = true
