@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.15
+*  Version: 0.1.16
 *
 ***********************************************************************************************************************/
 
@@ -155,7 +155,6 @@ def multiOn(device,childId="Master"){
 			}
 		}
 		if(!defaultLevel) defaultLevel = 100
-		if(!defaultTemp) defaultTemp = 3400
 		if(defaultHue && !defaultSat){
 			defaultSat = 100
 		} else if(!defaultHue && defaultSat){
@@ -219,7 +218,6 @@ def toggle(device,childId="Master"){
 			childApps.each {Child->
 				if(Child.label.substring(0,4) == "Time") {
 					defaults = Child.getDefaultLevel(it)
-					log.debug "Master - childId = $childId (matching on $Child.id) with device = $it.id"
 					if(isDimmable(it) && defaults.level != "Null") defaultLevel = defaults.level
 					if(isTemp(it) && defaults.temp != "Null") defaultTemp = defaults.temp
 					if(isColor(it) && defaults.hue != "Null") defaultHue = defaults.hue
@@ -637,14 +635,9 @@ def flashGreen(device){
 // Returns rounded value
 def roundFanLevel(level){
 	logTrace("$app.label: function roundFan starting [level: $level]")
-	if(isFan(device)) {
-		value = Math.round(level / 33) * 33 + 1
-		logTrace("$app.label: function roundFan returning $value")
-		return value
-	} else {
-		logTrace("$app.label: function roundFan returning $level")
-		return level
-	}
+	value = Math.round(level / 33) * 33 + 1
+	logTrace("$app.label: function roundFan returning $value")
+	return value
 }
 
 // Returns app label from app id
