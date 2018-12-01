@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.16
+*  Version: 0.3.17
 * 
 ***********************************************************************************************************************/
 
@@ -161,6 +161,7 @@ def installed() {
 }
 
 def updated() {
+	logTrace("$app.label: updated")
 	unsubscribe()
 	initialize()
 }
@@ -175,7 +176,7 @@ def initialize() {
 
 	if(!contactDisable && !state.contactDisableAll) {
 		subscribe(contactDevice, "contact.open", contactChange)
-		subscribe(contactDevice, "contact.close", contactChange)
+		subscribe(contactDevice, "contact.closed", contactChange)
 	}
 }
 
