@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.14
+*  Version: 0.3.15
 *
 ***********************************************************************************************************************/
 
@@ -707,24 +707,24 @@ def runIncrementalSchedule(){
 		// Ignore devices that aren't on
 		if(parent.stateOn(it)){
 			// Set level
-			defaultLevel = getDefaultLevel(it)
+			defaults = getDefaultLevel(it)
 
-			if(timeLevelOn && parent.isDimmable(it) && defaultLevel.level != "Null"){
-				if(defaultLevel) parent.setToLevel(it,defaultLevel.level,app.getId())
+			if(timeLevelOn && parent.isDimmable(it) && defaults.level != "Null"){
+				if(defaults) parent.setToLevel(it,defaults.level,app.getId())
 			}
 			// Set temp
-			if(timeTempOn && parent.isTemp(it) && defaultLevel.temp != "Null"){
+			if(timeTempOn && parent.isTemp(it) && defaults.temp != "Null"){
 				currentTemp = it.currentColorTemperature
-				if(defaultTemp){
-					if(defaultLevel.temp - currentTemp > 4 || defaultLevel.temp - currentTemp < -4) {
-						parent.singleTemp(it,defaultLevel.temp,app.getId())
+				if(defaults.temp){
+					if(defaults.temp - currentTemp > 4 || defaults.temp - currentTemp < -4) {
+						parent.singleTemp(it,defaults.temp,app.getId())
 					}
 				}
 			}
 
 			// If either Hue or Sat, but not both, set the other to current
-			if(defaultLevel.hue != "Null" || defaultLevel.sat != "Null") {
-				parent.singleColor(it,defaultLevel.hue,defaultLevel.sat,app.getId())
+			if(defaults.hue != "Null" || defaults.sat != "Null") {
+				parent.singleColor(it,defaults.hue,defaults.sat,app.getId())
 			}
 		}
 	}
@@ -826,5 +826,5 @@ def weekDaysToNum(){
 }
 
 def logTrace(message){
-	if(state.debug) log.trace message
+	log.trace message
 }
