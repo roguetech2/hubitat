@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.17
+*  Version: 0.1.18
 *
 ***********************************************************************************************************************/
 
@@ -322,7 +322,7 @@ def brighten(device,childId="Master"){
 // Set level (brighten or dim) a single dimmer
 def setToLevel(device,level,child="Master"){
 	logTrace("$app.label: function setToLevel starting [device: $device; level: $level; child: $child]")
-	if(device.currentLevel != level){
+	if(device.currentLevel != level || !stateOn(device)){
 		device.setLevel(level)
 		// output to log with fan "high", "medium" or "low"
 		if(isFan(device) == true){
