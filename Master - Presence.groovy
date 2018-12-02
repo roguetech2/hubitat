@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.14
+*  Version: 0.1.15
 *
 ***********************************************************************************************************************/
 
@@ -24,11 +24,6 @@
 /* ********************************************* */
 /* TO-DO: Add option for window of arrival of    */
 /* other people for doing stuff "alone".         */
-/* ********************************************* */
-
-/* ********************************************* */
-/* TO-DO: Add "any/all" option, such as only     */
-/* turn on something if all selected arrive.     */
 /* ********************************************* */
 
 definition(
@@ -231,7 +226,7 @@ def presenceHandler(evt) {
 				}
 			}
 		}
-		if((occupiedHome == "unoccupied" && !occupied) || (occupidHome == "occupied" && occupied)) {
+		if((occupiedHome == "unoccupied" && !occupied) || (occupiedHome == "occupied" && occupied)) {
 			logTrace("$app.label: function presenceHandler returning (house occupation [$occupied] doesn't match)")
 			return
 		}
