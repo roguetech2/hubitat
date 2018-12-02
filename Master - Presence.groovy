@@ -16,9 +16,20 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.13
+*  Version: 0.1.14
 *
 ***********************************************************************************************************************/
+
+
+/* ********************************************* */
+/* TO-DO: Add option for window of arrival of    */
+/* other people for doing stuff "alone".         */
+/* ********************************************* */
+
+/* ********************************************* */
+/* TO-DO: Add "any/all" option, such as only     */
+/* turn on something if all selected arrive.     */
+/* ********************************************* */
 
 definition(
     name: "Master - Presence",
@@ -173,57 +184,62 @@ preferences {
 }
 
 def installed() {
-	logTrace("$app.label, app.getId(): installed")
+	logTrace("$app.label: installed")
 	if(app.getLabel().length() < 11)  app.updateLabel("Presence - " + app.getLabel())
 	if(app.getLabel().substring(0,11) != "Presence - ") app.updateLabel("Presence - " + app.getLabel())
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label, app.getId(): updated")
+	logTrace("$app.label: updated")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace("$app.label, app.getId(): initialized")
+	logTrace("$app.label: initialized")
 	subscribe(person, "presence", presenceHandler)
 }
 
 def presenceHandler(evt) {
 	def appId = app.getId()
-	logTrace("$app.label, $appId: function presenceHandler started [evt: $evt]")
+	logTrace("$app.label: function presenceHandler started [evt: $evt]")
 
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) {
-		logTrace("$app.label, $appId: function presenceHandler returning (presence disabled)")
+		logTrace("$app.label: function presenceHandler returning (presence disabled)")
 		return
 	}
 	
 	// If arrival or departure doesn't match, return null
 	if(arrivingDeparting){
 		if(evt.value != arrivingDeparting && arrivingDeparting != "both") {
-			logTrace("$app.label, $appId: function presenceHandler returning (presence event doesn't match)")
+			logTrace("$app.label: function presenceHandler returning (presence event doesn't match)")
 			return
 		}
 	}
 	
-	// If all people must arrive/depart, and not matched, return null
-	if(peopleAll && arrivingDeparting != "both"){
-		people.each{
-			anyAll = true
-			if(arrivingDeparting == "present" && it != "present") anyAll = false
-			if(arrivingDeparting == "not present" && it != "not present") anyAll = false
+	// If occupied or unoccupied doesn't match, return null
+	// Will need to change this is add an "any/all" option
+	if(occupiedHome != "both"){
+		occupied = false
+		// Set occupied flag for all people but don't count the person in question
+		parent.people.each{all->
+			person.each{
+				if(all.id != it.id && all.currentPresence == "present") {
+					occupied = true
+				}
+			}
 		}
-		if(!anyAll) {
-			logTrace("$app.label, $appId: function presenceHandler returning (everyone arriving is $anyAll)")
+		if((occupiedHome == "unoccupied" && !occupied) || (occupidHome == "occupied" && occupied)) {
+			logTrace("$app.label: function presenceHandler returning (house occupation [$occupied] doesn't match)")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label, $appId: function presenceHandler returning (mode doesn't match)")
+		logTrace("$app.label: function presenceHandler returning (mode doesn't match)")
 		return
 	}
 	
@@ -235,27 +251,15 @@ def presenceHandler(evt) {
 	// if not bewteen start and stop times
 	if(timeStop){
 		if(!parent.timeBetween(timeStart, timeStop)) {
-			logTrace("$app.label, $appId: function presenceHandler returning (not between start time and stop time)")
+			logTrace("$app.label: function presenceHandler returning (not between start time and stop time)")
 			return
 		}
 	}
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label, $appId: function presenceHandler returning (not correct day)")
+		logTrace("$app.label: function presenceHandler returning (not correct day)")
 		return
-	}
-
-	// If occupied or unoccupied doesn't match, return null
-	if(occupiedHome != "both"){
-		occupied = false
-		parent.everyone.each{
-			if(it == "present") occupied = true
-		}
-		if((occupiedHome == "unoccupied" && occupied) || (occupidHome == "occupied" && !occupied)) {
-			logTrace("$app.label, $appId: function presenceHandler returning (house occupation is $occupied)")
-			return
-		}
 	}
 
 	// Text first (just in case there's an error later)
@@ -270,13 +274,13 @@ def presenceHandler(evt) {
 			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
 				log.info "Sent SMS for $evt.displayName's arrival at $now."
 			} else {
-				logTrace("$app.label, $appId: function presenceHandler failed to send SMS for $evt.displayName's arrival")
+				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's arrival")
 			}
 		} else {
 			if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
 				log.info "Sent SMS for $evt.displayName's departure at $now."
 			} else {
-				logTrace("$app.label, $appId: function presenceHandler failed to send SMS for $evt.displayName's departure")
+				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's departure")
 			}
 		}
 	}
@@ -313,26 +317,29 @@ def presenceHandler(evt) {
 
 		// Loop through color lights to set color
 		parent.colorLights.each{
-			current[it.id] = [hue: it.currentHue, sat: it.currentSaturation, level: it.currentLevel, state: it.currentValue("switch")]
-			it.setLevel(100)
+			current[it.id] = [temp: it.currentValue("colorTemperature"), level: it.currentLevel, state: it.currentValue("switch")]
+			if(it.currentValue("switch") == "off"){
+				it.setLevel(1)
+			} else {
+				it.setLevel(100)
+			}
 			newValue = [hue: hue, saturation: sat]
 			it.setColor(newValue)
 		}
-		pause(1000)
+		pause(750)
 
 		// loop through again to restore old values from map
 		parent.colorLights.each{
-			newValue = [hue: current."${it.id}".hue, saturation: current."${it.id}".sat]
 			it.setLevel(current."${it.id}".level)
-			it.setColor(newValue)
+			it.setColorTemperature(current."${it.id}".temp)
 			if(current."${it.id}".state == "off") it.off()
 		}
 	}
-	logTrace("$app.label, $appId: function presenceHandler exiting")
+	logTrace("$app.label: function presenceHandler exiting")
 }
 
 def convertRgbToHsl(color){
-	logTrace("$app.label, $app.getId(): function convertRgbToHsl starting [color: $color]")
+	logTrace("$app.label: function convertRgbToHsl starting [color: $color]")
 	/* ************************************* */
 	/* TO DO: Can we convert it once         */
 	/* and store in hidden input variable??  */
@@ -381,11 +388,11 @@ def convertRgbToHsl(color){
 
 	// Store final values in map, and return
 	def hsl = ["hue":hue, "sat":sat, "level":level]
-	logTrace("$app.label, $app.getId(): function convertRgbToHsl returning $hsl")
+	logTrace("$app.label: function convertRgbToHsl returning $hsl")
 	return hsl
 	
 }
 
 def logTrace(message){
-	if(state.debug) log.trace message
+	//log.trace message
 }
