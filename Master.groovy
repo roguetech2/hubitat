@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.16
+*  Version: 0.1.17
 *
 ***********************************************************************************************************************/
 
@@ -100,12 +100,6 @@ def mainPage() {
 			} else {
 				input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
 			}
-			paragraph "Note: Hiding apps does not disable any existing saved child apps; it only hides them from this list."
-			if(debugging){
-				input "debugging", "bool", title: "Debugging enabled. Disable?", submitOnChange:true
-			} else {
-				input "debugging", "bool", title: "Debugging disabled. Enable?", submitOnChange:true
-			}	
 		}
         }
     }
@@ -402,7 +396,7 @@ def singleTemp(device, temp,childId="Master"){
 def singleColor(device, hue, sat, childId="Master"){
 	logTrace("$app.label: function singleColor starting [device: $device, hue: $hue, sat: $sat, childId: $childId]")
 	child = getAppLabel(childId)
-	if(!isTemp(device)) return
+	if(!isColor(device)) return
 	newValue = [hue: hue, saturation: sat]
 	device.setColor(newValue)
 	log.info "Set $device color to hue $hue and satuartion $sat."
@@ -626,7 +620,6 @@ def flashGreen(device){
 	newValue = [hue: 33, saturation: 100]
 	singleColor(33,100)
 	pause(750)
-	newValue = [hue: currentHue, saturation: currentSat]
 	singleColor(currentHue, currentSat)
 	logTrace("$app.label: function flashGreen exiting")
 }
@@ -731,8 +724,8 @@ def timeBetween(timeStart, timeStop){
 		return true
 	}
 	logTrace("$app.label: function timeBetween exiting")
-
 }
+	
 
 def logTrace(message){
 	//log.trace message
