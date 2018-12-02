@@ -322,22 +322,26 @@ def brighten(device,childId="Master"){
 // Set level (brighten or dim) a single dimmer
 def setToLevel(device,level,child="Master"){
 	logTrace("$app.label: function setToLevel starting [device: $device; level: $level; child: $child]")
-	device.setLevel(level)
-	// output to log with fan "high", "medium" or "low"
-	if(isFan(device) == true){
-		if(level == 99 | level == 100){
-			log.info "$child: Set level of $device to high."
-		} else if (level == 66 || level == 67){
-			log.info "$child: Set level of $device to medium."
-		} else if (level == 33 || level == 34){
-			log.info "$child: Set level of $device to low."
+	if(device.currentLevel != level){
+		device.setLevel(level)
+		// output to log with fan "high", "medium" or "low"
+		if(isFan(device) == true){
+			if(level == 99 | level == 100){
+				log.info "$child: Set level of $device to high."
+			} else if (level == 66 || level == 67){
+				log.info "$child: Set level of $device to medium."
+			} else if (level == 33 || level == 34){
+				log.info "$child: Set level of $device to low."
+			} else {
+				log.info "$child: Set level of $device to $level."
+			}
 		} else {
 			log.info "$child: Set level of $device to $level."
 		}
+		logTrace("$app.label: function setToLevel exiting")
 	} else {
-		log.info "$child: Set level of $device to $level."
+		logTrace("$app.label: function setToLevel exiting (level hasn't changed)")
 	}
-	logTrace("$app.label: function setToLevel exiting")
 }
 
 // Lock/unlock functions
