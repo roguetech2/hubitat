@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.17
+*  Version: 0.3.18
 *
 ***********************************************************************************************************************/
 
@@ -244,6 +244,9 @@ preferences {
 											
 											input "timeTempIfLower", "enum", title: "Don't change temperature color if light is already warmer or cooler? (Optional)", multiple: false, required: false, options: ["Lower":"Warmer", "Higher":"Cooler"]
 										}
+/* ************************************************** */
+/* To-DO - Use color picker instead of hue and sat.   */
+/* ************************************************** */
 										if(!timeTempOn && !timeTempDisable){
 											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 										} else if(timeTempOn || timeTempDisable){
@@ -368,10 +371,16 @@ def getDefaultLevel(device){
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
-	// if no stop time
-	if(!timeStop && !timeStopSunrise && !timeStopSundown){
-			logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no stop time)")
-			return defaults
+	// if no start time
+	if(!timeStart && !timeStartSunrise && !timeStartSundown){
+		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start time)")
+		return defaults
+	}
+
+	// if no start levels
+	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn){
+		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start levels)")
+		return defaults
 	}
 		
 	// If no device match, return null
@@ -387,18 +396,12 @@ def getDefaultLevel(device){
 		return defaults
 	}
 
-	// If no default level, return null
-	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn) {
-		logTrace("$app.label (392) [$device]: function getDefaultLevel returning null (no default level)")
-		return defaults
-	}
-
 	if(timeStartSunrise) timeStart = parent.getSunrise()
 	if(timeStartSundown) timeStart = parent.getSundown()
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
 
-	// if between start and stop time
+	// if not between start and stop time
 	if(!parent.timeBetween(timeStart, timeStop)) {
 		logTrace("$app.label (403) [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
 		return defaults
@@ -430,9 +433,9 @@ def getDefaultLevel(device){
 	currentHue = device.currentHue
 	currentSat = device.currentSaturation
 
-	// If no stop time or no start level, return start level
+	// If no stop time, return start level
 	if(!timeStop) {
-		if(timeLevelOn && !timeLevelOff){
+		if(timeLevelOn){
 			defaults = [level: timeLevelOn]
 			// If start level is too dim, and set not to dim, return current level
 			if(timeLevelIfLower){
@@ -445,7 +448,7 @@ def getDefaultLevel(device){
 			}
 		}
 
-		if(timeTempOn && !timeTempOff){
+		if(timeTempOn){
 			defaults = [temp: timeTempOn]
 			// If start temp is too low, and set not to go lower, return current level
 			if(timeTempIfLower){
@@ -457,21 +460,11 @@ def getDefaultLevel(device){
 				}
 			}
 		}
-		if(timeHueOn && !timeHueOff){
-			// Return start level
-			if(timeHueOn) defaults = [hue: timeHueOn]
-		}
-		if(timeSatOn && !timeSatOff){
-			// Return start level
-			if(timeSatOn) defaults = [sat: timeSatOn]
-		}
+		if(timeHueOn) defaults = [hue: timeHueOn]
+		if(timeSatOn) defaults = [sat: timeSatOn]
+		logTrace("$app.label (423) [$device]: function getDefaultLevel returning $defaults")
+		return defaults
 	}
-
-	// If default level is the current level, return current level
-	if(timeLevelOn && timeLevelOn == currentLevel && !timeLevelOff && !defaults.level) defaults = [level: currentLevel]
-	if(timeTempOn && timeTempOn == currentTemp && !timeTempOff && !defaults.temp) defaults = [temp: currentTemp]
-	if(timeHueOn && timeHueOn == currentHue && !timeHueOff && !defaults.hue) defaults = [hue: currentHue]
-	if(timeSatOn && timeSatOn == currentSat && !timeSatOff && !defaults.sat) defaults = [sat: currentSat]
 
 	// If there's a stop time and stop level, and after start time
 	if(timeStart && timeStop){
