@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.18
+*  Version: 0.3.19
 *
 ***********************************************************************************************************************/
 
@@ -371,6 +371,19 @@ def getDefaultLevel(device){
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
+	// If no device match, return null
+	match = false
+	timeDevice.each{
+		if(it.id == device.id) {
+			logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
+			match = true
+		}
+	}
+	if(match == false) {
+		logTrace("$app.label [$device]: function getDefaultLevel returning null (no matching device)")
+		return defaults
+	}
+
 	// if no start time
 	if(!timeStart && !timeStartSunrise && !timeStartSundown){
 		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start time)")
@@ -382,19 +395,7 @@ def getDefaultLevel(device){
 		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start levels)")
 		return defaults
 	}
-		
-	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id) {
-			logTrace("$app.label (381): [device: $device] function getDefaultLevel matched device $device and $it")
-			match = true
-		}
-	}
-	if(match == false) {
-		logTrace("$app.label (386) [$device]: function getDefaultLevel returning null (no matching device)")
-		return defaults
-	}
+
 
 	if(timeStartSunrise) timeStart = parent.getSunrise()
 	if(timeStartSundown) timeStart = parent.getSundown()
@@ -402,8 +403,8 @@ def getDefaultLevel(device){
 	if(timeStopSundown) timeStop = parent.getSundown()
 
 	// if not between start and stop time
-	if(!parent.timeBetween(timeStart, timeStop)) {
-		logTrace("$app.label (403) [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
+	if(timeStop && !parent.timeBetween(timeStart, timeStop)) {
+		logTrace("$app.label [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
 		return defaults
 	}
 
@@ -550,12 +551,12 @@ def getDefaultLevel(device){
 
 // Schedule initializer
 def initializeSchedules(){
-	logTrace("560 $app.label: function initializeSchedules started")
+	logTrace("$app.label: function initializeSchedules started")
 	unschedule()
 	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("565 $app.label: function initializeSchedules returning null (schedule disabled)")
+		logTrace("$app.label: function initializeSchedules returning null (schedule disabled)")
 		return
 	}
 
@@ -564,11 +565,15 @@ def initializeSchedules(){
 	if(timeStopSunrise) timeStop = parent.getSunrise()
 	if(timeStopSundown) timeStop = parent.getSundown()
 
-	if(!timeStart) return
+	// if no start time
+	if(!timeStart && !timeStartSunrise && !timeStartSundown){
+		logTrace("$app.label: [device: $device] function initializeSchedules returning null (no start time)")
+		return
+	}
 
 	// Immediately start incremental schedules
 	// If incremental
-	if(timeStop){
+	if(timeStop || timeStopSunrise || timeStopSundown){
 		// Check if any incremental changes to make
 		if((timeLevelOn && timeLevelOff) || (timeTempOn && timeTempOff) || (timeHueOn && timeHueOff) || (timeSatOn && timeSatOff)){
 			// IncrementalSchedule does all data checks, so just run it
@@ -601,7 +606,7 @@ def initializeSchedules(){
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 		}
 	}
-																									 
+
 	// Schedule next day's ending on/off/toggle														  
 	if(timeOff == "Turn On" || timeOff == "Turn Off" || timeOff == "Toggle" || timeModeChangeOff){
 		if(timeStop){
@@ -631,7 +636,7 @@ def incrementalSchedule(device = "Null"){
 	}
 
 	// If "re"schedule from device state change
-	if(device != "Null"  && (timeStop || timeStopSunrie || timeStopSundown)){
+	if(device != "Null"  && (timeStop || timeStopSunrise || timeStopSundown)){
 		match = false
 		timeDevice.each{
 			if(it.id == device.id) match = true
@@ -646,16 +651,6 @@ def incrementalSchedule(device = "Null"){
 			logTrace("$app.label: scheduling incrementalSchedule; exiting")
 			return
 		}
-	}
-
-	// If not increments, return null
-	if(!timeStop || !timeStart) {
-		logTrace("$app.label: function incrementalSchedule returning null (no start or stop time)")
-		return
-	}
-	if((!timeLevelOn || !timeLevelOff) && (!timeTempOn || !timeTempOff) && (!timeHueOn || !timeHueOff) && (!timeSatOn || !timeSatOff)) {
-		logTrace("$app.label: function incrementalSchedule returning null (no start and stop level, temp, hue or sat)")
-		return
 	}
 
 	// If nothing is on, return null
@@ -686,9 +681,6 @@ def incrementalSchedule(device = "Null"){
 	if(parent.timeBetween(timeStart, timeStop)){
 		// Run first iteration now
 		runIncrementalSchedule()
-		
-		// runIn(20,incrementalSchedule)
-		//schedule("*/20 * * * * ?", incrementalSchedule)
 		runIn(20,incrementalSchedule)
 		logTrace("$app.label: function incrementalSchedule scheduling itself")
 		log.info "Time: Scheduling update for 20 seconds for $timeDevice."
@@ -738,11 +730,7 @@ def runDayOnSchedule(){
 		logTrace("$app.label: function runDayOnSchedule returning null (schedule disabled)")
 		return
 	}
-	// If no start action, return null
-	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) {
-		logTrace("$app.label: function runDayOnSchedule returning null (no start action)")
-		return
-	}
+
 	// if mode doesn't match, return
 	if(ifMode){
 		if(location.mode != ifMode) {
@@ -769,10 +757,7 @@ def runDayOffSchedule(){
 		logTrace("$app.label: function runDayOffSchedule returning null (schedule disabled)")
 		return
 	}
-	if(timeOff != "Turn On" && timeOff != "Turn Off" && timeOff != "Toggle" && !timeModeChangeOff) {
-		logTrace("$app.label: function runDayOffSchedule returning null (no start action)")
-		return
-	}
+
 	// if mode return
 	if(ifMode){
 		if(location.mode != ifMode) {
