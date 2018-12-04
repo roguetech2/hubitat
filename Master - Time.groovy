@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.19
+*  Version: 0.3.20
 *
 ***********************************************************************************************************************/
 
@@ -634,13 +634,14 @@ def incrementalSchedule(device = "Null"){
 
 	// If "re"schedule from device state change
 	if(device != "Null"  && (timeStop || timeStopSunrise || timeStopSundown)){
-		match = false
-		timeDevice.each{
-			if(it.id == device.id) match = true
+			// If no device match, return null
+		timeDevice.findAll( {it.id == device.id} ).each {
+			logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
+			match = true
 		}
 		if(!match) {
 			logTrace("$app.label: function incrementalSchedule returning null (no match on device)")
-			return
+			return defaults
 		} else {
 			unschedule(incrementalSchedule)
 			runIn(60,incrementalSchedule)
@@ -689,7 +690,7 @@ def incrementalSchedule(device = "Null"){
 
 // run scheduled level/temp incremental changes
 // scheduled function called from incrementalSchedule
-def runIncrementalSchedule(){	
+def runIncrementalSchedule(){
 	logTrace("$app.label: function runIncrementalSchedule started")
 	// Loop through devices
 	timeDevice.each{
@@ -705,7 +706,7 @@ def runIncrementalSchedule(){
 			if(timeTempOn && parent.isTemp(it) && defaults.temp != "Null"){
 				currentTemp = it.currentColorTemperature
 				if(defaults.temp){
-					if(defaults.temp - currentTemp > 4 || defaults.temp - currentTemp < -4) {
+					if(defaults.temp - currentTemp > 3 || defaults.temp - currentTemp < -3) {
 						parent.singleTemp(it,defaults.temp,app.getId())
 					}
 				}
