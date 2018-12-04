@@ -367,19 +367,16 @@ def dimSpeed(){
 }
 
 def getDefaultLevel(device){
-	logTrace("$app.label (367): [device: $device] function getDefaultLevel started")
+	logTrace("$app.label: function getDefaultLevel started  [device: $device]")
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
 	// If no device match, return null
-	match = false
-	timeDevice.each{
-		if(it.id == device.id) {
-			logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
-			match = true
-		}
+	timeDevice.findAll( {it.id == device.id} ).each {
+		logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
+		match = true
 	}
-	if(match == false) {
+	if(!match) {
 		logTrace("$app.label [$device]: function getDefaultLevel returning null (no matching device)")
 		return defaults
 	}
