@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.19
+*  Version: 0.1.20
 *
 ***********************************************************************************************************************/
 
@@ -705,21 +705,21 @@ def getSunrise(offset, negative=false){
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSunset(offset=false, negative=false){
+def getSunset(offset = false, negative=false){
 	logTrace("$app.label: function getSunset starting")
 	if(offset){
 		if(negative){
-			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
 			value = offsetRiseAndSet.sunset
 		} else {
-			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
 			value = offsetRiseAndSet.sunset
 		}
 		value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
 	} else {
 		value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
 	}
-	logTrace("$app.label: function getSundown returning $value")
+	logTrace("$app.label: function getSunset returning $value")
 	return value
 }
 
