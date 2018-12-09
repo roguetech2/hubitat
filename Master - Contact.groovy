@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.18
+*  Version: 0.3.19
 * 
 ***********************************************************************************************************************/
 
@@ -97,7 +97,7 @@ preferences {
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else {
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
-									if(!timeStartSunrise && !timeStartsunset){
+									if(!timeStartSunrise && !timeStartSunset){
 								if(timeStop){
 									paragraph "Between start time", width: 6
 									//input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
@@ -107,21 +107,19 @@ preferences {
 								}
 							} else if(timeStartSunrise) {
 								if(timeStartOffsetNegative) {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStartOffset", "number", title: "Between minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
-							} else if(timeStartsunset){
+							} else if(timeStartSunset){
 								if(timeStartOffsetNegative) {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStartOffset", "number", title: "Between minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStopSunrise && !timeStopsunset){
+							if(!timeStopSunrise && !timeStopSunset){
 								if(timeStart){
 									paragraph "and stop time", width: 6
 									//input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
@@ -131,48 +129,46 @@ preferences {
 								}
 							} else if(timeStopSunrise){
 								if(timeStopOffsetNegative) {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStopOffset", "number", title: "and minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
-							} else if(timeStopsunset){
+							} else if(timeStopSunset){
 								if(timeStopOffsetNegative) {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStopOffset", "number", title: "and minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
 							}
-							if(!timeStartSunrise && !timeStartsunset){
+							if(!timeStartSunrise && !timeStartSunset){
 								input "timeStart", "time", title: "", required: false, width: 6, submitOnChange:true
-							} else if(timeStartSunrise || timeStartsunset){
+							} else if(timeStartSunrise || timeStartSunset){
 								input "timeStartOffset", "number", title: "", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStopSunrise && !timeStopsunset){
+							if(!timeStopSunrise && !timeStopSunset){
 								input "timeStop", "time", title: "", required: false, width: 6, submitOnChange:true
-							} else if(timeStopSunrise || timeStopsunset){
+							} else if(timeStopSunrise || timeStopSunset){
 								input "timeStopOffset", "number", title: "", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStartsunset){
+							if(!timeStartSunset){
 								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							if(!timeStopsunset) {
+							if(!timeStopSunset) {
 								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStartSunrise){
-								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
+								input "timeStartSunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStopSunrise){
-								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
+								input "timeStopSunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
