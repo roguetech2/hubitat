@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.21
+*  Version: 0.3.22
 *
 ***********************************************************************************************************************/
 
@@ -192,7 +192,7 @@ preferences {
 							} else if(timeStartSet){
 								paragraph "Between sunset", width: 6
 							}
-							if(!timeStopSunrise && !timeStopsunset){
+							if(!timeStopSunrise && !timeStopSunset){
 								if(timeStart){
 									input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
 								} else {
@@ -200,26 +200,26 @@ preferences {
 								}
 							} else if(timeStopSunrise){
 								paragraph "and sunrise", width: 6
-							} else if(timeStopsunset){
+							} else if(timeStopSunset){
 								paragraph "and sunset", width: 6
 							}
-							if(!timeStartsunset){
+							if(!timeStartSunset){
 								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							if(!timeStopsunset) {
+							if(!timeStopSunset) {
 								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStartSunrise){
-								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
+								input "timeStartSunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStopSunrise){
-								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
+								input "timeStopSunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
@@ -243,7 +243,7 @@ preferences {
 						// If no devices selected, don't show anything else (except disabling)
 						} else if(timeDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Enter time:</b></div>"
-							if(!timeStartSunrise && !timeStartsunset){
+							if(!timeStartSunrise && !timeStartSunset){
 								if(timeStop){
 									paragraph "Between start time", width: 6
 									//input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
@@ -253,21 +253,19 @@ preferences {
 								}
 							} else if(timeStartSunrise) {
 								if(timeStartOffsetNegative) {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStartOffset", "number", title: "Between minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
-							} else if(timeStartsunset){
+							} else if(timeStartSunset){
 								if(timeStartOffsetNegative) {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStartOffset", "number", title: "Between minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStopSunrise && !timeStopsunset){
+							if(!timeStopSunrise && !timeStopSunset){
 								if(timeStart){
 									paragraph "and stop time", width: 6
 									//input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
@@ -277,57 +275,55 @@ preferences {
 								}
 							} else if(timeStopSunrise){
 								if(timeStopOffsetNegative) {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStopOffset", "number", title: "and minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
-							} else if(timeStopsunset){
+							} else if(timeStopSunset){
 								if(timeStopOffsetNegative) {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (click to change)", required: false, width: 6, submitOnChange:true
 								}
-								//input "timeStopOffset", "number", title: "and minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
 							}
-							if(!timeStartSunrise && !timeStartsunset){
+							if(!timeStartSunrise && !timeStartSunset){
 								input "timeStart", "time", title: "", required: false, width: 6, submitOnChange:true
-							} else if(timeStartSunrise || timeStartsunset){
+							} else if(timeStartSunrise || timeStartSunset){
 								input "timeStartOffset", "number", title: "", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStopSunrise && !timeStopsunset){
+							if(!timeStopSunrise && !timeStopSunset){
 								input "timeStop", "time", title: "", required: false, width: 6, submitOnChange:true
-							} else if(timeStopSunrise || timeStopsunset){
+							} else if(timeStopSunrise || timeStopSunset){
 								input "timeStopOffset", "number", title: "", required: false, width: 6, submitOnChange:true
 							}
 							
-							if(!timeStartsunset){
+							if(!timeStartSunset){
 								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							if(!timeStopsunset) {
+							if(!timeStopSunset) {
 								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStartSunrise){
-								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
+								input "timeStartSunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStopSunrise){
-								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
+								input "timeStopSunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
-							if(!timeStart && !timeStartSunrise && !timeStartsunset) {
+							if(!timeStart && !timeStartSunrise && !timeStartSunset) {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				
 							// If no start time, don't show any start or stop options
-							} else if(timeStart || timeStartSunrise || timeStartsunset){
+							} else if(timeStart || timeStartSunrise || timeStartSunset){
 								// Start On/Off/Toggle
 								paragraph "<div style=\"background-color:BurlyWood\"><b> Select whether to turn on or off:</b></div>"
 								if(!timeOnOffDisable) {
@@ -349,7 +345,7 @@ preferences {
 								if(!timeOnOffDisable && !timeOn && !timeOff){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else if(timeOnOffDisable || timeOn || timeOff){
-									if(timeStop || timeStopSunrise || timeStopsunset){
+									if(timeStop || timeStopSunrise || timeStopSunset){
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending brightness:</b></div>"
 									} else {
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default brightness for $varStartTime:</b></div>"
@@ -359,14 +355,14 @@ preferences {
 										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b>", submitOnChange:true
 									} else if(!timeLevelDisable){
 										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b> Click to continue setting colors and mode.", submitOnChange:true
-										if(timeStop || timeStopSunrise || timeStopsunset){
+										if(timeStop || timeStopSunrise || timeStopSunset){
 											input "timeLevelOn", "number", title: "Beginning brightness at $varStartTime? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
 										} else {
 											input "timeLevelOn", "number", title: "At $varStartTime, default brightness? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
 										}
 
 										// Stop Level: Only show if Stop Time entered
-										if(timeStop || timeStopSunrise || timeStopsunset){
+										if(timeStop || timeStopSunrise || timeStopSunset){
 											input "timeLevelOff", "number", title: "until $varStopTime, change brightness to? (Optional: 1-100)", required: false, width: 6, submitOnChange:true
 										} else {
 											paragraph "Set stop time for options", width: 6
@@ -399,7 +395,7 @@ preferences {
 									if(!timeLevelOn && !timeLevelDisable){
 										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 									} else if(timeLevelOn || timeLevelDisable){
-										if(timeStop || timeStopSunrise || timeStopsunset){
+										if(timeStop || timeStopSunrise || timeStopSunset){
 											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending temperature color:</b></div>"
 										} else {
 											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default temperature color for $varStartTime:</b></div>"
@@ -413,7 +409,7 @@ preferences {
 										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Temperature color is a range from about 2200 to about 4500, where lower numbers are more \"warm\" and orange, and higher numbers are more \"cool\" and blue.</div>"
 										if(!timeTempDisable){
 											// Start Temp
-											if(timeStop || timeStopSunrise || timeStopsunset){
+											if(timeStop || timeStopSunrise || timeStopSunset){
 												input "timeTempOn", "number", title: "Beginning temperature at $varStartTime? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
 											} else {
 												input "timeTempOn", "number", title: "At $varStartTime, default temperature? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
@@ -436,7 +432,7 @@ preferences {
 										if(!timeTempOn && !timeTempDisable){
 											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 										} else if(timeTempOn || timeTempDisable){
-											if(timeStop || timeStopSunrise || timeStopsunset){
+											if(timeStop || timeStopSunrise || timeStopSunset){
 												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending color hue and saturation:</b></div>"
 											} else {
 												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default color hue and saturation for $varStartTime:</b></div>"
@@ -449,7 +445,7 @@ preferences {
 												input "timeHueDisable", "bool", title: "<b>Don't change color.</b>", submitOnChange:true
 												paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Color hue is a \"wheel\" of colors starting at red (1), and going through green (33) and blue (66), then back to red again (100). Color saturation is a range from 1 to 100 of \"amount\" of hue color, from lighter colors to deeper colors. If hue is set, saturation is required.</div>"
 												// Start Hue
-												if(timeStop || timeStopSunrise || timeStopsunset){
+												if(timeStop || timeStopSunrise || timeStopSunset){
 													input "timeHueOn", "number", title: "Beginning hue at $varStartTime? (Optional)", required: false, width: 6, submitOnChange:true
 												} else {
 													input "timeHueOn", "number", title: "At $varStartTime, default hue? (Optional)", required: false, width: 6, submitOnChange:true
@@ -829,12 +825,6 @@ def incrementalSchedule(device = "Null",manualOverride=false){
 		return
 	}
 
-	// If nothing is on, return null
-	if(!parent.multiStateOn(timeDevice)) {
-		logTrace("$app.label (840): function incrementalSchedule returning null (device not on)")
-		return
-	}
-
 	// Check if correct day and time just so we don't keep running forever
 	if(timeDays && !parent.todayInDayList(timeDays)) {
 		logTrace("$app.label (846): function incrementalSchedule returning null (not scheduled day)")
@@ -846,7 +836,7 @@ def incrementalSchedule(device = "Null",manualOverride=false){
 		logTrace("$app.label (852): function incrementalSchedule returning null (mode $ifMode doesn't match)")
 		return
 	}
-log.debug "855 $timeStartOffset"
+
 	// Set timeStart and timeStop, if sunrise or sunset
 	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
 	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
@@ -993,5 +983,5 @@ def weekDaysToNum(){
 }
 
 def logTrace(message){
-	log.trace message
+	//log.trace message
 }
