@@ -180,6 +180,11 @@ preferences {
 						input "timeDisable", "bool", title: "<b><font color=\"#000099\">Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
 						// If no devices selected, don't show anything else (except disabling)
 						if(timeDevice){
+/* ************************************************** */
+/* TO-DO: Move minutes before/after to follow sunrise */
+/* and sunset, or move sunrise and sunset to before   */
+/* time.                                              */
+/* ************************************************** */							
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
 							if(!timeStartSunrise && !timeStartSet){
 								if(timeStop){
