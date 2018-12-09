@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.17
+*  Version: 0.3.18
 * 
 ***********************************************************************************************************************/
 
@@ -32,6 +32,7 @@ definition(
 )
 
 preferences {
+	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
 		
         section() {
@@ -89,55 +90,92 @@ preferences {
 								if(!noWaitTime && !noDevice){
 									if(!noWaitTime) input "openWait", "number", title: "Wait seconds for opening action.", defaultValue: false, width: 6, submitOnChange:true
 									if(!noWaitTime) input "closeWait", "number", title: "Wait seconds for closing action.", defaultValue: false, width: 6, submitOnChange:true
-									paragraph "Wait time applies to turning lights/switches and locks, not to Mode change or text alerts."
+									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Wait time applies to turning lights/switches and locks, not to Mode change or text alerts.</div>"
 								}
 
 								if(!openWait && !closeWait && !noWaitTime && !noDevice){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else {
 									paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
-									if(!timeStartSunrise && !timeStartSundown){
-										if(timeStop){
-											input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
-										} else {
-											input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
-										}
-									} else if(timeStartSunrise) {
-										paragraph "Between sunrise", width: 6
-									} else if(timeStartSundown){
-										paragraph "Between sundown", width: 6
-									}
-									if(!timeStopSunrise && !timeStopSundown){
-										if(timeStart){
-											input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
-										} else {
-											input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
-										}
-									} else if(timeStopSunrise){
-										paragraph "and sunrise", width: 6
-									} else if(timeStopSundown){
-										paragraph "and sundown", width: 6
-									}
-									if(!timeStartSundown){
-										input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
-									} else {
-										paragraph " ", width: 6
-									}
-									if(!timeStopSundown) {
-										input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
-									} else {
-										paragraph " ", width: 6
-									}
-									if(!timeStartSunrise){
-										input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
-									} else {
-										paragraph " ", width: 6
-									}
-									if(!timeStopSunrise){
-										input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
-									} else {
-										paragraph " ", width: 6
-									}
+									if(!timeStartSunrise && !timeStartsunset){
+								if(timeStop){
+									paragraph "Between start time", width: 6
+									//input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
+								} else {
+									paragraph "Between start time (optional)", width: 6
+									//input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStartSunrise) {
+								if(timeStartOffsetNegative) {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStartOffset", "number", title: "Between minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
+							} else if(timeStartsunset){
+								if(timeStartOffsetNegative) {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStartOffset", "number", title: "Between minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStopSunrise && !timeStopsunset){
+								if(timeStart){
+									paragraph "and stop time", width: 6
+									//input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
+								} else {
+									paragraph "and stop time (optional)", width: 6
+									//input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
+								}
+							} else if(timeStopSunrise){
+								if(timeStopOffsetNegative) {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStopOffset", "number", title: "and minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
+							} else if(timeStopsunset){
+								if(timeStopOffsetNegative) {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStopOffset", "number", title: "and minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
+							}
+							if(!timeStartSunrise && !timeStartsunset){
+								input "timeStart", "time", title: "", required: false, width: 6, submitOnChange:true
+							} else if(timeStartSunrise || timeStartsunset){
+								input "timeStartOffset", "number", title: "", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStopSunrise && !timeStopsunset){
+								input "timeStop", "time", title: "", required: false, width: 6, submitOnChange:true
+							} else if(timeStopSunrise || timeStopsunset){
+								input "timeStopOffset", "number", title: "", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStartsunset){
+								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStopsunset) {
+								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStartSunrise){
+								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
+							if(!timeStopSunrise){
+								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
+							} else {
+								paragraph " ", width: 6
+							}
 									input "timeDays", "enum", title: "On these days: (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
 									input "ifMode", "mode", title: "Only if the Mode is already: (Optional)", required: false, width: 12
 									paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
@@ -194,10 +232,11 @@ def contactChange(evt){
 		return
 	}
 
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
+	// Set timeStart and timeStop, if sunrise or sunset
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
 
 	// if not between start and stop time
 	if(timeStop){
