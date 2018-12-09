@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.18
+*  Version: 0.1.19
 *
 ***********************************************************************************************************************/
 
@@ -43,64 +43,64 @@ def mainPage() {
             }
 
         } else {
-		if(showPresences){
-			section(""){
-				input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
-				input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
-			}
-			if(showSchedules){
-				section("Scheduled settings:") {
-					app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
+			if(showPresences){
+				section(""){
+					input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
+					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+				}
+				if(showSchedules){
+					section("Scheduled settings:") {
+						app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
+					}
 				}
 			}
-		}
-		if(showPresences){
-			section("Presence settings:") {
-				app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
+			if(showPresences){
+				section("Presence settings:") {
+					app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
+				}
 			}
-		}
-		if(showPicos){
-			section("Picos:") {
-				app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Pico", multiple: true)
+			if(showPicos){
+				section("Picos:") {
+					app(name: "childApps", appName: "Master - Pico", namespace: "master", title: "New Pico", multiple: true)
+				}
 			}
-		}
-		if(showMagicCubes){
-			section("MagicCubes:") {
-				app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New MagicCube", multiple: true)
+			if(showMagicCubes){
+				section("MagicCubes:") {
+					app(name: "childApps", appName: "Master - MagicCube", namespace: "master", title: "New MagicCube", multiple: true)
+				}
 			}
-		}
-		if(showContacts){
-			section("Contact sensors:") {
-				app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
+			if(showContacts){
+				section("Contact sensors:") {
+					app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
+				}
 			}
-		}
-		section(){
-			if(!showSchedules){
-				input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
-			} else {
-				input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
+			section(){
+				if(!showSchedules){
+					input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
+				} else {
+					input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
+				}
+				if(!showPresences){
+					input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
+				} else {
+					input "showPresences", "bool", title: "Hide presence app?", submitOnChange:true
+				}
+				if(!showPicos){
+					input "showPicos", "bool", title: "Pico app hidden. Show?", submitOnChange:true
+				} else {
+					input "showPicos", "bool", title: "Hide Pico app?", submitOnChange:true
+				}
+				if(!showMagicCubes){
+					input "showMagicCubes", "bool", title: "MagicCube app hidden. Show?", submitOnChange:true
+				} else {
+					input "showMagicCubes", "bool", title: "Hide MagicCube app?", submitOnChange:true
+				}
+				if(!showContacts){
+					input "showContacts", "bool", title: "Contact app hidden. Show?", submitOnChange:true
+				} else {
+					input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
+				}
 			}
-			if(!showPresences){
-				input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
-			} else {
-				input "showPresences", "bool", title: "Hide presence app?", submitOnChange:true
-			}
-			if(!showPicos){
-				input "showPicos", "bool", title: "Pico app hidden. Show?", submitOnChange:true
-			} else {
-				input "showPicos", "bool", title: "Hide Pico app?", submitOnChange:true
-			}
-			if(!showMagicCubes){
-				input "showMagicCubes", "bool", title: "MagicCube app hidden. Show?", submitOnChange:true
-			} else {
-				input "showMagicCubes", "bool", title: "Hide MagicCube app?", submitOnChange:true
-			}
-			if(!showContacts){
-				input "showContacts", "bool", title: "Contact app hidden. Show?", submitOnChange:true
-			} else {
-				input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
-			}
-		}
         }
     }
 }
@@ -242,7 +242,7 @@ def toggle(device,childId="Master"){
 }
 
 // Dim a group of dimmers
-def dim(device,childId="Master"){
+def dim(device,childId="Master",manualOverride=false){
 	logTrace("$app.label: function dim starting [device: $device; childId: $childId]")
 	deviceChange = false
 	device.each{
@@ -256,9 +256,9 @@ def dim(device,childId="Master"){
 					// If fan is on low, turn it off
 					if(roundFanLevel(it.currentLevel) == 34){
 						singleOff(it,childId)
-						reschedule(it)
 					} else {
 						setToLevel(it,roundFanLevel(it.currentLevel - 33),childId)
+						if(manualOverride) reschedule(it,manualOverride)
 					}
 				}
 			} else if(!isFan(it)){
@@ -273,6 +273,7 @@ def dim(device,childId="Master"){
 				} else {
 					newLevel = nextLevel(it.currentLevel, "dim", childId)
 					setToLevel(it,newLevel,childId)
+					if(manualOverride) reschedule(it,manualOverride)
 				}
 			}
 		}
@@ -281,7 +282,7 @@ def dim(device,childId="Master"){
 }
 
 // Brighten a group of dimmers
-def brighten(device,childId="Master"){
+def brighten(device,childId="Master",manualOverride=false){
 	logTrace("$app.label: function brighten starting [device: $device; childId: $childId]")
 	device.each{
 		if(isDimmable(it)){
@@ -298,6 +299,7 @@ def brighten(device,childId="Master"){
 						reschedule(it)
 					} else {
 						setToLevel(it,roundFanLevel(it.currentLevel + 33))
+						if(manualOverride) reschedule(it,manualOverride)
 					}
 				}
 			} else if(!isFan(it)){
@@ -312,6 +314,7 @@ def brighten(device,childId="Master"){
 				} else {
 					newLevel = nextLevel(it.currentLevel, "brighten",childId)
 					setToLevel(it,newLevel,childId)
+					if(manualOverride) reschedule(it,manualOverride)
 				}
 			}
 		}
@@ -323,6 +326,7 @@ def brighten(device,childId="Master"){
 def setToLevel(device,level,child="Master"){
 	logTrace("$app.label: function setToLevel starting [device: $device; level: $level; child: $child]")
 	if(device.currentLevel != level || !stateOn(device)){
+		logTrace("$app.label: function setToLevel set $device to $level")
 		device.setLevel(level)
 		// output to log with fan "high", "medium" or "low"
 		if(isFan(device) == true){
@@ -613,7 +617,12 @@ def isFan(device){
 /* TO-DO: Should add option to change color and/or    */
 /* disable                                            */
 /* ************************************************** */
+
+/* ************************************************** */
+/* Disabling feature - doesn't work reliably.         */
+/* ************************************************** */
 def flashGreen(device){
+	/*
 	logTrace("$app.label: function flashGreen starting [device: $device]")
 	currentHue = device.currentHue
 	currentSat = device.currentSaturation
@@ -622,10 +631,11 @@ def flashGreen(device){
 		return
 	}
 	newValue = [hue: 33, saturation: 100]
-	singleColor(33,100)
+	singleColor(device,33,100)
 	pause(750)
-	singleColor(currentHue, currentSat)
+	singleColor(device,currentHue, currentSat)
 	logTrace("$app.label: function flashGreen exiting")
+*/
 }
 
 // Round fan level to high, medium or low
@@ -652,11 +662,11 @@ def getAppLabel(childId){
     }
 }
 
-def reschedule(device){
+def reschedule(device,pico=false){
 	logTrace("$app.label: function reschedule starting [device: $device]")
 	childApps.each {Child->
 		if(Child.label.substring(0,4) == "Time") {
-			Child.incrementalSchedule(device)
+			Child.incrementalSchedule(device,pico)
 		}
 	}
 	logTrace("$app.label: function reschedule exiting")
@@ -675,17 +685,40 @@ def getTomorrow(date){
 }
 
 // Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSunrise(){
+// negative is true of false
+def getSunrise(offset, negative=false){
 	logTrace("$app.label: function getSunrise starting")
-	value = getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+	if(offset){
+		if(negative){
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
+			value = offsetRiseAndSet.sunrise
+		} else {
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
+			value = offsetRiseAndSet.sunrise
+		}
+		value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+	} else {
+		value = getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+	}
 	logTrace("$app.label: function getSunrise returning $value")
 	return value
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSundown(){
-	logTrace("$app.label: function getSundown starting")
-	value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+def getSunset(offset=false, negative=false){
+	logTrace("$app.label: function getSunset starting")
+	if(offset){
+		if(negative){
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
+			value = offsetRiseAndSet.sunset
+		} else {
+			def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
+			value = offsetRiseAndSet.sunset
+		}
+		value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+	} else {
+		value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+	}
 	logTrace("$app.label: function getSundown returning $value")
 	return value
 }
