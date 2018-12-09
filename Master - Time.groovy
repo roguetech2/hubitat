@@ -16,13 +16,9 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.20
+*  Version: 0.3.21
 *
 ***********************************************************************************************************************/
-
-/* ************************************************** */
-/* TO-DO: Add option for Pico/MagicCube override      */
-/* ************************************************** */
 
 definition(
     name: "Master - Time",
@@ -36,6 +32,131 @@ definition(
 )
 
 preferences {
+	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
+
+	if(timeStart && !timeStartSunrise && !timeStartsunset){
+		varStartTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone)
+	} else if(timeStartSunrise || timeStartsunset){
+		if(timeStartOffset && timeStartOffsetNegative){
+			varStartTime = "$timeStartOffset minutes after"
+		} else if(timeStartOffset){
+			varStartTime = "$timeStartOffset minutes before"
+		}
+		if(varStartTime) {
+			if(timeStartSunrise){
+				varStartTime = "$varStartTime sunrise"
+			} else if(timeStartsunset){
+				varStartTime = "$varStartTime sunset"
+			}
+		} else {
+			if(timeStartSunrise){
+				varStartTime = "sunrise"
+			} else if(timeStartsunset){
+				varStartTime = "sunset"
+			}
+		}	
+	}
+
+	if(timeStop && !timeStopSunrise && !timeStopsunset){
+		varStopTime = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone)
+	} else if(timeStopSunrise || timeStopsunset){
+		if(timeStopOffset && timeStopOffsetNegative){
+			varStopTime = "$timeStopOffset minutes after"
+		} else if(timeStopOffset){
+			varStopTime = "$timeStopOffset minutes before"
+		}
+		if(varStopTime){
+			if(timeStopSunrise){
+				varStopTime = "$varStopTime sunrise"
+			} else if(timeStopsunset){
+				varStopTime = "$varStopTime sunset"
+			}
+		} else {
+			if(timeStopSunrise){
+				varStopTime = "sunrise"
+			} else if(timeStopsunset){
+				varStopTime = "sunset"
+			}
+		}
+	}
+
+	// build message
+	if(timeDevice && !varStartTime){
+		message = "With $timeDevice"
+	} else if(varStartTime){
+		message = "At $varStartTime"
+		if(timeDays) message = "$message on $timeDays"
+		if(ifMode) message = "$message, if mode is $ifMode"
+		if(timeModeChangeOn) {
+			if(ifMode) message = "$message, then set mode to $timeModeChangeOn"
+			if(!ifMode) message = "$message, set mode to $timeModeChangeOn"
+		}
+		if(timeOn == "Turn On") {
+			if(timeModeChangeOn) message = "$message, and turn on $timeDevice"
+			if(!timeModeChangeOn) message = "$message, turn on  $timeDevice"
+		} else if(!timeOn){
+			if(timeModeChangeOn) message = "$message, and if $timeDevice is on"
+			if(!timeModeChangeOn) message = "$message, if $timeDevice is on"
+		}
+		if(timeLevelOn){
+			if(timeOn) message = "$message to level $timeLevelOn"
+			if(!timeOn) message = "$message, set level to $timeLevelOn"
+		}
+		if(timeTempOn){
+			if(timeOn) message = "$message with temperature $timeTempOn"
+			if(!timeOn && timeLevelOn && !timeHueOn && !timeSatOn) message = "$message and temperature to $timeTempOn"
+			if(!timeOn && timeLevelOn && (timeHueOn || timeSatOn)) message = "$message, temperature to $timeTempOn"
+			if(!timeOn && !timeLevelOn) message = "$message, then set temperature to $timeTempOn"
+		}
+		if(timeHueOn){
+			if(timeOn && (timeLevelOn || timeTempOn)) message = "$message, hue $timeHueOn"
+			if(timeOn && !timeLevelOn && !timeTempOn && timeSatOn) message = "$message, hue $timeHueOn"
+			if(timeOn && !timeLevelOn && !timeTempOn && !timeSatOn) message = "$message, and hue $timeHueOn"
+			if(!timeOn && (timeLevelOn || timeTempOn)) message = "$message, hue $timeTempOn"
+			if(!timeOn && !timeLevelOn && !timeTempOn) message = "$message, then set hue to $timeHueOn"
+		}
+		if(timeSatOn){
+			if(timeLevelOn || timeTempOn || timeHueOn) message = "$message, and saturation $timeHueOn"
+			if(!timeLevelOn && !timeTempOn && !timeSatOn) message = "$message, then set saturation to $timeHueOn"
+		}
+		if(varStopTime && (timeLevelOff || timeTempOff || timeHueOff || timeSatOff || timeModeChangeOff)){
+			message = "$message, then"
+			if(timeLevelOff && !timeTempOff && !timeHueOff && !timeSatOff){
+				if(timeLevelOff < timeLevelOn) message = "$message dim to $timeLevelOff until $varStopTime"
+				if(timeLevelOff > timeLevelOn) message = "$message brigten to $timeLevelOff until $varStopTime"
+			} else if(timeLevelOff || timeTempOff || timeHueOff || timeSatOff){
+				message = "$message change "
+				if(timeLevelOff) message = "$message level to $timeLevelOff"
+				if(timeTempOff){
+					if(!timeLevelOff) message = "$message temperature to $timeTempOff"
+					if(timeLevelOff && !timeHueOff && !timeSatOff) message = "$message and temperature to $timeTempOff"
+					if(timeLevelOff && (timeHueOff || timeSatOff)) message = "$message, temperature to $timeTempOff"
+				}
+				if(timeHueOff){
+					if(!timeLevelOff && !timeTempOff) message = "$message hue to $timeHueOff"
+					if((timeLevelOff || timeTempOff) && timeSatOff) message = "$message and hue to $timeHueOff"
+					if((timeLevelOff || timeTempOff) && !timeSatOff) message = "$message, hue to $timeHueOff"
+				}
+				message = "$message until $varStopTime"
+			}
+			if(timeStopOff && (timeLevelOff || timeTempOff || timeHueOff || timeSatOff) && !timeModeChangeOff) message = "$message, and $timeStopOff"
+			if(timeStopOff && (timeLevelOff || timeTempOff || timeHueOff || timeSatOff) && timeModeChangeOff) message = "$message, $timeStopOff"
+			if(timeStopOff && !timeLevelOff && !timeTempOff && !timeHueOff && !timeSatOff) message = "$message, then $timeStopOff"
+			if(timeModeChangeOff && (timeLevelOff || timeTempOff || timeHueOff || timeSatOff)) message = "$message, and set mode to $timeModeChangeOff"
+			if(timeModeChangeOff && !timeLevelOff && !timeTempOff && !timeHueOff && !timeSatOff) message = "$message, then set mode to $timeModeChangeOff"
+		}
+		
+				
+				
+				
+// toggle and time off
+	}
+	if(!varStartTime || $timeDevice || (varStartTime && !timeLevelOn && !timeHueOn && !timeSatOn)){
+		message = "$message ..."
+	} else {
+		message = "$message."
+	}
+
     page(name: "setup", install: true, uninstall: true) {
         section() {
 
@@ -62,47 +183,47 @@ preferences {
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
 							if(!timeStartSunrise && !timeStartSet){
 								if(timeStop){
-									input "timeStart", "time", title: "Between start time (12:00AM if all day)", required: false, width: 6, submitOnChange:true
+									input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStart", "time", title: "Between start time (12:00AM if all day; Optional)", required: false, width: 6, submitOnChange:true
+									input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStartSunrise) {
 								paragraph "Between sunrise", width: 6
 							} else if(timeStartSet){
-								paragraph "Between sundown", width: 6
+								paragraph "Between sunset", width: 6
 							}
-							if(!timeStopSunrise && !timeStopSundown){
+							if(!timeStopSunrise && !timeStopsunset){
 								if(timeStart){
-									input "timeStop", "time", title: "and stop time (11:59PM for remaining day)", required: false, width: 6, submitOnChange:true
+									input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStop", "time", title: "and stop time (11:59PM for remaining day; Optional)", required: false, width: 6, submitOnChange:true
+									input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStopSunrise){
 								paragraph "and sunrise", width: 6
-							} else if(timeStopSundown){
-								paragraph "and sundown", width: 6
+							} else if(timeStopsunset){
+								paragraph "and sunset", width: 6
 							}
-							if(!timeStartSundown){
+							if(!timeStartsunset){
 								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							if(!timeStopSundown) {
+							if(!timeStopsunset) {
 								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStartSunrise){
-								input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
+								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStopSunrise){
-								input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
+								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
+							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
 						}
 					}
 					
@@ -121,68 +242,105 @@ preferences {
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						// If no devices selected, don't show anything else (except disabling)
 						} else if(timeDevice){
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Enter time or mode (Optional):</b></div>"
-							if(!timeStartSunrise && !timeStartSundown){
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Enter time:</b></div>"
+							if(!timeStartSunrise && !timeStartsunset){
 								if(timeStop){
-									input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
+									paragraph "Between start time", width: 6
+									//input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
+									paragraph "Between start time (optional)", width: 6
+									//input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStartSunrise) {
-								paragraph "Between sunrise", width: 6
-							} else if(timeStartSundown){
-								paragraph "Between sundown", width: 6
-							}
-							if(!timeStopSunrise && !timeStopSundown){
-								if(timeStart){
-									input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
+								if(timeStartOffsetNegative) {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
 								} else {
-									input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStartOffset", "number", title: "Between minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
+							} else if(timeStartsunset){
+								if(timeStartOffsetNegative) {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStartOffsetNegative", "bool", title: "Minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStartOffset", "number", title: "Between minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStopSunrise && !timeStopsunset){
+								if(timeStart){
+									paragraph "and stop time", width: 6
+									//input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
+								} else {
+									paragraph "and stop time (optional)", width: 6
+									//input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStopSunrise){
-								paragraph "and sunrise", width: 6
-							} else if(timeStopSundown){
-								paragraph "and sundown", width: 6
+								if(timeStopOffsetNegative) {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunrise (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStopOffset", "number", title: "and minutes before or after sunrise (optional)", required: false, width: 6, submitOnChange:true
+							} else if(timeStopsunset){
+								if(timeStopOffsetNegative) {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>after</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								} else {
+									input "timeStopOffsetNegative", "bool", title: "and minutes <b>before</b> sunset (optional)", required: false, width: 6, submitOnChange:true
+								}
+								//input "timeStopOffset", "number", title: "and minutes before or after sunset (optional)", required: false, width: 6, submitOnChange:true
 							}
-							if(!timeStartSundown){
+							if(!timeStartSunrise && !timeStartsunset){
+								input "timeStart", "time", title: "", required: false, width: 6, submitOnChange:true
+							} else if(timeStartSunrise || timeStartsunset){
+								input "timeStartOffset", "number", title: "", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStopSunrise && !timeStopsunset){
+								input "timeStop", "time", title: "", required: false, width: 6, submitOnChange:true
+							} else if(timeStopSunrise || timeStopsunset){
+								input "timeStopOffset", "number", title: "", required: false, width: 6, submitOnChange:true
+							}
+							
+							if(!timeStartsunset){
 								input "timeStartSunrise", "bool", title: "Start at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							if(!timeStopSundown) {
+							if(!timeStopsunset) {
 								input "timeStopSunrise", "bool", title: "Stop at sunrise?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStartSunrise){
-								input "timeStartSundown", "bool", title: "Start at sundown?", width: 6, submitOnChange:true
+								input "timeStartsunset", "bool", title: "Start at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
 							if(!timeStopSunrise){
-								input "timeStopSundown", "bool", title: "Stop at sundown?", width: 6, submitOnChange:true
+								input "timeStopsunset", "bool", title: "Stop at sunset?", width: 6, submitOnChange:true
 							} else {
 								paragraph " ", width: 6
 							}
-							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"]
-							if(!timeStart) {
+							input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+							if(!timeStart && !timeStartSunrise && !timeStartsunset) {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				
 							// If no start time, don't show any start or stop options
-							} else if(timeStart){
+							} else if(timeStart || timeStartSunrise || timeStartsunset){
 								// Start On/Off/Toggle
 								paragraph "<div style=\"background-color:BurlyWood\"><b> Select whether to turn on or off:</b></div>"
 								if(!timeOnOffDisable) {
 									input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is). Click to continue setting level, colors and mode.", submitOnChange:true
-									input "timeOn", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+									input "timeOn", "enum", title: "Turn on or off devices at $varStartTime? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"], submitOnChange:true
 								} else {
 									input "timeOnOffDisable", "bool", title: "<b>Don't turn on or off</b> (leave them as-is).", submitOnChange:true
 								}
 
 								// Stop On/Off/Toggle: Only show if Stop Time entered
 								if(!timeOnOffDisable) {
-									if(timeStop){
-										input "timeOff", "enum", title: "Turn on or off devices at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + "? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
+									if(timeStop || timeStopSunrise || timeStopsunset){
+										input "timeOff", "enum", title: "Turn on or off devices at $varStopTime? (Optional)", multiple: false, required: false, width: 6, options: ["Turn On", "Turn Off", "Toggle"]
 									} else {
 										paragraph "Set stop time for options", width: 6
 									}
@@ -191,38 +349,60 @@ preferences {
 								if(!timeOnOffDisable && !timeOn && !timeOff){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else if(timeOnOffDisable || timeOn || timeOff){
-									if(timeStop){
+									if(timeStop || timeStopSunrise || timeStopsunset){
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending brightness:</b></div>"
 									} else {
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default brightness for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default brightness for $varStartTime:</b></div>"
 									}
 									// Start Level
 									if(timeLevelDisable){
 										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b>", submitOnChange:true
 									} else if(!timeLevelDisable){
 										input "timeLevelDisable", "bool", title: "<b>Don't change brightness.</b> Click to continue setting colors and mode.", submitOnChange:true
-										if(timeStop){
-											input "timeLevelOn", "number", title: "Beginning brightness at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+										if(timeStop || timeStopSunrise || timeStopsunset){
+											input "timeLevelOn", "number", title: "Beginning brightness at $varStartTime? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
 										} else {
-											input "timeLevelOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default brightness? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+											input "timeLevelOn", "number", title: "At $varStartTime, default brightness? (Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
 										}
 
 										// Stop Level: Only show if Stop Time entered
-										if(timeStop){
-											input "timeLevelOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change brightness to? (Optional: 1-100)", required: false, width: 6
+										if(timeStop || timeStopSunrise || timeStopsunset){
+											input "timeLevelOff", "number", title: "until $varStopTime, change brightness to? (Optional: 1-100)", required: false, width: 6, submitOnChange:true
 										} else {
 											paragraph "Set stop time for options", width: 6
 										}
+										if(timeLevelOff){
+											if(!timeLevelPico){
+												input "timeLevelPico", "bool", title: "<b>Not allowing manual override.</b> Click to enable.", submitOnChange:true
+												paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This prevents a Pico or MagicCube from overriding an ongoing schedule.</div>"
+											} else {
+												input "timeLevelPico", "bool", title: "<b>Allowing manual override.</b> Click to disable.", submitOnChange:true
+												paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This allows a Pico or MagicCube to override and suspend an ongoing schedule.</div>"
+											}
+											input "timeLevelIfLower", "enum", title: "Don't change Level if light is already dimmer or brighter? (Optional)", multiple: false, required: false, options: ["Lower":"Brighter", "Higher":"Dimmer"], submitOnChange:true
+											if(timeLevelOff){
+												if(timeLevelIfLower == "Lower"){
+													paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Determines whether a schedule will begin if the light is brighter. It can also be used in conjunction with Manual Override, to determine if the schedule should resume if it catches up with level the light is set at.</div>"
+												} else {
+													paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Determines whether a schedule will begin if the light is dimmer. It can also be used in conjunction with Manual Override, to determine if the schedule should resume if it catches up with level the light is set at.</div>"
+												}
+											} else {
+												if(timeLevelIfLower == "Lower"){
+													paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Determines whether a schedule will begin if the light is brighter. Note: It can also be used in conjunction with Manual Override.</div>"
+												} else {
+													paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Determines whether a schedule will begin if the light is dimmer. Note: It can also be used in conjunction with Manual Override.</div>"
+												}
+											}
+										}
 										
-										input "timeLevelIfLower", "enum", title: "Don't change Level if light it's already dimmer or brighter? (Optional)", multiple: false, required: false, options: ["Lower":"Brighter", "Higher":"Dimmer"]
 									}
 									if(!timeLevelOn && !timeLevelDisable){
 										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 									} else if(timeLevelOn || timeLevelDisable){
-										if(timeStop){
+										if(timeStop || timeStopSunrise || timeStopsunset){
 											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending temperature color:</b></div>"
 										} else {
-											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default temperature color for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+											paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default temperature color for $varStartTime:</b></div>"
 										}
 										if(!timeTempDisable){
 											input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b> Click to continue setting colors and mode.", submitOnChange:true
@@ -230,52 +410,54 @@ preferences {
 											input "timeTempDisable", "bool", title: "<b>Don't change temperature color.</b>", submitOnChange:true
 										}
 											
-										paragraph "Temperature color is a range from about 2200 to about 4500, where lower numbers are more \"warm\" and orange, and higher numbers are more \"cool\" and blue."
+										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Temperature color is a range from about 2200 to about 4500, where lower numbers are more \"warm\" and orange, and higher numbers are more \"cool\" and blue.</div>"
 										if(!timeTempDisable){
 											// Start Temp
-											if(timeStop){
-												input "timeTempOn", "number", title: "Beginning temperature at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
+											if(timeStop || timeStopSunrise || timeStopsunset){
+												input "timeTempOn", "number", title: "Beginning temperature at $varStartTime? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
 											} else {
-												input "timeTempOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default temperature? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
+												input "timeTempOn", "number", title: "At $varStartTime, default temperature? (Optional, default 3400)", required: false, width: 6, submitOnChange:true
 											}
 
 											// Stop Level: Only show if Stop Time entered
-											if(timeStop){
-												input "timeTempOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change temperature to? (Optional: 2200-4500)", required: false, width: 6
+											if(timeStop || timeStopSunrise || timeStopsunset){
+												input "timeTempOff", "number", title: "until $varStopTime, change temperature to? (Optional: 2200-4500)", required: false, width: 6
 											} else {
 												paragraph "Set stop time for options", width: 6
 											}
 											
-											input "timeTempIfLower", "enum", title: "Don't change temperature color if light is already warmer or cooler? (Optional)", multiple: false, required: false, options: ["Lower":"Warmer", "Higher":"Cooler"]
+											//input "timeTempIfLower", "enum", title: "Don't change temperature color if light is already warmer or cooler? (Optional)", multiple: false, required: false, options: ["Lower":"Warmer", "Higher":"Cooler"]
 										}
 /* ************************************************** */
 /* To-DO - Use color picker instead of hue and sat.   */
+/* Only for beginning color - need hue and sat to     */
+/* know how to change it over time.                   */
 /* ************************************************** */
 										if(!timeTempOn && !timeTempDisable){
 											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 										} else if(timeTempOn || timeTempDisable){
-											if(timeStop){
+											if(timeStop || timeStopSunrise || timeStopsunset){
 												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter beginning and ending color hue and saturation:</b></div>"
 											} else {
-												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default color hue and saturation for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ":</b></div>"
+												paragraph "<div style=\"background-color:BurlyWood\"><b> Enter default color hue and saturation for $varStartTime:</b></div>"
 											}
 											
 											if(timeHueDisable){
 												input "timeHueDisable", "bool", title: "<b>Don't change color.</b>", submitOnChange:true
-												paragraph "Color change allows setting hue and saturation for custom colors."
+												paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Color change allows setting hue and saturation for custom colors.</div>"
 											} else if(!timeHueDisable){
 												input "timeHueDisable", "bool", title: "<b>Don't change color.</b>", submitOnChange:true
-												paragraph "Color hue is a \"wheel\" of colors starting at red (1), and going through green (33) and blue (66), then back to red again (100). Color saturation is a range from 1 to 100 of \"amount\" of hue color, from lighter colors to deeper colors. If hue is set, saturation is required."
+												paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Color hue is a \"wheel\" of colors starting at red (1), and going through green (33) and blue (66), then back to red again (100). Color saturation is a range from 1 to 100 of \"amount\" of hue color, from lighter colors to deeper colors. If hue is set, saturation is required.</div>"
 												// Start Hue
-												if(timeStop){
-													input "timeHueOn", "number", title: "Beginning hue at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + "? (Optional)", required: false, width: 6, submitOnChange:true
+												if(timeStop || timeStopSunrise || timeStopsunset){
+													input "timeHueOn", "number", title: "Beginning hue at $varStartTime? (Optional)", required: false, width: 6, submitOnChange:true
 												} else {
-													input "timeHueOn", "number", title: "At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", default hue? (Optional)", required: false, width: 6, submitOnChange:true
+													input "timeHueOn", "number", title: "At $varStartTime, default hue? (Optional)", required: false, width: 6, submitOnChange:true
 												}
 
 												// Stop Level: Only show if Stop Time entered
-												if(timeStop){
-													input "timeHueOff", "number", title: "until " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change hue to? (Optional)", required: false, width: 6
+												if(timeStop || timeStopSunrise || timeStopSunset){
+													input "timeHueOff", "number", title: "until $varStopTime, change hue to? (Optional)", required: false, width: 6, submitOnChange:true
 												} else {
 													paragraph "Set stop time for options", width: 6
 												}
@@ -284,7 +466,7 @@ preferences {
 												input "timeSatOn", "number", title: "Saturation?", required: false, width: 6, submitOnChange:true
 
 												// Stop Saturation: Only show if Stop Time entered
-												if(timeStop){
+												if(timeStop || timeStopSunrise || timeStopSunset){
 													input "timeSatOff", "number", title: "Saturation?", required: false, width: 6
 												} else {
 													paragraph "", width: 6
@@ -295,18 +477,18 @@ preferences {
 											if(!timeHueDisable && !timeSatOn && !timeHueOn || ((timeSatOff && !timeHueOff) && (timeHueOff && !timeSatOff))){
 												paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 											} else {
-												if(timeStop){
-													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + " and/or " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ".</b></div>"
+												if(timeStop || timeStopSunrise || timeStopSunset){
+													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at $varStartTime and/or $varTimeStop.</b></div>"
 												} else {
-													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ".</b></div>"
+													paragraph "<div style=\"background-color:BurlyWood\"><b> Change Mode at $varStartTime.</b></div>"
 												}
 
 												// Change Mode on Start
-												input "timeModeChangeOn", "mode", title: "<b>At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone) + ", change Mode to?</b> (Optional)", required: false, width: 6
+												input "timeModeChangeOn", "mode", title: "<b>At $varStartTime, change Mode to?</b> (Optional)", required: false, width: 6, submitOnChange:true
 
 												// Change Mode on Stop: Only show if Time Stop entered
-												if(timeStop){
-													input "timeModeChangeOff", "mode", title: "<b>At " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone) + ", change Mode to?</b> (Optional)", required: false, width: 6
+												if(timeStop || timeStopSunrise || timeStopSunset){
+													input "timeModeChangeOff", "mode", title: "<b>At $varStopTime, change Mode to?</b> (Optional)", required: false, width: 6, submitOnChange:true
 												} else {
 													paragraph "", width: 6
 												}
@@ -317,11 +499,13 @@ preferences {
 											}
 										}
 									}
-									paragraph "Options can be combined. To have a default brightness of 50% after 9pm, set start time and start level (but do not have turn on). To have device turn on at 7am and gradually brighten for a half hour from 1% to 100%, set start time of 7am, stop time of 7:30am, and at start time turn on with level of 1, and a stop time of 7:30a, with a level of 100."
+									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Options can be combined. To have a default brightness of 50% after 9pm, set start time and start level (but do not have turn on). To have device turn on at 7am and gradually brighten for a half hour from 1% to 100%, set start time of 7am, stop time of 7:30am, and at start time turn on with level of 1, and a stop time of 7:30a, with a level of 100.</div>"
 								}
 							}
 						}
 					}
+					
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $message</div>"
 				input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
 				}
 			
@@ -331,6 +515,7 @@ preferences {
 
 
 def installed() {
+	varStartTime = Math.abs(timeStartOffest)
 	logTrace("$app.label: installed")
 	if(app.getLabel().length() < 7)  app.updateLabel("Time - " + app.getLabel())
 	if(app.getLabel().substring(0,7) != "Time - ") app.updateLabel("Time - " + app.getLabel())
@@ -350,82 +535,82 @@ def initialize() {
 	unschedule()
 	if(timeDisableAll || timeDisable) {
 		if(timeDisableAll) state.timeDisable = true
-		logTrace("$app.label: function exiting (schedule disabled)")
+		logTrace("$app.label (540): function exiting (schedule disabled)")
 	} else {
 		state.timeDisable = false
-		logTrace("$app.label: function passing to initializeSchedules")
+		logTrace("$app.label (543): function passing to initializeSchedules")
 		initializeSchedules()
 	}
 	logTrace("$app.label: initialized")
 }
 
 def dimSpeed(){
-	logTrace("$app.label (356): function dimSpeed started")
+	logTrace("$app.label (550): function dimSpeed started")
 	if(settings.multiplier != null){
-		logTrace("$app.label (358): function dimSpeed returning $settings.multiplier (user defined dimSpeed)")
+		logTrace("$app.label (552): function dimSpeed returning $settings.multiplier (user defined dimSpeed)")
 		return settings.multiplier
 	}else{
-		logTrace("$app.label (361): function dimSpeed returning 1.2 (default dimSpeed)")
+		logTrace("$app.label (555): function dimSpeed returning 1.2 (default dimSpeed)")
 		return 1.2
 	}
 }
 
 def getDefaultLevel(device){
-	logTrace("$app.label: function getDefaultLevel started  [device: $device]")
+	logTrace("$app.label (561): function getDefaultLevel started  [device: $device]")
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
 	// If no device match, return null
 	timeDevice.findAll( {it.id == device.id} ).each {
-		logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
+		logTrace("$app.label (567): [device: $device] function getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning null (no matching device)")
+		logTrace("$app.label (571) [$device]: function getDefaultLevel returning null (no matching device)")
 		return defaults
 	}
 
 	// if no start time
-	if(!timeStart && !timeStartSunrise && !timeStartSundown){
-		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start time)")
+	if(!timeStart && !timeStartSunrise && !timeStartSunset){
+		logTrace("$app.label (577): [device: $device] function getDefaultLevel returning null (no start time)")
 		return defaults
 	}
 
 	// if no start levels
 	if(!timeLevelOn && !timeTempOn && !timeHueOn && !timeSatOn){
-		logTrace("$app.label (377): [device: $device] function getDefaultLevel returning null (no start levels)")
+		logTrace("$app.label (583): [device: $device] function getDefaultLevel returning null (no start levels)")
 		return defaults
 	}
 
-
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
+	// Set timeStart and timeStop, if sunrise or sunset
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
 
 	// if not between start and stop time
 	if(timeStop && !parent.timeBetween(timeStart, timeStop)) {
-		logTrace("$app.label [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
+		logTrace("$app.label (599) [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
 		return defaults
 	}
 
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("$app.label (409) [$device]: function getDefaultLevel returning null (schedule disabled)")
+		logTrace("$app.label (605) [$device]: function getDefaultLevel returning null (schedule disabled)")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return null
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace("$app.label (416) [$device]: function getDefaultLevel returning null (mode $ifMode doesn't match)")
+			logTrace("$app.label (612) [$device]: function getDefaultLevel returning null (mode $ifMode doesn't match)")
 			return defaults
 		}
 	}
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label (423) [$device]: function getDefaultLevel returning null (no scheduled day)")
+		logTrace("$app.label (619) [$device]: function getDefaultLevel returning null (no scheduled day)")
 		return defaults
 	}
 
@@ -464,7 +649,7 @@ def getDefaultLevel(device){
 		}
 		if(timeHueOn) defaults = [hue: timeHueOn]
 		if(timeSatOn) defaults = [sat: timeSatOn]
-		logTrace("$app.label (423) [$device]: function getDefaultLevel returning $defaults")
+		logTrace("$app.label (658) [$device]: function getDefaultLevel returning $defaults")
 		return defaults
 	}
 
@@ -511,11 +696,13 @@ def getDefaultLevel(device){
 			// If new level is too dim, and set not to dim, return current level
 			if(timeLevelIfLower){
 				if(timeLevelIfLower == "Lower"){
-					if(parent.stateOn(device) && currentLevel < newLevel) defaults.put("level",currentLevel)
+					logTrace("$app.label (705) [$device]: function getDefaultLevel using current level (already dimmer)")
+					if(parent.stateOn(device) && currentLevel > newLevel) defaults.put("level",currentLevel)
 				}
 				// If new level is too bright, and set not to brighten, return current level
 				if(timeLevelIfLower == "Higher"){
-					if(parent.stateOn(device) && currentLevel > newLevel) defaults.put("level",currentLevel)
+					logTrace("$app.label (710) [$device]: function getDefaultLevel using current level (already brighter)")
+					if(parent.stateOn(device) && currentLevel < newLevel) defaults.put("level",currentLevel)
 				}
 			}
 		}
@@ -546,39 +733,40 @@ def getDefaultLevel(device){
 	// Should be all the options, but let's return current level just in case, and log an error
 	if(defaults.level == "Null") log.debug "Time: No default level match found for $device."
 
-	logTrace("$app.label (554) [$device]: function getDefaultLevel returning $defaults")
+	logTrace("$app.label (742) [$device]: function getDefaultLevel returning $defaults")
 	return defaults
 }
 
 // Schedule initializer
 def initializeSchedules(){
-	logTrace("$app.label: function initializeSchedules started")
+	logTrace("$app.label (748): function initializeSchedules started")
 	unschedule()
 	
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("$app.label: function initializeSchedules returning null (schedule disabled)")
+		logTrace("$app.label (753): function initializeSchedules returning null (schedule disabled)")
 		return
 	}
 
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
+	// Set timeStart and timeStop, if sunrise or sunset
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
 
 	// if no start time
-	if(!timeStart && !timeStartSunrise && !timeStartSundown){
-		logTrace("$app.label: [device: $device] function initializeSchedules returning null (no start time)")
+	if(!timeStart && !timeStartSunrise && !timeStartSunset){
+		logTrace("$app.label (765): [device: $device] function initializeSchedules returning null (no start time)")
 		return
 	}
 
 	// Immediately start incremental schedules
 	// If incremental
-	if(timeStop || timeStopSunrise || timeStopSundown){
+	if(timeStop || timeStopSunrise || timeStopSunset){
 		// Check if any incremental changes to make
 		if((timeLevelOn && timeLevelOff) || (timeTempOn && timeTempOff) || (timeHueOn && timeHueOff) || (timeSatOn && timeSatOff)){
 			// IncrementalSchedule does all data checks, so just run it
-			logTrace("582 $app.label: function initializeSchedules passing to incrementalSchedule")
+			logTrace("$app.label (775): function initializeSchedules passing to incrementalSchedule")
 			incrementalSchedule()
 		}
 	}
@@ -591,19 +779,19 @@ def initializeSchedules(){
 	// Schedule next day incrementals, if no start action to be scheduled 
 	if(timeOn != "Turn On" && timeOn != "Turn Off" && timeOn != "Toggle" && !timeModeChangeOn) {
 		if(weekDays) {
-			logTrace("$app.label: function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
+			logTrace("$app.label (788): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, incrementalSchedule)
 		} else {
-			logTrace("$app.label: function initializeSchedules scheduling incrementalSchedule (0 $minutes $hours * * ?)")
+			logTrace("$app.label (791): function initializeSchedules scheduling incrementalSchedule (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", incrementalSchedule)
 		}
 	// Schedule next day's starting on/off/toggle
 	} else if(timeOn == "Turn On" || timeOn == "Turn Off" || timeOn == "Toggle" || timeModeChangeOn){
 		if(weekDays) {
-			logTrace("$app.label: function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
+			logTrace("$app.label (797): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
 		} else {
-			logTrace("$app.label: function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours * * ?)")
+			logTrace("$app.label (800): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 		}
 	}
@@ -616,78 +804,70 @@ def initializeSchedules(){
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 			if(weekDays) {
-				logTrace("$app.label: function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours ? * $weekDays)")
+				logTrace("$app.label (813): function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours ? * $weekDays)")
 				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
 			}else {
-				logTrace("$app.label: function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours * * ?)")
+				logTrace("$app.label (816): function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours * * ?)")
 				schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
 			}
 		}
 	}
-	logTrace("$app.label: function initializeSchedules exiting")
+	logTrace("$app.label (821): function initializeSchedules exiting")
 }
 
 //settings up schedules for level/temp
-def incrementalSchedule(device = "Null"){
-	logTrace("$app.label: [device: $device] function incrementalSchedule started")
+def incrementalSchedule(device = "Null",manualOverride=false){
+	logTrace("$app.label (826): [device: $device] function incrementalSchedule started")
 	// If disabled, return null
 	if(timeDisable || state.timeDisableAll) {
-		logTrace("$app.label: function incrementalSchedule returning null (schedule disabled)")
+		logTrace("$app.label (829): function incrementalSchedule returning null (schedule disabled)")
 		return
 	}
 
-	// If "re"schedule from device state change
-	if(device != "Null"  && (timeStop || timeStopSunrise || timeStopSundown)){
-			// If no device match, return null
-		timeDevice.findAll( {it.id == device.id} ).each {
-			logTrace("$app.label: [device: $device] function getDefaultLevel matched device $device and $it")
-			match = true
-		}
-		if(!match) {
-			logTrace("$app.label: function incrementalSchedule returning null (no match on device)")
-			return defaults
-		} else {
-			unschedule(incrementalSchedule)
-			runIn(60,incrementalSchedule)
-			log.info "Time: Pausing updates for 60 seconds for $timeDevice."
-			logTrace("$app.label: scheduling incrementalSchedule; exiting")
-			return
-		}
+	if(timeLevelPico && manualOverride && (!timeOff && !timeModeChangeOff && !timeLevelOff)){
+		logTrace("$app.label (834): [device: $device] function incrementalSchedule exiting (manual override)")
+		return
 	}
 
 	// If nothing is on, return null
 	if(!parent.multiStateOn(timeDevice)) {
-		logTrace("$app.label: function incrementalSchedule returning null (device not on)")
+		logTrace("$app.label (840): function incrementalSchedule returning null (device not on)")
 		return
 	}
 
 	// Check if correct day and time just so we don't keep running forever
 	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label: function incrementalSchedule returning null (not scheduled day)")
+		logTrace("$app.label (846): function incrementalSchedule returning null (not scheduled day)")
 		return
 	}
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label: function incrementalSchedule returning null (mode $ifMode doesn't match)")
+		logTrace("$app.label (852): function incrementalSchedule returning null (mode $ifMode doesn't match)")
 		return
 	}
-
-	// Set timeStart and timeStop, if sunrise or sundown
-	if(timeStartSunrise) timeStart = parent.getSunrise()
-	if(timeStartSundown) timeStart = parent.getSundown()
-	if(timeStopSunrise) timeStop = parent.getSunrise()
-	if(timeStopSundown) timeStop = parent.getSundown()
+log.debug "855 $timeStartOffset"
+	// Set timeStart and timeStop, if sunrise or sunset
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
 
 	// If between start and stop time (if start time after stop time, then if after start time)
 	if(parent.timeBetween(timeStart, timeStop)){
+		// If Pico override, return null
+		if(timeLevelPico && manualOverride && timeLevelPico) {
+			logTrace("$app.label (866): [device: $device] function incrementalSchedule unsecheduling updates and exiting (manual override)")
+			unschedule(incrementalSchedule)
+			return
+		}
 		// Run first iteration now
 		runIncrementalSchedule()
 		runIn(20,incrementalSchedule)
-		logTrace("$app.label: function incrementalSchedule scheduling itself")
+		logTrace("$app.label (873): function incrementalSchedule scheduling itself")
 		log.info "Time: Scheduling update for 20 seconds for $timeDevice."
 	} else {
-		logTrace("$app.label: function incrementalSchedule returning null (not between start $timeStart and stop time $timeStop)")
+		logTrace("$app.label (876): function incrementalSchedule returning null (not between start $timeStart and stop time $timeStop)")
 		return
 	}
 }
@@ -813,5 +993,5 @@ def weekDaysToNum(){
 }
 
 def logTrace(message){
-	//log.trace message
+	log.trace message
 }
