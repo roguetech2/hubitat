@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.17
+*  Version: 0.1.19
 *
 ***********************************************************************************************************************/
 
@@ -117,6 +117,7 @@ preferences {
 										}
 										input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
 										input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
+										if(parent.notificationDevice) input "speakText", "text", title: "Voice notification text? (Optional)", required: false, submitOnChange:true
 										if(((!switches && !locks) && !noDevice) || (!actionSwitches && !actionLocks && !mode && !phone)) {
 											paragraph "<div style=\"background-color:BurlyWood\">2 </div>"
 										} else {
@@ -279,11 +280,9 @@ def presenceHandler(evt) {
 	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
 
 	// if not bewteen start and stop times
-	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop)) {
-			logTrace("$app.label: function presenceHandler returning (not between start time and stop time)")
-			return
-		}
+	if(timeStart && timeStop && !parent.timeBetween(timeStart, timeStop)) {
+		logTrace("$app.label: function presenceHandler returning (not between start time and stop time)")
+		return
 	}
 
 	// If not correct day, return null
@@ -314,6 +313,9 @@ def presenceHandler(evt) {
 			}
 		}
 	}
+
+	// Send voice notification
+	if(speakText) parent.speak(speakText)
 
 	// Set mode
 	if(mode) parent.changeMode(mode, appId)
