@@ -16,7 +16,14 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.20
+*  Version: 0.1.21
+*
+***********************************************************************************************************************/
+
+/***********************************************************************************************************************
+*
+*  Speech device is set as "speechSynthesis". The device capability must be set in the driver, or change this to
+*  "voice".
 *
 ***********************************************************************************************************************/
 
@@ -47,6 +54,7 @@ def mainPage() {
 				section(""){
 					input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
 					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+					input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
 				}
 				if(showSchedules){
 					section("Scheduled settings:") {
@@ -762,7 +770,16 @@ def timeBetween(timeStart, timeStop){
 	}
 	logTrace("$app.label: function timeBetween exiting")
 }
-	
+
+def speak(text){
+	logTrace("$app.label: function speak [text: $text]")
+	if(!notificationDevice) {
+		logTrace("$app.label: function speak returning (no notification device)")
+		return
+	}
+	notificationDevice.speak(text)
+	logTrace("$app.label: function speak returning")
+}
 
 def logTrace(message){
 	//log.trace message
