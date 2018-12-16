@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.19
+*  Version: 0.3.20
 * 
 ***********************************************************************************************************************/
 
@@ -65,13 +65,13 @@ preferences {
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(contactDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"><b>Select which devices to control:</b></div>"
-						if(!switches && !locks) input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, or sending text alert.", defaultValue: false, submitOnChange:true
+						if(!switches && !locks) input "noDevice", "bool", title: "<b>No devices.</b> Click to continue if ONLY setting mode, sending text alert or making voice notification.", defaultValue: false, submitOnChange:true
 						if(!noDevice) input "switches", "capability.switchLevel", title: "Lights/switches?", multiple: true, required: false, submitOnChange:true
 						if(!noDevice) input "locks", "capability.lock", title: "Locks?", multiple: true, required: false, submitOnChange:true
 						if((!switches && !locks) && !noDevice) {
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if((switches || locks) || noDevice) {
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches or locks:</b></div>"
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches, locks or voice alerr:</b></div>"
 							if(switches) {
 								input "actionOpenSwitches", "enum", title: "What to do with lights/switches on open? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 								input "actionCloseSwitches", "enum", title: "What to do with lights/switches on close? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
@@ -82,6 +82,14 @@ preferences {
 							}
 							input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
 							input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
+							if(parent.notificationDevice) input "speakText", "text", title: "Voice notification text? (Optional)", required: false, submitOnChange:true
+							if(mode || phone || speakText){
+								if(openOrClose){
+									input "openOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", defaultValue: false, submitOnChange:true
+								} else {
+									input "openOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", defaultValue: false, submitOnChange:true
+								}
+							}
 							if(!actionOpenSwitches && !actionCloseSwitches && !actionOpenLocks && !actionCloseLocks && !mode && !phone) {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 							} else {
@@ -100,10 +108,8 @@ preferences {
 									if(!timeStartSunrise && !timeStartSunset){
 								if(timeStop){
 									paragraph "Between start time", width: 6
-									//input "timeStart", "time", title: "Between start time", required: false, width: 6, submitOnChange:true
 								} else {
 									paragraph "Between start time (optional)", width: 6
-									//input "timeStart", "time", title: "Between start time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStartSunrise) {
 								if(timeStartOffsetNegative) {
@@ -122,10 +128,8 @@ preferences {
 							if(!timeStopSunrise && !timeStopSunset){
 								if(timeStart){
 									paragraph "and stop time", width: 6
-									//input "timeStop", "time", title: "and stop time", required: false, width: 6, submitOnChange:true
 								} else {
 									paragraph "and stop time (optional)", width: 6
-									//input "timeStop", "time", title: "and stop time (Optional)", required: false, width: 6, submitOnChange:true
 								}
 							} else if(timeStopSunrise){
 								if(timeStopOffsetNegative) {
@@ -265,7 +269,7 @@ def contactChange(evt){
 /* TO DO: Instead of throwing error (in Master),      */
 /* validate number on setup.                          */
 /* ************************************************** */
-	if(phone){
+	if(phone && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))){
 		def now = new Date()
 
 		//if last text was sent less than 5 minutes ago, don't send
@@ -300,8 +304,11 @@ def contactChange(evt){
 		}
 	}
 
+	// Send voice notification
+	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.speak(speakText)
+
 	// Set mode
-	if(mode) parent.changeMode(mode, appId)
+	if(mode && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.changeMode(mode, appId)
 
 	// Perform open events (for switches and locks)
 	if(evt.value == "open"){
