@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Time.groovy
-*  Version: 0.3.22
+*  Version: 0.3.23
 *
 ***********************************************************************************************************************/
 
@@ -174,7 +174,9 @@ preferences {
 				} else if(timeDisable){
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this schedule:</b></div>"
 					label title: "Schedule name?", required: true, submitOnChange:true
-					if(app.label){
+					if(!app.label){
+						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+					} else if(app.label){
 						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices to schedule:</b></div>"
 						input "timeDevice", "capability.switch", title: "Device(s)?", multiple: true, required: true, submitOnChange:true
 						input "timeDisable", "bool", title: "<b><font color=\"#000099\">Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
