@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.20
+*  Version: 0.3.21
 * 
 ***********************************************************************************************************************/
 
@@ -37,17 +37,17 @@ preferences {
 		
         section() {
 			// Set disable all
-			if(timeDisableAll) {
+			if(contactDisableAll) {
 				state.contactDisable = true
 			} else {
 				state.contactDisable = false
 			}
 			
 			// If all disabled, force reenable
-			if(state.timeDisable){
+			if(state.contactDisable){
 				input "contactDisableAll", "bool", title: "All contact sensors are disabled. Reenable?", defaultValue: false, submitOnChange:true
 			} else if(contactDisable){
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this presence routine:</b></div>"
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this contact sensor routine:</b></div>"
 				label title: "", required: true
 				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
 				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
@@ -71,7 +71,7 @@ preferences {
 						if((!switches && !locks) && !noDevice) {
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if((switches || locks) || noDevice) {
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches, locks or voice alerr:</b></div>"
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do with switches, locks or voice alert:</b></div>"
 							if(switches) {
 								input "actionOpenSwitches", "enum", title: "What to do with lights/switches on open? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 								input "actionCloseSwitches", "enum", title: "What to do with lights/switches on close? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
@@ -304,7 +304,6 @@ def contactChange(evt){
 		}
 	}
 
-	// Send voice notification
 	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.speak(speakText)
 
 	// Set mode
@@ -412,5 +411,5 @@ def scheduleClose(){
 }
 
 def logTrace(message){
-	//log.trace message
+	log.trace message
 }
