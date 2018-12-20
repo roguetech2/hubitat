@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.21
+*  Version: 0.1.22
 *
 ***********************************************************************************************************************/
 
@@ -56,6 +56,32 @@ def mainPage() {
 					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
 					input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
 				}
+				if(notificationDevice && people){
+					section(""){
+						def i = 0
+						people.each{
+							i++
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Sing Happy Birthday for $it:</b></div>"
+							if(i == 1) paragraph "This sets Google Home to sing Happy Birthday on the individual's birthday between the times entered, a few minutes after they (or a few minutes after the start time, if they're already home). It can be set to wait for everyone to be home before singing."
+							if(!settings["happyBDay$i"]){
+								input "happyBDay${i}", "bool", title: "Do not sing Happy Birthday for $it? Click to sing.", submitOnChange:true
+							} else {
+								input "happyBDay${i}", "bool", title: "Sing Happy Birthday for $it? Click to not sing.", submitOnChange:true
+							}
+							if(settings["happyBDay$i"]){
+								input "dateBDay${i}", "date", title: "Enter birthday date for $it.", submitOnChange:true
+								if(!settings["bDayEveryone$i"]){
+									input "bDayEveryone${i}", "bool", title: "Sing regardless of who else is home. Click to only sing with everyone.", submitOnChange:true
+								} else {
+									input "bDayEveryone${i}", "bool", title: "Only sing when everyone is home. Click to sing regardless who's home.", submitOnChange:true
+								}
+								input "timeStart", "time", title: "Only sing between start time", required: true, width: 6, submitOnChange:true
+								input "timeStop", "time", title: "and stop time", required: true, width: 6, submitOnChange:true
+							}
+						}
+	
+					}
+				}
 				if(showSchedules){
 					section("Scheduled settings:") {
 						app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
@@ -80,6 +106,11 @@ def mainPage() {
 			if(showContacts){
 				section("Contact sensors:") {
 					app(name: "childApps", appName: "Master - Contact", namespace: "master", title: "New Contact Sensor", multiple: true)
+				}
+			}
+			if(showHumidity){
+				section("Humidity sensors:") {
+					app(name: "childApps", appName: "Master - Vent", namespace: "master", title: "New Humidity Sensor", multiple: true)
 				}
 			}
 			section(){
@@ -108,6 +139,11 @@ def mainPage() {
 				} else {
 					input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
 				}
+				if(!showVents){
+					input "showHumidity", "bool", title: "Humidity app hidden. Show?", submitOnChange:true
+				} else {
+					input "showHumidity", "bool", title: "Hide humidity app?", submitOnChange:true
+				}
 			}
         }
     }
@@ -125,6 +161,14 @@ def updated() {
 }
 
 def initialize() {
+						i=1
+log.debug settings["happyBDay$i"]
+	log.debug "here" + happyBDay$i
+	
+						i=2
+						log.debug settings["happyBDay$i"].toString()
+						i=3
+						log.debug settings["happyBDay$i"].toString()
 	logTrace("$app.label: initialized")
 }
 
