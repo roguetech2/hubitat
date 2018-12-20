@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.22
+*  Version: 0.1.23
 *
 ***********************************************************************************************************************/
 
@@ -110,7 +110,7 @@ def mainPage() {
 			}
 			if(showHumidity){
 				section("Humidity sensors:") {
-					app(name: "childApps", appName: "Master - Vent", namespace: "master", title: "New Humidity Sensor", multiple: true)
+					app(name: "childApps", appName: "Master - Humidity", namespace: "master", title: "New Humidity Sensor", multiple: true)
 				}
 			}
 			section(){
@@ -139,7 +139,7 @@ def mainPage() {
 				} else {
 					input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
 				}
-				if(!showVents){
+				if(!showHumidity){
 					input "showHumidity", "bool", title: "Humidity app hidden. Show?", submitOnChange:true
 				} else {
 					input "showHumidity", "bool", title: "Hide humidity app?", submitOnChange:true
