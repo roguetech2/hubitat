@@ -64,6 +64,9 @@ def mainPage() {
 					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These will be periodically tested to make sure they are reporting properly. Enter phone number for text notice.</div>"
 
 				}
+/* ********************************************* */
+/* TO-DO: Finish BDay code. Not complete.        */
+/* ********************************************* */
 				if(notificationDevice && people){
 					section(""){
 						def i = 0
