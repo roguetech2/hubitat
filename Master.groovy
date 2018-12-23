@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.23
+*  Version: 0.1.24
 *
 ***********************************************************************************************************************/
 
@@ -44,6 +44,7 @@ preferences {
 }
 
 def mainPage() {
+	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
     return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
         if(!state.masterInstalled) {
             section("Click Done.") {
@@ -53,8 +54,15 @@ def mainPage() {
 			if(showPresences){
 				section(""){
 					input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
 					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition.</div>"
 					input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
+					input "sensors", "capability.battery", title: "Select all sensors:", multiple: true, required: false, submitOnChange:true
+					input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These will be periodically tested to make sure they are reporting properly. Enter phone number for text notice.</div>"
+
 				}
 				if(notificationDevice && people){
 					section(""){
@@ -161,6 +169,7 @@ def updated() {
 }
 
 def initialize() {
+	test()
 						i=1
 log.debug settings["happyBDay$i"]
 	log.debug "here" + happyBDay$i
@@ -823,6 +832,45 @@ def speak(text){
 	}
 	notificationDevice.speak(text)
 	logTrace("$app.label: function speak returning")
+}
+
+/* ************************************************** */
+/* TO-DO: Clean it up, and schedule it every day,     */
+/* with an alert.                                     */
+/* ************************************************** */
+def test(){
+	// Get current time
+	varNow = now()
+	sensors.each{
+		// lastCheckin only availble for Xiaomi drivers
+		// Could use it.lastUpdate, but maybe it's just not used much
+		// So ... maybe subscribe and create state variable??
+		log.debug "here " + it.currentLastCheckin
+		if(it.currentLastCheckin){
+			// Covert lastCheckin to Unix epoch timestamp
+	//		long epoch = it.currentLastCheckin.getTime()
+			
+			diff = (varNow - it.currentLastCheckin.toBigInteger()) / 1000 / 60 / 60
+			if(diff > 24) {
+				numDays = Math.round(diff / 24)
+				if(!phone){
+					if($numDays > 1){
+						log.debug "$it hasn't done anything in $numDays days."
+					} else {
+						log.debug "$it hasn't done anything in $numDays day."
+					}
+				} else {
+					if($numDays > 1){
+						sendText(phone,"$it hasn't done anything in $numDay days.")
+					} else {
+						sendText(phone,"$it hasn't done anything in $numDay day.")
+					}
+				}
+			}
+		} else {
+			log.debug "$it not tested."
+		}
+	}
 }
 
 def logTrace(message){
