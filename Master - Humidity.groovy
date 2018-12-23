@@ -17,7 +17,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version = "0.0.03"
+*  Version: 0.0.04
 *
 ***********************************************************************************************************************/
 
@@ -71,7 +71,7 @@ preferences {
 					if(!humidityDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(humidityDevice){
-						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices to control:</b></div>"
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which device(s) to control:</b></div>"
 						input "switches", "capability.switch", title: "Fan (or other switch)?", multiple: true, required: true, submitOnChange:true
 						if(!switches){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
@@ -272,7 +272,9 @@ def initialize() {
 	state.automaticallyTurnedOn = false
 	state.turnOffLaterStarted = false
 	subscribe(humiditySensor, "humidity", humidityHandler)
-	subscribe(humidityControlDevice, "humidity", NeedFunctionForThis)
+	// Uncomment this when add changeRate time frame, instead of using polling rate
+	// Otherwise, it'll throw off all the state variables
+	// subscribe(humidityControlDevice, "humidity", humidityHandler)
 	subscribe(switches, "switch", switchHandler)
 }
 
