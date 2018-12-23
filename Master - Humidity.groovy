@@ -358,7 +358,7 @@ def humidityHandler(evt) {
 		if(humidityStopMinutes && humidityStopMinutes > 0){
 			state.TurnOffLaterStarted = true
 			logTrace("$app.label: function humidityHandler scheduling turn off (for $humidityStopMinutes minutes)")
-			runIn(60 * humidityStopMinutes.toInteger(), TurnOffFanSwitchCheckHumidity)
+			runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff)
 		}
 		
 		parent.multiOn(switches)
@@ -406,8 +406,8 @@ def switchHandler(evt) {
 	}		   
 }
 
-def turnOffFanSwitchCheckHumidity() {
-	logTrace("$app.label: turnOffFanSwitchCheckHumidity starting")
+def scheduleTurnOff() {
+	logTrace("$app.label: scheduleTurnOff starting")
 
 	// If nothing is on, then we can exit
 	if(!multiStateOn(switches)) return
@@ -416,16 +416,16 @@ def turnOffFanSwitchCheckHumidity() {
 	fanOff = true
 	if(humidityControlStopDifferenceManual && humidityControlStopDifference && humidityControlDevice){
 		if(humidityControlDevice.currentHumidity + humidityControlStopDifference > state.currentHumidity) {
-			logTrace("$app.label: function turnOffFanSwitchCheckHumidity not turning off (control device $humidityControlDevice.currentHumidity + humidityControlStopDifference $humidityControlStopDifference > currentHumidity $state.currentHumidity")
+			logTrace("$app.label: function scheduleTurnOff not turning off (control device $humidityControlDevice.currentHumidity + humidityControlStopDifference $humidityControlStopDifference > currentHumidity $state.currentHumidity")
 			fanOff = false
 		}
 	}
 	if(humidityStopThresholdManual && humidityStopThreshold > state.currentHumidity) {
-			logTrace("$app.label: function turnOffFanSwitchCheckHumidity not turning off (humidityStopThreshold $humidityStopThreshold > currentHumidity $state.currentHumidity)")
+			logTrace("$app.label: function scheduleTurnOff not turning off (humidityStopThreshold $humidityStopThreshold > currentHumidity $state.currentHumidity)")
 		fanOff = false
 	}
 	if(fanOff) {
-		logTrace("$app.label: function turnOffFanSwitchCheckHumidity turning off")
+		logTrace("$app.label: function scheduleTurnOff turning off")
 		multiOff()
 	}
 }
