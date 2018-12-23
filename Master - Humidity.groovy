@@ -17,7 +17,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version: 0.0.02
+*  Version = "0.0.03"
 *
 ***********************************************************************************************************************/
 
@@ -71,28 +71,129 @@ preferences {
 					if(!humidityDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(humidityDevice){
-						paragraph "<div style=\"background-color:BurlyWood\"><b>Select which devices to control:</b></div>"
-						input "switches", "capability.switch", title: "Fan (or other switch)?", multiple: true, required: false, submitOnChange:true
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which devices to control:</b></div>"
+						input "switches", "capability.switch", title: "Fan (or other switch)?", multiple: true, required: true, submitOnChange:true
 						if(!switches){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if(switches){
-							paragraph "<div style=\"background-color:BurlyWood\"><b>Select humidity thresholds:</b></div>"
-							input "humidityIncreaseRate", "number", title: "Humidity Increase Rate :", required: true, defaultValue: 2, submitOnChange:true
-        					input "humidityThreshold", "number", title: "Humidity Threshold (%):", required: false, defaultValue: 65, submitOnChange:true
-							if(!humidityIncreaseRate || !humidityThreshold){
+							varStartNumber = 0
+							if(humidityControlDevice && humidityControlStartDifference) varStartNumber++
+							if(humidityStartThreshold) varStartNumber++
+							if(humidityIncreaseRate) varStartNumber++
+							if(varStartNumber != 1){
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to start fan:</b></div>"
+							} else {
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to start fan:</b></div>"
+							}
+							input "humidityControlEnable", "bool", title: "Use control device?", submitOnChange:true
+							if(humidityControlEnable){
+								input "humidityControlDevice", "capability.relativeHumidityMeasurement", title: "Control humidity sensor(s)?", multiple: false, required: true, submitOnChange:true
+								if(humidityControlDevice){
+									input "humidityControlStartDifference", "number", title: "Percent difference from the control device $humidityControlDevice?", required: true, submitOnChange:true
+								} else {
+									input "humidityControlStartDifference", "number", title: "Percent difference from control?", required: true, submitOnChange:true
+								}
+							}
+							if(humidityControlEnable && (!humidityControlDevice || !humidityControlStartDifference)){
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-							} else if(humidityIncreaseRate && humidityThreshold){
-								paragraph "<div style=\"background-color:BurlyWood\"><b>Select humidity cut-offs:</b></div>"
-								input "humidityDropTimeout", "number", title: "How long after the humidity starts to drop should the fan turn off (minutes):", required: true, defaultValue:  10, submitOnChange:true
-								input "humidityDropLimit", "number", title: "What percentage above the starting humidity before triggering the turn off delay:", required: true, defaultValue:  25, submitOnChange:true
-								if(!humidityDropTimeout || !humidityDropLimit){
+							} else if(!humidityControlEnable || (humidityControlDevice && humidityControlStartDifference)){
+        						input "humidityStartThreshold", "number", title: "Absolute humidity level?", required: false, submitOnChange:true
+/* ************************************************** */
+/* TO-DO: Make increase based on time, rather than    */
+/* polling rate.                                      */
+/* ************************************************** */
+								input "humidityIncreaseRate", "number", title: "Humidity increase?", required: false, submitOnChange:true
+								if(varStartNumber > 1) {
+									input "multiStartTrigger", "enum", title: "Turn on if any condition is matched, or all conditions?", required: true, options: ["any":"Any of the conditions", "all":"All of the conditions"], defaultValue: "any", submitOnChange:true
+									if(multiStartTrigger == "all"){
+										varMessage = "You have indicated the fan should turn on only if the humidity "
+										if(humidityIncreaseRate) varMessage += "rises by $humidityIncreaseRate"
+										if(humidityStartThreshold){
+											if(humidityIncreaseRate){
+												varMessage += " to at least $humidityStartThreshold"
+											} else {
+												varMessage += " is at least $humidityStartThreshold"
+											}
+										}
+										if(humidityControlStartDifference && humidityControlDevice)
+											varMessage += ", while being no more than $humidityControlStartDifference% higher than $humidityControlDevice"
+										varMessage += ". All conditions must be matched."
+										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>"
+									}
+								}
+								if(!humidityIncreaseRate && !humidityThreshold && (varStartNumber > 1 && (multiStartTrigger != "any" && multiStartTrigger != "all"))){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-								} else if(humidityDropTimeout && humidityDropLimit){
-									paragraph "<div style=\"background-color:BurlyWood\"><b>Select manual cut-offs:</b></div>"
-									paragraph "When should the fan turn off when turned on manually?"
-									input "manualControlMode", "enum", title: "Off After Manual-On?", required: true, options: ["Manually", "By Humidity", "After Set Time"], defaultValue: "After Set Time", submitOnChange:true
-									paragraph "How many minutes until the fan is auto-turned-off?"
-									input "manualOffMinutes", "number", title: "Auto Turn Off Time (minutes)?", required: false, defaultValue: 20, submitOnChange:true
+								} else if(humidityIncreaseRate || humidityThreshold){
+									varStopNumber = 0
+									if(humidityControlDevice && humidityControlStopDifference) varStopNumber++
+									if(humidityStopThreshold) varStopNumber++
+									if(humidityStopDecrease) varStopNumber++
+									if(humidityStopMinutes) varStopNumber++
+									if(varStopNumber != 1){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to stop fan:</b></div>"
+									} else {
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan:</b></div>"
+									}
+									if(humidityControlEnable && humidityControlDevice && humidityControlStopDifference){
+										input "humidityControlStopDifference", "number", title: "Percent difference from the control device $humidityControlDevice?", required: false, submitOnChange:true
+									}
+									if(humidityStartThreshold){
+										input "humidityStopThreshold", "number", title: "Absolute humidity level?", required: false, submitOnChange:true
+										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon You <i>can</i> make this less than starting threshold of $humidityStartThreshold, but it's not recommended.</div>"
+									}
+									input "humidityStopDecrease", "number", title: "Percent above the starting humidity?", required: false, submitOnChange:true
+									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Enter zero for humidity to be completely normalized, but only with caution. If the ambiant humidity level rises, it may never reach the starting humidity.</div>"
+									input "humidityStopMinutes", "number", title: "After minutes?", required: false, submitOnChange:true
+									if(varStopNumber > 1){
+										input "multiStopTrigger", "enum", title: "Turn off if any condition is matched, or all conditions?", required: true, options: ["any":"Any of the conditions", "all":"All of the conditions"], defaultValue: "any", submitOnChange:true
+/* ************************************************** */
+/* TO-DO: Build string for what "all conditions"      */
+/* actually are.                                      */
+/* ************************************************** */
+										if(multiStopTrigger == "all"){
+											msgString = "You have indicated the fan should turn off only if humidity is "
+											if(humidityStopMinutes) msgString += "at most $humidityStopThreshold"
+											if((!(humidityControlStopDifference && humidityControlDevice) && !humidityStopDecrease) || (!humidityStopDecrease && !humidityStopMinutes)) {
+												msgString += ", and "
+											} else {
+												msgString += ", "
+											}
+											if(humidityControlStopDifference && humidityControlDevice) {
+												msgString += "no more than $humidityControlStopDifference% higher than $humidityControlDevice"
+												if(!humidityStopDecrease && !humidityStopDecrease) {
+												   msgString += "."
+												} else if(!humidityStopDecrease || !humidityStopDecrease) {
+												   msgString += ", and "
+												} else {
+												   msgString += ", "
+											   }
+											}
+											if(humidityStopDecrease) {
+											   msgString += "no more than $humidityStopDecrease% of starting level"
+											   if(humidityStopMinutes){
+												   msgString += ", and "
+											   }
+											}
+											if(humidityStopMinutes) msgString += "after at least $humidityStopMinutes minutes"
+											msgString += ". All conditions must be matched."
+											paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $msgString</div>"
+										}
+									}
+									
+										
+									//input "humidityDropTimeout", "number", title: "After minutes after reaching $humidityDropLimit% of starting humidity?", required: true, submitOnChange:true
+									if(varStopNumber == 0){
+										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+									} else if(varStopNumber > 1){
+										paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan manually turned on:</b></div>"
+										if(humidityControlEnable && humidityControlDevice && humidityControlStopDifference)
+											input "humidityControlStopDifferenceManual", "bool", title: "Require humidity to be $humidityControlStopDifference% over $humidityControlDevice?", submitOnChange:true
+										if(humidityStopThreshold)
+											input "humidityStopThresholdManual", "bool", title: "Require humidity to be below $humidityStopThreshold?", submitOnChange:true
+										if(humidityStopMinutes)
+											input "humidityStopMinutesManual", "bool", title: "Require $humidityStopMinutes mintues to have passed?", submitOnChange:true
+										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These options also apply if fan is turned on in any other way than by this rule-set (eg a schedule). Options combine; if more than one is selected, the fan will only be turned off if all the conditions are true.</div>"
+									}
 								}
 							}
 						}
@@ -102,6 +203,49 @@ preferences {
 		}
 	}
 }
+
+/*
+Input fields:
+
+humidityDisableAll - bool
+	disables all humidity routines
+humidityDevice - device - required - multiple
+	primary humidity sensor
+humidityDisable - bool
+	disables this humidity routine
+switches - device - required - multiple
+	fan switch to be turned on/off
+humidityControlEnable - bool
+	shows options for a "control" sensor
+humidityControlDevice - device
+	"control" device. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlStartDifference
+humidityControlStartDifference - number - required
+	difference between primary and control sensors. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlDevice
+humidityStartThreshold - number
+	absolute sensor value to turn on
+humidityIncreaseRate - number
+	amount of change with sensor to turn on
+multiStartTrigger - enum [any, all] 
+	indicates to use humidityControlStartDifference, humidityStartThreshold, AND/OR humidityIncreaseRate
+humidityControlStopDifference - number
+	percent difference of sensor compared to control sensor to turn off
+humidityStopThreshold - number
+	absolute sensor value to turn off
+humidityStopDecrease - number
+	amount of change with sensor to turn off
+humidityStopMinutes - number
+	minutes of run time to turn off
+multiStopTrigger - enum [any, all]
+	indicates to use humidityControlStopDifference, humidityStopThreshold, humidityStopDecrease AND/OR humidityStopMinutes
+humidityDropTimeout - number
+	NOT USED
+humidityControlStopDifferenceManual - bool
+	if manually on, indicates to use humidityControlStopDifference to turn off
+humidityStopThresholdManual - bool
+	if manually on, indicates to use humidityStopThreshold to turn off
+humidityStopMinutesManual - bool
+	if manually on, indicates to use humidityStopMinutes to turn off
+*/
 
 def installed() {
 	logTrace("$app.label: installed")
@@ -125,10 +269,10 @@ def initialize() {
 		return
 	}
 
-	state.overThreshold = false
 	state.automaticallyTurnedOn = false
 	state.turnOffLaterStarted = false
 	subscribe(humiditySensor, "humidity", humidityHandler)
+	subscribe(humidityControlDevice, "humidity", NeedFunctionForThis)
 	subscribe(switches, "switch", switchHandler)
 }
 
@@ -141,7 +285,6 @@ def humidityHandler(evt) {
 	}
 
 	// Set state variables
-	state.overThreshold = checkThreshold(evt)
 	state.lastHumidityDate = state.currentHumidityDate
 	if (state.currentHumidity) {
 		state.lastHumidity = state.currentHumidity
@@ -165,38 +308,79 @@ def humidityHandler(evt) {
 	logTrace("$app.label: function humidityHandler [highestHumidity = $state.highestHumidity]")
 	logTrace("$app.label: function humidityHandler [humidityChangeRate = $state.humidityChangeRate.round(2)]")
 	logTrace("$app.label: function humidityHandler [targetHumidity = $state.targetHumidity]")
-    
-	//if the humidity is high (or rising fast) and the fan is off, kick on the fan
-    if (((state.humidityChangeRate > humidityIncreaseRate) || state.overThreshold) && !parent.stateOn(switches)) {
-		state.automaticallyTurnedOn = true
-		state.turnOffLaterStarted = false
-        state.automaticallyTurnedOnAt = new Date().format("yyyy-MM-dd HH:mm")
 
-		logTrace("$app.label: function humidityHandler (turning on; humidity increase)")
-		parent.multiOn(switches)
-
-        state.startingHumidity = state.lastHumidity
-        state.highestHumidity = state.currentHumidity
-		logTrace("$app.label: function humidityHandler exiting (turned on, humidity increase [startingHumidity = $state.startingHumidity; highestHumidity = $state.highestHumidity; targetHumidity = $state.targetHumidity]")
-
-
-	// Turn off the fan when humidity returns to normal and it was kicked on by the humidity sensor
-	} else if((state.automaticallyTurnedOn || manualControlMode == "By Humidity") && !state.turnOffLaterStarted) {    
-        if(state.currentHumidity <= state.targetHumidity) {
-            if(humidityDropTimeout == 0) {
-				if(stateOn(switches)) {
-					multiOff()
-					logTrace("$app.label: function humidityHandler exiting (turning off, humidity decrease)")
-				} else {
-					logTrace("$app.label: function humidityHandler exiting (already off, humidity decrease)")
-				}
-            } else {
-				state.turnOffLaterStarted = true
-				runIn(60 * humidityDropTimeout.toInteger(), turnOffFanSwitchCheckHumidity)
-				logTrace("$app.label: function humidityHandler scheduling fan off in $humidityDropTimeout minutes [turnOffLaterStarted = $state.turnOffLaterStarted]")
+	// Check if ALL conditions are true
+	if(multiStartTrigger){
+		fanOn = true
+		// Compare it to the "control" device (checking for negative result)
+		if(humidityControlDevice && humidityControlStartDifference){
+			if(humidityControlDevice.currentHumidity + humidityControlStartDifference > state.currentHumidity) {
+				fanOn = false
+				logTrace("$app.label: function humidityHandler (not turning on becsause control device $humidityControlDevice.currentHumidity + humidityControlStartDifference $humidityControlStartDifference > current humidity $state.currentHumidity)")
+			}	
+		}
+		// Check if over the base threshold (checking for negative result)
+		if(humidityStartThreshold &&  humidityStartThreshold > state.currentHumidity) {
+			fanOn = false
+			logTrace("$app.label: function humidityHandler (not turning on becsause humidityStartThreshold $humidityStartThreshold > current humidity $state.currentHumidity)")
+		}
+		// Check if amount increase from last update (checking for negative result)
+		if(humidityIncreaseRate && humidityIncreaseRate > state.humidityChangeRate) {
+			fanOn = false
+			logTrace("$app.label: function humidityHandler (not turning on becsause humidityIncreaseRate $humidityIncreaseRate > humidityChangeRate $state.humidityChangeRate)")
+		}
+	// Check if ANY condition is true
+	} else {
+		fanOn = false
+		// Compare it to the "control" device
+		if(humidityControlDevice && humidityControlStartDifference){
+			if(humidityControlDevice.currentHumidity + humidityControlStartDifference <= state.currentHumidity) {
+				fanOn = true
+				logTrace("$app.label: function humidityHandler (turning on - currentHumidity $humidityControlDevice.currentHumidity + humidityControlStartDifference $humidityControlStartDifference <= currentHumidity $state.currentHumidity)")
 			}
 		}
+		// Check if over the base threshold 
+		if(humidityStartThreshold &&  humidityStartThreshold <= state.currentHumidity) {
+			fanOn = true
+			logTrace("$app.label: function humidityHandler (turning on - humidityStartThreshold $humidityStartThreshold <= currentHumidity $state.currentHumidity)")
+		}
+		// Check if amount increase from last update
+		if(humidityIncreaseRate && humidityIncreaseRate <= state.humidityChangeRate) {
+			fanOn = true
+			logTrace("$app.label: function humidityHandler (turning on - humidityIncreaseRate $humidityIncreaseRate  <= humidityChangeRate $state.humidityChangeRate)")
+		}
 	}
+
+	// Turning on
+	if(fanOn && !state.TurnOffLaterStarted){
+		if(humidityStopMinutes && humidityStopMinutes > 0){
+			state.TurnOffLaterStarted = true
+			logTrace("$app.label: function humidityHandler scheduling turn off (for $humidityStopMinutes minutes)")
+			runIn(60 * humidityStopMinutes.toInteger(), TurnOffFanSwitchCheckHumidity)
+		}
+		
+		parent.multiOn(switches)
+		state.startingHumidity = state.lastHumidity
+        state.highestHumidity = state.currentHumidity
+		logTrace("$app.label: function humidityHandler exiting (turned on, humidity increase [startingHumidity = $state.startingHumidity; highestHumidity = $state.highestHumidity; targetHumidity = $state.targetHumidity]")
+	}
+
+	// If nothing is on, then we can exit
+	if(!parent.multiStateOn(switches)) return
+
+	// If off requires timer, let schedule handle it
+	if(humidityStopMinutesManual && humidityStopMinutes && humidityStopMinutes > 0) return
+
+	// If no conditions (other than timer), we can exit
+	if(!humidityControlStopDifferenceManual && !humidityStopThresholdManual) return
+
+	// If should turn off by all applicable conditions
+	fanOff = true
+	if(humidityControlStopDifferenceManual && humidityControlStopDifference && humidityControlDevice){
+		if(humidityControlDevice.currentHumidity + humidityControlStopDifference > state.currentHumidity) fanOff = false
+	}
+	if(humidityStopThresholdManual && humidityStopThreshold > state.currentHumidity) fanOff = false
+	if(fanOff) multiOff()
 }
 
 def switchHandler(evt) {
@@ -208,16 +392,10 @@ def switchHandler(evt) {
 	}
 
 	if(evt.value == "on"){
-		if(!state.automaticallyTurnedOn && (manualControlMode == "After Set Time") && manualOffMinutes) {
-			if(manualOffMinutes == 0) {
-				multiOff()
-				logTrace("$app.label: switchHandler exiting (turned off)")
-				return
-			} else {
-				logTrace("$app.label: function switchHandler scheduling fan off in $manualOffMinutes minutes (switched turned on)")
-				runIn(60 * manualOffMinutes.toInteger(), multiOff)
-				return
-			}
+		if(!state.automaticallyTurnedOn && humidityStopMinutesManual && humidityStopMinutes && humidityStopMinutes > 0) {
+			logTrace("$app.label: function switchHandler scheduling fan off in $humidityStopMinutes minutes (switched turned on)")
+			runIn(60 * humidityStopMinutes.toInteger(), multiOff)
+			return
 		}
 	} else if(evt.value == "off") {
 		logTrace("$app.label: function switchHandler exiting (switched turned off)")
@@ -229,23 +407,24 @@ def switchHandler(evt) {
 def turnOffFanSwitchCheckHumidity() {
 	logTrace("$app.label: turnOffFanSwitchCheckHumidity starting")
 
-	if(humidityDisable || state.humidityDisable) {
-		logTrace("$app.label: function turnOffFanSwitchCheckHumidity returning (humidity disabled)")
-		return
-	}
+	// If nothing is on, then we can exit
+	if(!multiStateOn(switches)) return
 
-	if(parent.multiStateOn(switches)) {
-		logTrace("$app.label: turnOffFanSwitchCheckHumidity [humidityChangeRate: $state.HumidityChangeRate]")
-		if(state.currentHumidity > state.targetHumidity) {
-			logTrace("$app.label: turnOffFanSwitchCheckHumidity exiting (humidityChangeRate: $state.HumidityChangeRate)")
-			state.automaticallyTurnedOn = true
-			state.automaticallyTurnedOnAt = now()
-			state.turnOffLaterStarted = false
-			return
-        } else {
-			logTrace("$app.label: turnOffFanSwitchCheckHumidity exiting (turning off)")
-			multiOff()
+	// If should turn off by all applicable conditions
+	fanOff = true
+	if(humidityControlStopDifferenceManual && humidityControlStopDifference && humidityControlDevice){
+		if(humidityControlDevice.currentHumidity + humidityControlStopDifference > state.currentHumidity) {
+			logTrace("$app.label: function turnOffFanSwitchCheckHumidity not turning off (control device $humidityControlDevice.currentHumidity + humidityControlStopDifference $humidityControlStopDifference > currentHumidity $state.currentHumidity")
+			fanOff = false
 		}
+	}
+	if(humidityStopThresholdManual && humidityStopThreshold > state.currentHumidity) {
+			logTrace("$app.label: function turnOffFanSwitchCheckHumidity not turning off (humidityStopThreshold $humidityStopThreshold > currentHumidity $state.currentHumidity)")
+		fanOff = false
+	}
+	if(fanOff) {
+		logTrace("$app.label: function turnOffFanSwitchCheckHumidity turning off")
+		multiOff()
 	}
 }
 
@@ -257,18 +436,6 @@ def multiOff() {
         state.turnOffLaterStarted = false
 	}
 	logTrace("$app.label: multiOff exiting")
-}
-
-def checkThreshhold(evt) {
-	logTrace("$app.label: checkThrehold starting [evt:  $evt ($evt.value)]")
-	double lastEvtValue = Double.parseDouble(evt.value.replace("%", ""))
-	if(lastEvtValue >= humidityThreshold) {
-		logTrace("$app.label: checkThrehold returning true (humidity: lastevtvalue; threshhold: humidityThreshold]")
-		return true
-	} else {
-		logTrace("$app.label: checkThreshold returning false")
-		return false
-	}
 }
 
 def logTrace(message) {
