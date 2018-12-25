@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.21
+*  Version: 0.3.22
 * 
 ***********************************************************************************************************************/
 
@@ -48,7 +48,7 @@ preferences {
 				input "contactDisableAll", "bool", title: "All contact sensors are disabled. Reenable?", defaultValue: false, submitOnChange:true
 			} else if(contactDisable){
 				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this contact sensor routine:</b></div>"
-				label title: "", required: true
+				label title: "", required: true, submitOnChange:true
 				paragraph "<font color=\"#000099\"><b>Select which sensor(s):</b></font>"
 				input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true
 				input "contactDisable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
@@ -89,6 +89,10 @@ preferences {
 								} else {
 									input "openOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", defaultValue: false, submitOnChange:true
 								}
+							}
+							if(phone || speakText){
+								input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home (optional)", multiple: true, required: false, submitOnChange:true
+								input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home (optional)", multiple: true, required: false, submitOnChange:true
 							}
 							if(!actionOpenSwitches && !actionCloseSwitches && !actionOpenLocks && !actionCloseLocks && !mode && !phone) {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
@@ -212,7 +216,7 @@ def initialize() {
 	// Allows an SMS immediately
 	if(!state.contactLastSms) state.contactLastSms = new Date().getTime() - 360000
 
-	if(!contactDisable && !state.contactDisableAll) {
+	if(!contactDisable && !state.contactDisable) {
 		subscribe(contactDevice, "contact.open", contactChange)
 		subscribe(contactDevice, "contact.closed", contactChange)
 	}
@@ -221,7 +225,7 @@ def initialize() {
 def contactChange(evt){
 	def appId = app.getId()
 	logTrace("$app.label: function contactChange started [evt: $evt ($evt.value)]")
-	if(contactDisable || state.contactDisableAll) {
+	if(contactDisable || state.contactDisable) {
 		logTrace("$app.label: function contactChange  returning (contact disabled)")
 		return
 	}
@@ -263,48 +267,71 @@ def contactChange(evt){
 		logTrace("$app.label: function contactChange unscheduling scheduleClose")
 		unschedule(scheduleClose)
 	}
-	
+
+	// Check if people are home (home1 and home2 should be true
+	if(personHome){
+		home1 = false
+		personHome.each{
+			if(it.currentPresence == "present") home1 = true
+		}
+	}
+	if(personNotHome){
+		home2 = true
+		personNotHome.each{
+			if(it.currentPresence == "present") home2 = false
+		}
+	}
+
 	// Text first (just in case there's an error later)
 /* ************************************************** */
 /* TO DO: Instead of throwing error (in Master),      */
 /* validate number on setup.                          */
 /* ************************************************** */
 	if(phone && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))){
-		def now = new Date()
+		// Only if correct people are home/not home
+		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
+			def now = new Date()
 
-		//if last text was sent less than 5 minutes ago, don't send
+			//if last text was sent less than 5 minutes ago, don't send
 /* ************************************************** */
 /* TO-DO: Add option to override text cooldown        */
 /* period? (Maybe in Master?) Migrate new code to     */
 /* presence app.                                      */
 /* ************************************************** */
-		// Compute seconds from last sms
-		seconds = (now.getTime()  - state.contactLastSms) / 1000
-		
-		// Convert date to friendly format for log
-		now = now.format("h:mm a", location.timeZone)
-		if(seconds > 360){
-			state.contactLastSms = new Date().getTime()
+			// Compute seconds from last sms
+			seconds = (now.getTime()  - state.contactLastSms) / 1000
 
-			if(evt.value == "open"){
-				if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
-					log.info "Sent SMS for $evt.displayName opening at $now."
-				} else {
-					logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName opening")
-				}
+			// Convert date to friendly format for log
+			now = now.format("h:mm a", location.timeZone)
+			if(seconds > 360){
+				state.contactLastSms = new Date().getTime()
+
+					if(evt.value == "open"){
+						if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
+							log.info "Sent SMS for $evt.displayName opening at $now."
+						} else {
+							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName opening")
+						}
+					} else {
+						if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
+							log.info "Sent SMS for $evt.displayName closed at $now."
+						} else {
+							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName closing")
+						}
+					}
 			} else {
-				if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
-					log.info "Sent SMS for $evt.displayName closed at $now."
-				} else {
-					logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName closing")
-				}
+				log.info("$evt.displayName was closed at $now. SMS not sent due to only being $seconds since last SMS.")
 			}
-		} else {
-			log.info("$evt.displayName was closed at $now. SMS not sent due to only being $seconds since last SMS.")
 		}
 	}
 
-	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.speak(speakText)
+	// Give voice alert
+	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) {
+		// Only if correct people are home/not home
+		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
+			parent.speak(speakText)
+		}
+	}
 
 	// Set mode
 	if(mode && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.changeMode(mode, appId)
@@ -368,6 +395,11 @@ def scheduleOpen(){
 	def appId = app.getId()
 	logTrace("$app.label: function scheduleOpen started")
 
+	if(contactDisable || state.contactDisable) {
+		logTrace("$app.label: function scheduleOpen  returning (contact disabled)")
+		return
+	}
+
 	if(switches) {
 		if(actionOpenSwitches == "on") {
 			parent.multiOn(switches,appId)
@@ -411,5 +443,5 @@ def scheduleClose(){
 }
 
 def logTrace(message){
-	log.trace message
+	//log.trace message
 }
