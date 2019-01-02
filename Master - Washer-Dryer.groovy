@@ -86,7 +86,7 @@ preferences {
 								if(repeat){
 									input "repeat", "bool", title: "Repeating notification. Click to only notify once.", submitOnChange:true
 									input "repeatMinutes", "number", title: "Repeat every number of minutes", submitOnChange:true
-									if(repeatMinutes && repeatMinutes < 30) paragraph "<div style=\"background-color:BurlyWood\"><b> Repeating every $repeatMinutes could be very annoying.</b></div>"
+									if(repeatMinutes && repeatMinutes < 30) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon  Repeating every $repeatMinutes could be very annoying.</div>"
 								} else {
 									input "repeat", "bool", title: "Only notify once. Click to repeat notification.", submitOnChange:true
 								}
