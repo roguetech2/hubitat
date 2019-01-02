@@ -71,13 +71,14 @@ preferences {
 					if(!washerDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(washerDevice){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select contact sensor:</b></div>"
 						if(noWasherContactDevice){
-							input "noWasherContactDevice", "bool", title: "Click to select a contact sensor.", submitOnChange:true
+							input "noWasherContactDevice", "bool", title: "No contact sensor. Click to select a contact sensor.", submitOnChange:true
 						} else {
 							input "noWasherContactDevice", "bool", title: "Click for no contact sensor.", submitOnChange:true
 						}
 						if(!noWasherContactDevice)
-							input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: false, required: true, submitOnChange:true
+							input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
 						if(!washerContactDevice && !noWasherContactDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if(washerContactDevice || noWasherContactDevice){
@@ -91,13 +92,15 @@ preferences {
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 							} else if(phone || (speak && speakText)){
 								paragraph "<div style=\"background-color:BurlyWood\"><b> Set time and presence exceptions:</b></div>"
-								if(repeat){
-									input "repeat", "bool", title: "Repeating notification. Click to only notify once.", submitOnChange:true
-									input "repeatMinutes", "number", title: "Repeat every number of minutes", submitOnChange:true
-									if(repeatMinutes && repeatMinutes < 30) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon  Repeating every $repeatMinutes could be very annoying.</div>"
-								} else {
-									input "repeat", "bool", title: "Only notify once. Click to repeat notification.", submitOnChange:true
-								}
+								if(!washerContactDevice || noWasherContactDevice){
+									if(repeat){
+										input "repeat", "bool", title: "Repeating notification. Click to only notify once.", submitOnChange:true
+										input "repeatMinutes", "number", title: "Repeat every number of minutes", submitOnChange:true
+										if(repeatMinutes && repeatMinutes < 30) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon  Repeating every $repeatMinutes could be very annoying.</div>"
+									} else {
+										input "repeat", "bool", title: "Only notify once. Click to repeat notification.", submitOnChange:true
+									}
+								}	
 								if(timeStop){
 									paragraph "Only alert between start time", width: 6
 								} else {
@@ -193,6 +196,7 @@ def initialize() {
 def washerHandler(evt) {
 	logTrace("$app.label: washerHandler starting [evt:  $evt ($evt.value)]")
 
+	// If already started alerting, exit
 	if(state.firstNotice){
 		logTrace("$app.label: function washerHandler returning (notices already processing)")
 		return
@@ -287,6 +291,12 @@ def washerSchedule(){
 			if(speakText) parent.sendText(phone,speakText)
 		}
 
+		// Schedule repeat notices
+		if(repeat && repeatMinutes){
+			logTrace("$app.label: function washerSchedule scheduling repeat notifition for $repeatMinutes")
+			runIn(60 * repeatMinutes, washerSchedule)
+		}
+
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
 		runIn(60 * 10, washerSchedule)
@@ -300,11 +310,7 @@ def washerSchedule(){
 		return
 	}
 
-	// Schedule repeat notices
-	if(repeat && repeatMinutes){
-		logTrace("$app.label: function washerSchedule scheduling repeat notifition for $repeatMinutes")
-		runIn(60 * repeatMinutes, washerSchedule)
-	}
+
 }
 
 def logTrace(message) {
