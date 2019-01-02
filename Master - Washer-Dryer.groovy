@@ -1,7 +1,7 @@
 /***********************************************************************************************************************
 *
 *  Copyright (C) 2018 roguetech
-*  Derived from Craig Romei Copyright (C) 2018
+*  Derived from Craig Romei Copyright (C) 2019
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -17,7 +17,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Washer-Dryer.groovy
-*  Version: 0.0.01
+*  Version: 0.0.02
 *
 ***********************************************************************************************************************/
 
@@ -71,10 +71,17 @@ preferences {
 					if(!washerDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 					} else if(washerDevice){
-						input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
-						if(!washerContactDevice){
+						if(noWasherContactDevice){
+							input "noWasherContactDevice", "bool", title: "Click to select a contact sensor.", submitOnChange:true
+						} else {
+							input "noWasherContactDevice", "bool", title: "Click for no contact sensor.", submitOnChange:true
+						}
+						if(!noWasherContactDevice)
+							input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: false, required: true, submitOnChange:true
+						if(!washerContactDevice && !noWasherContactDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-						} else if(washerContactDevice){
+						} else if(washerContactDevice || noWasherContactDevice){
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Set alert: </b></div>"
 							input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
 							if(parent.notificationDevice) input "speak", "bool", title: "Use voice notification (Optional)", submitOnChange:true
 							if((speak || phone) && !speakText) text = "The washer-dryer is finished."
@@ -83,6 +90,7 @@ preferences {
 							if(!phone && (!speak || !speakText)){
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 							} else if(phone || (speak && speakText)){
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Set time and presence exceptions:</b></div>"
 								if(repeat){
 									input "repeat", "bool", title: "Repeating notification. Click to only notify once.", submitOnChange:true
 									input "repeatMinutes", "number", title: "Repeat every number of minutes", submitOnChange:true
@@ -90,7 +98,6 @@ preferences {
 								} else {
 									input "repeat", "bool", title: "Only notify once. Click to repeat notification.", submitOnChange:true
 								}
-								paragraph "<div style=\"background-color:BurlyWood\"><b> Select time (Optional):</b></div>"
 								if(timeStop){
 									paragraph "Only alert between start time", width: 6
 								} else {
@@ -110,9 +117,9 @@ preferences {
 									if(!timeStart || !timeStop){
 										input "wait", "bool", title: "If $personHome isn't present, send notice on arrival?", submitOnChange:true
 									} else if(timeStart && timeStop && !personHome){
-										input "wait", "bool", title: "If after $timeStop, schedule notice at $timeStart?", submitOnChange:true
+										input "wait", "bool", title: "If after Stop Time, schedule notice at Start Time?", submitOnChange:true
 									} else {
-										input "wait", "bool", title: "If after $timeStop or $personHome isn't present, schedule notice at $timeStart and/or on arrival?", submitOnChange:true
+										input "wait", "bool", title: "If after Stop Time or $personHome isn't present, schedule notice at Start Time and/or on arrival?", submitOnChange:true
 									}
 								}
 							}
@@ -180,7 +187,7 @@ def initialize() {
 
 	subscribe(washerDevice, "acceleration.active", washerHandler)
 	subscribe(washerDevice, "motion.active", washerHandler)
-	subscribe(washerContactDevice, "contact.open", contactHandler)
+	if(washerContactDevice) subscribe(washerContactDevice, "contact.open", contactHandler)
 }
 
 def washerHandler(evt) {
@@ -191,12 +198,7 @@ def washerHandler(evt) {
 		return
 	}
 
-	if(state.firstNotice){
-		logTrace("$app.label: function washerHandler returning (first notice already sent)")
-		return
-	}
-
-	if(washerContactDevice.contact == "open") {
+	if(washerContactDevice && washerContactDevice.contact == "open") {
 		logTrace("$app.label: function washerHandler returning (contact is open)")
 		return
 	}
