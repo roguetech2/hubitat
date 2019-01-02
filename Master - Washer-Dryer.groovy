@@ -78,7 +78,7 @@ preferences {
 							input "noWasherContactDevice", "bool", title: "Click for no contact sensor.", submitOnChange:true
 						}
 						if(!noWasherContactDevice)
-							input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: true, required: true, submitOnChange:true
+							input "washerContactDevice", "capability.contactSensor", title: "Contact sensor(s)?", multiple: false, required: true, submitOnChange:true
 						if(!washerContactDevice && !noWasherContactDevice){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if(washerContactDevice || noWasherContactDevice){
