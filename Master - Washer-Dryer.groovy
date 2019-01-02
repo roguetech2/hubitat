@@ -255,7 +255,7 @@ def washerSchedule(){
 			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-			logTrace("$app.label: function washerSchedule scheduling (0 $minutes $hours * * ?)")
+			logTrace("$app.label: function washerSchedule scheduling for start time (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: true])
 			logTrace("$app.label: function washerSchedule returning (not between start time and stop time)")
 			return
@@ -269,7 +269,6 @@ def washerSchedule(){
 		}
 	}
 
-	
 	state.firstNotice = true
 
 	if(personHome){
@@ -281,20 +280,24 @@ def washerSchedule(){
 		present = true
 	}
 
-	// If not home, exit
-	if(!present && !wait){
-		logTrace("$app.label: function washerSchedule returning (not home)")
-		state.firstnotice = false
-		state.activity = []
-		return
-	}
-
 	// If home, announce
 	if(present){
 		if(speakText) parent.speak(speakText)
 		if(phone) {
 			if(speakText) parent.sendText(phone,speakText)
 		}
+
+	// If not home and wait, reschedule in 10 minutes
+	} else if(!present && wait){
+		runIn(60 * 10, washerSchedule)
+		return
+
+	// If not home and not wait, clear and exit
+	} else if(!present && !wait){
+		logTrace("$app.label: function washerSchedule returning (not home)")
+		state.firstnotice = false
+		state.activity = []
+		return
 	}
 
 	// Schedule repeat notices
