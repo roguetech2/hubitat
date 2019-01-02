@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.24
+*  Version: 0.1.25
 *
 ***********************************************************************************************************************/
 
@@ -124,6 +124,11 @@ def mainPage() {
 					app(name: "childApps", appName: "Master - Humidity", namespace: "master", title: "New Humidity Sensor", multiple: true)
 				}
 			}
+			if(showWasher){
+				section("Washer-dryer sensors:") {
+					app(name: "childApps", appName: "Master - Washer-Dryer", namespace: "master", title: "New Humidity Sensor", multiple: true)
+				}
+			}
 			section(){
 				if(!showSchedules){
 					input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
@@ -154,6 +159,11 @@ def mainPage() {
 					input "showHumidity", "bool", title: "Humidity app hidden. Show?", submitOnChange:true
 				} else {
 					input "showHumidity", "bool", title: "Hide humidity app?", submitOnChange:true
+				}
+				if(!showWasher){
+					input "showWasher", "bool", title: "Washer-dryer app hidden. Show?", submitOnChange:true
+				} else {
+					input "showWasher", "bool", title: "Hide washer-dryer app?", submitOnChange:true
 				}
 			}
         }
