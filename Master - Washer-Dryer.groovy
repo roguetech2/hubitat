@@ -220,10 +220,8 @@ def washerHandler(evt) {
 
 	// If neccesary, initialize activity history
 	if(!state.activity) {
-		log.debug state.activity.size()
 		state.activity = [now()]
 	} else {
-		log.debug state.activity.size()
 		state.activity.add(time)	
 	}
 
