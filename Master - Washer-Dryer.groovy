@@ -17,7 +17,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Washer-Dryer.groovy
-*  Version: 0.0.02
+*  Version: 0.0.03
 *
 ***********************************************************************************************************************/
 
@@ -188,6 +188,9 @@ def initialize() {
 		return
 	}
 
+	// Clear prior schedules
+	unschedule()
+
 	subscribe(washerDevice, "acceleration.active", washerHandler)
 	subscribe(washerDevice, "motion.active", washerHandler)
 	if(washerContactDevice) subscribe(washerContactDevice, "contact.open", contactHandler)
@@ -216,19 +219,24 @@ def washerHandler(evt) {
 	unschedule()
 
 	// If neccesary, initialize activity history
-	if(!state.activity) state.activity = []
+	if(!state.activity) {
+		log.debug state.activity.size()
+		state.activity = [now()]
+	} else {
+		log.debug state.activity.size()
+		state.activity.add(time)	
+	}
 
 	target = now() - 30 * 60000
+	toRemove = []
 	// Remove stale activity
 	state.activity.each {
 		if(it < target) {
 			logTrace("$app.label: function washerHandler (removed value $it)")
-			state.activity.remove(it)
+			toRemove.add(it);
 		}
 	}
-
-	// add new value
-	state.activity.add(time)
+	state.activity.removeAll(toRemove)
 
 	// get count
 	listSize = state.activity.size()
