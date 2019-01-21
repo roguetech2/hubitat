@@ -17,7 +17,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version: 0.1.03
+*  Version: 0.1.04
 *
 ***********************************************************************************************************************/
 
@@ -155,7 +155,7 @@ preferences {
 										} else if(humidityControlStartDifference == 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't equal zero.</div>"
-										} else if(humidityControlStartDifference < 0){
+										} else if(humidityControlStartDifference && humidityControlStartDifference < 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't be less than zero.</div>"
 										}
@@ -191,7 +191,7 @@ preferences {
 								} else if(humidityStartThreshold == 0){
 									error = true
 									paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't equal zero.</div>"
-								} else if(humidityStartThreshold < 0){
+								} else if(humidityStartThreshold && humidityStartThreshold < 0){
 									error = true
 									paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't be less than zero (use whole numbers).</div>"
 								}
@@ -207,7 +207,7 @@ preferences {
 									} else if(humidityIncreaseRate == 0){
 										error = true
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate can't equal zero.</div>"
-									} else if(humidityIncreaseRate < 0){
+									} else if(humidityIncreaseRate && humidityIncreaseRate < 0){
 										error = true
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate can't be less than zero (use whole numbers).</div>"
 									}
@@ -270,7 +270,7 @@ preferences {
 										} else if(humidityControlStopDifference == 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference from control can't equal zero.</div>"
-										} else if(humidityControlStopDifference < 0){
+										} else if(humidityControlStopDifference && humidityControlStopDifference < 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference from control can't be less than zero (use whole numbers).</div>"
 										}
@@ -283,7 +283,7 @@ preferences {
 										} else if(humidityStopThreshold == 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't equal zero.</div>"
-										} else if(humidityStopThreshold < 0){
+										} else if(humidityStopThreshold && humidityStopThreshold < 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't be less than zero (use whole numbers).</div>"
 										}
@@ -297,7 +297,7 @@ preferences {
 										} else if(humidityStopDecrease == 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent above starting humidity level can't equal zero.</div>"
-										} else if(humidityStopDecrease < 0){
+										} else if(humidityStopDecrease && humidityStopDecrease < 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent above starting humidity level can't be less than zero (use whole numbers).</div>"
 										}
@@ -308,7 +308,7 @@ preferences {
 											if(humidityStopMinutes == 0){
 												error = true
 												paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
-											} else if(humidityStopMinutes < 0){
+											} else if(humidityStopMinutes && humidityStopMinutes < 0){
 												error = true
 												paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
 											}
@@ -360,7 +360,7 @@ preferences {
 										if(humidityWaitMinutes == 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
-										} else if(humidityWaitMinutes < 0){
+										} else if(humidityWaitMinutes && humidityWaitMinutes < 0){
 											error = true
 											paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
 										}
@@ -594,15 +594,9 @@ def humidityHandler(evt) {
 			// If schedule time has passed
 			if(time > stop){
 				if(turnFanOff || multiStopTrigger){
-					if(humidityWaitMinutes){
 						logTrace("$app.label: function humidityHandler turning off (multiple conditions)")
 						multiOff()
 						return
-					} else {
-						logTrace("$app.label: function humidityHandler scheduling off in $humidityWaitMinutes.")
-						runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff)
-						return
-					}
 				}
 			} else {
 				state.scheduleStarted = true
