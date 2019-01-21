@@ -31,10 +31,6 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
 
-/* ************************************************** */
-/* TO-DO: Add error messages (and change info icon    */
-/* (see humidity).                                    */
-/* ************************************************** */
 preferences {
 	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/information.png\" width=20 height=20>"
 	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/error.png\" width=20 height=20>"
