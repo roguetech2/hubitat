@@ -1485,19 +1485,6 @@ def getLevel(device){
     return lvl
 }
 
-def createDeviceList(device,list = []){
-	device.each{
-		list.add(it.id)
-	}
-	return list
-}
-
-def compareDeviceList(device,list){
-	device.each{
-		if(list.contains(it.id)) return true
-	}
-}
-
 def logTrace(message){
 	//log.trace(message)
 }
