@@ -289,10 +289,13 @@ preferences {
 					if(button_1_push_toggle && !error) {
 						input "button_1_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
 						// Can't toggle and turn on/off
-						if(button_1_push_on || button_1_push_off){
+						if(button_1_push_on){
 							error = parent.compareDeviceLists(button_1_push_on,button_1_push_toggle)
+							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn on the same device.</div>"
+						}
+						if(button_1_push_off){
 							error = parent.compareDeviceLists(button_1_push_off,button_1_push_toggle)
-							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn on or off the same device.</div>"
+							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn off the same device.</div>"
 						}
 					} else if(!error) {
 						input "button_1_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
