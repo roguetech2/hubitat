@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.25
+*  Version: 0.1.26
 *
 ***********************************************************************************************************************/
 
@@ -126,7 +126,7 @@ def mainPage() {
 			}
 			if(showWasher){
 				section("Washer-dryer sensors:") {
-					app(name: "childApps", appName: "Master - Washer-Dryer", namespace: "master", title: "New Humidity Sensor", multiple: true)
+					app(name: "childApps", appName: "Master - Washer-Dryer", namespace: "master", title: "New Washer-Dryer Sensor", multiple: true)
 				}
 			}
 			section(){
@@ -251,7 +251,7 @@ def multiOn(device,childId="Master"){
 def singleOn(device,child = "Master"){
 	logTrace("$app.label (186): function singleOn starting [device: $device; child: $child]")
 	device.on()
-	log.info "Turned on $device."
+	logTrace("Turned on $device.")
 	logTrace("$app.label (189): function singleOn exiting")
 }
 
@@ -273,7 +273,7 @@ def multiOff(device,childId="Master"){
 def singleOff(device,child = "Master"){
 	logTrace("$app.label (208): function singleOff starting [device: $device; child: $child]")
 	device.off()
-	log.info "Turned off $device."
+	logTrace("Turned off $device.")
 	logTrace("$app.label (211): function singleOff exiting")
 }
 
@@ -343,7 +343,7 @@ def dim(device,childId="Master",manualOverride=false){
 				} else if(it.currentLevel == 1){
 					flashGreen(it)
 					child = getAppLabel(childId)
-					log.info "$child: $device is already at 1%; can't dim."
+					logTrace("$child: $device is already at 1%; can't dim.")
 				} else {
 					newLevel = nextLevel(it.currentLevel, "dim", childId)
 					setToLevel(it,newLevel,childId)
@@ -384,7 +384,7 @@ def brighten(device,childId="Master",manualOverride=false){
 				} else if(it.currentLevel == 100){
 					child = getAppLabel(childId)
 					flashGreen(it)
-					log.info "$child: $device is already at 100%; can't brighten."
+					logTrace("$child: $device is already at 100%; can't brighten.")
 				} else {
 					newLevel = nextLevel(it.currentLevel, "brighten",childId)
 					setToLevel(it,newLevel,childId)
@@ -405,16 +405,16 @@ def setToLevel(device,level,child="Master"){
 		// output to log with fan "high", "medium" or "low"
 		if(isFan(device) == true){
 			if(level == 99 | level == 100){
-				log.info "$child: Set level of $device to high."
+				logTrace("$child: Set level of $device to high.")
 			} else if (level == 66 || level == 67){
-				log.info "$child: Set level of $device to medium."
+				logTrace("$child: Set level of $device to medium.")
 			} else if (level == 33 || level == 34){
-				log.info "$child: Set level of $device to low."
+				logTrace("$child: Set level of $device to low.")
 			} else {
-				log.info "$child: Set level of $device to $level."
+				logTrace("$child: Set level of $device to $level.")
 			}
 		} else {
-			log.info "$child: Set level of $device to $level."
+			logTrace("$child: Set level of $device to $level.")
 		}
 		logTrace("$app.label: function setToLevel exiting")
 	} else {
@@ -438,7 +438,7 @@ def singleLock(device, childId = "Master"){
 	logTrace("$app.label: function singleLock starting [device: $device, childId: $childId]")
 	child = getAppLabel(childId)
 	device.lock()
-	log.info "$child: $child locked $device."
+	logTrace("$child: $child locked $device.")
 	logTrace("$app.label: function singleLock exiting")
 }
 
@@ -456,7 +456,7 @@ def singleUnlock(device, childId = "Master"){
 	logTrace("$app.label: function singleUnlock starting [device: $device, childId: $childId]")
 	child = getAppLabel(childId)
 	device.unlock()
-	log.info "$child: $child unlocked $device."
+	logTrace("$child: $child unlocked $device.")
 	logTrace("$app.label: function singleUnlock exiting")
 }
 
@@ -469,7 +469,7 @@ def singleTemp(device, temp,childId="Master"){
 		return
 	}
 	device.setColorTemperature(temp as int)
-	log.info "Set $device temperature color to $temp."
+	logTrace( "Set $device temperature color to $temp.")
 	logTrace("$app.label: function singleTemp exiting")
 }
 
@@ -481,7 +481,7 @@ def singleColor(device, hue, sat, childId="Master"){
 	if(!isColor(device)) return
 	newValue = [hue: hue, saturation: sat]
 	device.setColor(newValue)
-	log.info "Set $device color to hue $hue and satuartion $sat."
+	logTrace("Set $device color to hue $hue and satuartion $sat.")
 	logTrace("$app.label: function singleColor exiting")
 }
 
@@ -540,7 +540,7 @@ def changeMode(mode, childId = "Master", device = "Null") {
 	oldMode = location.mode
 	setLocationMode(mode)
 	
-	log.info "$child: Changed Mode from $oldMode to $mode."
+	logTrace("$child: Changed Mode from $oldMode to $mode.")
 	logTrace("$app.label: function changeMode exiting")
 }
 
@@ -560,7 +560,7 @@ def sendText(phone, message){
 	} else if(phone.length() == 9 && phone.substring(0,1) == "1") {
 		phone = "+" + phone
 	}
-	log.info "Sent text to $phone for \"$message\""
+	logTrace("Sent text to $phone for \"$message\"")
 	sendSms(phone,message)
 	logTrace("$app.label: function sendText exiting")
 	return true
