@@ -104,94 +104,108 @@ preferences {
 						if(!switches){
 							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 						} else if(switches){
-							if(!humidityControlEnable){
-								humidityControlStartDifference = null
-								humidityControlDevice = null
-							}
 							varStartNumber = 0
-							if(humidityControlDevice && humidityControlStartDifference) varStartNumber++
+							if(humidityControlStartDifference) varStartNumber++
 							if(humidityStartThreshold) varStartNumber++
 							if(humidityIncreaseRate) varStartNumber++
-							if(varStartNumber != 1){
-								paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to start fan:</b></div>"
-							} else {
-								paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to start fan:</b></div>"
-							}
+							varStopNumber = 0
+							if(humidityControlStopDifference) varStopNumber++
+							if(humidityStopThreshold) varStopNumber++
+							if(humidityStopDecrease) varStopNumber++
+							if(humidityStopMinutes) varStopNumber++
+							
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Select which the control sensor(s):</b></div>"
 							if(!humidityControlEnable){
-								input "humidityControlEnable", "bool", title: "Click to select control humidity sensor(s) to compare to.", submitOnChange:true
-							} else {
-								input "humidityControlEnable", "bool", title: "Click to <b>not</b> compare to control humidity sensor(s).", submitOnChange:true
-							}
-							if(humidityControlEnable){
+								input "humidityControlEnable", "bool", title: "<b>Using control humidity sensor(s).</b> Click to <b>not</b> use control humidity sensor(s).", submitOnChange:true
 								input "humidityControlDevice", "capability.relativeHumidityMeasurement", title: "Control humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
 								if(humidityControlDevice){
 									// Check if control device is a primary device
-									deviceList = []
-									humidityDevice.each{
-										deviceList.add(it.id)
-									}
-									humidityControlDevice.each{
-										if(deviceList.contains(it.id)) error = true
-									}
-									if(error) {
+									error = parent.compareDeviceLists(humidityDevice,humidityControlDevice)
+									if(error)
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Control sensors can't be include a primary sensor.</div>"
-									} else {
-										// Check if multiple controls (if so, say we're averaging)
-										numControls = humidityControlDevice.size()
-										// Get current humidity level of control(s)
-										if(humidityControlDevice && !error){
-											currentControlHumidity = averageHumidity(humidityControlDevice)
-											if(numControls > 1){
-												input "humidityControlStartDifference", "number", title: "Percent difference from the average of control devices $humidityControlDevice?", required: true, submitOnChange:true
-											} else {
-												input "humidityControlStartDifference", "number", title: "Percent difference from the control device $humidityControlDevice?", required: true, submitOnChange:true
-											}
-										} else if(!error) {
-											input "humidityControlStartDifference", "number", title: "Percent difference from control?", required: true, submitOnChange:true
-										}
-										if(humidityControlStartDifference > 100) {
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference must be less than 100.</div>"
-										} else if(humidityControlStartDifference == 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't equal zero.</div>"
-										} else if(humidityControlStartDifference && humidityControlStartDifference < 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't be less than zero.</div>"
-										}
-										// Build message with current levels
-										varMessage = "<div style=\"background-color:AliceBlue\">$infoIcon This uses relative differences. For instance, the control sensor"
-										if(numControls > 1) varMessage += "s"
-										varMessage += " currently show"
-										if(numControls == 1) varMessage += "s"
-										varMessage += " $currentControlHumidity% humidity, "
-										if(!humidityControlStartDifference) {
-											varMessage += "so a value of 40 would require the primary sensor to be at " + ((100 - currentControlHumidity) * 40 / 100 + currentControlHumidity) + "% or more (rather than $currentControlHumidity + 40 = " + (currentControlHumidity + 40) + "%)."
-										} else {
-											varMessage += "so this requires the primary sensor to be at " + ((100 - currentControlHumidity) * humidityControlStartDifference / 100 + currentControlHumidity) + "% or more (rather than $currentControlHumidity + $humidityControlStartDifference = " + (currentControlHumidity + humidityControlStartDifference) + "%)."
-										}
-										varMessage += " Just FYI, primary sensor"
-										if(numDevices > 1) {
-											varMessage += "s current average is"
-										} else {
-											varMessage += " is currently"
-										}
-										varMessage += " $currentHumidity%.</div>" 
-										if(!error) paragraph varMessage
-									}
+								} else {
+									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								}
+							} else {
+								humidityControlDevice = null
+								humidityControlStartDifference = null
+								humidityControlStopDifference = null
+								input "humidityControlEnable", "bool", title: "<b>Not using control humidity sensor(s).</b> Click to select control humidity sensor(s).", submitOnChange:true
 							}
-							if((humidityControlEnable && (!humidityControlDevice || !humidityControlStartDifference)) && !error){
+						}
+					}
+					if(humidityControlEnable || (!humidityControlEnable && humidityControlDevice)){
+							if(varStartNumber != 1 && !error){
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to start fan:</b></div>", width: 6
+							} else if(!error) {
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to start fan:</b></div>", width: 6
+							}
+							if(varStopNumber != 1 && !error){
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to stop fan:</b></div>", width: 6
+							} else if(!error) {
+								paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan:</b></div>", width: 6
+							}
+										
+							if(!humidityControlEnable && humidityControlDevice && !error){
+								// Check if multiple controls (if so, say we're averaging)
+								numControls = humidityControlDevice.size()
+								// Get current humidity level of control(s)
+								currentControlHumidity = averageHumidity(humidityControlDevice)
+								if(numControls > 1){
+									input "humidityControlStartDifference", "number", title: "Percent difference from the average of control devices?", required: false, width: 6, submitOnChange:true
+								} else {
+									input "humidityControlStartDifference", "number", title: "Percent difference from the control device?", required: false, width: 6, submitOnChange:true
+								}
+								if(numControls > 1){
+									input "humidityControlStopDifference", "number", title: "Percent difference from the average of control devices?", default: humidityControlStartDifference, width: 6, required: false, submitOnChange:true
+								} else {
+									input "humidityControlStopDifference", "number", title: "Percent difference from the control device?", default: humidityControlStartDifference, width: 6, required: false, submitOnChange:true
+								}
+								if(humidityControlStartDifference > 100 || humidityControlStopDifference > 100) {
+									error = true
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference must be less than 100.</div>"
+								} else if(humidityControlStartDifference == 0 || humidityControlStopDifference == 0){
+									error = true
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't equal zero.</div>"
+								} else if((humidityControlStartDifference && humidityControlStartDifference < 0) || (humidityControlStopDifference && humidityControlStopDifference < 0)){
+									error = true
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't be less than zero.</div>"
+								}
+
+								// Build message with current levels
+								varMessage = "<div style=\"background-color:AliceBlue\">$infoIcon These uses relative differences. For instance, the control sensor"
+								if(numControls > 1) varMessage += "s"
+								varMessage += " currently show"
+								if(numControls == 1) varMessage += "s"
+								varMessage += " $currentControlHumidity% humidity, "
+								if(!humidityControlStartDifference) {
+									varMessage += "so a value of 40 would require the primary sensor to be at " + ((100 - currentControlHumidity) * 40 / 100 + currentControlHumidity) + "% (rather than $currentControlHumidity + 40 = " + (currentControlHumidity + 40) + "%)."
+								} else {
+									varMessage += "so this requires the primary sensor to be at " + ((100 - currentControlHumidity) * humidityControlStartDifference / 100 + currentControlHumidity) + "% (rather than $currentControlHumidity + $humidityControlStartDifference = " + (currentControlHumidity + humidityControlStartDifference) + "%)."
+								}
+								varMessage += " Just FYI, primary sensor"
+								if(numDevices > 1) {
+									varMessage += "s current average is"
+								} else {
+									varMessage += " is currently"
+								}
+								varMessage += " $currentHumidity%.</div>" 
+								if(!error) paragraph varMessage
+							}
+								
+							if(!humidityControlEnable && !humidityControlDevice && !error){
 								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-							} else if((!humidityControlEnable || (humidityControlDevice && humidityControlStartDifference)) && !error){
-        						input "humidityStartThreshold", "number", title: "Absolute humidity level? (Currently at $currentHumidity%.)", required: false, submitOnChange:true
-								if(humidityStartThreshold > 100) {
+							} else if((humidityControlEnable || humidityControlDevice) && !error){
+        						input "humidityStartThreshold", "number", title: "Absolute humidity level? (Currently at $currentHumidity%.)", required: false, width: 6, submitOnChange:true
+								input "humidityStopThreshold", "number", title: "Absolute humidity level?", required: false, width: 6, submitOnChange:true
+								
+								if(humidityStartThreshold > 100 || humidityStopThreshold > 100) {
 									error = true
 									paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level must be less than 100.</div>"
-								} else if(humidityStartThreshold == 0){
+								} else if(humidityStartThreshold == 0 || humidityStopThreshold == 0){
 									error = true
 									paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't equal zero.</div>"
-								} else if(humidityStartThreshold && humidityStartThreshold < 0){
+								} else if((humidityStartThreshold && humidityStartThreshold < 0) || (humidityStopThreshold && humidityStopThreshold < 0)){
 									error = true
 									paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't be less than zero (use whole numbers).</div>"
 								}
@@ -200,7 +214,8 @@ preferences {
 /* polling rate.                                      */
 /* ************************************************** */
 								if(!error) {
-									input "humidityIncreaseRate", "number", title: "Humidity increase?", required: false, submitOnChange:true
+									input "humidityIncreaseRate", "number", title: "Humidity increase?", required: false, width: 6, submitOnChange:true
+										input "humidityStopDecrease", "number", title: "Percent above the starting humidity?", required: false, width: 6, submitOnChange:true
 									if(humidityIncreaseRate > 100) {
 										error = true
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate must be less than 100.</div>"
@@ -211,149 +226,108 @@ preferences {
 										error = true
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate can't be less than zero (use whole numbers).</div>"
 									}
-									if(!error) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Humidity increase is the difference between two sensor updates, so depends on polling rate.</div>"
-								}
-								if(varStartNumber > 1 && !error) {
-									if(!multiStartTrigger){
-										input "multiStartTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", submitOnChange:true
-									} else if(multiStartTrigger){
-										input "multiStartTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", submitOnChange:true
-										// Build message stating all criteria
-										varMessage = "Current humidity is " + Math.round(currentHumidity) + ". The fan will turn on if the humidity"
-										if(humidityIncreaseRate)
-											varMessage += " rises by $humidityIncreaseRate% (eg to " + Math.round((currentHumidity * humidityIncreaseRate / 100) + currentHumidity) + ")"
-										if(humidityStartThreshold){
-											if(humidityIncreaseRate){
-												varMessage += " while being at least $humidityStartThreshold"
-												if(currentHumidity < humidityStartThreshold){
-													varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
-												} else {
-													varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
-												}
-											} else {
-												varMessage += " is at least $humidityStartThreshold"
-												if(currentHumidity < humidityStartThreshold){
-													varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
-												} else {
-													varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
-												}
-											}
-										}
-										if(humidityControlStartDifference && humidityControlDevic)
-											varMessage += ", while being no more than $humidityControlStartDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStartDifference)) + ")"
-										varMessage += ". All conditions must be matched."
-										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>"
+									if(!error) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Humidity increase is the difference between two sensor updates, so depends on polling rate.</div>", width: 6
+									}
+								if(!error){
+									input "humidityStopMinutes", "number", title: "After minutes?", required: false, width: 6, submitOnChange:true
+									if(humidityStopMinutes == 0){
+										error = true
+										paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
+									} else if(humidityStopMinutes && humidityStopMinutes < 0){
+										error = true
+										paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
 									}
 								}
+
+								if(varStartNumber > 1 && !error) {
+									if(!multiStartTrigger){
+										input "multiStartTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", width: 6, submitOnChange:true
+									} else if(multiStartTrigger){
+										input "multiStartTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", width: 6, submitOnChange:true
+									}
+								} else if(!error){
+									paragraph "", width: 6
+								}
+								if(varStopNumber > 1 && !error) {
+									if(!multiStopTrigger){
+										input "multiStopTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", width: 6, submitOnChange:true
+									} else if(multiStopTrigger){
+										input "multiStopTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", width: 6, submitOnChange:true
+									}
+								} else if(!error){
+									paragraph "", width: 6
+								}
+								if(varStartNumber > 1 && multiStartTrigger && !error) {
+									// Build message stating all criteria
+									varMessage = "Current humidity is " + Math.round(currentHumidity) + ". The fan will turn on if the humidity"
+									if(humidityIncreaseRate)
+										varMessage += " rises by $humidityIncreaseRate% (eg to " + Math.round((currentHumidity * humidityIncreaseRate / 100) + currentHumidity) + ")"
+									if(humidityStartThreshold){
+										if(humidityIncreaseRate){
+											varMessage += " while being at least $humidityStartThreshold"
+											if(currentHumidity < humidityStartThreshold){
+												varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
+											} else {
+												varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
+											}
+										} else {
+											varMessage += " is at least $humidityStartThreshold"
+											if(currentHumidity < humidityStartThreshold){
+												varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
+											} else {
+												varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
+											}
+										}
+									}
+									if(humidityControlStartDifference && humidityControlDevice)
+										varMessage += ", while being no more than $humidityControlStartDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStartDifference)) + ")"
+									varMessage += ". All conditions must be matched."
+									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>", width: 6
+								} else {
+									paragraph "", width: 6
+								}
+								
+								if(varStopNumber > 1 && multiStopTrigger && !error){
+									varMessage = ""
+									if(!multiStartTrigger) varMessage = "Current humidity is " + Math.round(currentHumidity) +". "
+									varMessage += "The fan will turn off only if humidity is "
+									if(humidityStopThreshold) {
+										varMessage += "at most $humidityStopThreshold"
+										if(currentHumidity < humidityStopThreshold){
+											varMessage += " (eg " + Math.round(humidityStopThreshold - currentHumidity) + " higher than now)"
+										} else {
+											varMessage += " (eg " + Math.round(currentHumidity - humidityStopThreshold) + " lower than now)"
+										}
+									}
+									if((!(humidityControlStopDifference && humidityControlDevice) && !humidityStopDecrease) || (!humidityStopDecrease && !humidityStopMinutes)) {
+										varMessage += ", and "
+									} else {
+										varMessage += ", "
+									}
+									if(humidityControlStopDifference && humidityControlDevice) {
+										varMessage += "no more than $humidityControlStopDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStopDifference)) + ")"
+										if((humidityStopDecrease && !humidityStopMinutes) || (!humidityStopDecrease && humidityStopMinutes)) {
+										   varMessage += ", and "
+										} else if(humidityStopDecrease && humidityStopMinutes) {
+										   varMessage += ", "
+									   }
+									}
+									if(humidityStopDecrease) {
+									   varMessage += "no more than $humidityStopDecrease% of starting level (eg " + Math.round((currentHumidity * humidityStopDecrease / 100 + currentHumidity)) + ")"
+									   if(humidityStopMinutes){
+										   varMessage += ", and "
+									   }
+									}
+									if(humidityStopMinutes) varMessage += "after at least $humidityStopMinutes minutes"
+									varMessage += ". All conditions must be matched."
+									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>", width: 6
+								} else {
+									paragraph "", width: 6
+								}
+								
 								if(!humidityIncreaseRate && !humidityStartThreshold && !humidityControlStartDifference && !error){
 									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 								} else if((humidityIncreaseRate || humidityStartThreshold || humidityControlStartDifference) && !error){
-									varStopNumber = 0
-									if(humidityControlDevice && humidityControlStopDifference) varStopNumber++
-									if(humidityStopThreshold) varStopNumber++
-									if(humidityStopDecrease) varStopNumber++
-									if(humidityStopMinutes) varStopNumber++
-									if(varStopNumber != 1){
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to stop fan:</b></div>"
-									} else {
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan:</b></div>"
-									}
-									if(humidityControlEnable && humidityControlDevice && humidityControlStartDifference){
-										if(numControls > 1){
-											input "humidityControlStopDifference", "number", title: "Percent difference from the average of control devices $humidityControlDevice?", default: humidityControlStartDifference, required: true, submitOnChange:true
-										} else {
-											input "humidityControlStopDifference", "number", title: "Percent difference from the control device $humidityControlDevice?", default: humidityControlStartDifference, required: true, submitOnChange:true
-										}
-										if(humidityControlStopDifference > 100) {
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference from control must be less than 100.</div>"
-										} else if(humidityControlStopDifference == 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference from control can't equal zero.</div>"
-										} else if(humidityControlStopDifference && humidityControlStopDifference < 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference from control can't be less than zero (use whole numbers).</div>"
-										}
-									}
-									if(humidityStartThreshold && !error){
-										input "humidityStopThreshold", "number", title: "Absolute humidity level?", required: false, submitOnChange:true
-										if(humidityStopThreshold > 100) {
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level must be less than 100.</div>"
-										} else if(humidityStopThreshold == 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't equal zero.</div>"
-										} else if(humidityStopThreshold && humidityStopThreshold < 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't be less than zero (use whole numbers).</div>"
-										}
-										if(!error) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon You <i>can</i> make this less than starting threshold of $humidityStartThreshold, but it's not recommended.</div>"
-									}
-									if(!error){
-										input "humidityStopDecrease", "number", title: "Percent above the starting humidity?", required: false, submitOnChange:true
-										if(humidityStopDecrease > 100) {
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent above starting humidity level must be less than 100.</div>"
-										} else if(humidityStopDecrease == 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent above starting humidity level can't equal zero.</div>"
-										} else if(humidityStopDecrease && humidityStopDecrease < 0){
-											error = true
-											paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent above starting humidity level can't be less than zero (use whole numbers).</div>"
-										}
-										if(!error) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Enter zero for humidity to be completely normalized, but only with caution. If the ambiant humidity level rises, it may never reach the starting humidity.</div>"
-
-										if(!error){
-											input "humidityStopMinutes", "number", title: "After minutes?", required: false, submitOnChange:true
-											if(humidityStopMinutes == 0){
-												error = true
-												paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
-											} else if(humidityStopMinutes && humidityStopMinutes < 0){
-												error = true
-												paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
-											}
-										}
-									}
-									if(varStopNumber > 1 && !error){
-										if(!multiStopTrigger){
-											input "multiStopTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", submitOnChange:true
-										} else if(multiStopTrigger){
-											input "multiStopTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", submitOnChange:true
-											varMessage = "Current humidity is " + Math.round(currentHumidity) +". The fan will turn off only if humidity is "
-											if(humidityStopThreshold) {
-												varMessage += "at most $humidityStopThreshold"
-												if(currentHumidity < humidityStopThreshold){
-													varMessage += " (eg " + Math.round(humidityStopThreshold - currentHumidity) + " higher than now)"
-												} else {
-													varMessage += " (eg " + Math.round(currentHumidity - humidityStopThreshold) + " lower than now)"
-												}
-											}
-											if((!(humidityControlStopDifference && humidityControlDevice) && !humidityStopDecrease) || (!humidityStopDecrease && !humidityStopMinutes)) {
-												varMessage += ", and "
-											} else {
-												varMessage += ", "
-											}
-											if(humidityControlStopDifference && humidityControlDevice) {
-												varMessage += "no more than $humidityControlStopDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStopDifference)) + ")"
-												if((humidityStopDecrease && !humidityStopMinutes) || (!humidityStopDecrease && humidityStopMinutes)) {
-												   varMessage += ", and "
-												} else if(humidityStopDecrease && humidityStopMinutes) {
-												   varMessage += ", "
-											   }
-											}
-											if(humidityStopDecrease) {
-											   varMessage += "no more than $humidityStopDecrease% of starting level (eg " + Math.round((currentHumidity * humidityStopDecrease / 100 + currentHumidity)) + ")"
-											   if(humidityStopMinutes){
-												   varMessage += ", and "
-											   }
-											}
-											if(humidityStopMinutes) varMessage += "after at least $humidityStopMinutes minutes"
-											varMessage += ". All conditions must be matched."
-											paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>"
-										}
-									}
-									
-									
 									if((humidityControlStopDifference || humidityStopThreshold || humidityStopDecrease) && !error){
 										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 										input "humidityWaitMinutes", "number", title: "Minutes to delay turning off (to prevent \"cycling\" on and off)?", required: false, submitOnChange:true
@@ -371,20 +345,22 @@ preferences {
 										paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 									} else if(varStopNumber > 1 && !error){
 										paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan manually turned on:</b></div>"
-										if(humidityControlEnable && humidityControlDevice && humidityControlStopDifference)
+										if(!humidityControlEnable && humidityControlDevice && humidityControlStopDifference)
 											input "humidityControlStopDifferenceManual", "bool", title: "Require humidity to be $humidityControlStopDifference% over $humidityControlDevice?", submitOnChange:true
 										if(humidityStopThreshold)
 											input "humidityStopThresholdManual", "bool", title: "Require humidity to be below $humidityStopThreshold?", submitOnChange:true
 										if(humidityStopMinutes)
 											input "humidityStopMinutesManual", "bool", title: "Require $humidityStopMinutes mintues to have passed?", submitOnChange:true
 										paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These options also apply if fan is turned on in any other way than by this rule-set (eg a schedule). Options combine; if more than one is selected, the fan will only be turned off if all the conditions are true.</div>"
+/* ************************************************** */
+/* TO-DO: Add control to stopping manual on.          */
+/* ************************************************** */
 									}
 /* ************************************************** */
 /* TO-DO: Fix "finished" bar at bottom of page.       */
 /* ************************************************** */
 								}
 							}
-						}
 					}
 				}
 			}
@@ -408,6 +384,8 @@ switches - device - required - multiple
 	fan switch to be turned on/off
 humidityControlEnable - bool
 	shows options for a "control" sensor
+	false = using control device
+	true = not using control device
 humidityControlDevice - device
 	"control" device. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlStartDifference
 humidityControlStartDifference - number - required
