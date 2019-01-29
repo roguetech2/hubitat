@@ -29,7 +29,7 @@ definition(
     parent: "master:Master",
     category: "Convenience",
     iconUrl: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png",
-    iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
+    iconX2Url: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png"
 )
 
 preferences {
