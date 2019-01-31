@@ -610,7 +610,7 @@ def scheduleTurnOff() {
 	logTrace("$app.label: scheduleTurnOff exiting")
 }
 
-checkOnCriteria(){
+def checkOnCriteria(){
 	logTrace("$app.label: checkOnCriteria starting")
 	// Check if current humidity is higher than control device + humidityControlStartDifference
 	if(humidityControlStartDifference && humidityControlDevice){
@@ -662,7 +662,7 @@ checkOnCriteria(){
 	return turnFanOn
 }
 
-checkOffCriteria(){
+def checkOffCriteria(){
 	logTrace("$app.label: checkOffCriteria starting")
 	// Check if current humidity is less than control device + humidityControlStopDifference
 	if(humidityControlStopDifference && humidityControlDevice && (state.automaticallyTurnedOn || humidityControlStopDifferenceManual)){
