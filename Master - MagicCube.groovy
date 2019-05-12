@@ -16,7 +16,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - MagicCube.groovy
-*  Version: 0.2.03
+*  Version: 0.2.04
 * 
 ***********************************************************************************************************************/
 
@@ -32,6 +32,7 @@ definition(
 )
 
 preferences {
+	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
 		section() {
 			paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this MagicCube setup:</b></div>"
@@ -44,22 +45,22 @@ preferences {
 				if(!buttonDevice){
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 				} else if(buttonDevice){
-					paragraph "For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+					paragraph "$infoIcon For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
 					if(!advancedSetup){
 						input "advancedSetup", "bool", title: "<b>Simple actions.</b> Click to show advanced actions.", defaultValue: false, submitOnChange:true
 					} else {
-						input "advancedSetup", "bool", title: "<b>Advanced actions.</b> Clck to hide advanced actions.", defaultValue: false, submitOnChange:true
+						input "advancedSetup", "bool", title: "<b>Advanced actions.</b> Click to hide advanced actions.", defaultValue: false, submitOnChange:true
 					}
 					if(!multiDevice){
 						input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for MagicCube to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
-						paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
+						paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
 						input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
 					} else {
 						input "multiDevice", "bool", title: "Mutli-control: <b>Independantly control different sets of lights/switches.</b> Click for MagicCube to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
-						paragraph "Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
+						paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
 					}
 					if(advancedSetup){
-						paragraph "<b>Pro-tip</b>: Profiles for Multi-control enabled and disabled are stored separatly, allowing toggling between two different setups. To do this, set the options both with Multi-control disabled and enabled."
+						paragraph "$infoIcon <b>Pro-tip</b>: Profiles for Multi-control enabled and disabled are stored separatly, allowing toggling between two different setups. To do this, set the options both with Multi-control disabled and enabled."
 					}
 					if(!multiDevice && !controlDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
@@ -97,7 +98,7 @@ preferences {
 
 						if(clockwise == "dim" || clockwise == "brighten" || f90 == "dim" || f90 == "brighten" || f180 == "dim" || f180 == "brighten" || shake == "dim" || shake == "brighten" || knock == "dim" || knock == "brighten"){
 							paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-							paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+							paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
 							input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
 						}
 						if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_1_hold_on || button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_3_hold_on || button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_4_hold_on || button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle){
@@ -317,7 +318,7 @@ preferences {
 			if(button_1_dim || button_1_brighten || button_2_dim || button_2_brighten || button_3_dim || button_3_brighten || button_4_dim || button_4_brighten || button_5_dim || button_5_brighten || button_6_dim || button_6_brighten || button_7_dim || button_7_brighten){
 				section(){
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-					paragraph "Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+					paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
 					input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
 				}
 			}
@@ -374,9 +375,9 @@ def buttonEvent1(evt){
     if(button_1_toggle) parent.toggle(button_1_toggle,appId)
     if(button_1_on) parent.multiOn(button_1_on,appId)
     if(button_1_off) parent.multiOff(button_1_off,appId)
-    if(button_1_dim) parent.dim(button_1_dim,appId)
-    if(button_1_brighten) parent.brighten(button_1_brighten,appId)
-    if(!button_1_hold_toggle && !button_1_hold_on && !button_1_hold_off && !button_1_hold_dim && !button_1_hold_brighten){
+    if(button_1_dim) parent.dim(button_1_dim,appId,manualOverride=true)
+    if(button_1_brighten) parent.brighten(button_1_brighten,appId,manualOverride=true)
+    if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
         log.info "MagicCube: No action defined for shaking of $evt.displayName."
     }
 }
@@ -401,9 +402,9 @@ def buttonEvent2(evt){
     if(button_2_toggle) parent.toggle(button_2_toggle,appId)
     if(button_2_on) parent.multiOn(button_2_on,appId)
     if(button_2_off) parent.multiOff(button_2_off,appId)
-    if(button_2_dim) parent.dim(button_2_dim,appId)
-    if(button_2_brighten) parent.brighten(button_2_brighten,appId)
-    if(!button_2_hold_toggle && !button_2_hold_on && !button_2_hold_off && !button_2_hold_dim && !button_2_hold_brighten){
+    if(button_2_dim) parent.dim(button_2_dim,appId,manualOverride=true)
+    if(button_2_brighten) parent.brighten(button_2_brighten,appId,manualOverride=true)
+    if(!button_2_toggle && !button_2_on && !button_2_off && !button_2_dim && !button_2_brighten){
         log.info "MagicCube: No action defined for flipping 90° of $evt.displayName."
     }
 }
@@ -428,9 +429,9 @@ def buttonEvent3(evt){
     if(button_3_toggle) parent.toggle(button_3_toggle,appId)
     if(button_3_on) parent.multiOn(button_3_on,appId)
     if(button_3_off) parent.multiOff(button_3_off,appId)
-    if(button_3_dim) parent.dim(button_3_dim,appId)
-    if(button_3_brighten) parent.brighten(button_3_brighten,appId)
-    if(!button_3_hold_toggle && !button_3_hold_on && !button_3_hold_off && !button_3_hold_dim && !button_3_hold_brighten){
+    if(button_3_dim) parent.dim(button_3_dim,appId,manualOverride=true)
+    if(button_3_brighten) parent.brighten(button_3_brighten,appId,manualOverride=true)
+    if(!button_3_toggle && !button_3_on && !button_3_off && !button_3_dim && !button_3_brighten){
         log.info "MagicCube: No action defined for flipping 180° of $evt.displayName."
     }
 }
@@ -455,9 +456,9 @@ def buttonEvent4(evt){
     if(button_4_toggle) parent.toggle(button_4_toggle,appId)
     if(button_4_on) parent.multiOn(button_4_on,appId)
     if(button_4_off) parent.multiOff(button_4_off,appId)
-    if(button_4_dim) parent.dim(button_4_dim,appId)
-    if(button_4_brighten) parent.brighten(button_4_brighten,appId)
-    if(!button_4_hold_toggle && !button_4_hold_on && !button_4_hold_off && !button_4_hold_dim && !button_4_hold_brighten){
+    if(button_4_dim) parent.dim(button_4_dim,appId,manualOverride=true)
+    if(button_4_brighten) parent.brighten(button_4_brighten,appId,manualOverride=true)
+    if(!button_4_toggle && !button_4_on && !button_4_off && !button_4_dim && !button_4_brighten){
         log.info "MagicCube: No action defined for sliding of $evt.displayName."
     }
 }
@@ -482,9 +483,9 @@ def buttonEvent5(evt){
     if(button_5_toggle) parent.toggle(button_5_toggle,appId)
     if(button_5_on) parent.multiOn(button_5_on,appId)
     if(button_5_off) parent.multiOff(button_5_off,appId)
-    if(button_5_dim) parent.dim(button_5_dim,appId)
-    if(button_5_brighten) parent.brighten(button_5_brighten,appId)
-    if(!button_5_hold_toggle && !button_5_hold_on && !button_5_hold_off && !button_5_hold_dim && !button_5_hold_brighten){
+    if(button_5_dim) parent.dim(button_5_dim,appId,manualOverride=true)
+    if(button_5_brighten) parent.brighten(button_5_brighten,appId,manualOverride=true)
+    if(!button_5_toggle && !button_5_on && !button_5_off && !button_5_dim && !button_5_brighten){
         log.info "MagicCube: No action defined for knocking of $evt.displayName."
     }
 }
@@ -508,9 +509,9 @@ def buttonEvent6(evt){
     if(button_6_toggle) parent.toggle(button_6_toggle,appId)
     if(button_6_on) parent.multiOn(button_6_on,appId)
     if(button_6_off) parent.multiOff(button_6_off,appId)
-    if(button_6_dim) parent.dim(button_6_dim,appId)
-    if(button_6_brighten) parent.brighten(button_6_brighten,appId)
-    if(!button_6_hold_toggle && !button_6_hold_on && !button_6_hold_off && !button_6_hold_dim && !button_6_hold_brighten){
+    if(button_6_dim) parent.dim(button_6_dim,appId,manualOverride=true)
+    if(button_6_brighten) parent.brighten(button_6_brighten,appId,manualOverride=true)
+    if(!button_6_toggle && !button_6_on && !button_6_off && !button_6_dim && !button_6_brighten){
         log.info "MagicCube: No action defined for rotating clockwise of $evt.displayName."
     }
 }
@@ -535,9 +536,9 @@ def buttonEvent7(evt){
     if(button_7_toggle) parent.toggle(button_7_toggle,appId)
     if(button_7_on) parent.multiOn(button_7_on,appId)
     if(button_7_off) parent.multiOff(button_7_off,appId)
-    if(button_7_dim) parent.dim(button_7_dim,appId)
-    if(button_7_brighten) parent.brighten(button_7_brighten,appId)
-    if(!button_7_hold_toggle && !button_7_hold_on && !button_7_hold_off && !button_7_hold_dim && !button_7_hold_brighten){
+    if(button_7_dim) parent.dim(button_7_dim,appId,manualOverride=true)
+    if(button_7_brighten) parent.brighten(button_7_brighten,appId,manualOverride=true)
+    if(!button_7_toggle && !button_7_on && !button_7_off && !button_7_dim && !button_7_brighten){
         log.info "MagicCube: No action defined for rotating counter-clockwise of $evt.displayName."
     }
 }
