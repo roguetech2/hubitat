@@ -17,7 +17,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Washer-Dryer.groovy
-*  Version: 0.0.03
+*  Version: 0.0.05
 *
 ***********************************************************************************************************************/
 
@@ -32,6 +32,10 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
 
+/* ************************************************** */
+/* TO-DO: Add error messages (and change info icon    */
+/* (see humidity).                                    */
+/* ************************************************** */ 
 preferences {
 	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
@@ -164,8 +168,9 @@ personHome - device
 
 def installed() {
 	logTrace("$app.label: installed")
-	if(app.getLabel().length() < 12)  app.updateLabel("Washer-dryer - " + app.getLabel())
-	if(app.getLabel().substring(0,12) != "Washer-dryer") app.updateLabel("Washer-dryer - " + app.getLabel())
+
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+
 	state.activity = []
     initialize()
 }
@@ -178,7 +183,9 @@ def updated() {
 
 def initialize() {
 	logTrace("$app.label: initialized")
-	
+
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+
 	if(washerDisable || state.washerDisable) {
 		unsubscribe()
 		unschedule()
@@ -260,9 +267,9 @@ def contactHandler(evt) {
 def washerSchedule(){
 	// if not between start and stop time (or correct day)
 	if(timeStart && timeStop && wait){
-		if(!parent.timeBetween(timeStart, timeStop) || (timeDays && !parent.todayInDayList(timeDays))) {
+		if(!parent.timeBetween(timeStart, timeStop,app.label) || (timeDays && !parent.todayInDayList(timeDays,app.label))) {
 			// Schedule for start time
-			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop,app.label)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 			logTrace("$app.label: function washerSchedule scheduling for start time (0 $minutes $hours * * ?)")
@@ -271,7 +278,7 @@ def washerSchedule(){
 			return
 		}
 	} else if(timeStart && timeStop && !wait){
-		if(!parent.timeBetween(timeStart, timeStop) || (timeDays && !parent.todayInDayList(timeDays))) {
+		if(!parent.timeBetween(timeStart, timeStop,app.label) || (timeDays && !parent.todayInDayList(timeDays,app.label))) {
 			logTrace("$app.label: function washerSchedule returning (not between start time and stop time)")
 			state.firstnotice = false
 			state.activity = []
@@ -292,9 +299,9 @@ def washerSchedule(){
 
 	// If home, announce
 	if(present){
-		if(speakText) parent.speak(speakText)
+		if(speakText) parent.speak(speakText,app.label)
 		if(phone) {
-			if(speakText) parent.sendText(phone,speakText)
+			if(speakText) parent.sendText(phone,speakText,app.label)
 		}
 
 		// Schedule repeat notices
@@ -315,8 +322,6 @@ def washerSchedule(){
 		state.activity = []
 		return
 	}
-
-
 }
 
 def logTrace(message) {
