@@ -16,7 +16,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
-*  Version: 0.3.22
+*  Version: 0.3.24
 * 
 ***********************************************************************************************************************/
 
@@ -31,8 +31,14 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
 
+/* ************************************************** */
+/* TO-DO: Add error messages (and change info icon    */
+/* (see humidity).                                    */
+/* ************************************************** */ 
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
+	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/16/information.png\" width=20 height=20>"
+	
+	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/16/error.png\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
 		
         section() {
@@ -76,10 +82,115 @@ preferences {
 								input "actionOpenSwitches", "enum", title: "What to do with lights/switches on open? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 								input "actionCloseSwitches", "enum", title: "What to do with lights/switches on close? (Optional)", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 							}
+
+							if(switches){
+								input "contactLevelOpen", "number", title: "Set brightness at open? (Only if on - Optional: 1-100; Default 100)", required: false, width: 6, submitOnChange:true
+
+								// Close Level: Only show if Stop Time entered
+								input "contactLevelClose", "number", title: "Set brighteness at close? (Only if on - Optional: 1-100)", required: false, width: 6, submitOnChange:true
+
+								if(contactLevelOpen > 100){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Level can't be more than 100.</div>"
+								}
+								if(contactLevelClose > 100){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Level can't be more than 100.</div>"
+								}
+
+								//Open Temp
+								if(!contactHueOpen){
+									input "contactTempOpen", "number", title: "Set temperature at open? (Only if on - Optional, default 3400)", required: false, width: 6, submitOnChange:true
+								} else if(!contactHueClose){
+									paragraph "", width: 6
+								}
+
+								// Close Temp
+								if(!contactHueClose){
+									input "contactTempClose", "number", title: "Set temperature at close? (Only if on - Optional, default 3400)", required: false, width: 6, submitOnChange:true
+								} else if(!contactHueOpen){
+									paragraph "", width: 6
+								}
+
+
+								if(contactTempOpen && contactTempOpen < 1800){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Temperature can't be less than 1800.</div>"
+								}
+								if(contactTempOpen > 5400){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Temperature can't be more than 5400.</div>"
+								}
+								if(contactTempClose && contactTempClose < 1800){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Temperature can't be less than 1800.</div>"
+								}
+								if(contactTempClose > 5400){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Temperature can't be more than 5400.</div>"
+								}
+
+								// Open Hue
+								if(!contactTempOpen){
+									input "contactHueOpen", "number", title: "Set color hue at open? (Only if on - Optional)", required: false, width: 6, submitOnChange:true
+								} else if(!contactTempClose){
+									paragraph "", width:6
+								}
+
+								// Close Hue
+								if(!contactTempClose){
+									input "contactHueClose", "number", title: "Set color hue at close? (Only if on - Optional)", required: false, width: 6, submitOnChange:true
+								} else if(!contactTempOpen){
+									paragraph "", width: 6
+								}
+
+								if(contactHueOpen > 100){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Hue can't be more than 100.</div>"
+								}
+								if(contactHueClose > 5400){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Hue can't be more than 100.</div>"
+								}
+
+								//Open Saturation
+								if(contactHueOpen){
+									input "contactSatOpen", "number", title: "Set saturation on open?  (Only if on - Optional)", required: false, width: 6, submitOnChange:true
+								} else if(contactHueClose){
+									paragraph "", width: 6
+								}
+								// Close Saturation
+								if(contactHueClose){
+									input "contactSatClose", "number", title: "Set saturation on close?  (Only if on - Optional)", required: false, width: 6, submitOnChange:true
+								} else if(contactHueOpen){
+									paragraph "", width: 6
+								}
+
+								if(contactSatOpen > 100){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Saturation can't be more than 100.</div>"
+								}
+								if(contactSatclose > 5400){
+									error = 1
+									paragraph "<div style=\"background-color:Bisque\">$errorIcon Saturation can't be more than 100.</div>"
+								}
+							}
+							
+
 							if(locks) {
 								input "actionOpenLocks", "enum", title: "What to do with locks on open? (Optional)", required: false, multiple: false, width: 6, options: ["lock":"Lock", "unlock":"Unlock"], submitOnChange:true
 								input "actionCloseLocks", "enum", title: "What to do with locks on close? (Optional)", required: false, multiple: false, width: 6, options: ["lock":"Lock", "unlock":"Unlock"], submitOnChange:true
 							}
+
+							
+							
+							
+					
+							
+							
+							
+							
+							
 							input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
 							input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
 							if(parent.notificationDevice) input "speakText", "text", title: "Voice notification text? (Optional)", required: false, submitOnChange:true
@@ -197,8 +308,7 @@ preferences {
 
 def installed() {
 	logTrace("$app.label: installed")
-	if(app.getLabel().length() < 7)  app.updateLabel("Contact - " + app.getLabel())
-	if(app.getLabel().substring(0,7) != "Contact") app.updateLabel("Contact - " + app.getLabel())
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
@@ -211,7 +321,9 @@ def updated() {
 def initialize() {
 	logTrace("$app.label: initialized")
 	unschedule()
-	
+    
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    
 	// If date/time for last SMS not set, initialize it to 5 minutes ago
 	// Allows an SMS immediately
 	if(!state.contactLastSms) state.contactLastSms = new Date().getTime() - 360000
@@ -223,7 +335,6 @@ def initialize() {
 }
 
 def contactChange(evt){
-	def appId = app.getId()
 	logTrace("$app.label: function contactChange started [evt: $evt ($evt.value)]")
 	if(contactDisable || state.contactDisable) {
 		logTrace("$app.label: function contactChange  returning (contact disabled)")
@@ -237,21 +348,21 @@ def contactChange(evt){
 	}
 
 	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// if not between start and stop time
 	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop)) {
+		if(!parent.timeBetween(timeStart, timeStop,app.label)) {
 			logTrace("$app.label: function contactChange returning (not between start time and stop time)")
 			return
 		}
 	}
 	
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) {
+	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
 		logTrace("$app.label: function contactChange returning (not correct day)")
 		return
 	}
@@ -307,13 +418,13 @@ def contactChange(evt){
 				state.contactLastSms = new Date().getTime()
 
 					if(evt.value == "open"){
-						if(parent.sendText(phone,"$evt.displayName was opened at $now.")){
+						if(parent.sendText(phone,"$evt.displayName was opened at $now.",app.label)){
 							log.info "Sent SMS for $evt.displayName opening at $now."
 						} else {
 							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName opening")
 						}
 					} else {
-						if(parent.sendText(phone,"$evt.displayName was closed at $now.")){
+						if(parent.sendText(phone,"$evt.displayName was closed at $now.",app.label)){
 							log.info "Sent SMS for $evt.displayName closed at $now."
 						} else {
 							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName closing")
@@ -329,12 +440,12 @@ def contactChange(evt){
 	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) {
 		// Only if correct people are home/not home
 		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
-			parent.speak(speakText)
+			parent.speak(speakText,app.label)
 		}
 	}
 
 	// Set mode
-	if(mode && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.changeMode(mode, appId)
+	if(mode && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.changeMode(mode,app.label)
 
 	// Perform open events (for switches and locks)
 	if(evt.value == "open"){
@@ -346,18 +457,18 @@ def contactChange(evt){
 		} else {
 			if(switches) {
 				if(actionOpenSwitches == "on") {
-					parent.multiOn(switches,appId)
+					parent.multiOn(switches,app.label)
 				} else if(actionOpenSwitches == "off"){
-					parent.multiOff(switches,appId)
+					parent.multiOff(switches,app.label)
 				} else if(actionOpenSwitches == "toggle"){
-					parent.toggle(switches,appId)
+					parent.toggle(switches,app.label)
 				}
 			}
 			if(locks){
 				if(actionOpenLocks == "lock"){
-					parent.multiLock(locks,appId)
+					parent.multiLock(locks,app.label)
 				} else if(actionOpenLocks == "unlock"){
-					parent.multiUnlock(locks,appId)
+					parent.multiUnlock(locks,app.label)
 				}
 			}
 		}
@@ -372,18 +483,18 @@ def contactChange(evt){
 		} else {
 			if(switches) {
 				if(actionCloseSwitches == "on") {
-					parent.multiOn(switches,appId)
+					parent.multiOn(switches,app.label)
 				} else if(actionCloseSwitches == "off"){
-					parent.multiOff(switches,appId)
+					parent.multiOff(switches,app.label)
 				} else if(actionCloseSwitches == "toggle"){
-					parent.toggle(switches,appId)
+					parent.toggle(switches,app.label)
 				}
 			}
 			if(locks){
 				if(actionCloseLocks == "lock"){
-					parent.multiLock(locks,appId)
+					parent.multiLock(locks,app.label)
 				} else if(actionCloseLocks == "unlock"){
-					parent.multiUnlock(locks,appId)
+					parent.multiUnlock(locks,app.label)
 				}
 			}
 		}
@@ -391,8 +502,7 @@ def contactChange(evt){
 	logTrace("$app.label: function contactChange exiting")
 }
 
-def scheduleOpen(){
-	def appId = app.getId()
+def scheduleOpen(){\
 	logTrace("$app.label: function scheduleOpen started")
 
 	if(contactDisable || state.contactDisable) {
@@ -402,41 +512,40 @@ def scheduleOpen(){
 
 	if(switches) {
 		if(actionOpenSwitches == "on") {
-			parent.multiOn(switches,appId)
+			parent.multiOn(switches,app.label)
 		} else if(actionOpenSwitches == "off"){
-			parent.multiOff(switches,appId)
+			parent.multiOff(switches,app.label)
 		} else if(actionOpenSwitches == "toggle"){
-			parent.toggle(switches,appId)
+			parent.toggle(switches,app.label)
 		}
 	}
 	if(locks){
 		if(actionOpenLocks == "lock"){
-			parent.multiLock(locks,appId)
+			parent.multiLock(locks,app.label)
 		} else if(actionOpenLocks == "unlock"){
-			parent.multiUnlock(locks,appId)
+			parent.multiUnlock(locks,app.label)
 		}
 	}
 	logTrace("$app.label: function scheduleOpen exiting")
 }
 
 def scheduleClose(){
-	def appId = app.getId()
 	logTrace("$app.label: function scheduleClose started")
 
 	if(switches) {
 		if(actionCloseSwitches == "on") {
-			parent.multiOn(switches,appId)
+			parent.multiOn(switches,app.label)
 		} else if(actionCloseSwitches == "off"){
-			parent.multiOff(switches,appId)
+			parent.multiOff(switches,app.label)
 		} else if(actionCloseSwitches == "toggle"){
-			parent.toggle(switches,appId)
+			parent.toggle(switches,app.label)
 		}
 	}
 	if(locks){
 		if(actionCloseLocks == "lock"){
-			parent.multiLock(locks,appId)
+			parent.multiLock(locks,app.label)
 		} else if(actionCloseLocks == "unlock"){
-			parent.multiUnlock(locks,appId)
+			parent.multiUnlock(locks,app.label)
 		}
 	}
 	logTrace("$app.label: function scheduleClose exiting")
