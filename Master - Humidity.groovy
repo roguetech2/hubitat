@@ -17,7 +17,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version: 0.1.07
+*  Version: 0.1.09
 *
 ***********************************************************************************************************************/
 
@@ -120,7 +120,7 @@ preferences {
 								input "humidityControlDevice", "capability.relativeHumidityMeasurement", title: "Control humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
 								if(humidityControlDevice){
 									// Check if control device is a primary device
-									error = parent.compareDeviceLists(humidityDevice,humidityControlDevice)
+									error = parent.compareDeviceLists(humidityDevice,humidityControlDevice,app.label)
 									if(error)
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Control sensors can't be include a primary sensor.</div>"
 								} else {
@@ -421,8 +421,7 @@ humidityStopMinutesManual - bool
 
 def installed() {
 	logTrace("$app.label: installed")
-	if(app.getLabel().length() < 8)  app.updateLabel("Humidity - " + app.getLabel())
-	if(app.getLabel().substring(0,8) != "Humidity") app.updateLabel("Humidity - " + app.getLabel())
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
@@ -434,7 +433,9 @@ def updated() {
 
 def initialize() {
 	logTrace("$app.label: initialized")
-	
+
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+
 	if(humidityDisable || state.humidityDisable) {
 		unschedule()
 		logTrace("$app.label: function initialize returning (humidity disabled)")
@@ -490,7 +491,7 @@ def humidityHandler(evt) {
 	*/
 	logTrace("$app.label: function humidityHandler [currentHumidity = $state.currentHumidity]")
 	logTrace("$app.label: function humidityHandler [automaticallyTurnedOn = $state.automaticallyTurnedOn]")
-	fanIsOn = parent.multiStateOn(switches)
+	fanIsOn = parent.multiStateOn(switches,app.label)
 
 	// If the fan is auto-on, turn it off? (Or need to schedule off?)
 	if(fanIsOn && state.automaticallyTurnedOn){
@@ -505,7 +506,7 @@ def humidityHandler(evt) {
 			if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
 				logTrace("$app.label: function humidityHandler scheduling off in $humidityWaitMinutes minutes.")
 				state.scheduleStarted = true
-				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff)
+				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 				return
 			}
 
@@ -516,7 +517,7 @@ def humidityHandler(evt) {
 				return
 			// Otherwise, schedule cool-down if not already scheduled
 			} else if(turnFanOff && humidityWaitMinutes && humidityWaitMinutes > 0 && !state.shortScheduledOff){
-				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff)
+				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 				state.shortScheduledOff = true
 				logTrace("$app.label: function humidityHandler scheduling turn off in $humidityWaitMinutes minutes")
 				return
@@ -535,7 +536,7 @@ def humidityHandler(evt) {
 		if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
 			logTrace("$app.label: function humidityHandler scheduling off in $humidityWaitMinutes minutes (manual on).")
 			state.scheduleStarted = true
-			runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff)
+			runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 			return
 		// If all criteria matched, turn off
 		} else if(turnOffFan){
@@ -547,7 +548,7 @@ def humidityHandler(evt) {
 	} else if(!fanIsOn){
 		// Turning on
 		if(checkOnCriteria()){
-			parent.multiOn(switches)
+			parent.multiOn(switches,app.label)
 			state.automaticallyTurnedOn = true
 			state.humidityStartTime = now()
 			state.startingHumidity = state.lastHumidity
@@ -556,7 +557,7 @@ def humidityHandler(evt) {
 			if(humidityStopMinutes && humidityStopMinutes > 0){
 				logTrace("$app.label: function humidityHandler scheduling turn off (for $humidityStopMinutes minutes)")
 				state.scheduleStarted = true
-				runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff)
+				runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 			}
 			logTrace("$app.label: function humidityHandler exiting (turned on [startingHumidity = $state.startingHumidity])")
 		}
@@ -595,7 +596,7 @@ def scheduleTurnOff() {
 	state.shortScheduledOff = false
 
 	// If nothing on, do nothing
-	if(!parent.multiStateOn(switches)) {
+	if(!parent.multiStateOn(switches,app.label)) {
 		logTrace("$app.label: scheduleTurnOff exiting (nothing on)")
 		return
 	}
@@ -675,8 +676,13 @@ def checkOffCriteria(){
 				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
 				return true
 			}
-		} else if(state.currentHumidity >= percentThreshold && multiStopTrigger){
-			return false
+		} else if(state.currentHumidity >= percentThreshold){
+			if(multiStopTrigger){
+				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
+				return false
+			} else {
+				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
+			}
 		}
 	}
 
@@ -690,8 +696,13 @@ def checkOffCriteria(){
 				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
 				return true
 			}
-		} else if(state.currentHumidity >= humidityStopThreshold && multiStopTrigger) {
-			return false
+		} else if(state.currentHumidity >= humidityStopThreshold) {
+			if(multiStopTrigger){
+				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
+				return false
+			} else {
+				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
+			}
 		}
 	}
 	
@@ -706,8 +717,13 @@ def checkOffCriteria(){
 				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
 				return true
 			}
-		} else if(state.currentHumidity >= percentThreshold && multiStopTrigger){
-			return false
+		} else if(state.currentHumidity >= percentThreshold){
+			if(multiStopTrigger){
+				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
+				return false
+			} else {
+				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
+			}
 		}
 	}
 
@@ -725,19 +741,28 @@ def checkOffCriteria(){
 				return true
 			}
 		} else if(time <= stop){
-			return false
+			if(multiStopTrigger){
+				logTrace("$app.label: function checkOffCriteria returning false (time now: $time; stop time: $stop)")
+				return false
+			} else {
+				logTrace("$app.label: function checkOffCriteria condition not matched (time now: $time; stop time: $stop)")
+			}
 		}
 	}
 
-	if(turnFanOff) logTrace("$app.label: function checkOffCriteria returning all conditions matched")
+	if(turnFanOff) {
+		logTrace("$app.label: function checkOffCriteria returning all conditions matched")
+	} else {
+		logTrace("$app.label: function checkOffCriteria exiting")
+	}
 	return turnFanOff
 }
 
 def multiOff() {
 	logTrace("$app.label: multiOff starting")
 	unschedule()
-	if(parent.multiStateOn(switches)){
-		parent.multiOff(switches)
+	if(parent.multiStateOn(switches,app.label)){
+		parent.multiOff(switches,app.label)
 		state.shortScheduledOff = false
 		state.scheduleStarted = false
 		state.automaticallyTurnedOn = false
@@ -760,5 +785,5 @@ def getRelativePercentage(base,percent){
 }
 
 def logTrace(message) {
-	log.trace message
+	//log.trace message
 }
