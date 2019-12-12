@@ -1,7 +1,6 @@
 /***********************************************************************************************************************
 *
 *  Copyright (C) 2018 roguetech
-*  Derived from Craig Romei Copyright (C) 2018
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -15,775 +14,526 @@
 *  You should have received a copy of the GNU General Public License along with this program.
 *  If not, see <http://www.gnu.org/licenses/>.
 *
-*  Name: Master - Humidity
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version: 0.1.09
-*
+*  Name: Master - MagicCube
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - MagicCube.groovy
+*  Version: 0.2.06
+* 
 ***********************************************************************************************************************/
 
 definition(
-    name: "Master - Humidity",
+    name: "Master - MagicCube",
     namespace: "master",
     author: "roguetech",
-    description: "Humidity Sensors",
+    description: "Control MagicCube",
     parent: "master:Master",
     category: "Convenience",
-    iconUrl: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png",
-    iconX2Url: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png"
+    iconUrl: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face_s.png",
+    iconX2Url: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face.png"
 )
 
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/error.png\" width=20 height=20>"
+	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
-		
-        section() {
-			// Set disable all
-			if(humidityDisableAll) {
-				state.humidityDisable = true
-			} else {
-				state.humidityDisable = false
-			}
-
-			// If all disabled, force reenable
-			if(state.humidityDisable){
-				input "humidityDisableAll", "bool", title: "<b>All humidity sensors are disabled.</b> Reenable?", defaultValue: false, submitOnChange:true
-			// If disabled, show only basic options
-			} else if(humidityDisable){
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this humidity sensor routine:</b></div>"
-				label title: "", required: true, submitOnChange:true
-				if(!app.label){
+		section() {
+			paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this MagicCube setup:</b></div>"
+			label title: "", required: true, submitOnChange:true
+			if(!app.label){
+				paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+			} else if(app.label){
+				paragraph "<div style=\"background-color:BurlyWood\"><b> Select MagicCubic device to setup:</b></div>"
+				input "buttonDevice", "capability.pushableButton", title: "MagicCube(s)?", multiple: true, required: true, submitOnChange:true
+				if(!buttonDevice){
 					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				} else if(app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select trigger humidity sensor(s):</b></div>"
-					input "humidityDevice", "capability.relativeHumidityMeasurement", title: "Humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
-					if(humidityDevice){
-						// If more than one device, average them?
-						numDevices = humidityDevice.size()
-						if(numDevices > 1)  {
-							if(!humidityDeviceAverage) {
-								input "humidityDeviceAverage", "bool", title: "<b>Averaging humidity sensors.</b> Click to not average.", submitOnChange:true
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Humidity sensor levels will be averaged together for better accuracy. Click to use all of the humidity sensor levels independantly.</div>"
-							} else {
-								input "humidityDeviceAverage", "bool", title: "<b>Not averaging humidity sensors.</b> Click to average.", submitOnChange:true
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon All of the humidity sensor levels will be used independantly. Click to average humidity sensors together for better accuracy.</div>"
-							}
-						}
+				} else if(buttonDevice){
+					paragraph "$infoIcon For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
+					if(!advancedSetup){
+						input "advancedSetup", "bool", title: "<b>Simple actions.</b> Click to show advanced actions.", defaultValue: false, submitOnChange:true
+					} else {
+						input "advancedSetup", "bool", title: "<b>Advanced actions.</b> Click to hide advanced actions.", defaultValue: false, submitOnChange:true
 					}
-					input "humidityDisable", "bool", title: "<b><font color=\"#000099\">Humidity sensor is disabled.</font></b> Reenable it?", submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else {
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this humidity sensor routine:</b></div>"
-				label title: "", required: true, submitOnChange:true
-				if(!app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				} else if(app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select trigger humidity sensor(s):</b></div>"
-					input "humidityDevice", "capability.relativeHumidityMeasurement", title: "Humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
-					if(humidityDevice){
-						currentHumidity = averageHumidity(humidityDevice)
-						// If more than one device, average them?
-						numDevices = humidityDevice.size()
-						if(numDevices > 1)  {
-							if(!humidityDeviceAverage) {
-								input "humidityDeviceAverage", "bool", title: "<b>Averaging humidity sensors.</b> Click to not average.", submitOnChange:true
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Humidity sensor levels will be averaged together for better accuracy. Click to use all of the humidity sensor levels independantly.</div>"
-							} else {
-								input "humidityDeviceAverage", "bool", title: "<b>Not averaging humidity sensors.</b> Click to average.", submitOnChange:true
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon All of the humidity sensor levels will be used independantly. Click to average humidity sensors together for better accuracy.</div>"
-							}
-						}
+					if(!multiDevice){
+						input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for MagicCube to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
+						paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
+						input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
+					} else {
+						input "multiDevice", "bool", title: "Mutli-control: <b>Independantly control different sets of lights/switches.</b> Click for MagicCube to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
+						paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to control some lights with a 90° flip, and <i>different lights</i> with a 180° flip."
 					}
-					input "humidityDisable", "bool", title: "Disable this humidity sensor?", submitOnChange:true
-					if(!humidityDevice){
+					if(advancedSetup){
+						paragraph "$infoIcon <b>Pro-tip</b>: Profiles for Multi-control enabled and disabled are stored separatly, allowing toggling between two different setups. To do this, set the options both with Multi-control disabled and enabled."
+					}
+					if(!multiDevice && !controlDevice){
 						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-					} else if(humidityDevice){
-						paragraph "<div style=\"background-color:BurlyWood\"><b> Select which device(s) to control:</b></div>"
-						input "switches", "capability.switch", title: "Fan (or other switch)?", multiple: true, required: true, submitOnChange:true
-						if(!switches){
-							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-						} else if(switches){
-							varStartNumber = 0
-							if(humidityControlStartDifference) varStartNumber++
-							if(humidityStartThreshold) varStartNumber++
-							if(humidityIncreaseRate) varStartNumber++
-							varStopNumber = 0
-							if(humidityControlStopDifference) varStopNumber++
-							if(humidityStopThreshold) varStopNumber++
-							if(humidityStopDecrease) varStopNumber++
-							if(humidityStopMinutes) varStopNumber++
-							
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Select which the control sensor(s):</b></div>"
-							if(!humidityControlEnable){
-								input "humidityControlEnable", "bool", title: "<b>Using control humidity sensor(s).</b> Click to <b>not</b> use control humidity sensor(s).", submitOnChange:true
-								input "humidityControlDevice", "capability.relativeHumidityMeasurement", title: "Control humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
-								if(humidityControlDevice){
-									// Check if control device is a primary device
-									error = parent.compareDeviceLists(humidityDevice,humidityControlDevice,app.label)
-									if(error)
-										paragraph "<div style=\"background-color:Bisque\">$errorIcon Control sensors can't be include a primary sensor.</div>"
-								} else {
-									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-								}
-							} else {
-								humidityControlDevice = null
-								humidityControlStartDifference = null
-								humidityControlStopDifference = null
-								input "humidityControlEnable", "bool", title: "<b>Not using control humidity sensor(s).</b> Click to select control humidity sensor(s).", submitOnChange:true
-							}
+					} else if(!multiDevice && controlDevice){
+						paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each MagicCube action:</b></div>"
+						if(advancedSetup){
+							input "clockwise", "enum", title: "When <b>rotating clockwise</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+						} else {
+							input "clockwise", "enum", title: "When <b>rotating clockwise</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["brighten":"Brighten", ,"dim":"Dim", "toggle":"Toggle"], submitOnChange:true
+						}
+						if(advancedSetup){
+							input "counterClockwise", "enum", title: "When <b>rotating counter-clockwise</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+						} else {
+							input "counterClockwise", "enum", title: "When <b>rotating counter-clockwise</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["brighten":"Brighten","dim":"Dim", "toggle":"Toggle"], submitOnChange:true
+						}
+						if(advancedSetup){
+							input "f90", "enum", title: "When <b>flipping 90°</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+						} else {
+							input "f90", "enum", title: "When <b>flipping 90°</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+						}
+						if(advancedSetup){
+							input "f180", "enum", title: "When <b>flipping 180°</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+						} else {
+							input "f180", "enum", title: "When <b>flipping 180°</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+						}
+						if(advancedSetup){
+							input "shake", "enum", title: "When <b>shaking</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+						} else {
+							input "shake", "enum", title: "When <b>shaking</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+						}
+						if(advancedSetup){
+							input "knock", "enum", title: "When <b>knocking</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+							input "slide", "enum", title: "When <b>sliding</b>, what to do with lights/switches?", required: false, multiple: false, width: 6, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
+						}
+
+						if(clockwise == "dim" || clockwise == "brighten" || f90 == "dim" || f90 == "brighten" || f180 == "dim" || f180 == "brighten" || shake == "dim" || shake == "brighten" || knock == "dim" || knock == "brighten"){
+							paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
+							paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+							input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+						}
+						if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_1_hold_on || button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_3_hold_on || button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_4_hold_on || button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle){
+							paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
 						}
 					}
-					if(humidityControlEnable || (!humidityControlEnable && humidityControlDevice)){
-						if(varStartNumber != 1 && !error){
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to start fan:</b></div>", width: 6
-						} else if(!error) {
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to start fan:</b></div>", width: 6
-						}
-						if(varStopNumber != 1 && !error){
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Conditions to stop fan:</b></div>", width: 6
-						} else if(!error) {
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan:</b></div>", width: 6
-						}
-
-						if(!humidityControlEnable && humidityControlDevice && !error){
-							// Check if multiple controls (if so, say we're averaging)
-							numControls = humidityControlDevice.size()
-							// Get current humidity level of control(s)
-							currentControlHumidity = averageHumidity(humidityControlDevice)
-							if(numControls > 1){
-								input "humidityControlStartDifference", "number", title: "Percent difference from the average of control devices?", required: false, width: 6, submitOnChange:true
-							} else {
-								input "humidityControlStartDifference", "number", title: "Percent difference from the control device?", required: false, width: 6, submitOnChange:true
-							}
-							if(numControls > 1){
-								input "humidityControlStopDifference", "number", title: "Percent difference from the average of control devices?", default: humidityControlStartDifference, width: 6, required: false, submitOnChange:true
-							} else {
-								input "humidityControlStopDifference", "number", title: "Percent difference from the control device?", default: humidityControlStartDifference, width: 6, required: false, submitOnChange:true
-							}
-							if(humidityControlStartDifference > 100 || humidityControlStopDifference > 100) {
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference must be less than 100.</div>"
-							} else if(humidityControlStartDifference == 0 || humidityControlStopDifference == 0){
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't equal zero.</div>"
-							} else if((humidityControlStartDifference && humidityControlStartDifference < 0) || (humidityControlStopDifference && humidityControlStopDifference < 0)){
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Percent difference can't be less than zero.</div>"
-							}
-
-							// Build message with current levels
-							varMessage = "<div style=\"background-color:AliceBlue\">$infoIcon These uses relative differences. For instance, the control sensor"
-							if(numControls > 1) varMessage += "s"
-							varMessage += " currently show"
-							if(numControls == 1) varMessage += "s"
-							varMessage += " $currentControlHumidity% humidity, "
-							if(!humidityControlStartDifference) {
-								varMessage += "so a value of 40 would require the primary sensor to be at " + ((100 - currentControlHumidity) * 40 / 100 + currentControlHumidity) + "% (rather than $currentControlHumidity + 40 = " + (currentControlHumidity + 40) + "%)."
-							} else {
-								varMessage += "so this requires the primary sensor to be at " + ((100 - currentControlHumidity) * humidityControlStartDifference / 100 + currentControlHumidity) + "% (rather than $currentControlHumidity + $humidityControlStartDifference = " + (currentControlHumidity + humidityControlStartDifference) + "%)."
-							}
-							varMessage += " Just FYI, primary sensor"
-							if(numDevices > 1) {
-								varMessage += "s current average is"
-							} else {
-								varMessage += " is currently"
-							}
-							varMessage += " $currentHumidity%.</div>" 
-							if(!error) paragraph varMessage
-						}
-								
-						if(!humidityControlEnable && !humidityControlDevice && !error){
-							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-						} else if((humidityControlEnable || humidityControlDevice) && !error){
-							input "humidityStartThreshold", "number", title: "Absolute humidity level? (Currently at $currentHumidity%.)", required: false, width: 6, submitOnChange:true
-							input "humidityStopThreshold", "number", title: "Absolute humidity level?", required: false, width: 6, submitOnChange:true
-
-							if(humidityStartThreshold > 100 || humidityStopThreshold > 100) {
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level must be less than 100.</div>"
-							} else if(humidityStartThreshold == 0 || humidityStopThreshold == 0){
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't equal zero.</div>"
-							} else if((humidityStartThreshold && humidityStartThreshold < 0) || (humidityStopThreshold && humidityStopThreshold < 0)){
-								error = true
-								paragraph "<div style=\"background-color:Bisque\">$errorIcon Absolute humidity level can't be less than zero (use whole numbers).</div>"
-							}
-
-							if(!error) {
-								input "humidityIncreaseRate", "number", title: "Humidity increase?", required: false, width: 6, submitOnChange:true
-									input "humidityStopDecrease", "number", title: "Percent above the starting humidity?", required: false, width: 6, submitOnChange:true
-								if(humidityIncreaseRate > 100) {
-									error = true
-									paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate must be less than 100.</div>"
-								} else if(humidityIncreaseRate == 0){
-									error = true
-									paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate can't equal zero.</div>"
-								} else if(humidityIncreaseRate && humidityIncreaseRate < 0){
-									error = true
-									paragraph "<div style=\"background-color:Bisque\">$errorIcon Humidity increase rate can't be less than zero (use whole numbers).</div>"
-								}
-								if(!error) paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Humidity increase is the difference between two sensor updates, so depends on polling rate.</div>", width: 6
-								}
-							if(!error){
-								input "humidityStopMinutes", "number", title: "After minutes?", required: false, width: 6, submitOnChange:true
-								if(humidityStopMinutes == 0){
-									error = true
-									paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
-								} else if(humidityStopMinutes && humidityStopMinutes < 0){
-									error = true
-									paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
-								}
-							}
-
-							if(varStartNumber > 1 && !error) {
-								if(!multiStartTrigger){
-									input "multiStartTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", width: 6, submitOnChange:true
-								} else if(multiStartTrigger){
-									input "multiStartTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", width: 6, submitOnChange:true
-								}
-							} else if(!error){
-								paragraph "", width: 6
-							}
-							if(varStopNumber > 1 && !error) {
-								if(!multiStopTrigger){
-									input "multiStopTrigger", "bool", title: "<b>Requiring <i>any</i> one of the conditions.</b> Click to require all conditions.", width: 6, submitOnChange:true
-								} else if(multiStopTrigger){
-									input "multiStopTrigger", "bool", title: "<b>Requiring <i>all</i> of the conditions.</b> Click to require any one of the conditions.", width: 6, submitOnChange:true
-								}
-							} else if(!error){
-								paragraph "", width: 6
-							}
-							if(varStartNumber > 1 && multiStartTrigger && !error) {
-								// Build message stating all criteria
-								varMessage = "Current humidity is " + Math.round(currentHumidity) + ". The fan will turn on if the humidity"
-								if(humidityIncreaseRate)
-									varMessage += " rises by $humidityIncreaseRate% (eg to " + Math.round((currentHumidity * humidityIncreaseRate / 100) + currentHumidity) + ")"
-								if(humidityStartThreshold){
-									if(humidityIncreaseRate){
-										varMessage += " while being at least $humidityStartThreshold"
-										if(currentHumidity < humidityStartThreshold){
-											varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
-										} else {
-											varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
-										}
-									} else {
-										varMessage += " is at least $humidityStartThreshold"
-										if(currentHumidity < humidityStartThreshold){
-											varMessage += " (eg " + Math.round(humidityStartThreshold - currentHumidity) + " higher than now)"
-										} else {
-											varMessage += " (eg " + Math.round(currentHumidity - humidityStartThreshold) + " lower than now)"
-										}
-									}
-								}
-								if(humidityControlStartDifference && humidityControlDevice)
-									varMessage += ", while being no more than $humidityControlStartDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStartDifference)) + ")"
-								varMessage += ". All conditions must be matched."
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>", width: 6
-							} else {
-								paragraph "", width: 6
-							}
-
-							if(varStopNumber > 1 && multiStopTrigger && !error){
-								varMessage = ""
-								if(!multiStartTrigger) varMessage = "Current humidity is " + Math.round(currentHumidity) +". "
-								varMessage += "The fan will turn off only if humidity is "
-								if(humidityStopThreshold) {
-									varMessage += "at most $humidityStopThreshold"
-									if(currentHumidity < humidityStopThreshold){
-										varMessage += " (eg " + Math.round(humidityStopThreshold - currentHumidity) + " higher than now)"
-									} else {
-										varMessage += " (eg " + Math.round(currentHumidity - humidityStopThreshold) + " lower than now)"
-									}
-								}
-								if((!(humidityControlStopDifference && humidityControlDevice) && !humidityStopDecrease) || (!humidityStopDecrease && !humidityStopMinutes)) {
-									varMessage += ", and "
-								} else {
-									varMessage += ", "
-								}
-								if(humidityControlStopDifference && humidityControlDevice) {
-									varMessage += "no more than $humidityControlStopDifference% higher than $humidityControlDevice (eg " + Math.round(getRelativePercentage(currentControlHumidity,humidityControlStopDifference)) + ")"
-									if((humidityStopDecrease && !humidityStopMinutes) || (!humidityStopDecrease && humidityStopMinutes)) {
-									   varMessage += ", and "
-									} else if(humidityStopDecrease && humidityStopMinutes) {
-									   varMessage += ", "
-								   }
-								}
-								if(humidityStopDecrease) {
-								   varMessage += "no more than $humidityStopDecrease% of starting level (eg " + Math.round((currentHumidity * humidityStopDecrease / 100 + currentHumidity)) + ")"
-								   if(humidityStopMinutes){
-									   varMessage += ", and "
-								   }
-								}
-								if(humidityStopMinutes) varMessage += "after at least $humidityStopMinutes minutes"
-								varMessage += ". All conditions must be matched."
-								paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $varMessage</div>", width: 6
-							} else {
-								paragraph "", width: 6
-							}
-
-							if(!humidityIncreaseRate && !humidityStartThreshold && !humidityControlStartDifference && !error){
-								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-							} else if((humidityIncreaseRate || humidityStartThreshold || humidityControlStartDifference) && !error){
-								if((humidityControlStopDifference || humidityStopThreshold || humidityStopDecrease) && !error){
-									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-									input "humidityWaitMinutes", "number", title: "Minutes to delay turning off (to prevent \"cycling\" on and off)?", required: false, submitOnChange:true
-									if(humidityWaitMinutes == 0){
-										error = true
-										paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't equal zero.</div>"
-									} else if(humidityWaitMinutes && humidityWaitMinutes < 0){
-										error = true
-										paragraph "<div style=\"background-color:Bisque\">$errorIcon Minutes can't be less than zero.</div>"
-									}
-								}
-
-								//input "humidityDropTimeout", "number", title: "After minutes after reaching $humidityDropLimit% of starting humidity?", required: true, submitOnChange:true
-								if(varStopNumber == 0 && !error){
-									paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-								} else if(varStopNumber > 1 && !error){
-									paragraph "<div style=\"background-color:BurlyWood\"><b> Condition to stop fan manually turned on:</b></div>"
-									if(!humidityControlEnable && humidityControlDevice && humidityControlStopDifference)
-										input "humidityControlStopDifferenceManual", "bool", title: "Require humidity to be $humidityControlStopDifference% over $humidityControlDevice?", submitOnChange:true
-									if(humidityStopThreshold)
-										input "humidityStopThresholdManual", "bool", title: "Require humidity to be below $humidityStopThreshold?", submitOnChange:true
-									if(humidityStopMinutes)
-										input "humidityStopMinutesManual", "bool", title: "Require $humidityStopMinutes mintues to have passed?", submitOnChange:true
-									paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These options also apply if fan is turned on in any other way than by this rule-set (eg a schedule). Options combine; if more than one is selected, the fan will only be turned off if all the conditions are true.</div>"
-/* ************************************************** */
-/* TO-DO: Add control to stopping manual on.          */
-/* ************************************************** */
-								}
-/* ************************************************** */
-/* TO-DO: Fix "finished" bar at bottom of page.       */
-/* ************************************************** */
-							}
-						}
+				}
+			}			
+		
+		}
+		if(app.label && buttonDevice && multiDevice){
+			section(hideable: true, hidden: true, "Shaking <font color=\"gray\">(Click to expand/collapse)</font>") {
+				log.debug controlDevice
+				if(button_1_on){
+					input "button_1_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_1_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_1_off){
+					input "button_1_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_1_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_1_toggle){
+					input "button_1_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)</b>", multiple: true, required: false, submitOnChange:true
+				} else{
+					input "button_1_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(advancedSetup){
+					if(button_1_dim){
+						input "button_1_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_1_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
 					}
+					if(button_1_brighten){
+						input "button_1_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_1_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			
+			section(hideable: true, hidden: true, "Rotating clockwise <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_6_brighten){
+					input "button_6_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_6_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_6_dim){
+					input "button_6_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_6_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_6_toggle){
+					input "button_6_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_6_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(advancedSetup){
+					if(button_6_on){
+						input "button_6_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_6_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_6_off){
+						input "button_6_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_6_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			section(hideable: true, hidden: true, "Rotating counter clockwise <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_7_dim){
+					input "button_7_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_7_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_7_brighten){
+					input "button_7_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_7_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_7_toggle){
+					input "button_7_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_7_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(advancedSetup){
+					if(button_7_on){
+						input "button_7_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_7_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_7_off){
+						input "button_7_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_7_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			section(hideable: true, hidden: true, "90° flipping <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_2_on){
+					input "button_2_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_off){
+					input "button_2_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_2_toggle){
+					input "button_2_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_2_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(advancedSetup){
+					if(button_2_dim){
+						input "button_2_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_2_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_2_brightn){
+						input "button_2_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_2_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			section(hideable: true, hidden: true, "180° flipping <font color=\"gray\">(Click to expand/collapse)</font>") {
+				if(button_3_on){
+					input "button_3_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_off){
+					input "button_3_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(button_3_toggle){
+					input "button_3_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+				} else {
+					input "button_3_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+				}
+				if(advancedSetup){
+					if(button_3_dim){
+						input "button_3_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_3_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_3_brighten){
+						input "button_3_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_3_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			if(advancedSetup){
+				section(hideable: true, hidden: true, "Sliding <font color=\"gray\">(Click to expand/collapse)</font>") {
+					if(button_4_on){
+						input "button_4_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_4_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_4_off){
+						input "button_4_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_4_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_4_toggle){
+						input "button_4_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_4_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_4_dim){
+						input "button_4_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_4_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_4_brighten){
+						input "button_4_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_4_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			if(advancedSetup){
+				section(hideable: true, hidden: true, "Knocking <font color=\"gray\">(Click to expand/collapse)</font>") {
+					if(button_5_toggle){
+						input "button_5_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_5_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_5_on){
+						input "button_5_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_5_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_5_off){
+						input "button_5_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_5_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_5_dim){
+						input "button_5_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_5_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+					if(button_5_brighten){
+						input "button_5_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
+					} else {
+						input "button_5_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
+					}
+				}
+			}
+			if(button_1_dim || button_1_brighten || button_2_dim || button_2_brighten || button_3_dim || button_3_brighten || button_4_dim || button_4_brighten || button_5_dim || button_5_brighten || button_6_dim || button_6_brighten || button_7_dim || button_7_brighten){
+				section(){
+					paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
+					paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
+					input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
 				}
 			}
 		}
-	}
+    }
 }
 
-/*
-Input fields:
-
-humidityDisableAll - bool
-	disables all humidity routines
-humidityDevice - device - required - multiple
-	primary humidity sensor
-humidityDeviceAverage - bool
-	false = average
-	true = do not average
-humidityDisable - bool
-	disables this humidity routine
-switches - device - required - multiple
-	fan switch to be turned on/off
-humidityControlEnable - bool
-	shows options for a "control" sensor
-	false = using control device
-	true = not using control device
-humidityControlDevice - device
-	"control" device. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlStartDifference
-humidityControlStartDifference - number - required
-	difference between primary and control sensors. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlDevice
-humidityStartThreshold - number
-	absolute sensor value to turn on
-humidityIncreaseRate - number
-	amount of change with sensor to turn on
-multiStartTrigger - bool
-	indicates to use humidityControlStartDifference, humidityStartThreshold, AND/OR humidityIncreaseRate
-	true = and
-	false = or
-humidityControlStopDifference - number
-	percent difference of sensor compared to control sensor to turn off
-humidityStopThreshold - number
-	absolute sensor value to turn off
-humidityStopDecrease - number
-	percent over starting point to turn off
-humidityWaitMinutes - number
-	minutes after humidityControlStopDifference, humidityStopThreshold, and/or humidityStopDecrease to wait
-humidityStopMinutes - number
-	minutes of run time to turn off
-multiStopTrigger - bool
-	indicates to use humidityControlStopDifference, humidityStopThreshold, humidityStopDecrease AND/OR humidityStopMinutes
-	true = and
-	false = or
-humidityDropTimeout - number
-	NOT USED
-humidityControlStopDifferenceManual - bool
-	if manually on, indicates to use humidityControlStopDifference to turn off
-humidityStopThresholdManual - bool
-	if manually on, indicates to use humidityStopThreshold to turn off
-humidityStopMinutesManual - bool
-	if manually on, indicates to use humidityStopMinutes to turn off
-*/
+def dimSpeed(){
+    if(settings.multiplier != null){
+        return settings.multiplier
+    }else{
+        return 1.2
+    }
+}
 
 def installed() {
-	logTrace("$app.label: installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace("$app.label: updated")
-	unsubscribe()
-	initialize()
+    unsubscribe()
+    initialize()
 }
 
 def initialize() {
-	logTrace("$app.label: initialized")
+    log.info "MagicCube initialized"
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
-	if(humidityDisable || state.humidityDisable) {
-		unschedule()
-		logTrace("$app.label: function initialize returning (humidity disabled)")
-		return
-	}
-
-	subscribe(humidityDevice, "humidity", humidityHandler)
-/* ************************************************** */
-/* TO-DO: Make increase based on time, rather than    */
-/* polling rate. Until then, don't subscribe to       */
-/* control device, since it would mess up state       */
-/* vairables. But it will increase responsiveness.    */
-/* ************************************************** */
-	// subscribe(humidityControlDevice, "humidity", humidityHandler)
-	subscribe(switches, "switch", switchHandler)
+    subscribe(buttonDevice, "pushed.1", buttonEvent1)
+    subscribe(buttonDevice, "pushed.2", buttonEvent2)
+    subscribe(buttonDevice, "pushed.3", buttonEvent3)
+    subscribe(buttonDevice, "pushed.5", buttonEvent5)
+    subscribe(buttonDevice, "pushed.6", buttonEvent6)
+    subscribe(buttonDevice, "pushed.7", buttonEvent7)
 }
 
-def humidityHandler(evt) {
-	logTrace("$app.label: humidityHandler starting [evt:  $evt ($evt.value)]")
+def buttonEvent1(evt){
+    def buttonNumber = evt.value
 
-	if(humidityDisable || state.humidityDisable) {
-		logTrace("$app.label: function humidityHandler returning (humidity disabled)")
-		return
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(shake && shake == "on") button_1_on = controlDevice
+		if(shake && shake == "off") button_1_off = controlDevice
+		if(shake && shake == "dim") button_1_dim = controlDevice
+		if(shake && shake == "brighten") button_1_brighten = controlDevice
+		if(shake && shake == "toggle") button_1_toggle = controlDevice
 	}
 
-	// Set state variables
-	state.lastHumidityDate = state.currentHumidityDate
-	if (state.currentHumidity) {
-		state.lastHumidity = state.currentHumidity
-	} else {
-		state.lastHumidity = 75
+    log.info "MagicCube: $evt.displayName shaken."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
+
+    if(button_1_toggle) parent.toggle(button_1_toggle,app.label)
+    if(button_1_on) parent.multiOn(button_1_on,app.label)
+    if(button_1_off) parent.multiOff(button_1_off,app.label)
+    if(button_1_dim) parent.dim(button_1_dim,true,app.getId())
+    if(button_1_brighten) parent.brighten(button_1_brighten,true,app.getId())
+    if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
+        log.info "MagicCube: No action defined for shaking of $evt.displayName."
+    }
+}
+
+def buttonEvent2(evt){
+    def buttonNumber = evt.value
+
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(f90 && f90 == "on") button_2_on = controlDevice
+		if(f90 && f90 == "off") button_2_off = controlDevice
+		if(f90 && f90 == "dim") button_2_dim = controlDevice
+		if(f90 && f90 == "brighten") button_2_brighten = controlDevice
+		if(f90 && f90 == "toggle") button_2_toggle = controlDevice
 	}
-	if(!state.startingHumidity) state.startingHumidity = 100
-	// Get average humidity (or not)
-	if(humidityDeviceAverage){
-		state.currentHumidity = Double.parseDouble(averageHumidity(humidityDevice).replace("%", ""))
-	} else {
-		state.currentHumidity = Double.parseDouble(evt.value.replace("%", ""))
+
+    log.info "MagicCube: $evt.displayName flipped 90°."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
+
+    if(button_2_toggle) parent.toggle(button_2_toggle,app.label)
+    if(button_2_on) parent.multiOn(button_2_on,app.label)
+    if(button_2_off) parent.multiOff(button_2_off,app.label)
+    if(button_2_dim) parent.dim(button_2_dim,true,app.getId())
+    if(button_2_brighten) parent.brighten(button_2_brighten,true,app.getId())
+    if(!button_2_toggle && !button_2_on && !button_2_off && !button_2_dim && !button_2_brighten){
+        log.info "MagicCube: No action defined for flipping 90° of $evt.displayName."
+    }
+}
+
+def buttonEvent3(evt){
+    def buttonNumber = evt.value
+
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(f180 && f180 == "on") button_3_on = controlDevice
+		if(f180 && f180 == "off") button_3_off = controlDevice
+		if(f180 && f180 == "dim") button_3_dim = controlDevice
+		if(f180 && f180 == "brighten") button_3_brighten = controlDevice
+		if(f180 && f180 == "toggle") button_3_toggle = controlDevice
 	}
-	state.currentHumidityDate = evt.date.time
-	state.humidityChangeRate = state.currentHumidity - state.lastHumidity
 
-	// Average control humidity devices
-	if(humidityControlDevice)
-		state.controlHumidity = averageHumidity(humidityControlDevice)
+    log.info "MagicCube: $evt.displayName flipped 180°."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
-	/*
-	logTrace("$app.label: function humidityHandler [lastHumidity = $state.lastHumidity]")
-	logTrace("$app.label: function humidityHandler [lastHumidityDate = $state.lastHumidityDate]")
-	logTrace("$app.label: function humidityHandler [currentHumidityDate = $state.currentHumidityDate]")
-	logTrace("$app.label: function humidityHandler [startingHumidity = $state.startingHumidity]")
-	logTrace("$app.label: function humidityHandler [humidityChangeRate = $state.humidityChangeRate]")
-	*/
-	logTrace("$app.label: function humidityHandler [currentHumidity = $state.currentHumidity]")
-	logTrace("$app.label: function humidityHandler [automaticallyTurnedOn = $state.automaticallyTurnedOn]")
-	fanIsOn = parent.multiStateOn(switches,app.label)
+    if(button_3_toggle) parent.toggle(button_3_toggle,app.label)
+    if(button_3_on) parent.multiOn(button_3_on,app.label)
+    if(button_3_off) parent.multiOff(button_3_off,app.label)
+    if(button_3_dim) parent.dim(button_3_dim,true,app.getId())
+    if(button_3_brighten) parent.brighten(button_3_brighten,true,app.getId())
+    if(!button_3_toggle && !button_3_on && !button_3_off && !button_3_dim && !button_3_brighten){
+        log.info "MagicCube: No action defined for flipping 180° of $evt.displayName."
+    }
+}
 
-	// If the fan is auto-on, turn it off? (Or need to schedule off?)
-	if(fanIsOn && state.automaticallyTurnedOn){
-		// Get status for whether criteria to turn off have been matched
-		turnFanOff = checkOffCriteria()
+def buttonEvent4(evt){
+    def buttonNumber = evt.value
 
-		// If in cool-down period, nothing to do
-		if(state.shortScheduledOff){
-			return
-		} else {
-			// Schedule timed off - should have already happen when turned on
-			if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
-				logTrace("$app.label: function humidityHandler scheduling off in $humidityWaitMinutes minutes.")
-				state.scheduleStarted = true
-				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
-				return
-			}
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(slide && slide == "on") button_4_on = controlDevice
+		if(slide && slide == "off") button_4_off = controlDevice
+		if(slide && slide == "dim") button_4_dim = controlDevice
+		if(slide && slide == "brighten") button_4_brighten = controlDevice
+		if(slide && slide == "toggle") button_4_toggle = controlDevice
+	}
 
-			// See if we should turn the fan OFF (if auto on)
-			// If timer, then don't schedule cool-down period
-			if(turnFanOff && !humidityWaitMinutes){
-				multiOff()
-				return
-			// Otherwise, schedule cool-down if not already scheduled
-			} else if(turnFanOff && humidityWaitMinutes && humidityWaitMinutes > 0 && !state.shortScheduledOff){
-				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
-				state.shortScheduledOff = true
-				logTrace("$app.label: function humidityHandler scheduling turn off in $humidityWaitMinutes minutes")
-				return
-			// Unless there isn't a cool-down, in which case just turn off
-			} else if(turnFanOff && !humidityWaitMinutes){
-				multiOff()
-				return
-			}
-		}
+    log.info "MagicCube: $evt.displayName slid."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
+
+    if(button_4_toggle) parent.toggle(button_4_toggle,app.label)
+    if(button_4_on) parent.multiOn(button_4_on,app.label)
+    if(button_4_off) parent.multiOff(button_4_off,app.label)
+    if(button_4_dim) parent.dim(button_4_dim,true,app.getId())
+    if(button_4_brighten) parent.brighten(button_4_brighten,true,app.getId())
+    if(!button_4_toggle && !button_4_on && !button_4_off && !button_4_dim && !button_4_brighten){
+        log.info "MagicCube: No action defined for sliding of $evt.displayName."
+    }
+}
+
+def buttonEvent5(evt){
+    def buttonNumber = evt.value
+
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(knock && knock == "on") button_5_on = controlDevice
+		if(knock && knock == "off") button_5_off = controlDevice
+		if(knock && knock == "dim") button_5_dim = controlDevice
+		if(knock && knock == "brighten") button_5_brighten = controlDevice
+		if(knock && knock == "toggle") button_5_toggle = controlDevice
+	}
+
+    log.info "MagicCube: $evt.displayName knock."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
+
+    if(button_5_toggle) parent.toggle(button_5_toggle,app.label)
+    if(button_5_on) parent.multiOn(button_5_on,app.label)
+    if(button_5_off) parent.multiOff(button_5_off,app.label)
+    if(button_5_dim) parent.dim(button_5_dim,true,app.getId())
+    if(button_5_brighten) parent.brighten(button_5_brighten,true,app.getId())
+    if(!button_5_toggle && !button_5_on && !button_5_off && !button_5_dim && !button_5_brighten){
+        log.info "MagicCube: No action defined for knocking of $evt.displayName."
+    }
+}
+
+def buttonEvent6(evt){
+    def buttonNumber = evt.value
 	
-	// If fan is manual-on, turn it off?
-	} else if(fanIsOn && !state.automaticallyTurnedOn){
-		// Get status for whether criteria to turn off have been matched
-		turnFanOff = checkOffCriteria()
-		// Schedule timed off - should have already happened when turned on
-		if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
-			logTrace("$app.label: function humidityHandler scheduling off in $humidityWaitMinutes minutes (manual on).")
-			state.scheduleStarted = true
-			runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
-			return
-		// If all criteria matched, turn off
-		} else if(turnOffFan){
-			multiOff()
-			return
-		}
-
-	// If fan is off, turn it on?
-	} else if(!fanIsOn){
-		// Turning on
-		if(checkOnCriteria()){
-			parent.multiOn(switches,app.label)
-			state.automaticallyTurnedOn = true
-			state.humidityStartTime = now()
-			state.startingHumidity = state.lastHumidity
-
-			// Set schedule for turn off (setting after turned on, to keep it more accurate)
-			if(humidityStopMinutes && humidityStopMinutes > 0){
-				logTrace("$app.label: function humidityHandler scheduling turn off (for $humidityStopMinutes minutes)")
-				state.scheduleStarted = true
-				runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
-			}
-			logTrace("$app.label: function humidityHandler exiting (turned on [startingHumidity = $state.startingHumidity])")
-		}
+	if(!multiDevice){
+		if(clockwise && clockwise == "on") button_6_on = controlDevice
+		if(clockwise && clockwise == "off") button_6_off = controlDevice
+		if(clockwise && clockwise == "dim") button_6_dim = controlDevice
+		if(clockwise && clockwise == "brighten") button_6_brighten = controlDevice
+		if(clockwise && clockwise == "toggle") button_6_toggle = controlDevice
 	}
+
+    log.info "MagicCube: $evt.displayName rotated clockwise."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
+
+    if(button_6_toggle) parent.toggle(button_6_toggle,app.label)
+    if(button_6_on) parent.multiOn(button_6_on,app.label)
+    if(button_6_off) parent.multiOff(button_6_off,app.label)
+    if(button_6_dim) parent.dim(button_6_dim,true,app.getId())
+    if(button_6_brighten) parent.brighten(button_6_brighten,true,app.getId())
+    if(!button_6_toggle && !button_6_on && !button_6_off && !button_6_dim && !button_6_brighten){
+        log.info "MagicCube: No action defined for rotating clockwise of $evt.displayName."
+    }
 }
 
-def switchHandler(evt) {
-	logTrace("$app.label: switchHandler starting [evt:  $evt ($evt.value)]")
+def buttonEvent7(evt){
+    def buttonNumber = evt.value
 
-	if(humidityDisable || state.humidityDisable) {
-		logTrace("$app.label: function switchHandler returning (humidity disabled)")
-		return
+	// Set device if using simple setup
+	if(!multiDevice){
+		if(counterClockwise && counterClockwise == "on") button_7_on = controlDevice
+		if(counterClockwise && counterClockwise == "off") button_7_off = controlDevice
+		if(counterClockwise && counterClockwise == "dim") button_7_dim = controlDevice
+		if(counterClockwise && counterClockwise == "brighten") button_7_brighten = controlDevice
+		if(counterClockwise && counterClockwise == "toggle") button_7_toggle = controlDevice
 	}
 
-	if(evt.value == "on"){
-		// Set scheduled turn off
-		if(!state.automaticallyTurnedOn && humidityStopMinutesManual && humidityStopMinutes && humidityStopMinutes > 0) {
-			logTrace("$app.label: function switchHandler scheduling fan off in $humidityStopMinutes minutes (switched turned on)")
-			runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff)
-			return
-		}
-	} else if(evt.value == "off") {
-		logTrace("$app.label: function switchHandler exiting (switched turned off)")
-		state.shortScheduledOff = false
-		state.scheduleStarted = false
-		state.automaticallyTurnedOn = false
-		logTrace("$app.label: function switchHandler setting automaticallyTurnedOn to false")
-	}		   
-}
+    log.info "MagicCube: $evt.displayName rotated counter-clockwise."
+    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
+    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
-def scheduleTurnOff() {
-	logTrace("$app.label: scheduleTurnOff starting")
-
-	// Even if criteria is no longer matched, reset cool-down schedule
-	// Do not reset state.scheduleStarted, even if expired (if schedule triggers, then it will be reset with multiOff function)
-	state.shortScheduledOff = false
-
-	// If nothing on, do nothing
-	if(!parent.multiStateOn(switches,app.label)) {
-		logTrace("$app.label: scheduleTurnOff exiting (nothing on)")
-		return
-	}
-
-	// Get status for whether criteria to turn off are still matched
-	turnFanOff = checkOffCriteria()
-
-	if(turnFanOff){
-		multiOff() // state variables are reset in multiOff
-		logTrace("$app.label: function scheduleTurnOff turning off")
-	}
-	logTrace("$app.label: scheduleTurnOff exiting")
-}
-
-def checkOnCriteria(){
-	logTrace("$app.label: checkOnCriteria starting")
-	// Check if current humidity is higher than control device + humidityControlStartDifference
-	if(humidityControlStartDifference && humidityControlDevice){
-		percentThreshold = getRelativePercentage(state.controlHumidity,humidityControlStartDifference)
-		if(state.currentHumidity > percentThreshold){
-			if(multiStartTrigger) {
-				logTrace("$app.label: function checkOnCriteria condition matched (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)")
-				turnFanOn = true
-			} else {
-				logTrace("$app.label: function checkOnCriteria returning true (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)")
-				return true
-			}
-		} else if(state.currentHumidity <= percentThreshold && multiStartTrigger){
-			return false
-		}
-	}
-
-	// Check if current humidity is higher than start threshold
-	if(humidityStartThreshold){
-		if(state.currentHumidity > humidityStartThreshold) {
-			if(multiStartTrigger) {
-				logTrace("$app.label: function checkOnCriteria condition matched (current: $state.currentHumidity; start threshold: $humidityStartThreshold)")
-				turnFanOn = true
-			} else {
-				logTrace("$app.label: function checkOnCriteria returning true (current: $state.currentHumidity; start threshold: $humidityStartThreshold)")
-				return true
-			}
-		} else if(state.currentHumidity <= humidityStartThreshold && multiStartTrigger) {
-			return false
-		}
-	}
-	
-	// Check increase rate from last update
-	if(humidityIncreaseRate){
-		if(humidityIncreaseRate > state.humidityChangeRate) {
-			if(multiStartTrigger) {
-				logTrace("$app.label: function checkOnCriteria condition matched (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)")
-				turnFanOn = true
-			} else {
-				logTrace("$app.label: function checkOnCriteria returning true (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)")
-				return true
-			}
-		} else if(humidityIncreaseRate <= state.humidityChangeRate) {
-			return false
-		}
-	}
-
-	if(turnFanOn) logTrace("$app.label: function checkOnCriteria returning all conditions matched")
-	return turnFanOn
-}
-
-def checkOffCriteria(){
-	logTrace("$app.label: checkOffCriteria starting")
-	// Check if current humidity is less than control device + humidityControlStopDifference
-	if(humidityControlStopDifference && humidityControlDevice && (state.automaticallyTurnedOn || humidityControlStopDifferenceManual)){
-		percentThreshold = getRelativePercentage(state.controlHumidity,humidityControlStopDifference)
-		if(state.currentHumidity < percentThreshold){
-			if(multiStopTrigger) {
-				logTrace("$app.label: function checkOffCriteria condition matched (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
-				turnFanOff = true
-			} else {
-				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
-				return true
-			}
-		} else if(state.currentHumidity >= percentThreshold){
-			if(multiStopTrigger){
-				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
-				return false
-			} else {
-				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
-			}
-		}
-	}
-
-	// Check if current humidity is less than stop threshold
-	if(humidityStopThreshold){
-		if(state.currentHumidity < humidityStopThreshold) {
-			if(multiStopTrigger) {
-				logTrace("$app.label: function checkOffCriteria condition matched (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
-				turnFanOff = true
-			} else {
-				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
-				return true
-			}
-		} else if(state.currentHumidity >= humidityStopThreshold) {
-			if(multiStopTrigger){
-				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
-				return false
-			} else {
-				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
-			}
-		}
-	}
-	
-	// Check if current humidity is starting + difference
-	if(humidityStopDecrease && state.automaticallyTurnedOn){
-		percentThreshold = state.startingHumidity * humidityStopDecrease / 100 + state.startingHumidity
-		if(state.currentHumidity < percentThreshold){
-			if(multiStopTrigger) {
-				logTrace("$app.label: function checkOffCriteria condition matched (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
-				turnFanOff = true
-			} else {
-				logTrace("$app.label: function checkOffCriteria returning true (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
-				return true
-			}
-		} else if(state.currentHumidity >= percentThreshold){
-			if(multiStopTrigger){
-				logTrace("$app.label: function checkOffCriteria returning false (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
-				return false
-			} else {
-				logTrace("$app.label: function checkOffCriteria condition not matched (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
-			}
-		}
-	}
-
-	// Check if current time is after end time
-	if(humidityStopMinutes && (state.automaticallyTurnedOn || humidityStopMinutesManual)){
-		time = now()
-		stop = state.humidityStartTime + (humidityStopMinutes * 60000)
-		if(time > stop){
-			if(multiStopTrigger) {
-				logTrace("$app.label: function checkOffCriteria condition matched (time now: $time; stop time: $stop)")
-				turnFanOff = true
-			// Shouldn't happen, since schedule should have executed
-			} else {
-				logTrace("$app.label: function checkOffCriteria returning true (time now: $time; stop time: $stop)")
-				return true
-			}
-		} else if(time <= stop){
-			if(multiStopTrigger){
-				logTrace("$app.label: function checkOffCriteria returning false (time now: $time; stop time: $stop)")
-				return false
-			} else {
-				logTrace("$app.label: function checkOffCriteria condition not matched (time now: $time; stop time: $stop)")
-			}
-		}
-	}
-
-	if(turnFanOff) {
-		logTrace("$app.label: function checkOffCriteria returning all conditions matched")
-	} else {
-		logTrace("$app.label: function checkOffCriteria exiting")
-	}
-	return turnFanOff
-}
-
-def multiOff() {
-	logTrace("$app.label: multiOff starting")
-	unschedule()
-	if(parent.multiStateOn(switches,app.label)){
-		parent.multiOff(switches,app.label)
-		state.shortScheduledOff = false
-		state.scheduleStarted = false
-		state.automaticallyTurnedOn = false
-		logTrace("$app.label: function multiOff turning off")
-	}
-	logTrace("$app.label: multiOff exiting")
-}
-
-def averageHumidity(device){
-	humidity = 0
-	device.each {
-		humidity += it.currentHumidity
-	}
-	humidity = humidity / device.size()
-	return humidity
-}
-
-def getRelativePercentage(base,percent){
-	return (100 - base) * percent / 100 + base
-}
-
-def logTrace(message) {
-	//log.trace message
+    if(button_7_toggle) parent.toggle(button_7_toggle,app.label)
+    if(button_7_on) parent.multiOn(button_7_on,app.label)
+    if(button_7_off) parent.multiOff(button_7_off,app.label)
+    if(button_7_dim) parent.dim(button_7_dim,true,app.getId())
+    if(button_7_brighten) parent.brighten(button_7_brighten,true,app.getId())
+    if(!button_7_toggle && !button_7_on && !button_7_off && !button_7_dim && !button_7_brighten){
+        log.info "MagicCube: No action defined for rotating counter-clockwise of $evt.displayName."
+    }
 }
