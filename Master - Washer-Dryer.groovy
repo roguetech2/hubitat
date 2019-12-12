@@ -16,7 +16,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 *
 *  Name: Master - Washer-Dryer
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Washer-Dryer.groovy
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
 *  Version: 0.0.05
 *
 ***********************************************************************************************************************/
@@ -167,7 +167,7 @@ personHome - device
 */
 
 def installed() {
-	logTrace("$app.label: installed")
+	logTrace("$app.label (line 170) -- Installed")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -176,13 +176,13 @@ def installed() {
 }
 
 def updated() {
-	logTrace("$app.label: updated")
+	logTrace("$app.label (line 179) -- Updated")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace("$app.label: initialized")
+	logTrace("$app.label (line 185) -- Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -208,19 +208,16 @@ def washerHandler(evt) {
 
 	// If already started alerting, exit
 	if(state.firstNotice){
-		logTrace("$app.label: function washerHandler returning (notices already processing)")
+		logTrace("$app.label (line 211) -- Notices already processing")
 		return
 	}
 
 	if(washerContactDevice && washerContactDevice.contact == "open") {
-		logTrace("$app.label: function washerHandler returning (contact is open)")
+		logTrace("$app.label (line 216) -- Washer Handler doing nothing, contact is open")
 		return
 	}
 
-	if(washerDisable || state.washerDisable) {
-		logTrace("$app.label: function washerHandler returning (washer-dryer disabled)")
-		return
-	}
+	if(washerDisable || state.washerDisable) return
 
 	// Clear prior schedules
 	unschedule()
@@ -237,7 +234,7 @@ def washerHandler(evt) {
 	// Remove stale activity
 	state.activity.each {
 		if(it < target) {
-			logTrace("$app.label: function washerHandler (removed value $it)")
+			logTrace("$app.label (line 237) -- function washerHandler removed value $it")
 			toRemove.add(it);
 		}
 	}
@@ -245,23 +242,21 @@ def washerHandler(evt) {
 
 	// get count
 	listSize = state.activity.size()
-	logTrace("$app.label: function washerHandler ($listSize events in the last half hour)")
+	logTrace("$app.label (line 245) -- function washerHandler registered $listSize events in the last half hour")
 
 	// If 10 or more motion events in half hour, washer/dryer is running
 	if(listSize > 10){
-		logTrace("$app.label: function washerHandler (schedule inactivity check for 6 minutes)")
+		logTrace("$app.label (line 249) -- Scheduling inactivity check for 6 minutes")
 		runIn(60 * 6, washerSchedule)
 	}
 }
 
 def contactHandler(evt) {
-	logTrace("$app.label: contactHandler clearing alerts")
+	logTrace("$app.label (line 255) -- $evt.displayName changed to $evt.value")
 
 	unschedule()
 	state.firstNotice = false
 	state.activity = []
-
-	logTrace("$app.label: contactHandler exiting")
 }
 
 def washerSchedule(){
@@ -286,6 +281,8 @@ def washerSchedule(){
 		}
 	}
 
+	//Why are we setting this to true only if no timeStop?!
+	// That doesn't seem right. Maybe should figure out wtf this does.
 	state.firstNotice = true
 
 	if(personHome){
@@ -306,18 +303,19 @@ def washerSchedule(){
 
 		// Schedule repeat notices
 		if(repeat && repeatMinutes){
-			logTrace("$app.label: function washerSchedule scheduling repeat notifition for $repeatMinutes")
+			logTrace("$app.label (line 306) --  Scheduling repeat notifition for $repeatMinutes")
 			runIn(60 * repeatMinutes, washerSchedule)
 		}
 
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
+		logTrace("$app.label (line 312) --  Scheduling notifition for $repeatMinutes; not currently home")
 		runIn(60 * 10, washerSchedule)
 		return
 
 	// If not home and not wait, clear and exit
 	} else if(!present && !wait){
-		logTrace("$app.label: function washerSchedule returning (not home)")
+		logTrace("$app.label (line 317) -- Washer Schedule doing nothing; not home")
 		state.firstnotice = false
 		state.activity = []
 		return
