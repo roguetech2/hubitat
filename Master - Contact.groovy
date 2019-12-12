@@ -15,7 +15,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 *
 *  Name: Master - Contact
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Contact.groovy
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
 *  Version: 0.3.24
 * 
 ***********************************************************************************************************************/
