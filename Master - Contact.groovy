@@ -307,19 +307,19 @@ preferences {
 }
 
 def installed() {
-	logTrace("$app.label: installed")
+	logTrace("$app.label (line 310) -- Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label: updated")
+	logTrace("$app.label (line 316) -- Updated")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace("$app.label: initialized")
+	logTrace("$app.label (line 322) -- Initialized")
 	unschedule()
     
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
@@ -335,15 +335,11 @@ def initialize() {
 }
 
 def contactChange(evt){
-	logTrace("$app.label: function contactChange started [evt: $evt ($evt.value)]")
-	if(contactDisable || state.contactDisable) {
-		logTrace("$app.label: function contactChange  returning (contact disabled)")
-		return
-	}
+	if(contactDisable || state.contactDisable) return
 	
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label, $appId: function contactChange returning (mode doesn't match)")
+		logTrace("$app.label (line 342) -- Contact sensor not triggered; mode location.mode doesn't match ifMode")
 		return
 	}
 
@@ -355,15 +351,12 @@ def contactChange(evt){
 
 	// if not between start and stop time
 	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop,app.label)) {
-			logTrace("$app.label: function contactChange returning (not between start time and stop time)")
-			return
-		}
+		if(!parent.timeBetween(timeStart, timeStop,app.label)) return
 	}
 	
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace("$app.label: function contactChange returning (not correct day)")
+		logTrace("$app.label (line 359) -- Contact sensor not triggered; not correct day")
 		return
 	}
 
@@ -372,10 +365,8 @@ def contactChange(evt){
 	// New open event resets delayed action
 	// New close event won't override open
 	if(evt.value == "open"){
-		logTrace("$app.label: function contactChange unscheduling all")
 		unschedule()
 	} else {
-		logTrace("$app.label: function contactChange unscheduling scheduleClose")
 		unschedule(scheduleClose)
 	}
 
@@ -418,20 +409,12 @@ def contactChange(evt){
 				state.contactLastSms = new Date().getTime()
 
 					if(evt.value == "open"){
-						if(parent.sendText(phone,"$evt.displayName was opened at $now.",app.label)){
-							log.info "Sent SMS for $evt.displayName opening at $now."
-						} else {
-							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName opening")
-						}
+						parent.sendText(phone,"$evt.displayName was opened at $now.",app.label))
 					} else {
-						if(parent.sendText(phone,"$evt.displayName was closed at $now.",app.label)){
-							log.info "Sent SMS for $evt.displayName closed at $now."
-						} else {
-							logTrace("$app.label: function contactChange failed to send SMS for $evt.displayName closing")
-						}
+						parent.sendText(phone,"$evt.displayName was closed at $now.",app.label))
 					}
 			} else {
-				log.info("$evt.displayName was closed at $now. SMS not sent due to only being $seconds since last SMS.")
+				log.info("app.label -- $evt.displayName was closed at $now. SMS not sent due to only being $seconds since last SMS.")
 			}
 		}
 	}
@@ -451,7 +434,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace("$app.label: function contactChange scheduling scheduleOpen in $openWait seconds")
+			logTrace("$app.label (line 437) -- Scheduling scheduleOpen in $openWait seconds")
 			runIn(openWait,scheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -477,7 +460,7 @@ def contactChange(evt){
 	} else {
 		// Schedule delay
 		if(closeWait) {
-			logTrace("$app.label: function contactChange scheduling scheduleClose in $closeWait seconds")
+			logTrace("$app.label (line 463) -- Scheduling scheduleClose in $closeWait seconds")
 			runIn(closeWait,scheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -499,16 +482,10 @@ def contactChange(evt){
 			}
 		}
 	}
-	logTrace("$app.label: function contactChange exiting")
 }
 
-def scheduleOpen(){\
-	logTrace("$app.label: function scheduleOpen started")
-
-	if(contactDisable || state.contactDisable) {
-		logTrace("$app.label: function scheduleOpen  returning (contact disabled)")
-		return
-	}
+def scheduleOpen(){
+	if(contactDisable || state.contactDisable) return
 
 	if(switches) {
 		if(actionOpenSwitches == "on") {
@@ -526,11 +503,10 @@ def scheduleOpen(){\
 			parent.multiUnlock(locks,app.label)
 		}
 	}
-	logTrace("$app.label: function scheduleOpen exiting")
 }
 
 def scheduleClose(){
-	logTrace("$app.label: function scheduleClose started")
+	if(contactDisable || state.contactDisable) return
 
 	if(switches) {
 		if(actionCloseSwitches == "on") {
@@ -548,7 +524,6 @@ def scheduleClose(){
 			parent.multiUnlock(locks,app.label)
 		}
 	}
-	logTrace("$app.label: function scheduleClose exiting")
 }
 
 def logTrace(message){
