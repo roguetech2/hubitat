@@ -16,7 +16,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
-*  Version: 0.1.19
+*  Version: 0.1.21
 *
 ***********************************************************************************************************************/
 
@@ -37,6 +37,10 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
 
+/* ************************************************** */
+/* TO-DO: Add error messages (and change info icon    */
+/* (see humidity).                                    */
+/* ************************************************** */ 
 preferences {
 	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
 	page(name: "setup", install: true, uninstall: true) {
@@ -118,8 +122,8 @@ preferences {
 										input "mode", "mode", title: "Change Mode? (Optional)", required: false, submitOnChange:true
 										input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
 										if(parent.notificationDevice) input "speakText", "text", title: "Voice notification text? (Optional)", required: false, submitOnChange:true
-										if(((!switches && !locks) && !noDevice) || (!actionSwitches && !actionLocks && !mode && !phone)) {
-											paragraph "<div style=\"background-color:BurlyWood\">2 </div>"
+										if(((!switches && !locks) && !noDevice) || (!actionSwitches && !actionLocks && !mode && !phone && (!flashColor || !noFlashColor) && !speakText)) {
+											paragraph "<div style=\"background-color:BurlyWood\"> </div>"
 										} else {
 											paragraph "<div style=\"background-color:BurlyWood\"><b> Select time or mode (Optional):</b></div>"
 											paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Schedule and mode restriction applies to all actions.</div>"
@@ -215,8 +219,7 @@ preferences {
 
 def installed() {
 	logTrace("$app.label: installed")
-	if(app.getLabel().length() < 11)  app.updateLabel("Presence - " + app.getLabel())
-	if(app.getLabel().substring(0,11) != "Presence - ") app.updateLabel("Presence - " + app.getLabel())
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
@@ -228,11 +231,13 @@ def updated() {
 
 def initialize() {
 	logTrace("$app.label: initialized")
+
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+
 	subscribe(person, "presence", presenceHandler)
 }
 
 def presenceHandler(evt) {
-	def appId = app.getId()
 	logTrace("$app.label: function presenceHandler started [evt: $evt]")
 
 	// If presence is disabled, return null
@@ -274,19 +279,19 @@ def presenceHandler(evt) {
 	}
 	
 	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// if not bewteen start and stop times
-	if(timeStart && timeStop && !parent.timeBetween(timeStart, timeStop)) {
+	if(timeStart && timeStop && !parent.timeBetween(timeStart, timeStop,app.label)) {
 		logTrace("$app.label: function presenceHandler returning (not between start time and stop time)")
 		return
 	}
 
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) {
+	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
 		logTrace("$app.label: function presenceHandler returning (not correct day)")
 		return
 	}
@@ -300,13 +305,13 @@ def presenceHandler(evt) {
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
-			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.")){
+			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)){
 				log.info "Sent SMS for $evt.displayName's arrival at $now."
 			} else {
 				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's arrival")
 			}
 		} else {
-			if(parent.sendText(phone,"$evt.displayName left the house at $now.")){
+			if(parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)){
 				log.info "Sent SMS for $evt.displayName's departure at $now."
 			} else {
 				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's departure")
@@ -315,27 +320,27 @@ def presenceHandler(evt) {
 	}
 
 	// Send voice notification
-	if(speakText) parent.speak(speakText)
+	if(speakText) parent.speak(speakText,app.label)
 
 	// Set mode
-	if(mode) parent.changeMode(mode, appId)
+	if(mode) parent.changeMode(mode,app.label)
 	// Turn on/off lights
 	if(switches){
 		if(actionSwitches == "on") {
-			parent.multiOn(actionSwitches, appId)
+			parent.multiOn(actionSwitches,app.label)
 		} else if(actionSwtiches == "off"){
-			parent.multiOff(actionSwitches, appId)
+			parent.multiOff(actionSwitches,app.label)
 		} else if(actionSwitches == "toggle"){
-			parent.toggle(actionSwitches, appId)
+			parent.toggle(actionSwitches,app.label)
 		}
 	}
 
 	// Lock/unlock doors
 	if(locks){
 		if(actionLocks == "lock"){
-			parent.multiLock(locks,appId)
+			parent.multiLock(locks,app.label)
 		} else if(actionLocks == "unlock"){
-			parent.multiUnlock(locks,appId)
+			parent.multiUnlock(locks,app.label)
 		}
 	}
 
