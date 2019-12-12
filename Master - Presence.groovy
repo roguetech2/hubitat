@@ -15,7 +15,7 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 *
 *  Name: Master - Presence
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Presence.groovy
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
 *  Version: 0.1.21
 *
 ***********************************************************************************************************************/
@@ -218,19 +218,19 @@ preferences {
 }
 
 def installed() {
-	logTrace("$app.label: installed")
+	logTrace("$app.label (line 221) -- Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label: updated")
+	logTrace("$app.label (line 227) -- Updated")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace("$app.label: initialized")
+	logTrace("$app.label (line 233) -- Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -238,20 +238,14 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace("$app.label: function presenceHandler started [evt: $evt]")
-
+	logTrace("$app.label (line 241) -- $evt.displayName status changed to $evt.value")
+	
 	// If presence is disabled, return null
-	if(state.presenceDisable || presenceDisable) {
-		logTrace("$app.label: function presenceHandler returning (presence disabled)")
-		return
-	}
+	if(state.presenceDisable || presenceDisable) return
 	
 	// If arrival or departure doesn't match, return null
 	if(arrivingDeparting){
-		if(evt.value != arrivingDeparting && arrivingDeparting != "both") {
-			logTrace("$app.label: function presenceHandler returning (presence event doesn't match)")
-			return
-		}
+		if(evt.value != arrivingDeparting && arrivingDeparting != "both") return
 	}
 	
 	// If occupied or unoccupied doesn't match, return null
@@ -267,14 +261,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace("$app.label: function presenceHandler returning (house occupation [$occupied] doesn't match)")
+			logTrace("$app.label (line 264) -- Presence handler doing nothing; house is $occupied")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label: function presenceHandler returning (mode doesn't match)")
+		logTrace("$app.label (line 271) -- Presence handler doing nothing; $location.mode is not $ifMode")
 		return
 	}
 	
@@ -285,14 +279,11 @@ def presenceHandler(evt) {
 	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// if not bewteen start and stop times
-	if(timeStart && timeStop && !parent.timeBetween(timeStart, timeStop,app.label)) {
-		logTrace("$app.label: function presenceHandler returning (not between start time and stop time)")
-		return
-	}
+	if(timeStart && timeStop && !parent.timeBetween(timeStart, timeStop,app.label)) return
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace("$app.label: function presenceHandler returning (not correct day)")
+		logTrace("$app.label (line 286) -- Presence handler doing nothing; not correct day")
 		return
 	}
 
@@ -305,17 +296,11 @@ def presenceHandler(evt) {
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
-			if(parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)){
-				log.info "Sent SMS for $evt.displayName's arrival at $now."
-			} else {
-				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's arrival")
-			}
+			parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label))
+			log.info "$app.label -- Sent SMS for $evt.displayName's arrival at $now."
 		} else {
-			if(parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)){
-				log.info "Sent SMS for $evt.displayName's departure at $now."
-			} else {
-				logTrace("$app.label: function presenceHandler failed to send SMS for $evt.displayName's departure")
-			}
+			parent.sendText(phone,"$evt.displayName left the house at $now.",app.label))
+			log.info "$app.label -- Sent SMS for $evt.displayName's departure at $now."
 		}
 	}
 
@@ -372,11 +357,9 @@ def presenceHandler(evt) {
 			if(current."${it.id}".state == "off") it.off()
 		}
 	}
-	logTrace("$app.label: function presenceHandler exiting")
 }
 
 def convertRgbToHsl(color){
-	logTrace("$app.label: function convertRgbToHsl starting [color: $color]")
 	/* ************************************* */
 	/* TO DO: Can we convert it once         */
 	/* and store in hidden input variable??  */
@@ -425,7 +408,7 @@ def convertRgbToHsl(color){
 
 	// Store final values in map, and return
 	def hsl = ["hue":hue, "sat":sat, "level":level]
-	logTrace("$app.label: function convertRgbToHsl returning $hsl")
+
 	return hsl
 	
 }
