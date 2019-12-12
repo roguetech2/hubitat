@@ -336,6 +336,8 @@ def initialize() {
 
 def contactChange(evt){
 	if(contactDisable || state.contactDisable) return
+
+	logTrace("$app.label (line 340) -- Contact sensor $evt.displayName $evt.value")
 	
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
