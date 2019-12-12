@@ -601,22 +601,19 @@ def displayModeOption(){
 
 def installed() {
 	varStartTime = Math.abs(timeStartOffest)
-	logTrace("$app.label (line 429): installed")
-	if(app.getLabel().length() < 8)  app.updateLabel("Time2 - " + app.getLabel())
-	if(app.getLabel().substring(0,8) != "Time2 - ") app.updateLabel("Time2 - " + app.getLabel())
+	logTrace("$app.label (line 604): installed")
+
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label (line 436): updated")
+	logTrace("$app.label (line 611): updated")
 	initialize()
 }
 
 def initialize() {
-	if(app.getLabel().length() < 8)  app.updateLabel("Time2 - " + app.getLabel())
-	if(app.getLabel().substring(0,8) != "Time2 - ") app.updateLabel("Time2 - " + app.getLabel())
-	def appId = app.getId()
-	logTrace("$app.label (line 445): unschedule all (function initialize)")
+    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	unschedule()
 	if(disableAll || disable) {
 		if(disableAll) state.disable = true
@@ -624,15 +621,14 @@ def initialize() {
 		state.disable = false
 		initializeSchedules()
 	}
-	logTrace("$app.label (line 453): initialized")
+	logTrace("$app.label (line 625): Initialized")
 }
 
 def dimSpeed(){
 	if(settings.multiplier != null){
-		logTrace("$app.label (line 458): dimSpeed set to $settings.multiplier")
 		return settings.multiplier
 	}else{
-		logTrace("$app.label (line 461): dimSpeed set to 1.2")
+		logTrace("$app.label (line 632): dimSpeed set to 1.2")
 		return 1.2
 	}
 }
@@ -643,54 +639,48 @@ def getDefaultLevel(device){
 
 	// If no device match, return null
 	timeDevice.findAll( {it.id == device.id} ).each {
-		logTrace("$app.label (line 472): [device: $device] function getDefaultLevel matched device $device and $it")
+		logTrace("$app.label (line 647): getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) return defaults
 
 	// if no start time
 	if(!timeStart && !timeStartSunrise && !timeStartSunset){
-		logTrace("$app.label (line 479): [device: $device] Error - no start time")
+		logTrace("$app.label (line 654): Error: No start time for $device")
 		return defaults
 	}
 
 	// if no start levels
 	if(!levelOn && !tempOn && !hueOn && !satOn){
-		logTrace("$app.label (line 485): [device: $device] returning null (no start levels)")
+		logTrace("$app.label (line 660): Returning null as start level for $device")
 		return defaults
 	}
 
 	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// if not between start and stop time
-	if(timeStop && !parent.timeBetween(timeStart, timeStop)) {
-		logTrace("$app.label (line 497) [$device]: function getDefaultLevel returning null (not between start $timeStart and stop $timeStop)")
-		return defaults
-	}
+	if(timeStop && !parent.timeBetween(timeStart, timeStop,app.label)) return defaults
 
 	// If disabled, return null
 	if(disable || state.disableAll) {
-		logTrace("$app.label (line 503) [$device]: function getDefaultLevel returning null (schedule disabled)")
+		logTrace("$app.label (line 675): Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return null
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace("$app.label (line 510) [$device]: function getDefaultLevel returning null (mode $ifMode doesn't match)")
+			logTrace("$app.label (line 682): Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
 
 	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label (line 517) [$device]: function getDefaultLevel returning null (no scheduled day)")
-		return defaults
-	}
+	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return defaults
 
 	// Get current level
 	currentLevel = device.currentLevel
@@ -705,10 +695,10 @@ def getDefaultLevel(device){
 			// If start level is too dim, and set not to dim, return current level
 			if(timeLevelIfLower){
 				if(timeLevelIfLower == "Lower"){
-					if(parent.stateOn(device) && currentLevel < levelOn) defaults = [level: currentLevel]
+					if(parent.stateOn(device,app.label) && currentLevel < levelOn) defaults = [level: currentLevel]
 				// If start level is too bright, and set not to brighten, return current level
 				} else if(timeLevelIfLower == "Higher"){
-					if(parent.stateOn(device) && currentLevel > levelOn) defaults = [level: currentLevel]
+					if(parent.stateOn(device,app.label) && currentLevel > levelOn) defaults = [level: currentLevel]
 				}
 			}
 		}
@@ -716,18 +706,18 @@ def getDefaultLevel(device){
 		if(tempOn){
 			defaults = [temp: tempOn]
 			// If start temp is too low, and set not to go lower, return current level
-			if(timeTempIfLower){
-				if(timeTempIfLower == "Lower"){
-					if(parent.stateOn(device) && currentTemp < tempOn) defaults = [temp: currentTemp]
-				// If start temp is too high, and set not to go higher, return current level
-				} else if(timeTempIfLower == "Higher"){
-					if(parent.stateOn(device) && currentTemp > tempOn) defaults = [temp: currentTemp]
-				}
-			}
+            if(timeTempIfLower){
+                if(timeTempIfLower == "Lower"){
+                    if(parent.stateOn(device,app.label) && currentTemp < tempOn) defaults = [temp: currentTemp]
+                    // If start temp is too high, and set not to go higher, return current level
+                } else if(timeTempIfLower == "Higher"){
+                    if(parent.stateOn(device,app.label) && currentTemp > tempOn) defaults = [temp: currentTemp]
+                }
+            }
 		}
 		if(hueOn) defaults = [hue: hueOn]
 		if(satOn) defaults = [sat: satOn]
-		logTrace("$app.label (line 559) [$device]: function getDefaultLevel returning $defaults")
+		logTrace("$app.label (line 725): Default level $defaults for $device")
 		return defaults
 	}
 
@@ -735,7 +725,7 @@ def getDefaultLevel(device){
 	if(timeStart && timeStop){
 		// If timeStop before timeStart, add a day
 		if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) {
-			newTimeStop = parent.getTomorrow(timeStop)
+			newTimeStop = parent.getTomorrow(timeStop,app.label)
 		} else {
 			newTimeStop = timeStop
 		}
@@ -801,30 +791,30 @@ def getDefaultLevel(device){
 			// If new level is too dim, and set not to dim, return current level
 			if(timeLevelIfLower){
 				if(timeLevelIfLower == "Lower"){
-					logTrace("$app.label (line 606) [$device]: function getDefaultLevel using current level (already dimmer)")
-					if(parent.stateOn(device) && currentLevel > newLevel) defaults.put("level",currentLevel)
+					logTrace("$app.label (line 799): Default level for $device ignored; already dimmer")
+					if(parent.stateOn(device,app.label) && currentLevel > newLevel) defaults.put("level",currentLevel)
 				}
 				// If new level is too bright, and set not to brighten, return current level
 				if(timeLevelIfLower == "Higher"){
-					logTrace("$app.label (line 611) [$device]: function getDefaultLevel using current level (already brighter)")
-					if(parent.stateOn(device) && currentLevel < newLevel) defaults.put("level",currentLevel)
+					logTrace("$app.label (line 804): Default level for $device ignored; already brighter")
+					if(parent.stateOn(device,app.label) && currentLevel < newLevel) defaults.put("level",currentLevel)
 				}
 			}
 		}
 
 		if(defaults.level == "Null" && newLevel) defaults.put("level",newLevel)
-		if(parent.isFan(device) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
+		if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
 
 		// Set temp
 		if(newTemp && defaults.temp == "Null"){
 			// If new level is too low, and set not to go lower, return current level
 			if(timeTempIfLower){
 				if(timeTempIfLower == "Lower"){
-					if(parent.stateOn(device) && currentTemp < newTemp) defaults.put("temp",currentTemp)
+					if(parent.stateOn(device,app.label) && currentTemp < newTemp) defaults.put("temp",currentTemp)
 				}
 				// If new level is too high, and set not to go higher, return current level
 				if(timeTempIfLower == "Higher"){
-					if(parent.stateOn(device) && currentTemp > newTemp) defaults.put("temp",currentTemp)
+					if(parent.stateOn(device,app.label) && currentTemp > newTemp) defaults.put("temp",currentTemp)
 				}
 			}
 		}
@@ -836,32 +826,30 @@ def getDefaultLevel(device){
 	}
 
 	// Should be all the options, but let's return current level just in case, and log an error
-	if(defaults.level == "Null") log.debug "Time: No default level match found for $device."
+	if(defaults.level == "Null") logTrace("$app.label (line 834): Error: No default level match found for $device.")
 
-	logTrace("$app.label (line 643) [$device]: function getDefaultLevel returning $defaults")
 	return defaults
 }
 
 // Schedule initializer
 def initializeSchedules(){
-	logTrace("$app.label (line 649): function initializeSchedules started")
 	unschedule()
 	
 	// If disabled, return null
 	if(disable || state.disableAll) {
-		logTrace("$app.label (line 654): function initializeSchedules returning null (schedule disabled)")
+		logTrace("$app.label (line 848): initializeSchedules returning; schedule disabled")
 		return
 	}
 
 	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// if no start time
 	if(!timeStart && !timeStartSunrise && !timeStartSunset){
-		logTrace("$app.label (line 666): [device: $device] function initializeSchedules returning null (no start time)")
+		logTrace("$app.label (line 860): Error: No start time entered")
 		return
 	}
 
@@ -871,32 +859,31 @@ def initializeSchedules(){
 		// Check if any incremental changes to make
 		if((levelOn && levelOff) || (tempOn && tempOff) || (hueOn && hueOff) || (satOn && satOff)){
 			// IncrementalSchedule does all data checks, so just run it
-			logTrace("$app.label (line 676): function initializeSchedules passing to incrementalSchedule")
 			incrementalSchedule()
 		}
 	}
 
 	// Get start time cron data
-	weekDays = weekDaysToNum()
+    if(timeDays) weekDays = weekDaysToNum()
 	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
 	
 	// Schedule next day incrementals, if no start action to be scheduled 
 	if(timeOn != "On" && timeOn != "Off" && timeOn != "Toggle" && !modeChangeOn) {
 		if(weekDays) {
-			logTrace("$app.label (line 689): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
+			logTrace("$app.label (line 882): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, incrementalSchedule)
 		} else {
-			logTrace("$app.label (line 692): function initializeSchedules scheduling incrementalSchedule (0 $minutes $hours * * ?)")
+			logTrace("$app.label (line 885): initializeSchedules scheduling incrementalSchedule (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", incrementalSchedule)
 		}
 	// Schedule next day's starting on/off/toggle
 	} else if(timeOn == "On" || timeOn == "Off" || timeOn == "Toggle" || modeChangeOn){
 		if(weekDays) {
-			logTrace("$app.label (line 698): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
+			logTrace("$app.label (line 891): initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
 		} else {
-			logTrace("$app.label (line 701): function initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours * * ?)")
+			logTrace("$app.label (line 894): initializeSchedules scheduling runDayOnSchedule (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 		}
 	}
@@ -905,80 +892,71 @@ def initializeSchedules(){
 	if(timeOff == "On" || timeOff == "Off" || timeOff == "Toggle" || modeChangeOff){
 		if(timeStop){
 			// Increment time stop by a day if before start time
-			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop)
+			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop,app.label)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 			if(weekDays) {
-				logTrace("$app.label (line 714): function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours ? * $weekDays)")
+				logTrace("$app.label (line 907): initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours ? * $weekDays)")
 				schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule, [overwrite: false])
 			}else {
-				logTrace("$app.label (line 717): function initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours * * ?)")
+				logTrace("$app.label (line 910): initializeSchedules scheduling runDayOffSchedule (0 $minutes $hours * * ?)")
 				schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: false])
 			}
 		}
 	}
-	logTrace("$app.label (line 722): function initializeSchedules exiting")
 }
 
 //settings up schedules for level/temp
 def incrementalSchedule(device = "Null",manualOverride=false){
-	logTrace("$app.label (line 727): [device: $device] function incrementalSchedule started")
-
 	// If disabled, return null
 	if(disable || state.disableAll) {
-		logTrace("$app.label (line 731): function incrementalSchedule returning null (schedule disabled)")
+		logTrace("$app.label (line 924): function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
 	// If no device match, return null
 	if(device != "Null"){
 		timeDevice.findAll( {it.id == device.id} ).each {
-			logTrace("$app.label (line 738): [device: $device] function incrementalSchedule matched device $device and $it")
+			logTrace("$app.label (line 931): Matched device $device and $it")
 			match = true
 		}
-		if(!match) {
-			logTrace("$app.label (line 742) [$device]: function incrementalSchedule returning null (no matching device)")
-			return defaults
-		}
+		if(!match) return
 	}
 	
 	if(timeLevelPico && manualOverride && (!timeOff && !modeChangeOff && !levelOff)){
-		logTrace("$app.label (line 748): [device: $device] function incrementalSchedule exiting (manual override)")
+		logTrace("$app.label (line 938): incrementalSchedule exiting, manual override enabled for $device")
 		return
 	}
 
 	// Check if correct day and time just so we don't keep running forever
-	if(timeDays && !parent.todayInDayList(timeDays)) {
-		logTrace("$app.label (line 754): function incrementalSchedule returning null (not scheduled day)")
-		return
-	}
+	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label (line 760): function incrementalSchedule returning null (mode $ifMode doesn't match)")
+		logTrace("$app.label (line 947): incrementalSchedule returning, mode $ifMode")
 		return
 	}
 
 	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative)
+	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
+	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
+	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
 
 	// If between start and stop time (if start time after stop time, then if after start time)
-	if(parent.timeBetween(timeStart, timeStop)){
+	if(parent.timeBetween(timeStart, timeStop,app.label)){
 		// If Pico override, return null
-		if(timeLevelPico && manualOverride && timeLevelPico) {
-			logTrace("$app.label (line 774): [device: $device] function incrementalSchedule unsecheduling updates and exiting (manual override)")
+        if(timeLevelPico && manualOverride && timeLevelPico) {
+            logTrace("$app.label (line 961): incrementalSchedule exiting, manual override enabled for $device")
 			unschedule(incrementalSchedule)
 			return
 		}
 		// Run first iteration now
 		runIncrementalSchedule()
 		runIn(20,incrementalSchedule)
-		logTrace("$app.label (781): scheduling itself for 20 seconds")
+		logTrace("$app.label (line 968): scheduling itself for 20 seconds")
+        return true
 	} else {
-		logTrace("$app.label (783): returning null (not between start $timeStart and stop time $timeStop)")
 		return
 	}
 }
@@ -986,87 +964,72 @@ def incrementalSchedule(device = "Null",manualOverride=false){
 // run scheduled level/temp incremental changes
 // scheduled function called from incrementalSchedule
 def runIncrementalSchedule(){
-	logTrace("$app.label (791): function runIncrementalSchedule started")
 	// Loop through devices
 	timeDevice.each{
 		// Ignore devices that aren't on
-		if(parent.stateOn(it)){
+		if(parent.stateOn(it,app.label)){
 			// Set level
 			defaults = getDefaultLevel(it)
 
-			if(levelOn && parent.isDimmable(it) && defaults.level != "Null"){
-				if(defaults) parent.setToLevel(it,defaults.level,app.getId())
+			if(levelOn && parent.isDimmable(it,app.label) && defaults.level != "Null"){
+                if(defaults) parent.setToLevel(it,defaults.level,app.label)
 			}
 			// Set temp
-			if(tempOn && parent.isTemp(it) && defaults.temp != "Null"){
+			if(tempOn && parent.isTemp(it,app.label) && defaults.temp != "Null"){
 				currentTemp = it.currentColorTemperature
 				if(defaults.temp){
-					if(defaults.temp - currentTemp > 3 || defaults.temp - currentTemp < -3) {
-						parent.singleTemp(it,defaults.temp,app.getId())
-					}
+					if(defaults.temp - currentTemp > 3 || defaults.temp - currentTemp < -3) parent.singleTemp(it,defaults.temp,app.label)
 				}
 			}
 
 			// If either Hue or Sat, but not both, set the other to current
-			if(defaults.hue != "Null" || defaults.sat != "Null") {
-				parent.singleColor(it,defaults.hue,defaults.sat,app.getId())
-			}
+			if(defaults.hue != "Null" || defaults.sat != "Null") parent.singleColor(it,defaults.hue,defaults.sat,app.label)
 		}
 	}
-	logTrace("$app.label (818): function runIncrementalSchedule exiting")
 }
+
+//Returns true if schedule turns on
+//used for when Pico resumes schedule
+def returnTimeOn(){
+    if(timeOn) return true
+}
+
 
 //Scheduled function called from setDaySchedule
 def runDayOnSchedule(){
-	logTrace("$app.label (823): function runDayOnSchedule started")
-	if(disable || state.disableAll) {
-		logTrace("$app.label (825): function runDayOnSchedule returning null (schedule disabled)")
-		return
-	}
+	if(disable || state.disableAll) return
 
 	// if mode doesn't match, return
 	if(ifMode){
-		if(location.mode != ifMode) {
-			logTrace("$app.label(832): function runDayOnSchedule returning null (mode doesn't match)")
-			return
-		}
+		if(location.mode != ifMode) return
 	}
 	if(modeChangeOn) setLocationMode(modeChangeOn)
 	if(timeOn == "On"){
-		parent.multiOn(timeDevice,app.getId())
+		parent.multiOn(timeDevice,app.label)
 	} else if(timeOn == "Off"){
-		parent.multiOff(timeDevice,app.getId())
+		parent.multiOff(timeDevice,app.label)
 	} else if(timeOn == "Toggle"){
-		parent.toggle(timeDevice,app.getId())
+		parent.toggle(timeDevice,app.label)
 	}
-	logTrace("$app.label (844): function runDayOffSchedule exiting to initializeSchedules")
 	initializeSchedules()
 }
 
 //Scheduled function called from setDaySchedule
 def runDayOffSchedule(){
-	logTrace("$app.label: function runDayOffSchedule started")
-	if(timeDisable || state.disableAll) {
-		logTrace("$app.label: function runDayOffSchedule returning null (schedule disabled)")
-		return
-	}
+	if(timeDisable || state.disableAll) return
 
 	// if mode return
 	if(ifMode){
-		if(location.mode != ifMode) {
-			logTrace("$app.label (859): function runDayOffSchedule returning null (mode doesn't match)")
-			return
-		}
+		if(location.mode != ifMode) return
 	}
 	if(modeChangeOff) setLocationMode(modeChangeOff)
 	if(timeOff == "On"){
-	   parent.multiOn(timeDevice,app.getId())
+	   parent.multiOn(timeDevice,app.label)
 	} else if(timeOff == "Off"){
-	   parent.multiOff(timeDevice,app.getId())
+	   parent.multiOff(timeDevice,app.label)
 	} else if(timeOff == "Toggle"){
-	   parent.toggle(timeDevice,app.getId())
+	   parent.toggle(timeDevice,app.label)
 	}
-	logTrace("$app.label (871): function runDayOffSchedule exiting to initializeSchedules")
 	initializeSchedules()
 }
 
@@ -1099,7 +1062,7 @@ def weekDaysToNum(){
 			dayString += "SUN"
 		}
 	}
-	logTrace("$app.label (904): function weekDaysToNum returning $dayString")
+	logTrace("$app.label (line 1085): weekDaysToNum returning $dayString")
 	return dayString
 }
 
