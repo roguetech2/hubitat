@@ -335,17 +335,19 @@ def dimSpeed(){
 }
 
 def installed() {
+    logTrace("$app.label (line 338) -- Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
+    logTrace("$app.label (line 344) -- Updated")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    log.info "MagicCube initialized"
+    logTrace("$app.label (line 348) -- Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -369,7 +371,8 @@ def buttonEvent1(evt){
 		if(shake && shake == "toggle") button_1_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName shaken."
+
+    logTrace("$app.label (line 375) -- $evt.displayName shaken")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -379,7 +382,7 @@ def buttonEvent1(evt){
     if(button_1_dim) parent.dim(button_1_dim,true,app.getId())
     if(button_1_brighten) parent.brighten(button_1_brighten,true,app.getId())
     if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
-        log.info "MagicCube: No action defined for shaking of $evt.displayName."
+    	logTrace("$app.label (line 385) -- No action defined for shaking of $evt.displayName")
     }
 }
 
@@ -395,7 +398,7 @@ def buttonEvent2(evt){
 		if(f90 && f90 == "toggle") button_2_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName flipped 90°."
+    logTrace("$app.label (line 401) -- $evt.displayName flipped 90°")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -405,7 +408,7 @@ def buttonEvent2(evt){
     if(button_2_dim) parent.dim(button_2_dim,true,app.getId())
     if(button_2_brighten) parent.brighten(button_2_brighten,true,app.getId())
     if(!button_2_toggle && !button_2_on && !button_2_off && !button_2_dim && !button_2_brighten){
-        log.info "MagicCube: No action defined for flipping 90° of $evt.displayName."
+    	logTrace("$app.label (line 385) -- No action defined for flipping 90° of $evt.displayName")
     }
 }
 
@@ -421,7 +424,7 @@ def buttonEvent3(evt){
 		if(f180 && f180 == "toggle") button_3_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName flipped 180°."
+    logTrace("$app.label (line 427) -- $evt.displayName flipped 180°")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -431,7 +434,7 @@ def buttonEvent3(evt){
     if(button_3_dim) parent.dim(button_3_dim,true,app.getId())
     if(button_3_brighten) parent.brighten(button_3_brighten,true,app.getId())
     if(!button_3_toggle && !button_3_on && !button_3_off && !button_3_dim && !button_3_brighten){
-        log.info "MagicCube: No action defined for flipping 180° of $evt.displayName."
+    	logTrace("$app.label (line 437) -- No action defined for flipping 180° of $evt.displayName")
     }
 }
 
@@ -447,7 +450,7 @@ def buttonEvent4(evt){
 		if(slide && slide == "toggle") button_4_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName slid."
+    logTrace("$app.label (line 453) -- $evt.displayName slid")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -457,7 +460,7 @@ def buttonEvent4(evt){
     if(button_4_dim) parent.dim(button_4_dim,true,app.getId())
     if(button_4_brighten) parent.brighten(button_4_brighten,true,app.getId())
     if(!button_4_toggle && !button_4_on && !button_4_off && !button_4_dim && !button_4_brighten){
-        log.info "MagicCube: No action defined for sliding of $evt.displayName."
+    	logTrace("$app.label (line 463) -- No action defined for sliding of $evt.displayName")
     }
 }
 
@@ -473,7 +476,7 @@ def buttonEvent5(evt){
 		if(knock && knock == "toggle") button_5_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName knock."
+    logTrace("$app.label (line 479) -- $evt.displayName knocked")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -483,7 +486,7 @@ def buttonEvent5(evt){
     if(button_5_dim) parent.dim(button_5_dim,true,app.getId())
     if(button_5_brighten) parent.brighten(button_5_brighten,true,app.getId())
     if(!button_5_toggle && !button_5_on && !button_5_off && !button_5_dim && !button_5_brighten){
-        log.info "MagicCube: No action defined for knocking of $evt.displayName."
+    	logTrace("$app.label (line 489) -- No action defined for knocking of $evt.displayName")
     }
 }
 
@@ -498,7 +501,7 @@ def buttonEvent6(evt){
 		if(clockwise && clockwise == "toggle") button_6_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName rotated clockwise."
+    logTrace("$app.label (line 504) -- $evt.displayName rotated clockwise")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -508,7 +511,7 @@ def buttonEvent6(evt){
     if(button_6_dim) parent.dim(button_6_dim,true,app.getId())
     if(button_6_brighten) parent.brighten(button_6_brighten,true,app.getId())
     if(!button_6_toggle && !button_6_on && !button_6_off && !button_6_dim && !button_6_brighten){
-        log.info "MagicCube: No action defined for rotating clockwise of $evt.displayName."
+    	logTrace("$app.label (line 514) -- No action defined for clockwise rotating of $evt.displayName")
     }
 }
 
@@ -524,7 +527,7 @@ def buttonEvent7(evt){
 		if(counterClockwise && counterClockwise == "toggle") button_7_toggle = controlDevice
 	}
 
-    log.info "MagicCube: $evt.displayName rotated counter-clockwise."
+    logTrace("$app.label (line 530) -- $evt.displayName rotated counter-clockwise")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -534,6 +537,10 @@ def buttonEvent7(evt){
     if(button_7_dim) parent.dim(button_7_dim,true,app.getId())
     if(button_7_brighten) parent.brighten(button_7_brighten,true,app.getId())
     if(!button_7_toggle && !button_7_on && !button_7_off && !button_7_dim && !button_7_brighten){
-        log.info "MagicCube: No action defined for rotating counter-clockwise of $evt.displayName."
+    	logTrace("$app.label (line 540) -- No action defined for counter-clockwise rotating of $evt.displayName")
     }
+}
+
+def logTrace(message) {
+	//log.trace message
 }
