@@ -484,7 +484,7 @@ def humidityHandler(evt) {
 	logTrace("$app.label: function humidityHandler [startingHumidity = $state.startingHumidity]")
 	logTrace("$app.label: function humidityHandler [humidityChangeRate = $state.humidityChangeRate]")
 	*/
-	logTrace("$app.label (line 487) -- Current humidity is $state.currentHumidity; auto on is $state.automaticallyTurnedOn")
+	logTrace("$app.label (line 487) -- Current humidity of $evt.displayName is $state.currentHumidity; auto on is $state.automaticallyTurnedOn")
 	fanIsOn = parent.multiStateOn(switches,app.label)
 
 	// If the fan is auto-on, turn it off? (Or need to schedule off?)
