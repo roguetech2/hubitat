@@ -296,10 +296,10 @@ def presenceHandler(evt) {
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
-			parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label))
+			parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
 			log.info "$app.label -- Sent SMS for $evt.displayName's arrival at $now."
 		} else {
-			parent.sendText(phone,"$evt.displayName left the house at $now.",app.label))
+			parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
 			log.info "$app.label -- Sent SMS for $evt.displayName's departure at $now."
 		}
 	}
