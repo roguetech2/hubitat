@@ -411,10 +411,10 @@ def contactChange(evt){
 				state.contactLastSms = new Date().getTime()
 
 					if(evt.value == "open"){
-						parent.sendText(phone,"$evt.displayName was opened at $now.",app.label))
+						parent.sendText(phone,"$evt.displayName was opened at $now.",app.label)
 						log.info "$app.label -- Sent SMS for $evt.displayName opened at $now."
 					} else {
-						parent.sendText(phone,"$evt.displayName was closed at $now.",app.label))
+						parent.sendText(phone,"$evt.displayName was closed at $now.",app.label)
 						log.info "$app.label -- Sent SMS for $evt.displayName closed at $now."
 					}
 			} else {
