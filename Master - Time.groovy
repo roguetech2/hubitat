@@ -847,18 +847,18 @@ def getDefaultLevel(device){
     // Calculate proportiant level
     if(levelEnable && levelOff && levelOn) {
         if(levelOff > levelOn){
-            defaults.put("level", (levelOff - levelOn) * percentTimeExpired + levelOn as int)
+            defaults.put("level", ((levelOff - levelOn) * percentTimeExpired + levelOn) as int)
         } else {
-            defaults.put("level", levelOn - (levelOn - levelOff) * percentTimeExpired as int)
+            defaults.put("level", (levelOn - (levelOn - levelOff) * percentTimeExpired) as int)
         }
     }
 
     //Calculate proportiant temp
     if(tempEnable && tempOff && tempOn) {
         if(tempOff > tempOn){
-            defaults.put("temp", (tempOff - tempOn) * percentTimeExpired + tempOn as int)
+            defaults.put("temp", ((tempOff - tempOn) * percentTimeExpired + tempOn) as int)
         } else {
-            defaults.put("temp", tempOn - (tempOn - tempOff) * percentTimeExpired as int)
+            defaults.put("temp", (tempOn - (tempOn - tempOff) * percentTimeExpired_ as int)
         }
     }
 
@@ -866,27 +866,28 @@ def getDefaultLevel(device){
     if(colorEnable && hueOff && hueOn) {
         // hueOn=25, hueOff=75, going 25, 26...74, 75
         if(hueOff > hueOn && hueDirection == "Forward"){
-            defaults.put("hue", (hueOff - hueOn) * percentTimeExpired + hueOn as int)
+            defaults.put("hue", ((hueOff - hueOn) * percentTimeExpired + hueOn) as int)
             // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
         } else if(hueOff > hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * percentTimeExpired as int)
+            defaults.put("hue", (hueOn - (100 - hueOff + hueOn)  * percentTimeExpired) as int)
             if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
             //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
         } else if(hueOff < hueOn && hueDirection == "Forward"){
-            defaults.put("hue", (100 - hueOn + hueOff)  * percentTimeExpired + hueOn as int)
+            defaults.put("hue", ((100 - hueOn + hueOff)  * percentTimeExpired + hueOn) as int)
             if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
             //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
         } else if(hueOff < hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (hueOn - hueOff) * percentTimeExpired as int)
+	    defaults.put("hue", (hueOn - ((hueOn - hueOff)  * percentTimeExpired)) as int)
+            //defaults.put("hue", hueOn - (hueOn - hueOff) * percentTimeExpired as int)
         }
     }
 
     //Calculate proportiant sat
     if(colorEnable && satOff && satOn) {
         if(satOff > satOn){
-            defaults.put("sat", (satOff - satOn) * percentTimeExpired + satOn as int)
+            defaults.put("sat", ((satOff - satOn) * percentTimeExpired + satOn) as int)
         } else {
-            defaults.put("sat", (100 - satOn + satOff) * percentTimeExpired + satOn as int)
+            defaults.put("sat", ((100 - satOn + satOff) * percentTimeExpired + satOn) as int)
             if(defaults.sat > 100) defaults.put("sat", defaults.sat - 100)
         }
     }
