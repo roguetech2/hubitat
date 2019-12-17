@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.28
+*  Version: 0.1.29
 *
 ***********************************************************************************************************************/
 
@@ -760,15 +760,11 @@ def getSunrise(offset, negative=false,childLabel="Master"){
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSunset(offset = false, negative=false,childLabel="Master"){
+def getSunset(offset = false,childLabel="Master"){
     if(offset){
-        if(negative){
-            def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
+        def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
             value = offsetRiseAndSet.sunset
-        } else {
-            def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
-            value = offsetRiseAndSet.sunset
-        }
+       
         value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
     } else {
         value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
