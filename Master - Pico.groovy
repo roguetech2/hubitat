@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.3.05
+*  Version: 0.3.06
 *
 ***********************************************************************************************************************/
 
@@ -37,6 +37,12 @@ definition(
 /* ************************************************** */
 /* ************************************************** */
 /* TO-DO: Add optiobn to disable contact or schedule? */
+/* ************************************************** */
+/* ************************************************** */
+/* TO-DO: Have Pico disable and/or pause schedules,   */
+/* eg if schedule is brightening, and Pico dims,      */
+/* disable schedule; if schedule is dimming and PIco  */
+/* dims lower than schedule is at, pause schedule.    */
 /* ************************************************** */
 preferences {
 	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/information.png\" width=20 height=20>"
@@ -831,19 +837,19 @@ preferences {
 
 
 def installed() {
-	logTrace("$app.label: installed")
+	logTrace(840. "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace("$app.label: updated")
+	logTrace(846,"Updated")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace("$app.label: initialized")
+	logTrace(852,"Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -859,628 +865,184 @@ def buttonPushed(evt){
     def whiteSwitch
 
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-	
+
+	// Treat 2nd button of 2-button Pico as "off" (eg button 5)
+	if(buttonNumber == "2" &&  numButton == "2 button") buttonNumber = 5
+
 	// Simple setup
 	if(!multiDevice && !advancedSetup){
 		switch(buttonNumber){
 			case "1": parent.multiOn(controlDevice,app.label)
-                logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning on")
+                logTrace(876,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning on")
 				break
 			case "2": parent.brighten(controlDevice,app.getId())
-                logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; brightening")
+                logTrace(879,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; brightening")
 				break
 			case "3": parent.toggle(controlDevice,app.label)
-                logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; toggling")
+                logTrace(882,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; toggling")
 				break
-			case "4": parent.dim(controlDevice,null,app.getId())
-                logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; dimming")
+			case "4": parent.dim(controlDevice,app.getId())
+                logTrace(885,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; dimming")
 				break
 			case "5": parent.multiOff(controlDevice,app.label)
-                logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning off")
+                logTrace(888,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning off")
 		}
-		return
-	}
-	
-	if(!multiDevice && advanceSetup){
-		if(buttonNumber == "1"){
-			switch(buttonPush1){
+	} else if(!multiDevice && advanceSetup){
+			switch(buttonPush${buttonNumber}){
 				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
+                    logTrace(893,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
 					break
 				case "brighten": parent.brighten(controlDevice,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
+                    logTrace(896,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
 					break
 				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
+                    logTrace(899,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
 					break
-				case "dim": parent.dim(controlDevice,null,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "2"){
-			switch(buttonPush2){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": parent.brighten(controlDevice,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": parent.dim(controlDevice,null,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
+				case "dim": parent.dim(controlDevice,app.getId())
+                    logTrace(902,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
 					break
 				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
+                    logTrace(905,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
 			}
-		} else if(buttonNumber == "3"){
-			switch(buttonPush2){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": parent.brighten(controlDevice,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": parent.dim(controlDevice,null,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "4"){
-			switch(buttonPush2){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": parent.brighten(controlDevice,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": parent.dim(controlDevice,null,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "5"){
-			switch(buttonPush2){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": parent.brighten(controlDevice,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": parent.dim(controlDevice,null,app.getId())
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
-			}
-		}
-		return
-	}
+	} else if(multiDevice && advanceSetup){
 
-    if(buttonNumber == "1"){
-        if(button_1_push_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
+        if(button_${buttonNumber}_push_toggle != null) {
+                    logTrace(910,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
             if (settings.color == "Separate"){
-                toggleSeparate(button_1_push_toggle)
+                toggleSeparate(button_${buttonNumber}_push_toggle)
             } else {
-                parent.toggle(button_1_push_toggle,app.label)
+                parent.toggle(button_${buttonNumber}_push_toggle,app.label)
             }
         }
-        if(button_1_push_on) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_1_push_on,app.label)
+        if(button_${buttonNumber}_push_on) {
+                    logTrace(918,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
+            parent.multiOn(button_${buttonNumber}_push_on,app.label)
         }
-        if(button_1_push_off){
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_1_push_off,app.label)
+        if(button_${buttonNumber}_push_off){
+                    logTrace(922,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
+            parent.multiOff(button_${buttonNumber}_push_off,app.label)
         }
-        if(button_1_push_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_1_push_dim,true,app.getId())
+        if(button_${buttonNumber}_push_dim) {
+                    logTrace(926,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
+            parent.dim(button_${buttonNumber}_push_dim,app.getId())
         }
-        if(button_1_push_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_1_push_brighten,manualOverride=true,app.getId())
+        if(button_${buttonNumber}_push_brighten) {
+                    logTrace(930,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
+            parent.brighten(button_${buttonNumber}_push_brighten,app.getId())
         }
-		return
-    }
-
-    if(buttonNumber == "2" && (numButton == "4 button" || numButton == "5 button")){
-        if(button_2_push_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_2_push_toggle)
-            } else {
-                parent.toggle(button_2_push_toggle,app.label)
-            }
-        }
-        if(button_2_push_on) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_2_push_on,app.label)
-        }
-        if(button_2_push_off) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_2_push_off,app.label)
-        }
-        if(button_2_push_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_2_push_dim,true,app.getId())
-        }
-        if(button_2_push_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_2_push_brighten,manualOverride=true,app.getId())
-        }
-		return
-    }
-
-    if(buttonNumber == "3"){
-        if(button_3_push_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_3_push_toggle)
-            } else {
-                parent.toggle(button_3_push_toggle,app.label)
-            }
-        }
-        if(button_3_push_on) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_3_push_on,app.label)
-        }
-        if(button_3_push_off) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_3_push_off,app.label)
-        }
-        if(button_3_push_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_3_push_dim,true,app.getId())
-        }
-        if(button_3_push_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_3_push_brighten,manualOverride=true,app.getId())
-        }
-		return
-    }
-
-    if(buttonNumber == "4"){
-        if(button_4_push_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_4_push_toggle)
-            } else {
-                parent.toggle(button_4_push_toggle,app.label)
-            }
-        }
-        if(button_4_push_on) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_4_push_on,app.label)
-        }
-        if(button_4_push_off) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_4_push_off,app.label)
-        }
-        if(button_4_push_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_4_push_dim,true,app.getId())
-        }
-        if(button_4_push_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_4_push_brighten,manualOverride=true,app.getId())
-        }
-		return
-    }
-
-    if(buttonNumber == "5" || (buttonNumber == "2" &&  numButton == "2 button")){
-        if(button_5_push_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_5_push_toggle)
-            } else {
-                parent.toggle(button_5_push_toggle,appId)
-            }
-        }
-        if(button_5_push_on) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_5_push_on,app.label)
-        }
-        if(button_5_push_off) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_5_push_off,app.label)
-        }
-        if(button_5_push_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_5_push_dim,true,app.getId())
-        }
-        if(button_5_push_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_5_push_brighten,manualOverride=true,app.getId())
-        }
-		return
-    }
 }
 
 def buttonHeld(evt){
-	logTrace("$app.label: function buttonHeld starting [$evt.value]")
 
     def buttonNumber = evt.value
     def colorSwitch
     def whiteSwitch
 
+	// Treat 2nd button of 2-button Pico as "off" (eg button 5)
+	if(buttonNumber == "2" &&  numButton == "2 button") buttonNumber = 5
+
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
 // TO DO - see if these can be moved so doesn't need to process at every button click
+
+// We are missing multiDevice + advancedSetup (minus replicateHold)!!
+//But, why does multiDevice lead to multiOn/Off??
+
 	if(!multiDevice && !advancedSetup && !replicateHold){
 		switch(buttonNumber){
 			case "1": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning on")
+                    logTrace(954,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning on")
 				break
 			case "2": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; brightening")
+                    logTrace(957,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; brightening")
 				break
 			case "3": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; toggling")
+                    logTrace(960,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; toggling")
 				break
 			case "4": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; dimming")
+                    logTrace(963,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; dimming")
 				break
 			case "5": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning off")
+                    logTrace(966,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning off")
 		}
-		return
-	}
-
-	if(!multiDevice && advanceSetup && !replicateHold){
-		if(buttonNumber == "1"){
-			switch(buttonPush1){
+	} else if(!multiDevice && advanceSetup && !replicateHold){
+			switch(buttonPush${buttonNumber}){
 				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
+                    logTrace(971,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
 					break
 				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
+                    logTrace(974,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
 					break
 				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
+                    logTrace(977,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
 					break
 				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
+                    logTrace(980,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
 					break
 				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
+                    logTrace(983,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
-		} else if(buttonNumber == "2"){
-			switch(buttonPush2){
+	} else if(!multiDevice && advanceSetup && replicateHold){
+			switch(buttonHold${buttonNumber}){
 				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
+                    logTrace(988,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
 					break
 				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
+                    logTrace(991,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
 					break
 				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
+                    logTrace(994,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
 					break
 				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
+                    logTrace(997,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
 					break
 				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
+                    logTrace(1000,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
-		} else if(buttonNumber == "3"){
-			switch(buttonPush3){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "4"){
-			switch(buttonPush4){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "5"){
-			switch(buttonPush5){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
+	} else if(multiDevice && advanceSetup && replicateHold){
+		if(button_${buttonNumber}_hold_toggle != null) {
+			logTrace(1004,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
+			if (settings.color == "Separate"){
+				toggleSeparate(button_${buttonNumber}_push_toggle)
+			} else {
+				parent.toggle(button_${buttonNumber}_push_toggle,app.label)
 			}
 		}
-		return
-	}
-
-	if(!multiDevice && advanceSetup && replicateHold){
-		if(buttonNumber == "1"){
-			switch(buttonHold1){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "2"){
-			switch(buttonHold2){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "3"){
-			switch(buttonHold3){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "4"){
-			switch(buttonHold4){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-		} else if(buttonNumber == "5"){
-			switch(buttonHold5){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
+		if(button_${buttonNumber}_hold_on) {
+			logTrace(1012,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
+			parent.multiOn(button_${buttonNumber}_hold_on,app.label)
 		}
-		return
+		if(button_${buttonNumber}_hold_off) {
+			logTrace(1016,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
+			parent.multiOff(button_${buttonNumber}_hold_off,app.label)
+		}
+		if(button_${buttonNumber}_hold_dim) {
+			logTrace(1020,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
+			holdDim(button_${buttonNumber}_hold_dim)
+		}
+		if(button_${buttonNumber}_hold_brighten) {
+			logTrace(1024,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
+			holdBrighten(button_${buttonNumber}_hold_brighten)
+		}
 	}
-
-
-    if(buttonNumber == "1"){
-        if(button_1_hold_toggle != null) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_1_push_toggle)
-            } else {
-                parent.toggle(button_1_push_toggle,app.label)
-            }
-        }
-        if(button_1_hold_on) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_1_hold_on,app.label)
-        }
-        if(button_1_hold_off) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_1_hold_off,app.label)
-        }
-        if(button_1_hold_dim) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            holdDim(button_1_hold_dim)
-        }
-        if(button_1_hold_brighten) {
-                    logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            holdBrighten(button_1_hold_brighten)
-        }
-		return
-    }
-
-    if(buttonNumber == "2"){
-        if(button_2_hold_toggle != null) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_2_push_toggle)
-            } else {
-                parent.toggle(button_2_push_toggle,app.label)
-            }
-        }
-        if(button_2_hold_on) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_2_hold_on,app.label)
-        }
-        if(button_2_hold_off) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_2_hold_off,app.label)
-        }
-        if(button_2_hold_dim) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            holdDim(button_2_hold_dim)
-        }
-        if(button_2_hold_brighten) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            holdBrighten(button_2_hold_brighten)
-        }
-		return
-    }
-
-    if(buttonNumber == "3"){
-        if(button_3_hold_toggle != null) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_3_push_toggle)
-            } else {
-                parent.toggle(button_3_push_toggle,app.label)
-            }
-        }
-        if(button_3_hold_on) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_3_hold_on,app.label)
-        }
-        if(button_3_hold_off) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_3_hold_off,app.label)
-        }
-        if(button_3_hold_dim) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            holdDim(button_3_hold_dim)
-        }
-        if(button_3_hold_brighten) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            holdBrighten(button_3_hold_brighten)
-        }
-		return
-    }
-
-    if(buttonNumber == "4"){
-        if(button_4_hold_toggle != null) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_4_push_toggle)
-            } else {
-                parent.toggle(button_4_push_toggle,app.label)
-            }
-        }
-        if(button_4_hold_on) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_4_hold_on,app.label)
-        }
-        if(button_4_hold_off) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_4_hold_off,app.label)
-        }
-        if(button_4_hold_dim) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            holdDim(button_4_hold_dim)
-        }
-        if(button_4_hold_brighten) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            holdBrighten(button_4_hold_brighten)
-        }
-		return
-    }
-
-    if(buttonNumber == "5"){
-        if(button_5_hold_toggle != null) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
-            if (settings.color == "Separate"){
-                toggleSeparate(button_5_push_toggle)
-            } else {
-                parent.toggle(button_5_push_toggle,app.label)
-            }
-        }
-        if(button_5_hold_on) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_5_hold_on,app.label)
-        }
-        if(button_5_hold_off) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_5_hold_off,app.label)
-        }
-        if(button_5_hold_dim) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            holdDim(button_5_hold_dim)
-        }
-        if(button_5_hold_brighten) {
-            logTrace("$app.label: Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            holdBrighten(button_5_hold_brighten)
-        }
-		return
-    }
 }
 
 def buttonReleased(evt){
-	logTrace("$app.label: function buttonReleased starting [$evt.value]")
 	def buttonNumber = evt.value
 	if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
-		logTrace("$app.label: function buttonHeld unscheduling all")
+		logTrace(1034,"Button $buttonNumber of $buttonDevice released, unscheduling all")
 		unschedule()
 	}
-	logTrace("$app.label: function buttonHeld exiting")
 }
 
+
+//What's the difference between multiplier, pushMultiplier and holdMultiplier?!
 def dimSpeed(){
-	logTrace("$app.label: function dimSpeed starting")
 	if(settings.multiplier != null){
-		logTrace("$app.label: function dimSpeed returning $pushMultiplier")
+		logTrace(1040,"function dimSpeed returning $pushMultiplier")
 		return pushMultiplier
 	} else {
-		logTrace("$app.label: function dimSpeed returning 1.2")
+		logTrace(1043,"function dimSpeed returning 1.2")
 		return 1.2
 	}
 }
@@ -1498,36 +1060,37 @@ def holdDimSpeed(){
 
 // counts number of steps for brighten and dim
 // action = "dim" or "brighten"
-def getSteps(lvl, action){
-	logTrace("$app.label: function getSteps starting [lvl: $lvl, action: $action]")
+def getSteps(level, action){
+	logTrace("$app.label: function getSteps starting [level: $level, action: $action]")
 	def steps = 0
 
 	if (action != "dim" && action != "brighten"){
 		logTrace("$app.label: function getSteps returning null (invalid action")
 		return false
 	}
+
 	// If as already level 1 and dimming or 100 and brightening
-	if((action == "dim" && lvl < 2) || (action == "brighten" && lvl>99)){
+	if((action == "dim" && level < 2) || (action == "brighten" && level > 99)){
 		steps = 0
 	}
 
+	//Just step through nextLevel until hit 1 or 100, and tally total times
 	if (action == "dim"){
-		while (lvl  > 1) {
+		while (level  > 1) {
 			steps = steps + 1
-			lvl = parent.nextLevel(lvl, action,app.getId())
+			level = parent.nextLevel(level, action,app.getId())
 		}
 	} else if(action == "brighten"){
-		while (lvl  < 100) {
+		while (level  < 100) {
 			steps = steps + 1
-			lvl = parent.nextLevel(lvl, action,app.getId())
+			level = parent.nextLevel(level, action,app.getId())
 		}
 	}
-	logTrace("$app.label: function getSteps returning $steps")
+	logTrace(1089,"Function getSteps returning $steps")
 	return steps
 }
 
 def setSubscribeLevel(data){
-	logTrace("$app.label: function setSubscribeLevel returning [date: $data]")
 
 	button_1_hold_dim.each{
 		if (it.id == data.device) device = it
@@ -1578,18 +1141,15 @@ def setSubscribeLevel(data){
 		}
 	}
 	if(device == null) {
-		logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
+		logTrace(1144,"Function setSubscribeLevel returning (no matching device)")
 		return
 	}
 	level = data.level as int
 	parent.setToLevel(device,level,app.label)
-	reschedule(it,mannualOverride=true)
-	logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
+	reschedule(it)
 }
 
 def toggleSeparate(device){
-	logTrace("$app.label: function setSubscribeLevel returning (no matching device)")
-
 	device.each{
 		if(it.currentValue("hue") && it.currentValue("switch") == "on") {
 			colorSwitch = "on"
@@ -1613,54 +1173,52 @@ def toggleSeparate(device){
 	}
 }
 
-def holdDim(dvce){
-    def lvl = getLevel(dvce)
+def holdDim(device){
+    def level = getLevel(device)
 	
-    dvce.each{
+    device.each{
         if(parent.isFan(it,app.label) == true){
-            parent.dim(it,null,app.getId())
+            parent.dim(it,app.getId())
         } else if(!parent.stateOn(it,app.label)){
             parent.setToLevel(it,1,app.label)
-			parent.reschedule(it,mannualOverride=true,app.label)
+			parent.reschedule(it,app.label)
         } else {
-            if(lvl < 2){
-                log.info "Pico: Can't dim $it; already 1%."
-				parent.flashGreen(it,app.label)
+            if(level < 2){
+                log.Trace("Can't dim $it; already 1%.")
             } else {
-                def steps = getSteps(lvl, "dim")
+                def steps = getSteps(level, "dim")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
-                    newLevel = parent.nextLevel(lvl, "dim",app.getId())
+                    newLevel = parent.nextLevel(level, "dim",app.getId())
                     runInMillis(i*750,setSubscribeLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
-                    lvl = newLevel
+                    level = newLevel
                 }
             }
         }
     }
 }
 
-def holdBrighten(dvce){
-    def lvl = getLevel(dvce)
+def holdBrighten(device){
+    def level = getLevel(device)
 
-    dvce.each{
-        if(parent.isFan(it,app.label) == true){
+    device.each{
+        if(parent.isFan(it,app.label)){
             parent.brighten(it,app.label)
         } else if(!parent.stateOn(it,app.label)){
             parent.setToLevel(it,1,app.label)
-			reschedule(it,mannualOverride=true)
+			reschedule(it)
         } else {
-            if(lvl > 99){
-                log.info "Pico: Can't brighten $it; already 100%."
-				parent.flashGreen(it,app.label)
+            if(level > 99){
+                logTrace(1660,"Pico: Can't brighten $it; already 100%.")
             } else {
-                def steps = getSteps(lvl, "brighten")
+                def steps = getSteps(level, "brighten")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
-                    newLevel = parent.nextLevel(lvl, "brighten",app.getId())
+                    newLevel = parent.nextLevel(level, "brighten",app.getId())
                     runInMillis(i*750,setSubscribeLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
-                    lvl = newLevel
+                    level = newLevel
                 }
             }
         }
@@ -1669,17 +1227,17 @@ def holdBrighten(dvce){
 
 // calculate average level of a group
 def getLevel(device){
-    def lvl = 0
+    def level = 0
     def count = 0
     device.each{
         if(parent.isFan(it,app.label) != true){
-            lvl += it.currentLevel
+            level += it.currentLevel
             count++
         }
     }
-    if(lvl>0) lvl = Math.round(lvl/count)
-    if (lvl > 100) lvl = 100
-    return lvl
+    if(level>0) level = Math.round(level/count)
+    if (level > 100) level = 100
+    return level
 }
 
 def createDeviceList(device,list = []){
@@ -1695,6 +1253,6 @@ def compareDeviceList(device,list){
 	}
 }
 
-def logTrace(message){
-	log.trace(message)
+def logTrace(lineNumber,message){
+	log.trace "$app.label (line $lineNumber) -- $message"
 }
