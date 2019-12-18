@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.29
+*  Version: 0.1.30
 *
 ***********************************************************************************************************************/
 
@@ -252,7 +252,7 @@ def multiOn(device,childLabel="Master"){
 		}
 
         singleOn(it,childLabel)
-        reschedule(it,null,childLabel)
+        reschedule(it,childLabel)
 		if(isDimmable(it,childLabel)){
             pause(250)
 			if(isFan(it,childLabel)){
@@ -286,7 +286,7 @@ def singleOn(device,childLabel = "Master"){
 def multiOff(device,childLabel="Master"){
 	device.each{
         singleOff(it,childLabel)
-        reschedule(it,null,childLabel)
+        reschedule(it,childLabel)
 		// Check if it turned on, else retry
         pause(250)
         if(stateOn(it,childLabel)){
@@ -337,12 +337,12 @@ def toggle(device,childLabel="Master"){
 		} else {
 			singleOff(it,childLabel)
 		}
-		reschedule(it,null,childLabel)
+		reschedule(it,childLabel)
 	}
 }
 
 // Dim a group of dimmers
-def dim(device,childId="Master",manualOverride=false){
+def dim(device,childId="Master"){
 	childLabel = getAppLabel(childId)
 	deviceChange = false
 	device.each{
@@ -351,28 +351,26 @@ def dim(device,childId="Master",manualOverride=false){
 				// If not fan is not on, turn it on by setting level 100
 				if(!stateOn(it,childLabel)){
 					setToLevel(it,75,childLabel)
-					reschedule(it,null,childLabel)
+					reschedule(it,childLabel)
 				} else {
 					// If fan is on low, turn it off
 					if(roundFanLevel(it.currentLevel,childLabel) == 25){
 						singleOff(it,childLabel)
 					} else {
 						setToLevel(it,roundFanLevel(it.currentLevel - 25,childLabel),childLabel)
-						if(manualOverride) reschedule(it,manualOverride,childLabel)
+						reschedule(it,childLabel)
 					}
 				}
 			} else if(!isFan(it,childLabel)){
 				// If not light is not on, then turn it on by setting level 1
 				if (!stateOn(it,childLabel)){
 					setToLevel(it,1,childLabel)
-					reschedule(it,null,childLabel)
+					reschedule(it,childLabel)
 				} else if(it.currentLevel == 1){
-					flashGreen(it)
 					logTrace(371,"Can't dim $device; already at 1%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "dim", childLabel)
 					setToLevel(it,newLevel,childLabel)
-					if(manualOverride) reschedule(it,manualOverride,childLabel)
 				}
 			}
 		}
@@ -380,7 +378,7 @@ def dim(device,childId="Master",manualOverride=false){
 }
 
 // Brighten a group of dimmers
-def brighten(device,childId="Master",manualOverride=false){
+def brighten(device,childId="Master"){
 	childLabel = getAppLabel(childId)
 	device.each{
 		if(isDimmable(it,childLabel)){
@@ -389,29 +387,27 @@ def brighten(device,childId="Master",manualOverride=false){
 				if(!stateOn(it,childLabel)){
 					singleOn(it,childLabel)
 					setToLevel(it,25,childLabel)
-					reschedule(it,null,childLabel)
+					reschedule(it,childLabel)
 				} else {
 					// If fan is on high, turn it off
 					if(roundFanLevel(it.currentLevel,childLabel) == 75){
 						singleOff(it,childLabel)
-						reschedule(it,null,childLabel)
+						reschedule(it,childLabel)
 					} else {
 						setToLevel(it,roundFanLevel(it.currentLevel + 25,childLabel),childLabel)
-						if(manualOverride) reschedule(it,manualOverride,childLabel)
+						reschedule(it,childLabel)
 					}
 				}
 			} else if(!isFan(it,childLabel)){
 				// If light is not on, turn it on by setting level to 1
 				if (!stateOn(it,childLabel)){
 					setToLevel(it,25,childLabel)
-					reschedule(it,null,childLabel)
+					reschedule(it,childLabel)
 				} else if(it.currentLevel == 100){
-					flashGreen(it)
 					logTrace(410,"Can't brighten $device; already at 100%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "brighten",childId)
 					setToLevel(it,newLevel,childLabel)
-					if(manualOverride) reschedule(it,manualOverride,childLabel)
 				}
 			}
 		}
@@ -505,11 +501,11 @@ def nextLevel(level, action, childId="Master"){
 		}
 		if(!dimSpeed){
 			dimSpeed = 1.2
-			logTrace(508,"ERROR: Failed to find dimSpeed in function nextLevel",childLabel)
+			logTrace(504,"ERROR: Failed to find dimSpeed in function nextLevel",childLabel)
 		}
 	}
 	if (action != "dim" && action != "brighten"){
-		logTrace(512,"ERROR: Invalid action of $action in function nextLevel",childLabel)
+		logTrace(508,"ERROR: Invalid action of $action in function nextLevel",childLabel)
 		return false
 	}
 	def newLevel = level as int
@@ -528,7 +524,7 @@ def nextLevel(level, action, childId="Master"){
 	}
 	if(newLevel > 100) newLevel = 100
 	if(newLevel < 1) newLevel = 1
-	logTrace(531,"Function nextLevel returning $newLevel",childLabel)
+	logTrace(527,"Function nextLevel returning $newLevel",childLabel)
 	return newLevel
 }
 
@@ -665,33 +661,6 @@ def isFan(device, childLabel="Master"){
     }
 }
 
-// Flash lights green
-// Used by brighten function to indicate lights at 100%
-/* ************************************************** */
-/* TO-DO: Should add option to change color and/or    */
-/* disable                                            */
-/* ************************************************** */
-
-/* ************************************************** */
-/* Disabling feature - doesn't work reliably.         */
-/* ************************************************** */
-def flashGreen(device){
-    /*
-logTrace(680,"function flashGreen starting [device: $device]")
-currentHue = device.currentHue
-currentSat = device.currentSaturation
-if(!isColor(device,childLabel)) {
-logTrace(684,"function flashGreen returning (not color device)")
-return
-}
-newValue = [hue: 33, saturation: 100]
-singleColor(device,33,100)
-pause(750)
-singleColor(device,currentHue, currentSat)
-logTrace(691,"function flashGreen exiting")
-*/
-}
-
 // Round fan level to high, medium or low
 // Returns rounded value
 def roundFanLevel(level, childLabel="Master"){
@@ -716,17 +685,17 @@ def getAppLabel(childId){
     return childId
 }
 
-def reschedule(device,pico=false,childLabel="Master"){
+def reschedule(device,childLabel="Master"){
     logTrace(720,"Rescheduling $device",childLabel)
     childApps.each {Child->
-        if(Child.label.substring(0,4) == "Time") {
-            incrementalSchedule = Child.incrementalSchedule(device,pico)
-            //      if(incrementalSchedule == true){
-            //          if(child.returnTimeOn()){
-            //          }
-            //      }
-            // TO-DO: if return true, then check if it turns on for Pico "return to schedule"
-            //TO-DO: Make a new function to check if turns on
+/* ************************************************** */
+/* TO-DO: We need to test this! If we use a Pico, it  */
+/* should reschedule all of them.                     */
+/* If a schedule changes something *that* schedule    */
+/* should NOT be rescheduled (Time app handles it).   */
+/* ************************************************** */
+        if(Child.label.substring(0,4) == "Time" && Child.label != childLabel) {
+            incrementalSchedule = Child.incrementalSchedule()
         }
     }
 }
