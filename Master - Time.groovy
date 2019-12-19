@@ -940,7 +940,7 @@ def initializeSchedules(){
 	}
 
 	//Third, immediatly run incremental (which will self-reschedule thereafter)
-	if(timeStop) {
+	if(timeStop && parent.timeBetween(timeStart, timeStop, app.label)) {
 		if((levelOn && levelOff && levelOn != levelOff) || (tempOn && tempOff && tempOn != tempOff) || (hueOn && hueOff && hueOn != hueOff) || (satOn && satOff && satOn != satOff))
 			incrementalSchedule()
 	}
