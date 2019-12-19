@@ -888,7 +888,7 @@ def buttonPushed(evt){
                 logTrace(888,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning off")
 		}
 	} else if(!multiDevice && advanceSetup){
-			switch(buttonPush${buttonNumber}){
+			switch(settings["buttonPush${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(893,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
 					break
@@ -904,32 +904,33 @@ def buttonPushed(evt){
 				case "off": parent.multiOff(controlDevice,app.label)
                     logTrace(905,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning off")
 			}
-	} else if(multiDevice && advanceSetup){
-
-        if(button_${buttonNumber}_push_toggle != null) {
-                    logTrace(910,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
+    // if(multiDevice && (!advancedSetup || advancedSetup))
+	} else {
+        if(settings["button_${buttonNumber}_push_toggle"] != null) {
+            logTrace(910,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
             if (settings.color == "Separate"){
-                toggleSeparate(button_${buttonNumber}_push_toggle)
+                toggleSeparate(settings["button_${buttonNumber}_push_toggle"])
             } else {
-                parent.toggle(button_${buttonNumber}_push_toggle,app.label)
+                parent.toggle(settings["button_${buttonNumber}_push_toggle"],app.label)
             }
         }
-        if(button_${buttonNumber}_push_on) {
-                    logTrace(918,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-            parent.multiOn(button_${buttonNumber}_push_on,app.label)
+        if(settings["button_${buttonNumber}_push_on"]) {
+            logTrace(918,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
+            parent.multiOn(settings["button_${buttonNumber}_push_on"],app.label)
         }
-        if(button_${buttonNumber}_push_off){
-                    logTrace(922,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-            parent.multiOff(button_${buttonNumber}_push_off,app.label)
+        if(settings["button_${buttonNumber}_push_off"]){
+            logTrace(922,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
+            parent.multiOff(settings["button_${buttonNumber}_push_off"],app.label)
         }
-        if(button_${buttonNumber}_push_dim) {
-                    logTrace(926,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-            parent.dim(button_${buttonNumber}_push_dim,app.getId())
+        if(settings["button_${buttonNumber}_push_dim"]) {
+            logTrace(926,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
+            parent.dim(settings["button_${buttonNumber}_push_dim"],app.getId())
         }
-        if(button_${buttonNumber}_push_brighten) {
-                    logTrace(930,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-            parent.brighten(button_${buttonNumber}_push_brighten,app.getId())
+        if(settings["button_${buttonNumber}_push_brighten"]) {
+            logTrace(930,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
+            parent.brighten(settings["button_${buttonNumber}_push_brighten"],app.getId())
         }
+    }
 }
 
 def buttonHeld(evt){
@@ -966,7 +967,7 @@ def buttonHeld(evt){
                     logTrace(966,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning off")
 		}
 	} else if(!multiDevice && advanceSetup && !replicateHold){
-			switch(buttonPush${buttonNumber}){
+			switch(settings["buttonPush${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(971,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
 					break
@@ -983,7 +984,7 @@ def buttonHeld(evt){
                     logTrace(983,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
 	} else if(!multiDevice && advanceSetup && replicateHold){
-			switch(buttonHold${buttonNumber}){
+			switch(settings["buttonHold${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(988,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
 					break
@@ -1000,29 +1001,29 @@ def buttonHeld(evt){
                     logTrace(1000,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
 	} else if(multiDevice && advanceSetup && replicateHold){
-		if(button_${buttonNumber}_hold_toggle != null) {
+		if(settings["button_${buttonNumber}_hold_toggle"] != null) {
 			logTrace(1004,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
 			if (settings.color == "Separate"){
-				toggleSeparate(button_${buttonNumber}_push_toggle)
+				toggleSeparate(settings["button_${buttonNumber}_push_toggle"])
 			} else {
-				parent.toggle(button_${buttonNumber}_push_toggle,app.label)
+				parent.toggle(settings["button_${buttonNumber}_push_toggle"],app.label)
 			}
 		}
-		if(button_${buttonNumber}_hold_on) {
+		if(settings["button_${buttonNumber}_hold_on"]) {
 			logTrace(1012,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning on")
-			parent.multiOn(button_${buttonNumber}_hold_on,app.label)
+			parent.multiOn(settings["button_${buttonNumber}_hold_on"],app.label)
 		}
-		if(button_${buttonNumber}_hold_off) {
+		if(settings["button_${buttonNumber}_hold_off"]) {
 			logTrace(1016,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; turning off")
-			parent.multiOff(button_${buttonNumber}_hold_off,app.label)
+			parent.multiOff(settings["button_${buttonNumber}_hold_off"],app.label)
 		}
-		if(button_${buttonNumber}_hold_dim) {
+		if(settings["button_${buttonNumber}_hold_dim"]) {
 			logTrace(1020,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; dimming")
-			holdDim(button_${buttonNumber}_hold_dim)
+			holdDim(settings["button_${buttonNumber}_hold_dim"])
 		}
-		if(button_${buttonNumber}_hold_brighten) {
+		if(settings["button_${buttonNumber}_hold_brighten"]) {
 			logTrace(1024,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; brightening")
-			holdBrighten(button_${buttonNumber}_hold_brighten)
+			holdBrighten(settings["button_${buttonNumber}_hold_brighten"])
 		}
 	}
 }
