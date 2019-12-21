@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.6
+*  Version: 0.3.7
 *
 ***********************************************************************************************************************/
 
@@ -63,16 +63,16 @@ preferences {
                     if(timeDevice){
                         
                         displayStartTimeTypeOption()
-                        if(timeStartType == "Time"){
+                        if(inputStartType == "Time"){
                             displayStartTimeOption()
-                        } else if(timeStartType == "Sunrise"){
+                        } else if(inputStartType == "Sunrise"){
                             displayStartSunriseOption()
-                        } else if(timeStartType == "Sunset"){
+                        } else if(inputStartType == "Sunset"){
                             displayStartSunsetOption()
                         } else {
-                            timeStart = null
-                            startSunriseType = null
-                            startSunsetType = null
+                            inputStartTime = null
+                            inputStartSunriseType = null
+                            inputStartSunsetType = null
                         }
                         // if not start time entered, stop
                         if(checkStartTimeEntered()){
@@ -84,22 +84,20 @@ preferences {
                                 
 // TO-DO: Add option for on or not on holidays
                                 displayStopTimeTypeOption()
-                                if(timeStopType == "Time"){
+                                if(inputStopType == "Time"){
                                     displayStopTimeOption()
-                                } else if(timeStopType == "Sunrise"){
+                                } else if(inputStopType == "Sunrise"){
                                     displayStopSunriseOption()
-                                } else if(timeStopType == "Sunset"){
+                                } else if(inputStopType == "Sunset"){
                                     displayStopSunsetOption()
                                 } else {
-                                    timeStop = null
-                                    stopSunriseType = null
-                                    stopSunsetType = null
+                                    inputStopType = null
+                                    inputStopSunriseType = null
+                                    inputStopBefore = null
                                 }
-                                if(checkStopTimeEntered() && timeStopType){
-                                    if((timeStopType == "Time" && timeStop) || ((timeStopType == "Sunrise" || timeStopType == "Sunset") && (stopSunriseType == "At" || timeStopOffset))){
-                                        varStopTime = getStopTimeVariables()
-                                        input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, required: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
-                                    }
+                                if(checkStopTimeEntered() && inputStopType){
+                                    varStopTime = getStopTimeVariables()
+                                    input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, required: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
                                     if(timeOff){
                                         displayBinaryOptions()
                                         displayBrightnessOption()
@@ -175,272 +173,203 @@ def displayDevicesOption(){
 
 def displayStartTimeTypeOption(){
     displayLabel("Start time")
-    if(timeStartType != "Sunrise") {
-        startSunriseType = null
-        timeStartBeforeSunrise = null
-        timeStartAfterSunrise = null
-    }
-    if(timeStartType != "Sunset") {
-        startSunsetType = null
-        timeStartBeforeSunset = null
-        timeStartAfterSunset = null
-    }
+
     input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
-    if(!timeStartType){
+    if(!inputStartType){
         width = 12
-    } else if(timeStartType == "Time" || (!startSunriseType && !startSunsetType) || startSunriseType == "At" || startSunsetType == "At"){
+    } else if(inputStartType == "Time" || !inputStartSunriseType || inputStartSunriseType == "At"){
         width = 6
-    } else if(startSunriseType || startSunsetType){
+    } else if(inputStartSunriseType){
         width = 4
     }
-    input "timeStartType", "enum", title: "Start Time:", required: false, multiple: false, width: width, options: ["Time":"Start at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStartType", "enum", title: "Start Time:", required: false, multiple: false, width: width, options: ["Time":"Start at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
 }
 
 def displayStartTimeOption(){
-    input "timeStart", "time", title: "Start time", required: false, width: 6, submitOnChange:true
+    input "inputStartTime", "time", title: "Start time", required: false, width: 6, submitOnChange:true
 }
 
 def displayStartSunriseOption(){
-    if(!startSunriseType || startSunriseType == "At") {
+    if(!inputStartSunriseType || inputStartSunriseType == "At") {
         width = 6 
     } else {
         width = 4
     }
-    input "startSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
-    if(startSunriseType == "Before"){
-        input "startBeforeSunrise", "number", title: "Minutes before sunrise:", required: false, width: 4, submitOnChange:true
-    } else if(startSunriseType == "After"){
-        input "startAfterSunrise", "number", title: "Minutes after sunrise:", required: false, width: 4, submitOnChange:true
-        //set timeoffset
-        //timeStartOffset = timeStartAfterSunrise
+    input "inputStartSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
+    if(inputStartSunriseType == "Before"){
+        input "inputStartBefore", "number", title: "Minutes before sunrise:", required: false, width: 4, submitOnChange:true
+    } else if(inputStartSunriseType == "After"){
+        input "inputStartBefore", "number", title: "Minutes after sunrise:", required: false, width: 4, submitOnChange:true
     }
 }
 
 def displayStartSunsetOption(){
-    if(!startSunsetType || startSunsetType == "At") {
+    if(!inputStartSunriseType || inputStartSunriseType == "At") {
         width = 6
     } else {
         width = 4
     }
-    input "startSunsetType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
-    if(startSunsetType == "Before"){
-        input "startBeforeSunset", "number", title: "Minutes before sunset:", required: false, width: 4, submitOnChange:true
-    } else if(startSunsetType == "After"){
-        input "startAfterSunset", "number", title: "Minutes after sunset:", required: false, width: 4, submitOnChange:true
+    input "inputStartSunriseType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
+    if(inputStartSunriseType == "Before"){
+        input "inputStartBefore", "number", title: "Minutes before sunset:", required: false, width: 4, submitOnChange:true
+    } else if(inputStartSunriseType == "After"){
+        input "inputStartBefore", "number", title: "Minutes after sunset:", required: false, width: 4, submitOnChange:true
     }
 }
 
 def checkStartTimeEntered(){
     //check if proper start time has been entered
-    if(timeStartType){
-        if(timeStartType == "Time" && timeStart) return true
-        if(timeStartType == "Sunrise"){
-            if(startSunriseType){
-                if(startSunriseType == "At" || (startSunriseType == "Before" && startBeforeSunrise) || (startSunriseType == "After" && startAfterSunrise)){
-                    return true
-                }
-            }
-        } else if(timeStartType == "Sunset"){
-            if(startSunsetType){
-                if(startSunsetType == "At" || (startSunsetType == "Before" && startBeforeSunset) || (startSunsetType == "After" && startAfterSunset)){
-                    return true
-                }
-            }
-        }
+    if(inputStartType){
+        if(inputStartType == "Time" && inputStartTime) return true
+        if(inputStartType == "Sunrise" && inputStartSunriseType == "At") return true
+        if(inputStartType == "Sunrise" && (inputStartSunriseType == "Before" || inputStartSunriseType == "After") && inputStartBefore) return true
+        if(inputStartType == "Sunset" && inputStartSunriseType == "At") return true
+        if(inputStartType == "Sunset" && (inputStartSunriseType == "Before" || inputStartSunriseType == "After") && inputStartBefore) return true
     }
-    return false
 }
 
 def checkStopTimeEntered(){
     //check if proper start time has been entered
-    if(timeStopType){
-        if(timeStopType == "None") return true
-        if(timeStopType == "Time" && timeStop) return true
-        if(timeStopType == "Sunrise"){
-            if(stopSunriseType){
-                if(stopSunriseType == "At"){
-                    return true
-                } else if(timeStopOffset){
-                    return true
-                }
-            }
-        } else if(timeStopType == "Sunset"){
-            if(stopSunsetType){
-                if(stopSunsetType == "At"){
-                    return true
-                } else if(timeStopOffset){
-                    return true
-               }
-            }
-        }
+    if(inputStopType){
+        if(inputStopType == "None") return true
+        if(inputStopType == "Time" && inputStopType) return true
+        if(inputStopType == "Sunrise" && inputStopSunriseType == "At") return true
+        if(inputStopType == "Sunrise" && (inputStopSunriseType == "Before" || inputStopSunriseType == "After") && inputStopBefore) return true
+        if(inputStopType == "Sunset" && inputStopSunsetType == "At") return true
+        if(inputStopType == "Sunset" && (inputStopSunsetType == "Before" || inputStopSunsetType == "After") && inputStopBefore) return true
     }
 }
 
 def displayStopTimeTypeOption(){
     displayLabel("Stop time")
-    if(timeStopType != "Sunrise") {
-        stopSunriseType = null
-        timeStopBeforeSunrise = null
-        timeStopAfterSunrise = null
-    }
-    if(timeStartType != "Sunset") {
-        stopSunsetType = null
-        timeStopBeforeSunset = null
-        timeStopAfterSunset = null
-    }
-    if(!timeStopType || timeStopType == "None"){
+    if(!inputStopType || inputStopType == "None"){
         width = 12
-    } else if(timeStopType == "Time" || (!stopSunriseType && !stopSunsetType) || stopSunriseType == "At" || stopSunsetType == "At"){
+    } else if(inputStopType == "Time" || !inputStopSunriseType || inputStopSunriseType == "At"){
         width = 6
-    } else if(stopSunriseType || stopSunsetType){
+    } else if(inputStopSunriseType || inputStopSunsetType){
         width = 4
     }
-    input "timeStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["None":"Don't stop", "Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["None":"Don't stop", "Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
 }
 
 def displayStopTimeOption(){
-    input "timeStop", "time", title: "Stop time", required: false, width: 6, submitOnChange:true
+    input "inputStopTime", "time", title: "Stop time", required: false, width: 6, submitOnChange:true
 }
 
 def displayStopSunriseOption(){
-    if(!stopSunriseType || stopSunriseType == "At"){
+    if(!inputStopSunriseType || inputStopSunriseType == "At"){
         width = 6
     } else {
         width = 4
     }
-    input "stopSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
-    if(stopSunriseType == "Before"){
-        input "stopBeforeSunrise", "number", title: "Minutes before sunrise", required: false, width: 4, submitOnChange:true
-        // set timeoffset
-        timeStopOffset = stopBeforeSunrise
-        timeStopOffsetNegative = true
-    } else if(stopSunriseType == "After"){
-        input "stopAfterSunrise", "number", title: "Minutes after sunrise", required: false, width: 4, submitOnChange:true
-        //set timeoffset
-        timeStopOffset = stopAfterSunrise
-    }
+    input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
+    if(inputStopSunriseType == "Before" || inputStopSunriseType == "After")
+        input "inputStopBefore", "number", title: "Minutes before sunrise", required: false, width: 4, submitOnChange:true
 }
 
 def displayStopSunsetOption(){
-    if(!stopSunsetType || stopSunsetType == "At"){
+    if(!inputStopSunriseType || inputStopSunriseType == "At"){
         width = 6
     } else {
         width = 4
     }
-    input "stopSunsetType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
-    if(stopSunsetType == "Before"){
-        input "stopBeforeSunset", "number", title: "Minutes before sunset", required: false, width: 4, submitOnChange:true
-        // set timeoffset
-        timeStopOffset = stopBeforeSunset
-        timeStopOffsetNegative = true
-    } else if(stopSunsetType == "After"){
-        input "stopAfterSunset", "number", title: "Minutes after sunset", required: false, width: 4, submitOnChange:true
-        //set timeoffset
-        timeStopOffset = stopAfterSunset
-    }
+    input "inputStopSunriseType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
+    if(inputStopSunriseType == "Before" || inputStopSunriseType == "After")
+        input "inputStopBefore", "number", title: "Minutes before sunset", required: false, width: 4, submitOnChange:true
 }
 
 def getStartTimeVariables(){
-    if(timeStartType == "Time" && timeStart){
-        return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mm a", location.timeZone)
-    } else if(timeStartType == "Sunrise"){
-        if(startSunriseType){
-            if(startSunriseType == "At"){
+    if(inputStartType == "Time" && inputStartTime){
+        return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", inputStartTime).format("h:mm a", location.timeZone)
+    } else if(inputStartType == "Sunrise"){
+        if(inputStartSunriseType && inputStartBefore){
+            if(inputStartSunriseType == "At"){
                 return "at sunrise"
-            } else if(startSunriseType == "Before"){
-                return "$timeStartBeforeSunrise minutes before sunrise"
-            } else if(startSunriseType == "After"){
-                return "$timeStartAfterSunrise minutes after sunrise"
+            } else if(inputStartSunriseType == "Before"){
+                return "$inputStartBefore minutes before sunrise"
+            } else if(inputStartSunriseType == "After"){
+                return "$inputStartBefore minutes after sunrise"
             }
         }
-    } else if(timeStartType == "Sunset"){
-        if(startSunsetType){
-            if(startSunsetType == "At"){
+    } else if(inputStartType == "Sunset"){
+        if(inputStartSunriseType){
+            if(inputStartSunriseType == "At"){
                 return "at sunset"
-            } else if(startSunsetType == "Before"){
-                return "$startBeforeSunset minutes before sunset"
-            } else if(startSunsetType == "After"){
-                return "$startAfterSunset minutes after sunset"
+            } else if(inputStartSunriseType == "Before"){
+                return "$inputStartBefore minutes before sunset"
+            } else if(inputStartSunriseType == "After"){
+                return "$inputStartBefore minutes after sunset"
             }
         }
     }
-    if(startBeforeSunset){
-        if(startBeforeSunset > 2881) {
-            errorMessage("Minutes before sunset is set to $startBeforeSunset, which is over " + Math.floor(startBeforeSunset / 60 / 24) + " days.")
-        } else if(startBeforeSunset > 1441) {
-            errorMessage("Minutes before sunset is set to $startBeforeSunset, which is over a day.")
-        }
-        if(startBeforeSunrise > 2881) {
-            errorMessage("Minutes before sunrise is set to $startBeforeSunrise, which is over " + Math.floor(startBeforeSunrise / 60 / 24) + " days.")
-        } else if(startBeforeSunset > 1441) {
-            errorMessage("Minutes before sunrise is set to $startBeforeSunrise, which is over a day.")
-        }
-    }
-    if(startAfterSunset){
-        if(startAfterSunset > 2881) {
-            errorMessage("Minutes after sunset is set to $startBeforeSunset, which is over " + Math.floor(startAfterSunset / 60 / 24) + " days.")
-        } else if(startBeforeSunset > 1441) {
-            errorMessage("Minutes after sunset is set to $startBeforeSunset, which is over a day.")
-        }
-        if(startBeforeSunrise > 2881) {
-            errorMessage("Minutes before sunrise is set to $startBeforeSunrise, which is over " + Math.floor(startBeforeSunrise / 60 / 24) + " days.")
-        } else if(startBeforeSunset > 1441) {
-            errorMessage("Minutes before sunrise is set to $startBeforeSunrise, which is over a day.")
-        }
-        if(startAfterSunrise > 2881) {
-            errorMessage("Minutes after sunset is set to $startBeforeSunrise, which is over " + Math.floor(startAfterSunrise / 60 / 24) + " days.")
-        } else if(startBeforeSunrise > 1441) {
-            errorMessage("Minutes after sunset is set to $startBeforeSunrise, which is over a day.")
+    if(inputStartBefore){
+        if(inputStartBefore > 1441){
+            message = "Minutes "
+            if(inputStartSunriseType == "Before"){
+                message = message + "before "
+            } else if (inputStartSunriseType == "After"){
+
+                message = message + "after "
+            }
+            if(inputStartType == "Sunrise"){
+                message = message + "sunrise"
+            } else if(inputStartType == "Sunset"){
+                message = message + "sunset"
+            }
+            if(inputStartBefore > 2881){
+                message = message + Math.floor(inputStartBefore / 60 / 24) + " days."
+            } else {
+                message = message + "a day."
+            }
+            errorMessage(message)
         }
     }
 }
 
 def getStopTimeVariables(){
-    if(timeStopType == "Time" && timeStop){
-        return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mm a", location.timeZone)
-    } else if(timeStopType == "Sunrise"){
-        if(stopSunriseType){
-            if(stopSunriseType == "At"){
+    if(inputStopType == "Time" && inputStopTime){
+        return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", inputStopTime).format("h:mm a", location.timeZone)
+    } else if(inputStopType == "Sunrise"){
+        if(inputStopSunriseType && inputStopBefore){
+            if(inputStopSunriseType == "At"){
                 return "at sunrise"
-            } else if(stopSunriseType == "Before"){
-                return "$stopBeforeSunrise minutes before sunrise"
-            } else if(stopSunriseType == "After"){
-                return "$stopAfterSunrise minutes after sunrise"
+            } else if(inputStopSunriseType == "Before"){
+                return "$inputStopBefore minutes before sunrise"
+            } else if(inputStopSunriseType == "After"){
+                return "$inputStopBefore minutes after sunrise"
             }
         }
-    } else if(timeStopType == "Sunset"){
-        if(stopSunsetType){
-            if(stopSunsetType == "At"){
+    } else if(inputStopType == "Sunset"){
+        if(inputStopSunriseType){
+            if(inputStopSunriseType == "At"){
                 return "at sunset"
-            } else if(stopSunsetType == "Before"){
-                return "$stopBeforeSunset minutes before sunset"
-            } else if(stopSunsetType == "After"){
-                return "$stopAfterSunset minutes after sunset"
+            } else if(inputStopSunriseType == "Before"){
+                return "$inputStopBefore minutes before sunset"
+            } else if(inputStopSunriseType == "After"){
+                return "$inputStopBefore minutes after sunset"
             }
         }
     }
-    if(stopBeforeSunset){
-        if(stopBeforeSunset > 2881) {
-            errorMessage("Minutes before sunset is set to $stopBeforeSunset, which is over " + Math.floor(stopBeforeSunset / 60 / 24) + " days. That's kinda dumb, and may not work right.")
-        } else if(stopBeforeSunset > 1441) {
-           errorMessage("Minutes before sunset is set to $stopBeforeSunset, which is over a day. That's kinda dumb, and may not work right.")
-        }
-        if(stopBeforeSunrise > 2881) {
-            errorMessage("Minutes before sunrise is set to $stopBeforeSunrise, which is over " + Math.floor(stopBeforeSunrise / 60 / 24) + " days. That's kinda dumb, and may not work right.")
-        } else if(stopBeforeSunset > 1441) {
-            errorMessage("Minutes before sunrise is set to $stopBeforeSunrise, which is over a day. That's kinda dumb, and may not work right.")
-        }
-    }
-    if(stopAfterSunset){
-        if(stopAfterSunset > 2881) {
-            errorMessage("Minutes after sunset is set to $stopBeforeSunset, which is over " + Math.floor(stopAfterSunset / 60 / 24) + " days. That's kinda dumb, and may not work right.")
-        } else if(stopBeforeSunset > 1441) {
-            errorMessage("Minutes after sunset is set to $stopBeforeSunset, which is over a day. That's kinda dumb, and may not work right.")
-        }
-        if(stopAfterSunrise > 2881) {
-            errorMessage("Minutes after sunset is set to $stopBeforeSunrise, which is over " + Math.floor(stopAfterSunrise / 60 / 24) + " days. That's kinda dumb, and may not work right.")
-        } else if(stopBeforeSunrise > 1441) {
-            errorMessage("Minutes after sunset is set to $stopBeforeSunrise, which is over a day. That's kinda dumb, and may not work right.")
+    if(inputStopBefore){
+        if(inputStopBefore > 1441){
+            message = "Minutes "
+            if(inputStopSunriseType == "Before"){
+                message = message + "before "
+            } else if (inputStopSunriseType == "After"){
+
+                message = message + "after "
+            }
+            if(inputStopType == "Sunrise"){
+                message = message + "sunrise"
+            } else if(inputStopType == "Sunset"){
+                message = message + "sunset"
+            }
+            if(inputStopBefore > 2881){
+                message = message + Math.floor(inputStartBefore / 60 / 24) + " days."
+            } else {
+                message = message + "a day."
+            }
+            errorMessage(message)
         }
     }
 }
@@ -484,7 +413,7 @@ def displayBinaryOptions(){
 
 def displayBrightnessOption(){
     if(levelEnable){
-        if(checkStopTimeEntered && timeStopType != "None"){
+        if(checkStopTimeEntered && inputStopType != "None"){
             displayLabel("Enter beginning and ending brightness")
         } else {
             displayLabel("Enter default brightness")
@@ -504,7 +433,7 @@ def displayBrightnessOption(){
 
 def displayTemperatureOption(){
     if(tempEnable){
-        if(checkStopTimeEntered && timeStopType != "None"){
+        if(checkStopTimeEntered && inputStopType != "None"){
             displayLabel("Enter beginning and ending color temperature")
         } else {
             displayLabel("Enter default color temperature")
@@ -526,7 +455,7 @@ def displayTemperatureOption(){
 
 def displayColorOption(){
     if(colorEnable){
-        if(checkStopTimeEntered && timeStopType != "None"){
+        if(checkStopTimeEntered && inputStopType != "None"){
             displayLabel("Enter beginning and ending hue and saturation")
         } else {
             displayLabel("Enter default hue and saturation temperature")
@@ -572,7 +501,7 @@ def displayColorOption(){
 
 def displayModeOption(){
     if(modeEnable){
-        if(checkStopTimeEntered && timeStopType != "None"){
+        if(checkStopTimeEntered && inputStopType != "None"){
             displayLabel("Change Mode $varStartTime and/or $varStopTime")
             input "modeChangeOn", "mode", title: "<b>Change Mode $varStartTime to?</b> (Optional)", required: false, width: 12, submitOnChange:true
 // ifmode is supposed to be "If Mode X, then allow run", not "only change mode if Mode is X" - i think?
@@ -647,9 +576,9 @@ def displayModeOption(){
                 }
                 message = "$message until $varStopTime"
             }
-            if(timeStopOff && (levelOff || tempOff || hueOff || satOff) && !modeChangeOff) message = "$message, and $timeStopOff"
-            if(timeStopOff && (levelOff || tempOff || hueOff || satOff) && modeChangeOff) message = "$message, $timeStopOff"
-            if(timeStopOff && !levelOff && !tempOff && !hueOff && !satOff) message = "$message, then $timeStopOff"
+            if(inputStopOff && (levelOff || tempOff || hueOff || satOff) && !modeChangeOff) message = "$message, and $inputStopOff"
+            if(inputStopOff && (levelOff || tempOff || hueOff || satOff) && modeChangeOff) message = "$message, $inputStopOff"
+            if(inputStopOff && !levelOff && !tempOff && !hueOff && !satOff) message = "$message, then $inputStopOff"
             if(modeChangeOff && (levelOff || tempOff || hueOff || satOff)) message = "$message, and set mode to $modeChangeOff"
             if(modeChangeOff && !levelOff && !tempOff && !hueOff && !satOff) message = "$message, then set mode to $modeChangeOff"
         }
@@ -671,14 +600,14 @@ def displayModeOption(){
 
 
 def installed() {
-	logTrace(674,"Installed")
+	logTrace(603, "Installed")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(681,"Updated")
+	logTrace(610,"Updated")
 	initialize()
 }
 
@@ -693,79 +622,79 @@ def initialize() {
         timeStop = getStopTime()
 		if(timeStart) initializeSchedules()
 	}
-	logTrace(696,"Initialized")
+	logTrace(625,"Initialized")
 }
 
 def getStartTime(){
-	if(!timeStartType) return false
-    if(timeStartType == "None") return false
-    if(timeStartType == "Time"){
-        if(!timeStart) {
-            logTrace(704,"ERROR: timeStartType set to Time, but no timeStart entered")
+	if(!inputStartType) return false
+    if(inputStartType == "None") return false
+    if(inputStartType == "Time"){
+        if(!inputStartTime) {
+            logTrace(633,"ERROR: inputStartType set to Time, but no inputStartTime entered")
             return false
         } else {
-            value = timeStart
+            value = inputStartTime
         }
-    } else if(timeStartType == "Sunrise"){
-        if(!startSunriseType) {
-            logTrace(711,"ERROR: timeStartType set as Sunrise, but no startSunriseType selected")
+    } else if(inputStartType == "Sunrise"){
+        if(!inputStartSunriseType) {
+            logTrace(640,"ERROR: inputStartType set as Sunrise, but no inputStartSunriseType selected")
             return false
         } else {
-            value = (startSunriseType == "Before" ? parent.getSunrise(startBeforeSunrise * -1,app.label) : parent.getSunrise(startAfterSunrise,app.label))
+            value = (inputStartSunriseType == "Before" ? parent.getSunrise(inputStartBefore * -1,app.label) : parent.getSunrise(inputStartBefore,app.label))
         }
-    } else if(timeStartType == "Sunset"){
-        if(!startSunsetType) {
-            logTrace(718,"ERROR: timeStartType set as Sunset, but no startSunsetType selected")
+    } else if(inputStartType == "Sunset"){
+        if(!inputStartSunriseType) {
+            logTrace(647,"ERROR: inputStartType set as Sunset, but no inputStartSunriseType selected")
             return false
         } else {
-            value = (startSunsetType == "Before" ? parent.getSunset(startBeforeSunset * -1,app.label) : parent.getSunset(startAfterSunset,app.label))
+            value = (inputStartSunsetType == "Before" ? parent.getSunset(inputStartBefore * -1,app.label) : parent.getSunset(inputStartBefore,app.label))
         }
     } else {
         return false
     }
-    logTrace(726,"Start time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+    logTrace(655,"Start time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
     return value
 }
 
 def getStopTime(){
-	if(!timeStopType) return false
-    if(timeStopType == "None") return false
-    if(timeStopType == "Time"){
-        if(!timeStop) {
-            logTrace(735,"ERROR: timeStopType set to Time, but no timeStop entered")
+	if(!inputStopType) return false
+    if(inputStopType == "None") return false
+    if(inputStopType == "Time"){
+        if(!inputStopTime) {
+            logTrace(664,"ERROR: inputStopType set to Time, but no inputStopTime entered")
             return false
         } else {
-            value = timeStop
+            value = inputStopTime
         }
-    } else if(timeStopType == "Sunrise"){
-        if(!stopSunriseType) {
-            logTrace(742,"ERROR: timeStopType set as Sunrise, but no stopSunriseType selected")
+    } else if(inputStopType == "Sunrise"){
+        if(!inputStopSunriseType) {
+            logTrace(671,"ERROR: inputStopType set as Sunrise, but no inputStopSunriseType selected")
             return false
         } else {
-            value = (stopSunriseType == "Before" ? parent.getSunrise(stopBeforeSunrise * -1,app.label) : parent.getSunrise(stopAfterSunrise,app.label))
+            value = (inputStopSunriseType == "Before" ? parent.getSunrise(inputStopBefore * -1,app.label) : parent.getSunrise(inputStopBefore,app.label))
         }
-    } else if(timeStopType == "Sunset"){
-        if(!stopSunsetType) {
-            logTrace(749,"ERROR: timeStopType set as Sunset, but no stopSunsetType selected")
+    } else if(inputStopType == "Sunset"){
+        if(!inputStopSunriseType) {
+            logTrace(678,"ERROR: inputStopType set as Sunset, but no inputStopSunriseType selected")
             return false
         } else {
-            value = (stopSunsetType == "Before" ? parent.getSunset(stopBeforeSunset * -1,app.label) : parent.getSunset(stopAfterSunset,app.label))
+            value = (inputStopSunriseType == "Before" ? parent.getSunset(inputStopBefore * -1,app.label) : parent.getSunset(inputStopBefore,app.label))
         }
     } else {
         return false
     }
     // If timeStop before timeStart, add a day
-    if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) value = parent.getTomorrow(value,app.label)
-    logTrace(759,"Stop time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+    if(timeToday(timeStart, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
+    logTrace(688,"Stop time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
     return value
 }
 
 def dimSpeed(){
 	if(settings.multiplier != null){
-		logTrace(765,"dimSpeed set to $settings.multiplier")
+		logTrace(694,"dimSpeed set to $settings.multiplier")
 		return settings.multiplier
 	}else{
-		logTrace(768,"dimSpeed set to 1.2")
+		logTrace(697,"dimSpeed set to 1.2")
 		return 1.2
 	}
 }
@@ -776,14 +705,14 @@ def getDefaultLevel(device){
 
 	// If no device match, return null
 	timeDevice.findAll( {it.id == device.id} ).each {
-		logTrace(779,"getDefaultLevel matched device $device and $it")
+		logTrace(708,"getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) return defaults
 
 	// if no start levels, return nulls
-	if((!levelOn || !levelOff || levelOn == levelOff) && (!tempOn || !tempOff || tempOn == tempOff) && (!hueOn || !hueOff || hueOn == hueOff) && (!satOn || !satOff || satOn == satOff)){
-		logTrace(786,"Returning null as start level for $device")
+    if(!levelOn && !tempOn && !hueOn && !satOn){
+		logTrace(715,"Returning null as start level for $device")
 		return defaults
 	}
 
@@ -792,14 +721,14 @@ def getDefaultLevel(device){
 
 	// If disabled, return nulls
 	if(disable || state.disableAll) {
-		logTrace(795,"Default level for $device null, schedule disabled")
+		logTrace(724,"Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(802,"Default level for $device null, mode $ifMode")
+			logTrace(731,"Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
@@ -826,7 +755,7 @@ def getDefaultLevel(device){
         // First, correct potential fan level (will correct below, so do it within if statement)
         if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
 
-		logTrace(829,"Default level $defaults for $device")
+		logTrace(758,"Default level $defaults for $device")
         return defaults
     }
    
@@ -895,7 +824,7 @@ def getDefaultLevel(device){
     //Correct potential fan level
     if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
     
-    logTrace(898,"Default levels $defaults for $device")
+    logTrace(827,"Default levels $defaults for $device")
     return defaults
 }
 
@@ -909,7 +838,7 @@ def initializeSchedules(){
 
 	// If disabled, return null
 	if(disable || state.disableAll) {
-		logTrace(912,"initializeSchedules returning; schedule disabled")
+		logTrace(841,"initializeSchedules returning; schedule disabled")
 		return
 	}
 
@@ -918,10 +847,10 @@ def initializeSchedules(){
 	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
 	if(weekDays) {
-		logTrace(921,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
+		logTrace(850,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
 		schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
 	} else {
-		logTrace(924,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+		logTrace(853,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 		schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 	}
 
@@ -931,10 +860,10 @@ def initializeSchedules(){
 		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 		//Already set weekDays above
 		if(weekDays) {
-			logTrace(934,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
+			logTrace(863,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule)
 		} else {
-			logTrace(937,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+			logTrace(866,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule)
 		}
 	}
@@ -954,12 +883,12 @@ def incrementalSchedule(){
 
 	// If disabled, return null
 	if(disable || state.disableAll) {
-		logTrace(957,"Function incrementalSchedule returning; schedule disabled")
+		logTrace(886,"Function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
 	if(!parent.multiStateOn(timeDevice)){
-		logTrace(962,"Since $timeDevice is off, stopping recurring schedules")
+		logTrace(891,"Since $timeDevice is off, stopping recurring schedules")
 		return
 	}
 
@@ -968,7 +897,7 @@ def incrementalSchedule(){
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(971,"incrementalSchedule returning, mode $ifMode")
+		logTrace(900,"incrementalSchedule returning, mode $ifMode")
 		return
 	}
 
@@ -980,10 +909,10 @@ def incrementalSchedule(){
 //TO-DO: Add state variable setting for minimum duration
 //TO-DO: Add warning on setup page if minimum duration is too low (override it?)
 		runIn(20,incrementalSchedule)
-		logTrace(983,"Scheduling incrementalSchedule for 20 seconds")
+		logTrace(912,"Scheduling incrementalSchedule for 20 seconds")
 		return true
 	} else {
-		logTrace(986,"Schedule ended; now after $timeStop")
+		logTrace(915,"Schedule ended; now after $timeStop")
 	}
 }
 
@@ -1091,10 +1020,14 @@ def weekDaysToNum(){
 			dayString += "SUN"
 		}
 	}
-	logTrace(1094,"weekDaysToNum returning $dayString")
+	logTrace(1023,"weekDaysToNum returning $dayString")
 	return dayString
 }
 
-def logTrace(lineNumber,message){
-	log.trace "$app.label (line $lineNumber) -- $message"
+def logTrace(lineNumber,message = null){
+    if(message) {
+	    log.trace "$app.label (line $lineNumber) -- $message"
+    } else {
+        log.trace "$app.label (line $lineNumber)"
+    }
 }
