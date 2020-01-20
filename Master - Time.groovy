@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -13,12 +13,12 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.7
+*  Version: 0.3.8
 *
 ***********************************************************************************************************************/
 
 definition(
-    name: "Master - Time2",
+    name: "Master - Time",
     namespace: "master",
     author: "roguetech",
     description: "Schedules, times and default settings",
@@ -36,32 +36,31 @@ preferences {
     page(name: "setup", install: true, uninstall: true) {
         section() {
             // If all disabled, force reenable
-            if(state.disableAll){
+            if(disableAll){
                 input "disableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", defaultValue: false, submitOnChange:true
                 state.disable = true
             }
 
             // if app disabled, display Name and Devices
-            if(!state.disable && state.disable){
+            if(!state.disable && disable){
                 // display Name
                 displayNameOption()
                 // if Name entered, display Devices
                 if(app.label){
-                    displayLabel("Select which devices to schedule")
                     displayDevicesOption()
                 }
                 input "disable", "bool", title: "<b><font color=\"#000099\">Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
             }
 
             //if not disabled, then show everything
-            if(!state.disable && !state.disable ){
+            if(!state.disable && !disable ){
                 displayNameOption()
                 //if no label, stop
                 if(app.label){
                     displayDevicesOption()
                     //if no devices, stop
                     if(timeDevice){
-                        
+                        input "disable", "bool", title: "Schedule is enabled. Disable it?", submitOnChange:true
                         displayStartTimeTypeOption()
                         if(inputStartType == "Time"){
                             displayStartTimeOption()
@@ -91,22 +90,23 @@ preferences {
                                 } else if(inputStopType == "Sunset"){
                                     displayStopSunsetOption()
                                 } else {
-                                    inputStopType = null
                                     inputStopSunriseType = null
                                     inputStopBefore = null
                                 }
-                                if(checkStopTimeEntered() && inputStopType){
+
+                                if(checkStopTimeEntered() && inputStopType != "None"){
                                     varStopTime = getStopTimeVariables()
                                     input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, required: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
-                                    if(timeOff){
-                                        displayBinaryOptions()
-                                        displayBrightnessOption()
-                                        if(!colorEnable) displayTemperatureOption()
-                                        if(!tempEnable) displayColorOption()
-                                        displayModeOption()
-                                    }
-                                    if(!error) input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
                                 }
+
+                                if(inputStopType == "None" || timeOff){
+                                    displayBinaryOptions()
+                                    displayBrightnessOption()
+                                    if(!colorEnable) displayTemperatureOption()
+                                    if(!tempEnable) displayColorOption()
+                                    displayModeOption()
+                                }
+                                if(!error) input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
                             }
                         }
                     }
@@ -126,7 +126,8 @@ preferences {
 /* ************************************************** */
 /* ************************************************** */
 /* TO-DO: Add warning for if time span is small and   */
-/* changes are large, where changewill not be smooth. */
+/* changes are large, where change will not be         */
+/* smooth.                                            */
 /* ************************************************** */
 
 
@@ -232,11 +233,9 @@ def checkStopTimeEntered(){
     //check if proper start time has been entered
     if(inputStopType){
         if(inputStopType == "None") return true
-        if(inputStopType == "Time" && inputStopType) return true
-        if(inputStopType == "Sunrise" && inputStopSunriseType == "At") return true
-        if(inputStopType == "Sunrise" && (inputStopSunriseType == "Before" || inputStopSunriseType == "After") && inputStopBefore) return true
-        if(inputStopType == "Sunset" && inputStopSunsetType == "At") return true
-        if(inputStopType == "Sunset" && (inputStopSunsetType == "Before" || inputStopSunsetType == "After") && inputStopBefore) return true
+        if(inputStopType == "Time" && inputStopTime) return true
+        if((inputStopType == "Sunrise" || inputStopType == "Sunset") && inputStopSunriseType == "At") return true
+        if((inputStopType == "Sunrise" || inputStopType == "Sunset") && (inputStopSunriseType == "Before" || inputStopSunriseType == "After") && inputStopBefore) return true
     }
 }
 
@@ -246,7 +245,7 @@ def displayStopTimeTypeOption(){
         width = 12
     } else if(inputStopType == "Time" || !inputStopSunriseType || inputStopSunriseType == "At"){
         width = 6
-    } else if(inputStopSunriseType || inputStopSunsetType){
+    } else if(inputStopSunriseType){
         width = 4
     }
     input "inputStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["None":"Don't stop", "Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
@@ -263,8 +262,11 @@ def displayStopSunriseOption(){
         width = 4
     }
     input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
-    if(inputStopSunriseType == "Before" || inputStopSunriseType == "After")
-        input "inputStopBefore", "number", title: "Minutes before sunrise", required: false, width: 4, submitOnChange:true
+    if(inputStopSunriseType == "Before"){
+        input "inputStopBefore", "number", title: "Minutes before sunrise:", required: false, width: 4, submitOnChange:true
+    } else if(inputStopSunriseType == "After"){
+        input "inputStopBefore", "number", title: "Minutes after sunrise:", required: false, width: 4, submitOnChange:true
+    }
 }
 
 def displayStopSunsetOption(){
@@ -274,8 +276,11 @@ def displayStopSunsetOption(){
         width = 4
     }
     input "inputStopSunriseType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
-    if(inputStopSunriseType == "Before" || inputStopSunriseType == "After")
-        input "inputStopBefore", "number", title: "Minutes before sunset", required: false, width: 4, submitOnChange:true
+    if(inputStopSunriseType == "Before"){
+        input "inputStopBefore", "number", title: "Minutes before sunset:", required: false, width: 4, submitOnChange:true
+    } else if(inputStopSunriseType == "After"){
+        input "inputStopBefore", "number", title: "Minutes after sunset:", required: false, width: 4, submitOnChange:true
+    }
 }
 
 def getStartTimeVariables(){
@@ -321,7 +326,7 @@ def getStartTimeVariables(){
             } else {
                 message = message + "a day."
             }
-            errorMessage(message)
+            parent.errorMessage(message)
         }
     }
 }
@@ -375,27 +380,49 @@ def getStopTimeVariables(){
 }
 
 def displayBinaryOptions(){
+    // If not stop time, clear binary options
+    if(!checkStopTimeEntered()) {
+        levelEnable = null
+        tempEnable = null
+        colorEnable = null
+        modeEnable = null
+    }
+
+    // If change level isn't selected, clear levels
     if(!levelEnable){
-        input "levelEnable", "bool", title: "<b>Don't change brightness.</b> Click to change.", submitOnChange:true
         levelOn = null
         levelOff = null
+    }
+    // If change temp isn't selected, clear temps
+    if(!tempEnable){
+        tempOn = null
+        tempOff = null
+    // If change temp is selected, don't allow change color to be selected
+    } else {
+        colorEnable = null
+    }
+    // If change color isn't selected, clear colors
+    if(!colorEnable){
+        hueOn = null
+        hueOff = null
+        satOn = null
+        satOff = null
+    }
+
+    // If stop time not entered, don't display binary options
+    if(!checkStopTimeEntered()) return
+
+    if(!levelEnable){
+        input "levelEnable", "bool", title: "<b>Don't change brightness.</b> Click to change.", submitOnChange:true
     } else {
         input "levelEnable", "bool", title: "<b>Change brightness.</b> Click to change.", submitOnChange:true
     }
     if(!tempEnable && !colorEnable){
         input "tempEnable", "bool", title: "<b>Don't change temperature color.</b> Click to change.", submitOnChange:true
-        tempOn = null
-        tempOff = null
-        colorOn = null
-        colorOff = null
     } else if(!colorEnable){
         input "tempEnable", "bool", title: "<b>Change temperature color.</b> Click to change.", submitOnChange:true
-        colorOn = null
-        colorOff = null
     } else if(colorEnable){
         paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change temperature color."
-        tempOn = null
-        tempOff = null
     }
     if(!colorEnable && !tempEnable){
         input "colorEnable", "bool", title: "<b>Don't change color.</b> Click to change.", submitOnChange:true
@@ -411,19 +438,20 @@ def displayBinaryOptions(){
     }
 }
 
-def displayBrightnessOption(){
+def displayBrightnessOption(){    
     if(levelEnable){
-        if(checkStopTimeEntered && inputStopType != "None"){
-            displayLabel("Enter beginning and ending brightness")
-        } else {
+        if(inputStopType == "None"){
             displayLabel("Enter default brightness")
             levelOff = null
-        }
-        if(levelOn){
-            input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", required: false, width: 6, submitOnChange:true
-            input "levelOff", "number", title: "and ending brightness ($varStartTime)?", required: false, width: 6, submitOnChange:true
+            input "levelOn", "number", title: "Set brightness ($varStartTime)?", required: false, width: 12, submitOnChange:true
         } else {
-            input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", required: false, width: 12, submitOnChange:true
+            displayLabel("Enter beginning and ending brightness")
+            if(levelOn){
+                input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", required: false, width: 6, submitOnChange:true
+                input "levelOff", "number", title: "and ending brightness ($varStartTime)? (Optional)", required: false, width: 6, submitOnChange:true
+            } else {
+                input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", required: false, width: 12, submitOnChange:true
+            }
         }
         displayInfo("Percentage from 1 to 100.")
     }
@@ -433,17 +461,18 @@ def displayBrightnessOption(){
 
 def displayTemperatureOption(){
     if(tempEnable){
-        if(checkStopTimeEntered && inputStopType != "None"){
-            displayLabel("Enter beginning and ending color temperature")
-        } else {
+        if(inputStopType == "None"){
             displayLabel("Enter default color temperature")
             tempOff = null
-        }
-        if(tempOn){
-            input "tempOn", "number", title: "Beginning color temperature ($varStartTime)?", required: false, width: 6, submitOnChange:true
-            input "tempOff", "number", title: "and ending color temperature ($varStopTime)?", required: false, width: 6, submitOnChange:true
+            input "tempOn", "number", title: "Set color temperature ($varStartTime)?", required: false, width: 12, submitOnChange:true
         } else {
-            input "tempOn", "number", title: "Default color temperature ($varStartTime)?", required: false, width: 12, submitOnChange:true
+            displayLabel("Enter beginning and ending color temperature")
+            if(tempOn){
+                input "tempOn", "number", title: "Beginning color temperature ($varStartTime)?", required: false, width: 6, submitOnChange:true
+                input "tempOff", "number", title: "and ending color temperature ($varStopTime)? (Optional)", required: false, width: 6, submitOnChange:true
+            } else {
+                input "tempOn", "number", title: "Beginning color temperature ($varStartTime)?", required: false, width: 12, submitOnChange:true
+            }
         }
         displayInfo("Number from 1800 (warm) to 5400 (cold).")
     }
@@ -455,43 +484,48 @@ def displayTemperatureOption(){
 
 def displayColorOption(){
     if(colorEnable){
-        if(checkStopTimeEntered && inputStopType != "None"){
-            displayLabel("Enter beginning and ending hue and saturation")
-        } else {
+        if(inputStopType == "None"){
             displayLabel("Enter default hue and saturation temperature")
             hueOff = null
-            satOff
-        }
-        if(hueOn){
-            if(hueOff){
-                width = 4
-            } else {
-                width = 6
-            }
-            input "hueOn", "number", title: "Beginning hue ($varStartTime)?", required: false, width: width, submitOnChange:true
-            input "hueOff", "number", title: "and ending hue ($varStopTime)?", required: false, width: width, submitOnChange:true
+            satOff = null
+            input "hueOn", "number", title: "Set hue ($varStartTime)? (Optional)", required: false, width: 6, submitOnChange:true
+            input "satOn", "number", title: "Set saturation ($varStartTime)? (Optional)", required: false, width: 6, submitOnChange:true
+            displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
+            displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
         } else {
-            input "hueOn", "number", title: "Beginning hue ($varStartTime)?", required: false, width: 12, submitOnChange:true
-        }
-        if(hueOn && hueOff){
-            if(hueOn < hueOff){
-                forwardSequence = "25, 26, 27  ... 73, 74, 75"
-                reverseSequence = "25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75"
+            displayLabel("Enter beginning and ending hue and saturation")
+            if(hueOn){
+                if(hueOff){
+                    width = 4
+                } else {
+                    width = 6
+                }
+                input "hueOn", "number", title: "Beginning hue ($varStartTime)? (Optional)", required: false, width: width, submitOnChange:true
+                input "hueOff", "number", title: "and ending hue ($varStopTime)? (Optional)", required: false, width: width, submitOnChange:true
             } else {
-                forwardSequence = "75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25"
-                reverseSequence = "75, 74, 73 ... 27, 26, 25"
+                input "hueOn", "number", title: "Beginning hue ($varStartTime)? (Optional)", required: false, width: 12, submitOnChange:true
             }
-            input "hueDirection", "enum", title: "Which order to change hue?", required: false, width: 4, submitOnChange:true, options: ["Forward": forwardSequence, "Reverse": reverseSequence]
+            if(hueOn && hueOff){
+                if(hueOn < hueOff){
+                    forwardSequence = "25, 26, 27  ... 73, 74, 75"
+                    reverseSequence = "25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75"
+                } else {
+                    forwardSequence = "75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25"
+                    reverseSequence = "75, 74, 73 ... 27, 26, 25"
+                }
+                input "hueDirection", "enum", title: "Which order to change hue?", required: false, width: 4, submitOnChange:true, options: ["Forward": forwardSequence, "Reverse": reverseSequence]
 
+            }
+            displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
+
+            if(satOn){
+                input "satOn", "number", title: "Beginning saturation ($varStartTime)? (Optional)", required: false, width: 6, submitOnChange:true
+                input "satOff", "number", title: "and ending saturation ($varStopTime)? (Optional)", required: false, width: 6, submitOnChange:true
+            } else {
+                input "satOn", "number", title: "Beginning saturation ($varStartTime)? (Optional)", required: false, width: 12, submitOnChange:true
+            }
+            displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
         }
-        displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
-        if(satOn){
-            input "satOn", "number", title: "Beginning saturation ($varStartTime)?", required: false, width: 6, submitOnChange:true
-            input "satOff", "number", title: "and ending saturation ($varStopTime)?", required: false, width: 6, submitOnChange:true
-        } else {
-            input "satOn", "number", title: "Beginning saturation ($varStartTime)?", required: false, width: 12, submitOnChange:true
-        }
-        displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
     }
     if(hueOn > 100) errorMessage("Beginning hue can't be more than 100. Correct before saving.")
     if(hueOff && hueOff > 100) errorMessage("Ending hue can't be more than 100. Correct before saving.")
@@ -500,16 +534,17 @@ def displayColorOption(){
 }
 
 def displayModeOption(){
+    if(!checkStopTimeEntered()) return
     if(modeEnable){
-        if(checkStopTimeEntered && inputStopType != "None"){
-            displayLabel("Change Mode $varStartTime and/or $varStopTime")
-            input "modeChangeOn", "mode", title: "<b>Change Mode $varStartTime to?</b> (Optional)", required: false, width: 12, submitOnChange:true
-// ifmode is supposed to be "If Mode X, then allow run", not "only change mode if Mode is X" - i think?
-            input "ifMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
+        if(inputStopType == "None"){
+            displayLabel("Change Mode $varStartTime")
+            input "modeChangeOn", "mode", title: "Set Mode (at $varStartTime)?", required: false, width: 6, submitOnChange:true
+            input "ifMode", "mode", title: "Only run if Mode is already? (Optional)", required: false, width: 12
         } else {
-            input "modeChangeOn", "mode", title: "<b>Change Mode $varStartTime to?</b> (Optional)", required: false, width: 6, submitOnChange:true
-            input "modeChangeOff", "mode", title: "<b>Change Mode $varStopTime to?</b> (Optional)", required: false, width: 6, submitOnChange:true
-            input "ifMode", "mode", title: "<b>Only if Mode is already:</b> (Optional)", required: false, width: 12
+            displayLabel("Change Mode $varStartTime and/or $varStopTime")
+            input "modeChangeOn", "mode", title: "Change Mode (at $varStartTime)?", required: false, width: 12, submitOnChange:true
+// ifmode is supposed to be "If Mode X, then allow run", not "only change mode if Mode is X" - i think?
+            input "ifMode", "mode", title: "Only run if Mode is already? (Optional)", required: false, width: 12
         }
     }
 }
@@ -593,108 +628,110 @@ def displayModeOption(){
     }
 } */
 
-
-/* ********************** */
-/* End display functions. */
-/* ********************** */
-
+/* ************************************************** */
+/*                                                    */
+/* End display functions.                             */
+/*                                                    */
+/* ************************************************** */
 
 def installed() {
-	logTrace(603, "Installed")
-
+	logTrace(605, "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(610,"Updated")
+	logTrace(613,"Updated")
 	initialize()
 }
 
 def initialize() {
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	unschedule()
-	if(disableAll || disable) {
-		if(disableAll) state.disable = true
-	} else {
+
+    // Clear off values if equal to on values
+    if(levelOn == levelOff) levelOff = null
+    if(tempOn == tempOff) tempOff = null
+    if(hueOn == hueOff) hueOff = null
+    if(satOn == satOff) satOff = null
+
+	if(disableAll) {
+		state.disable = true
+	} else if(!disable){
 		state.disable = false
         timeStart = getStartTime()
         timeStop = getStopTime()
 		if(timeStart) initializeSchedules()
 	}
-	logTrace(625,"Initialized")
+	logTrace(628,"Initialized")
 }
 
 def getStartTime(){
 	if(!inputStartType) return false
     if(inputStartType == "None") return false
+
     if(inputStartType == "Time"){
         if(!inputStartTime) {
-            logTrace(633,"ERROR: inputStartType set to Time, but no inputStartTime entered")
+            logTrace(637,"ERROR: inputStartType set to Time, but no inputStartTime entered")
             return false
         } else {
             value = inputStartTime
         }
-    } else if(inputStartType == "Sunrise"){
+    } else if(inputStartType == "Sunrise" || inputStartType == "Sunset"){
         if(!inputStartSunriseType) {
-            logTrace(640,"ERROR: inputStartType set as Sunrise, but no inputStartSunriseType selected")
+            logTrace(644,"ERROR: inputStartType set as $inputStopType, but no inputStartSunriseType selected")
             return false
-        } else {
+        } else if(inputStartType == "Sunrise"){
             value = (inputStartSunriseType == "Before" ? parent.getSunrise(inputStartBefore * -1,app.label) : parent.getSunrise(inputStartBefore,app.label))
-        }
-    } else if(inputStartType == "Sunset"){
-        if(!inputStartSunriseType) {
-            logTrace(647,"ERROR: inputStartType set as Sunset, but no inputStartSunriseType selected")
-            return false
+        } else if(inputStartType == "Sunset"){
+            value = (inputStartSunriseType == "Before" ? parent.getSunset(inputStartBefore * -1,app.label) : parent.getSunset(inputStartBefore,app.label))
         } else {
-            value = (inputStartSunsetType == "Before" ? parent.getSunset(inputStartBefore * -1,app.label) : parent.getSunset(inputStartBefore,app.label))
+            logTrace(651,"ERROR: inputStartType set as $inputStartType")
         }
     } else {
         return false
     }
-    logTrace(655,"Start time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+    logTrace(656,"Start time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
     return value
 }
 
 def getStopTime(){
 	if(!inputStopType) return false
     if(inputStopType == "None") return false
+    
     if(inputStopType == "Time"){
         if(!inputStopTime) {
-            logTrace(664,"ERROR: inputStopType set to Time, but no inputStopTime entered")
+            logTrace(666,"ERROR: inputStopType set to Time, but no inputStopTime entered")
             return false
         } else {
             value = inputStopTime
         }
-    } else if(inputStopType == "Sunrise"){
+    } else if(inputStopType == "Sunrise" || inputStopType == "Sunset"){
         if(!inputStopSunriseType) {
-            logTrace(671,"ERROR: inputStopType set as Sunrise, but no inputStopSunriseType selected")
+            logTrace(673,"ERROR: inputStopType set as $inputStopType, but no inputStopSunriseType selected")
             return false
-        } else {
+        } else if(inputStopType == "Sunrise"){
             value = (inputStopSunriseType == "Before" ? parent.getSunrise(inputStopBefore * -1,app.label) : parent.getSunrise(inputStopBefore,app.label))
-        }
-    } else if(inputStopType == "Sunset"){
-        if(!inputStopSunriseType) {
-            logTrace(678,"ERROR: inputStopType set as Sunset, but no inputStopSunriseType selected")
-            return false
-        } else {
+        } else if(inputStopType == "Sunset"){
             value = (inputStopSunriseType == "Before" ? parent.getSunset(inputStopBefore * -1,app.label) : parent.getSunset(inputStopBefore,app.label))
+        } else {
+            logTrace(680,"ERROR: inputStopType set to $inputStopType")
         }
     } else {
         return false
     }
     // If timeStop before timeStart, add a day
     if(timeToday(timeStart, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
-    logTrace(688,"Stop time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+    logTrace(687,"Stop time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
     return value
 }
 
 def dimSpeed(){
 	if(settings.multiplier != null){
-		logTrace(694,"dimSpeed set to $settings.multiplier")
+		logTrace(693,"dimSpeed set to $settings.multiplier")
 		return settings.multiplier
 	}else{
-		logTrace(697,"dimSpeed set to 1.2")
+		logTrace(696,"dimSpeed set to 1.2")
 		return 1.2
 	}
 }
@@ -705,14 +742,14 @@ def getDefaultLevel(device){
 
 	// If no device match, return null
 	timeDevice.findAll( {it.id == device.id} ).each {
-		logTrace(708,"getDefaultLevel matched device $device and $it")
+		logTrace(707,"getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) return defaults
 
 	// if no start levels, return nulls
     if(!levelOn && !tempOn && !hueOn && !satOn){
-		logTrace(715,"Returning null as start level for $device")
+		logTrace(714,"Returning null as start level for $device")
 		return defaults
 	}
 
@@ -720,15 +757,15 @@ def getDefaultLevel(device){
 	if(timeStop && !parent.timeBetween(timeStart, timeStop, app.label)) return defaults
 
 	// If disabled, return nulls
-	if(disable || state.disableAll) {
-		logTrace(724,"Default level for $device null, schedule disabled")
+	if(disable || state.disable) {
+		logTrace(723,"Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(731,"Default level for $device null, mode $ifMode")
+			logTrace(730,"Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
@@ -755,7 +792,7 @@ def getDefaultLevel(device){
         // First, correct potential fan level (will correct below, so do it within if statement)
         if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
 
-		logTrace(758,"Default level $defaults for $device")
+		logTrace(757,"Default level $defaults for $device")
         return defaults
     }
    
@@ -824,7 +861,7 @@ def getDefaultLevel(device){
     //Correct potential fan level
     if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
     
-    logTrace(827,"Default levels $defaults for $device")
+    logTrace(826,"Default levels $defaults for $device")
     return defaults
 }
 
@@ -837,8 +874,8 @@ def initializeSchedules(){
 	if(!timeStop) timeStop = getStopTime()
 
 	// If disabled, return null
-	if(disable || state.disableAll) {
-		logTrace(841,"initializeSchedules returning; schedule disabled")
+	if(disable || state.disable) {
+		logTrace(840,"initializeSchedules returning; schedule disabled")
 		return
 	}
 
@@ -847,10 +884,10 @@ def initializeSchedules(){
 	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
 	if(weekDays) {
-		logTrace(850,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
+		logTrace(849,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
 		schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
 	} else {
-		logTrace(853,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+		logTrace(852,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 		schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 	}
 
@@ -860,10 +897,10 @@ def initializeSchedules(){
 		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
 		//Already set weekDays above
 		if(weekDays) {
-			logTrace(863,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
+			logTrace(862,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule)
 		} else {
-			logTrace(866,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+			logTrace(865,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule)
 		}
 	}
@@ -882,13 +919,13 @@ def incrementalSchedule(){
     if(!timeStop) timeStop = getStopTime()
 
 	// If disabled, return null
-	if(disable || state.disableAll) {
-		logTrace(886,"Function incrementalSchedule returning; schedule disabled")
+	if(disable || state.disable) {
+		logTrace(885,"Function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
 	if(!parent.multiStateOn(timeDevice)){
-		logTrace(891,"Since $timeDevice is off, stopping recurring schedules")
+		logTrace(890,"Since $timeDevice is off, stopping recurring schedules")
 		return
 	}
 
@@ -897,7 +934,7 @@ def incrementalSchedule(){
 
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(900,"incrementalSchedule returning, mode $ifMode")
+		logTrace(899,"incrementalSchedule returning, mode $ifMode")
 		return
 	}
 
@@ -909,10 +946,10 @@ def incrementalSchedule(){
 //TO-DO: Add state variable setting for minimum duration
 //TO-DO: Add warning on setup page if minimum duration is too low (override it?)
 		runIn(20,incrementalSchedule)
-		logTrace(912,"Scheduling incrementalSchedule for 20 seconds")
+		logTrace(911,"Scheduling incrementalSchedule for 20 seconds")
 		return true
 	} else {
-		logTrace(915,"Schedule ended; now after $timeStop")
+		logTrace(914,"Schedule ended; now after $timeStop")
 	}
 }
 
@@ -949,7 +986,7 @@ def returnTimeOn(){
 // Performs actual changes at time set with timeOn
 // Called only by schedule set in incrementalSchedule
 def runDayOnSchedule(){
-	if(disable || state.disableAll) return
+	if(disable || state.disable) return
 
 	// if mode doesn't match, return
 	if(ifMode){
@@ -973,7 +1010,7 @@ def runDayOnSchedule(){
 // Performs actual changes at time set with timeOff
 // Called only by schedule set in incrementalSchedule
 def runDayOffSchedule(){
-	if(timeDisable || state.disableAll) return
+	if(disable || state.disable) return
 
 	// if mode return
 	if(ifMode){
@@ -1020,7 +1057,7 @@ def weekDaysToNum(){
 			dayString += "SUN"
 		}
 	}
-	logTrace(1023,"weekDaysToNum returning $dayString")
+	logTrace(1022,"weekDaysToNum returning $dayString")
 	return dayString
 }
 
