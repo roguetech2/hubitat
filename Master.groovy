@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.31
+*  Version: 0.1.32
 *
 ***********************************************************************************************************************/
 
@@ -97,15 +97,7 @@ def mainPage() {
 					section("Scheduled settings:") {
 						app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
 					}
-				}
-                
-                
-                				if(showSchedules2){
-					section("Scheduled settings:") {
-						app(name: "childApps", appName: "Master - Time2", namespace: "master", title: "New Schedule", multiple: true)
-					}
-                                }             
-                                    
+				}           
 			}
 			if(showPresences){
 				section("Presence settings:") {
@@ -137,24 +129,12 @@ def mainPage() {
 					app(name: "childApps", appName: "Master - Washer-Dryer", namespace: "master", title: "New Washer-Dryer Sensor", multiple: true)
 				}
 			}
-			if(showBirthday){
-				section("Birthdays:") {
-					app(name: "childApps", appName: "Master - Birthday", namespace: "master", title: "New Birthday", multiple: true)
-				}
-			}
 			section(){
                 if(!showSchedules){
                     input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
                 } else {
                     input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
                 }
-
-                if(!showSchedules2){
-                    input "showSchedules2", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
-                } else {
-                    input "showSchedules2", "bool", title: "Hide schedule app?", submitOnChange:true
-                }
-
                 if(!showPresences){
                     input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
                 } else {
@@ -184,11 +164,6 @@ def mainPage() {
                     input "showWasher", "bool", title: "Washer-dryer app hidden. Show?", submitOnChange:true
                 } else {
                     input "showWasher", "bool", title: "Hide washer-dryer app?", submitOnChange:true
-				}
-                if(!showBirthday){
-                    input "showBirthday", "bool", title: "Birthday app hidden. Show?", submitOnChange:true
-                } else {
-                    input "showBirthday", "bool", title: "Hide Birthday app?", submitOnChange:true
 				}
 			}
         }
