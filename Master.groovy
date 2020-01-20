@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2019 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.30
+*  Version: 0.1.31
 *
 ***********************************************************************************************************************/
 
@@ -56,7 +56,7 @@ def mainPage() {
 					input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
 					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
 					input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
-					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition.</div>"
+					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
 					input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
 					paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
 					input "sensors", "capability.battery", title: "Select all sensors:", multiple: true, required: false, submitOnChange:true
@@ -80,7 +80,7 @@ def mainPage() {
 								input "happyBDay${i}", "bool", title: "Sing Happy Birthday for $it? Click to not sing.", submitOnChange:true
 							}
 							if(settings["happyBDay$i"]){
-								input "dateBDay${i}", "date", title: "Enter birthday date for $it.", submitOnChange:true
+								input "dateBDay${i}", "date", title: "Enter birthday date for $it."
 								if(!settings["bDayEveryone$i"]){
 									input "bDayEveryone${i}", "bool", title: "Sing regardless of who else is home. Click to only sing with everyone.", submitOnChange:true
 								} else {
@@ -137,48 +137,58 @@ def mainPage() {
 					app(name: "childApps", appName: "Master - Washer-Dryer", namespace: "master", title: "New Washer-Dryer Sensor", multiple: true)
 				}
 			}
+			if(showBirthday){
+				section("Birthdays:") {
+					app(name: "childApps", appName: "Master - Birthday", namespace: "master", title: "New Birthday", multiple: true)
+				}
+			}
 			section(){
-				if(!showSchedules){
-					input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
-				} else {
-					input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
+                if(!showSchedules){
+                    input "showSchedules", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showSchedules", "bool", title: "Hide schedule app?", submitOnChange:true
+                }
+
+                if(!showSchedules2){
+                    input "showSchedules2", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showSchedules2", "bool", title: "Hide schedule app?", submitOnChange:true
+                }
+
+                if(!showPresences){
+                    input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showPresences", "bool", title: "Hide presence app?", submitOnChange:true
+                }
+                if(!showPicos){
+                    input "showPicos", "bool", title: "Pico app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showPicos", "bool", title: "Hide Pico app?", submitOnChange:true
+                }
+                if(!showMagicCubes){
+                    input "showMagicCubes", "bool", title: "MagicCube app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showMagicCubes", "bool", title: "Hide MagicCube app?", submitOnChange:true
+                }
+                if(!showContacts){
+                    input "showContacts", "bool", title: "Contact app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
+                }
+                if(!showHumidity){
+                    input "showHumidity", "bool", title: "Humidity app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showHumidity", "bool", title: "Hide humidity app?", submitOnChange:true
+                }
+                if(!showWasher){
+                    input "showWasher", "bool", title: "Washer-dryer app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showWasher", "bool", title: "Hide washer-dryer app?", submitOnChange:true
 				}
-                
-                				if(!showSchedules2){
-					input "showSchedules2", "bool", title: "Schedule app hidden. Show?", submitOnChange:true
-				} else {
-					input "showSchedules2", "bool", title: "Hide schedule app?", submitOnChange:true
-				}
-                
-				if(!showPresences){
-					input "showPresences", "bool", title: "Presence app hidden. Show?", submitOnChange:true
-				} else {
-					input "showPresences", "bool", title: "Hide presence app?", submitOnChange:true
-				}
-				if(!showPicos){
-					input "showPicos", "bool", title: "Pico app hidden. Show?", submitOnChange:true
-				} else {
-					input "showPicos", "bool", title: "Hide Pico app?", submitOnChange:true
-				}
-				if(!showMagicCubes){
-					input "showMagicCubes", "bool", title: "MagicCube app hidden. Show?", submitOnChange:true
-				} else {
-					input "showMagicCubes", "bool", title: "Hide MagicCube app?", submitOnChange:true
-				}
-				if(!showContacts){
-					input "showContacts", "bool", title: "Contact app hidden. Show?", submitOnChange:true
-				} else {
-					input "showContacts", "bool", title: "Hide contact app?", submitOnChange:true
-				}
-				if(!showHumidity){
-					input "showHumidity", "bool", title: "Humidity app hidden. Show?", submitOnChange:true
-				} else {
-					input "showHumidity", "bool", title: "Hide humidity app?", submitOnChange:true
-				}
-				if(!showWasher){
-					input "showWasher", "bool", title: "Washer-dryer app hidden. Show?", submitOnChange:true
-				} else {
-					input "showWasher", "bool", title: "Hide washer-dryer app?", submitOnChange:true
+                if(!showBirthday){
+                    input "showBirthday", "bool", title: "Birthday app hidden. Show?", submitOnChange:true
+                } else {
+                    input "showBirthday", "bool", title: "Hide Birthday app?", submitOnChange:true
 				}
 			}
         }
@@ -712,15 +722,9 @@ def getTomorrow(date,childLabel="Master"){
 
 // Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 // negative is true of false
-def getSunrise(offset, negative=false,childLabel="Master"){
+def getSunrise(offset, childLabel="Master"){
     if(offset){
-        if(negative){
-            def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset * -1)
-            value = offsetRiseAndSet.sunrise
-        } else {
-            def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
-            value = offsetRiseAndSet.sunrise
-        }
+        value = getSunriseAndSunset(sunriseOffset: offset, sunsetOffset: 0).sunrise
         value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
     } else {
         value = getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
@@ -731,9 +735,7 @@ def getSunrise(offset, negative=false,childLabel="Master"){
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getSunset(offset = false,childLabel="Master"){
     if(offset){
-        def offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset)
-            value = offsetRiseAndSet.sunset
-       
+        value = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset).sunset
         value = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
     } else {
         value = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
@@ -762,7 +764,7 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
         return false
     }
     if(!timeStop) {
-        logTrace(800,"unction timeBetween returning false (no stop time)",childLabel)
+        logTrace(800,"Function timeBetween returning false (no stop time)",childLabel)
         return false
     }
   
