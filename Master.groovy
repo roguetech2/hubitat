@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.32
+*  Version: 0.1.33
 *
 ***********************************************************************************************************************/
 
@@ -66,6 +66,8 @@ def mainPage() {
 				}
 /* ********************************************* */
 /* TO-DO: Finish BDay code. Not complete.        */
+/* Try to move it to child app, using this code: */
+/* https://community.hubitat.com/t/parent-function-to-return-settings-state-data-to-child-app/2261/3 */
 /* ********************************************* */
 				if(notificationDevice && people){
 					section(""){
@@ -171,20 +173,20 @@ def mainPage() {
 }
 
 def installed() {
-	logTrace(189,"Installed")
+	logTrace(174,"Installed")
 	state.masterInstalled = true
 	initialize()
 }
 
 def updated() {
-	logTrace(195,"Updated")
+	logTrace(180,"Updated")
 	initialize()
 }
 
 def initialize() {
 	//test()
 
-	logTrace(202,"Initialized")
+	logTrace(187,"Initialized")
 }
 
 def appendAppTitle(appName,appTitle){
@@ -212,20 +214,20 @@ def multiOn(device,childLabel="Master"){
 		def defaultHue
 		def defaultSat
 		childApps.each {Child->
-			if(Child.label.substring(0,4) == "Time") {
+			if(Child.label.substring(0,7) == "Time - ") {
 				// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
-				// Skip if all possibile values have been gotten
+				// Skip if all possibile values have been gotten from previoues schedules
 				if(!defaultLevel || !defaultTemp || !defaultHue || !defaultSat) {
 					defaults = Child.getDefaultLevel(it)
 
 					if(defaults.level != "Null") defaultLevel = defaults.level
 					if(defaults.temp != "Null") defaultTemp = defaults.temp
 					if(defaults.hue != "Null") defaultHue = defaults.hue
-                    if(defaults.sat != "Null") defaultSat = defaults.sat
-                    if(defaults.level != "Null" || defaults.temp != "Null" || defaults.hue != "Null" || defaults.sat != "Null"){
-                        logTrace(247,"Default levels of $defaults found for $it with $Child.label",childLabel)
-                    }
-                }
+					if(defaults.sat != "Null") defaultSat = defaults.sat
+					if(defaults.level != "Null" || defaults.temp != "Null" || defaults.hue != "Null" || defaults.sat != "Null"){
+						logTrace(226,"Default levels of $defaults found for $it with $Child.label",childLabel)
+					}
+				}
 			}
 		}
 		if(!defaultLevel) defaultLevel = 100
@@ -236,33 +238,63 @@ def multiOn(device,childLabel="Master"){
 			defaultSat = false
 		}
 
-        singleOn(it,childLabel)
-        reschedule(it,childLabel)
-		if(isDimmable(it,childLabel)){
-            pause(250)
-			if(isFan(it,childLabel)){
-				setToLevel(it,roundFanLevel(defaultLevel,childLabel),childLabel)
-			} else {
-				setToLevel(it,defaultLevel,childLabel)
-			}
+  		singleOn(it,childLabel)
+		// Setting level will be done in setRetrySchedule or runRetrySchedule
+
+		// Check if it responded (which auto-reschedules to recheck)
+		runRetrySchedule(device.deviceNetworkId,"on",defaultLevel,defaultTemp,defaultHue,defaultSat,,childLabel)
+	}
+}
+
+// Runs check whether the device responded to on/off command
+// If it didn't it retries and reschedules
+// If it did it sets default levels
+// Runs every 1/4 second 4 times, then
+// every 1/2 second 9 times (total 2 seconds), then
+// every 1 second 50 tiumes (total 1 minute)
+def runRetrySchedule(retryDeviceId,retryAction,retryDefaultLevel,retryDefaultTemp,retryDefaultHue,retryDefaultSat,retryCount = "Null",childLabel){
+	if(retryCount == "Null"){
+		retryCount = 1
+	} else {
+		retryCount = retryCount + 1
+	}
+	device = getSubscribedDeviceById(retryDeviceId)
+	// It did turn on/off
+	if(retryAction == "on" && stateOn(device) || (retryAction == "off" && stateOn(device)){
+		reschedule(device,childLabel)
+		if(state.retryAction == "on"){
+			if(defaultLevel) setToLevel(device,defaultLevel,childLabel)
+			if(defaultTemp) singleTemp(device,defaultTemp,childLabel)
+			if(defaultHue && defaultSat) singleColor(device,defaultHue,defaultSat,childLabel)
 		}
-        // Check if it turned on, else retry
-        pause(250)
-        if(!stateOn(it,childLabel)){
-            logTrace(267,"$device didn't turn on; trying again",childLabel)
-            singleOff(it,childLabel)
-            pause(250)
-            singleOn(it,childLabel)
-        }
-		if(defaultTemp && isTemp(it,childLabel)) singleTemp(it,defaultTemp,childLabel)
-		if(defaultHue && defaultSat && isColor(it,childLabel)) singleColor(it,defaultHue,defaultSat,childLabel)
+		return true
+	} else {
+		logTrace(252,"$device didn't turn $retryAction; trying again",childLabel)
+		if(retryAction == "on"){
+			singleOn(device)
+		} else {
+			singleOff(device)
+		}
+
+		// Reschedule it
+		// First, use 1/4 seconds, for 1 second
+		if(retryCount < 5){
+			runInMillis(250,runRetrySchedule, [data: [retryDeviceId: retryDeviceId, retryAction: retryAction, retryDefaultLevel: retryDefaultLevel, retryDefaultTemp: retryDefaultTemp, retryDefaultHue: retryDefaultHue, retryDefaultSat: retryDefaultSat, retryCount: retryCount, childLabel: childLabel])
+		// Second, use 1/2 seconds, for 9 seconds (total 10 seconds)
+		} else if(retryCount < 14){
+			runInMillis(500,runRetrySchedule, [data: [retryDeviceId: retryDeviceId, retryAction: retryAction, retryDefaultLevel: retryDefaultLevel, retryDefaultTemp: retryDefaultTemp, retryDefaultHue: retryDefaultHue, retryDefaultSat: retryDefaultSat, retryCount: retryCount, childLabel: childLabel])
+		// Third, use 1 second, for 50 seconds (total 1 minute)
+		} else if(retryCount < 64){
+			runIn(1,runRetrySchedule, [data: [retryDeviceId: retryDeviceId, retryAction: retryAction, retryDefaultLevel: retryDefaultLevel, retryDefaultTemp: retryDefaultTemp, retryDefaultHue: retryDefaultHue, retryDefaultSat: retryDefaultSat, retryCount: retryCount, childLabel: childLabel])
+		}
+		return false
 	}
 }
 
 // Turn on a single switch
 def singleOn(device,childLabel = "Master"){
 	device.on()
-	logTrace(280,"Turned on $device",childLabel)
+	logTrace(265,"Turned on $device",childLabel)
 }
 
 // Functions for turning off switches
@@ -270,23 +302,17 @@ def singleOn(device,childLabel = "Master"){
 // Turn off a group of switches
 def multiOff(device,childLabel="Master"){
 	device.each{
-        singleOff(it,childLabel)
-        reschedule(it,childLabel)
-		// Check if it turned on, else retry
-        pause(250)
-        if(stateOn(it,childLabel)){
-               logTrace(293, "$device didn't turn off; trying again",childLabel)
-               singleOn(it,childLabel)
-               pause(250)
-               singleOff(it,childLabel)
-        }
+		singleOff(it,childLabel)
+
+		// Check if it responded (which auto-reschedules to recheck)
+		runRetrySchedule(device.deviceNetworkId,"off",defaultLevel,defaultTemp,defaultHue,defaultSat,,childLabel)
 	}
 }
 
 // Turn off a single switch
 def singleOff(device,childLabel = "Master"){
 	device.off()
-	logTrace(304,"Turned off $device",childLabel)
+	logTrace(295,"Turned off $device",childLabel)
 }
 
 // Toggle a group of switches
@@ -294,35 +320,47 @@ def toggle(device,childLabel="Master"){
 	device.each{
 		if(!stateOn(it,childLabel)){
 			// Using temp vars since each app will overwrite with null
+			// Need to clear between devices
+			def defaultLevel
+			def defaultTemp
+			def defaultHue
+			def defaultSat
 			childApps.each {Child->
-				if(Child.label.substring(0,4) == "Time") {
-					defaults = Child.getDefaultLevel(it)
-					if(defaults.level != "Null") defaultLevel = defaults.level
-					if(defaults.temp != "Null") defaultTemp = defaults.temp
-					if(defaults.hue != "Null") defaultHue = defaults.hue
-					if(defaults.sat != "Null") defaultSat = defaults.sat
-					if(defaultHue && !defaultSat){
-						defaultSat = 100
-					} else if(!defaultHue && defaultSat){
-						defaultHue = false
-						defaultSat = false
+				if(Child.label.substring(0,7) == "Time - ") {
+					// defaults will return map with level, temp, hue and sat - populated with value of "Null" for null
+					// Skip if all possibile values have been gotten from previoues schedules
+					if(!defaultLevel || !defaultTemp || !defaultHue || !defaultSat) {
+						defaults = Child.getDefaultLevel(it)
+
+						if(defaults.level != "Null") defaultLevel = defaults.level
+						if(defaults.temp != "Null") defaultTemp = defaults.temp
+						if(defaults.hue != "Null") defaultHue = defaults.hue
+						if(defaults.sat != "Null") defaultSat = defaults.sat
+						if(defaults.level != "Null" || defaults.temp != "Null" || defaults.hue != "Null" || defaults.sat != "Null"){
+							logTrace(226,"Default levels of $defaults found for $it with $Child.label",childLabel)
+						}
 					}
 				}
 			}
 			if(!defaultLevel) defaultLevel = 100
-			if(isFan(it)) defaultLevel = roundFanLevel(defaultLevel,childLabel)
-			if(isDimmable(it)){
-				setToLevel(it,defaultLevel,childLabel)
-			} else {
-				singleOn(it,defaultLevel,childLabel)
+			if(defaultHue && !defaultSat){
+				defaultSat = 100
+			} else if(!defaultHue && defaultSat){
+				defaultHue = false
+				defaultSat = false
 			}
-			
-			if(defaultTemp) singleTemp(it,defaultTemp,childLabel)
-			if(defaultHue && defaultSat) singleColor(it,defaultHue,defaultSat,childLabel)
+
+	  		singleOn(it,childLabel)
+			// Setting level will be done in setRetrySchedule or runRetrySchedule
+
+			// Check if it responded (which auto-reschedules to recheck)
+			runRetrySchedule(device.deviceNetworkId,"on",defaultLevel,defaultTemp,defaultHue,defaultSat,,childLabel)
 		} else {
 			singleOff(it,childLabel)
+
+			// Check if it responded (which auto-reschedules to recheck)
+			runRetrySchedule(device.deviceNetworkId,"off",defaultLevel,defaultTemp,defaultHue,defaultSat,,childLabel)
 		}
-		reschedule(it,childLabel)
 	}
 }
 
@@ -339,10 +377,10 @@ def dim(device,childId="Master"){
 					reschedule(it,childLabel)
 				} else {
 					// If fan is on low, turn it off
-					if(roundFanLevel(it.currentLevel,childLabel) == 25){
+					if(it.currentLevel< 26){
 						singleOff(it,childLabel)
 					} else {
-						setToLevel(it,roundFanLevel(it.currentLevel - 25,childLabel),childLabel)
+						setToLevel(it,it.currentLevel - 25,childLabel)
 						reschedule(it,childLabel)
 					}
 				}
@@ -352,7 +390,7 @@ def dim(device,childId="Master"){
 					setToLevel(it,1,childLabel)
 					reschedule(it,childLabel)
 				} else if(it.currentLevel == 1){
-					logTrace(371,"Can't dim $device; already at 1%",childLabel)
+					logTrace(361,"Can't dim $device; already at 1%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "dim", childLabel)
 					setToLevel(it,newLevel,childLabel)
@@ -374,12 +412,11 @@ def brighten(device,childId="Master"){
 					setToLevel(it,25,childLabel)
 					reschedule(it,childLabel)
 				} else {
-					// If fan is on high, turn it off
-					if(roundFanLevel(it.currentLevel,childLabel) == 75){
-						singleOff(it,childLabel)
-						reschedule(it,childLabel)
+					// If fan is on high, don't do anything
+					if(it.currentLevel,childLabel > 74){
+						return
 					} else {
-						setToLevel(it,roundFanLevel(it.currentLevel + 25,childLabel),childLabel)
+						setToLevel(it,it.currentLevel + 25,childLabel)
 						reschedule(it,childLabel)
 					}
 				}
@@ -389,7 +426,7 @@ def brighten(device,childId="Master"){
 					setToLevel(it,25,childLabel)
 					reschedule(it,childLabel)
 				} else if(it.currentLevel == 100){
-					logTrace(410,"Can't brighten $device; already at 100%",childLabel)
+					logTrace(398,"Can't brighten $device; already at 100%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "brighten",childId)
 					setToLevel(it,newLevel,childLabel)
@@ -401,24 +438,15 @@ def brighten(device,childId="Master"){
 
 // Set level (brighten or dim) a single dimmer
 def setToLevel(device,level,childLabel="Master"){
-	if(device.currentLevel != level || !stateOn(device,childLabel)){
-		logTrace(424,"Set $device to $level",childLabel)
-		device.setLevel(level)
-		// output to log with fan "high", "medium" or "low"
-		if(isFan(device,childLabel) == true){
-			if(level == 99 | level == 100){
-                logTrace(429,"Set $device to high",childLabel)
-			} else if (level == 66 || level == 67){
-                logTrace(431,"Set $device to medium",childLabel)
-			} else if (level == 33 || level == 34){
-                logTrace(433,"Set $device to low",childLabel)
-			} else {
-                logTrace(435,"Set $device to $level",childLabel)
-			}
-		} else {
-            logTrace(438,"Set $device to $level",childLabel)
-		}
-	}
+	if(device.currentLevel == level) return
+	if(!stateOn(device,childLabel)) return
+	if(!isDimmable(device)) return
+
+	if(isFan(device,childLabel)) level = roundFanLevel(level,childLabel)
+
+	logTrace(411,"Set $device to $level",childLabel)
+	device.setLevel(level)
+	logTrace(425,"Set $device to $level",childLabel)
 }
 
 // Lock/unlock functions
@@ -679,7 +707,7 @@ def reschedule(device,childLabel="Master"){
 /* If a schedule changes something *that* schedule    */
 /* should NOT be rescheduled (Time app handles it).   */
 /* ************************************************** */
-        if(Child.label.substring(0,4) == "Time" && Child.label != childLabel) {
+        if(Child.label.substring(0,7) == "Time - " && Child.label != childLabel) {
             incrementalSchedule = Child.incrementalSchedule()
         }
     }
