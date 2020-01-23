@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.9
+*  Version: 0.3.10
 *
 ***********************************************************************************************************************/
 
@@ -127,7 +127,7 @@ preferences {
 /* ************************************************** */
 /* ************************************************** */
 /* TO-DO: Add warning for if time span is small and   */
-/* changes are large, where change will not be         */
+/* changes are large, where change will not be        */
 /* smooth.                                            */
 /* ************************************************** */
 
@@ -637,7 +637,7 @@ def displayModeOption(){
 
 def installed() {
 	logTrace(639, "Installed")
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+	app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
@@ -647,130 +647,126 @@ def updated() {
 }
 
 def initialize() {
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+	app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+
 	unschedule()
 
-    // Clear off values if equal to on values
-    if(levelOn == levelOff) levelOff = null
-    if(tempOn == tempOff) tempOff = null
-    if(hueOn == hueOff) hueOff = null
-    if(satOn == satOff) satOff = null
+	// Clean up settings values
+	if(inputStartType != "Sunrise" && inputStartType != "Sunset") {
+		settings.inputStartSunriseType = null
+		settings.inputStartBefore = null
+	}
+	if(inputStartSunriseType == "At") settings.inputStartBefore = null
+	if(inputStopType != "Sunrise" && inputStopType != "Sunset") {
+		settings.inputStopSunriseType = null
+		settings.inputStopBefore = null
+	}
+	if(inputStopSunriseType == "At") settings.inputStopBefore = null
+	if(inputStopType == "None"){
+		settings.timeOff = null
+		settings.inputStopSunriseType = null
+		settings.inputStopBefore = null
+		settings.levelOff = null
+		settings.tempOff = null
+		settings.hueOff = null
+		settings.satOff = null
+	}
+	if(!levelEnable) settings.levelOn = null
+	if(!tempEnable) settings.tempOn = null
+	if(!colorEnable){
+		settings.hueOn = null
+		settings.satOn = null
+	}
+	if(!modeEnable) settings.modeChangeOn = null
+	if(!levelOn || levelOn == levelOff) settings.levelOff = null
+	if(!tempOn || tempOn == tempOff) settings.tempOff = null
+	if(!hueOn || hueOn == hueOff) settings.hueOff = null
+	if(!satOn || satOn == satOff) settings.satOff = null
 
-	if(disableAll) {
+	if(disable || disableAll) {
 		state.disable = true
-	} else if(!disable){
+	} else {
 		state.disable = false
-        timeStart = getStartTime()
-        timeStop = getStopTime()
-		if(timeStart) initializeSchedules()
+		// Set start time, stop time, and total seconds
+		if(!setStartStopTime("Start")) return false
+		setStartStopTime("Stop")
+		setTotalSeconds()
+		setWeekDays()
+
+		if(state.stop && !setTotalSeconds()) logTrace(696,"ERROR: Unable to calculate total seconds with start \"$state.start\" and stop \"$state.stop\"")
+
+		initializeSchedules()
 	}
-	logTrace(667,"Initialized")
+	logTrace(700,"Initialized")
 }
 
-def getStartTime(){
-	if(!inputStartType) return false
-    if(inputStartType == "None") return false
+def setStartStopTime(type = "Start"){
+	state.$type = null
 
-    if(inputStartType == "Time"){
-        if(!inputStartTime) {
-            logTrace(676,"ERROR: inputStartType set to Time, but no inputStartTime entered")
-            return false
-        } else {
-            value = inputStartTime
-        }
-    } else if(inputStartType == "Sunrise" || inputStartType == "Sunset"){
-        if(!inputStartSunriseType) {
-            logTrace(683,"ERROR: inputStartType set as $inputStopType, but no inputStartSunriseType selected")
-            return false
-        } else if(inputStartType == "Sunrise"){
-            if(inputStartSunriseType == "At") inputStartBefore = null
-            value = (inputStartSunriseType == "Before" ? parent.getSunrise(inputStartBefore * -1,app.label) : parent.getSunrise(inputStartBefore,app.label))
-        } else if(inputStartType == "Sunset"){
-            if(inputStartSunriseType == "At") inputStartBefore = null
-            value = (inputStartSunriseType == "Before" ? parent.getSunset(inputStartBefore * -1,app.label) : parent.getSunset(inputStartBefore,app.label))
-        } else {
-            logTrace(692,"ERROR: inputStartType set as $inputStartType")
-        }
-    } else {
-        return false
-    }
-    logTrace(697,"Start time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
-    return value
-}
-
-def getStopTime(){
-	if(!inputStopType) return false
-    if(inputStopType == "None") return false
-    
-    if(inputStopType == "Time"){
-        if(!inputStopTime) {
-            logTrace(707,"ERROR: inputStopType set to Time, but no inputStopTime entered")
-            return false
-        } else {
-            value = inputStopTime
-        }
-    } else if(inputStopType == "Sunrise" || inputStopType == "Sunset"){
-        if(!inputStopSunriseType) {
-            logTrace(714,"ERROR: inputStopType set as $inputStopType, but no inputStopSunriseType selected")
-            return false
-        } else if(inputStopType == "Sunrise"){
-            if(inputStopSunriseType == "At") inputStartBefore = null
-            value = (inputStopSunriseType == "Before" ? parent.getSunrise(inputStopBefore * -1,app.label) : parent.getSunrise(inputStopBefore,app.label))
-        } else if(inputStopType == "Sunset"){
-            if(inputStopSunriseType == "At") inputStartBefore = null
-            value = (inputStopSunriseType == "Before" ? parent.getSunset(inputStopBefore * -1,app.label) : parent.getSunset(inputStopBefore,app.label))
-        } else {
-            logTrace(723,"ERROR: inputStopType set to $inputStopType")
-        }
-    } else {
-        return false
-    }
-    // If timeStop before timeStart, add a day
-    if(timeToday(timeStart, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
-    logTrace(730,"Stop time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
-    return value
-}
-
-def dimSpeed(){
-	if(settings.multiplier != null){
-		logTrace(736,"dimSpeed set to $settings.multiplier")
-		return settings.multiplier
-	}else{
-		logTrace(739,"dimSpeed set to 1.2")
-		return 1.2
+	if(type != "Start" && type != "Stop"){
+		logTrace(707,"ERROR: Invalid variable passed to setStartStopTime")
+		return
 	}
+
+	// If no stop time, exit
+	if(type == "Stop" && (!inputStopType || inputStopType == "None")) return
+
+	if(input${type}Type == "Time"){
+		value = input${type}Time
+	} else if(input${type}Type == "Sunrise"){
+		value = (input${type}SunriseType == "Before" ? parent.getSunrise(input${type}Before * -1,app.label) : parent.getSunrise(input${type}Before,app.label))
+	} else if(input${type}Type == "Sunset"){
+		value = (input${type}SunriseType == "Before" ? parent.getSunset(input${type}Before * -1,app.label) : parent.getSunset(input${type}Before,app.label))
+	} else {
+		logTrace(722,"ERROR: input${type}Type set to $input${type}Type")
+		return
+	}
+
+	if(type = "Stop"){
+		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
+	}
+	logTrace(728,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	state."${type}" =  value
+	return true
 }
 
+// Returns array for level, temp, hue and sat
+// Should NOT return true or false; always return defaults array
+// Array should return text "Null" for null values
 def getDefaultLevel(device){
 	// Set map with fake values
 	defaults=[level:'Null',temp:'Null',hue:'Null',sat:'Null']
 
-	// If no device match, return null
+	// If no device match, return nulls
 	timeDevice.findAll( {it.id == device.id} ).each {
-		logTrace(750,"getDefaultLevel matched device $device and $it")
+		logTrace(742,"getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) return defaults
 
+	// If there's a matching device, check and set state variables
+	if(!state.start) {
+		if(!setStartStopTime("Start")) return defaults
+	}
+	if(!state.stop) setStartStopTime("Stop")
+	if(!state.totalSeconds) setTotalSeconds()
+
 	// if no start levels, return nulls
-    if(!levelOn && !tempOn && !hueOn && !satOn){
-		logTrace(757,"Returning null as start level for $device")
+	if(!levelOn && !tempOn && !hueOn && !satOn){
+		logTrace(756,"No starting levels set for $device")
 		return defaults
 	}
 
-	// if not between start and stop time, return nulls
-	if(timeStop && !parent.timeBetween(timeStart, timeStop, app.label)) return defaults
-
 	// If disabled, return nulls
 	if(disable || state.disable) {
-		logTrace(766,"Default level for $device null, schedule disabled")
+		logTrace(762,"Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(773,"Default level for $device null, mode $ifMode")
+			logTrace(769,"Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
@@ -778,183 +774,184 @@ def getDefaultLevel(device){
 	// If not correct day, return nulls
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return defaults
 
-	// Get current level
-	currentLevel = device.currentLevel
-	currentTemp = device.currentColorTemperature
-	currentHue = device.currentHue
-	currentSat = device.currentSaturation
-    
-    if(levelEnable && levelOn && (!timeStop || !levelOff || levelOn == levelOff)) defaults.put("level",levelOn)
-    if(tempEnable && tempOn && (!timeStop || !tempOff || tempOn == tempOff)) defaults.put("temp", tempOn)
-    if(colorEnable && hueOn && (!timeStop || !hueOff || hueOn == hueOff)) defaults.put("hue", hueOn)
-    if(colorEnable && satOn && (!timeStop || !satOff || satOn == satOff)) defaults.put("sat", satOn)
-    
-    // If there's no stop time, or
-    // There's no starting levels, or
-    // There's no ending levels, or
-    // No changes are enabled, then we're done
-    if(!timeStop || ((!levelEnable || !levelOn || !levelOff || levelOn == levelOff) && (!tempEnable || !tempOn || !tempOff || tempOn == tempOff) && (!colorEnable && (!hueOn || !hueOff || hueOn == hueOff) && (!satOn || !satOff || satOn == satOff)))){
-        // First, correct potential fan level (will correct below, so do it within if statement)
-        if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
+	// If there's a stop time with stop settings (possible, since could be changing mode)
+	if(state.stop && (levelOff || !tempOff || !hueOff || !satOff)){
+		// if not between start and stop time, return nulls
+		if(!parent.timeBetween(state.start, state.stop, app.label)) return defaults
 
-		logTrace(800,"Default level $defaults for $device")
-        return defaults
-    }
-   
-    // Calculate percent of schedule elapsed
-    totalHours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).hours
-    totalMinutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).minutes
-    totalSeconds = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).seconds + totalMinutes * 60 + totalHours * 60 * 60
-    //Second calculate the amount of time elapsed from the beginning of the schedule (in seconds)
-    elapsedHours = new Date().hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).hours
-    elapsedMinutes = new Date().minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).minutes
-    elapsedSeconds = new Date().seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).seconds + elapsedMinutes * 60 + elapsedHours * 60 * 60
-    //Divide for percentage of time expired (avoid div/0 error)
-    if(elapsedSeconds == 0){
-        percentTimeExpired = 0
-    } else {
-        percentTimeExpired = elapsedSeconds / totalSeconds
-    }
+		if(elapsedPercent = getElapsedPercent())
+		if(!elapsedPercent) {
+			logTrace(784,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
+			return
+		}
 
-    // Calculate proportiant level
-    if(levelEnable && levelOff && levelOn && levelOn != levelOff) {
-        if(levelOff > levelOn){
-            defaults.put("level", (levelOff - levelOn) * percentTimeExpired + levelOn as int)
-        } else {
-            defaults.put("level", levelOn - (levelOn - levelOff) * percentTimeExpired as int)
-        }
-    }
+		// If only level on, use on value
+		if(levelOn && (!state.stop || !levelOff)) {
+			defaults.put("level",levelOn)
+		// Otherwise, calculate proportiant level to elapsed time
+		} else {
+			if(levelOff > levelOn){
+				defaults.put("level", (levelOff - levelOn) * elapsedPercent + levelOn as int)
+			} else {
+				defaults.put("level", levelOn - (levelOn - levelOff) * elapsedPercent as int)
+			}
+		}
 
-    //Calculate proportiant temp
-    if(tempEnable && tempOff && tempOn && tempOn != tempOff) {
-        if(tempOff > tempOn){
-            defaults.put("temp", (tempOff - tempOn) * percentTimeExpired + tempOn as int)
-        } else {
-            defaults.put("temp", tempOn - (tempOn - tempOff) * percentTimeExpired as int)
-        }
-    }
+		// Calculate temp same as level
+		if(tempOn && (!state.stop || !tempOff)){
+			defaults.put("temp", tempOn)
+		} else {
+		        if(tempOff > tempOn){
+		            defaults.put("temp", (tempOff - tempOn) * elapsedPercent + tempOn as int)
+		        } else {
+		            defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedPercent as int)
+		        }
+		}
 
-    //Calculate proportiant hue
-    if(colorEnable && hueOff && hueOn && hueOn != hueOff) {
-        // hueOn=25, hueOff=75, going 25, 26...74, 75
-        if(hueOff > hueOn && hueDirection == "Forward"){
-            defaults.put("hue", (hueOff - hueOn) * percentTimeExpired + hueOn as int)
-            // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
-        } else if(hueOff > hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * percentTimeExpired as int)
-            if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
-            //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
-        } else if(hueOff < hueOn && hueDirection == "Forward"){
-            defaults.put("hue", (100 - hueOn + hueOff)  * percentTimeExpired + hueOn as int)
-            if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
-            //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
-        } else if(hueOff < hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (hueOn - hueOff) * percentTimeExpired as int)
-        }
-    }
+		// Calculate hue, using "direction"
+		if(hueOn && (!state.stop || !hueOff)) {
+			defaults.put("hue", hueOn)
+		} else {
+			// hueOn=25, hueOff=75, going 25, 26...74, 75
+			if(hueOff > hueOn && hueDirection == "Forward"){
+				defaults.put("hue", (hueOff - hueOn) * elapsedPercent + hueOn as int)
+			// hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
+			} else if(hueOff > hueOn && hueDirection == "Reverse"){
+				defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * elapsedPercent as int)
+				if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
+			//hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
+			} else if(hueOff < hueOn && hueDirection == "Forward"){
+				defaults.put("hue", (100 - hueOn + hueOff)  * elapsedPercent + hueOn as int)
+				if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
+			//hueOn=75, hueOff=25, going 75, 74 ... 26, 25
+			} else if(hueOff < hueOn && hueDirection == "Reverse"){
+				defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedPercent as int)
+			}
+		}
 
-    //Calculate proportiant sat
-    if(colorEnable && satOff && satOn && satOn != satOff) {
-        if(satOff > satOn){
-            defaults.put("sat", (satOff - satOn) * percentTimeExpired + satOn as int)
-        } else {
-            defaults.put("sat", (100 - satOn + satOff) * percentTimeExpired + satOn as int)
-            if(defaults.sat > 100) defaults.put("sat", defaults.sat - 100)
-        }
-    }
+		// Calculate Sat same as level
+		if(satOn && (!state.stop || !satOff)) {
+			defaults.put("sat", satOn)
+		} else {
+			if(satOff > satOn){
+				defaults.put("sat", (satOff - satOn) * elapsedPercent + satOn as int)
+			} else {
+				defaults.put("sat", (100 - satOn + satOff) * elapsedPercent + satOn as int)
+				if(defaults.sat > 100) defaults.put("sat", defaults.sat - 100)
+			}
+		}
 
-    //Correct potential fan level
-    if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
-    
-    logTrace(869,"Default levels $defaults for $device")
-    return defaults
+	// If there's no stop time or no ending levels, use start levels
+	// This prevents having to calc elapsedTime when it's not needed
+	} else if(!state.stop || (!levelOff && !tempOff && !hueOff && !satOff)){
+		if(levelOn) defaults.put("level",levelOn)
+		if(tempOn) defaults.put("temp", tempOn)
+		if(hueOn) defaults.put("hue", hueOn)
+		if(satOn) defaults.put("sat", satOn)
+	}
+
+	// Round potential fan level
+	if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
+
+	logTrace(856,"Default levels $defaults for $device")
+	return defaults
 }
 
 // Schedule initializer
-//Called from initialize, runDayOnSchedule, and runDayOffSchedule
+// Called from initialize, runDayOnSchedule, and runDayOffSchedule
 def initializeSchedules(){
+	// Clear existing schedules
 	unschedule()
 
-	if(!timeStart) timeStart = getStartTime()
-	if(!timeStop) timeStop = getStopTime()
-
 	// If disabled, return null
-	if(disable || state.disable) {
-		logTrace(883,"initializeSchedules returning; schedule disabled")
+	if(state.disable) {
+		logTrace(868,"initializeSchedules returning; schedule disabled")
 		return
 	}
 
-	//First, schedule dayOn, either every day or with specific days
-    	if(timeDays) weekDays = weekDaysToNum()
-	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('HH').toInteger()
-	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format('mm').toInteger()
-	if(weekDays) {
-		logTrace(892,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
-		schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOnSchedule)
+	if(state.stop){
+		if(!setElapsedPercent()) {
+			logTrace(874,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
+			return
+		}
+	}
+
+	// First, schedule dayOn, either every day or with specific days
+	hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format('HH').toInteger()
+	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format('mm').toInteger()
+	if(state.weekDays) {
+		logTrace(883,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+		schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOnSchedule)
 	} else {
-		logTrace(895,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+		logTrace(886,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 		schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 	}
 
-	//Second, schedule dayOff, either every day or with specific days
-	if(timeStop){
-		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
-		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-		//Already set weekDays above
-		if(weekDays) {
-			logTrace(905,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $weekDays)")
-			schedule("0 " + minutes + " " + hours + " ? * " + weekDays, runDayOffSchedule)
+	// Second, schedule dayOff, either every day or with specific days
+	if(state.stop){
+		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('HH').toInteger()
+		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('mm').toInteger()
+		if(state.weekDays) {
+			logTrace(895,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+			schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOffSchedule)
 		} else {
-			logTrace(908,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+			logTrace(898,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule)
 		}
 	}
 
-	//Third, immediatly run incremental (which will self-reschedule thereafter)
-	if(timeStop && parent.timeBetween(timeStart, timeStop, app.label)) {
-		if((levelOn && levelOff && levelOn != levelOff) || (tempOn && tempOff && tempOn != tempOff) || (hueOn && hueOff && hueOn != hueOff) || (satOn && satOff && satOn != satOff))
+	// Third, immediatly run incremental (which will self-reschedule thereafter)
+	if(state.stop && parent.timeBetween(state.start, state.stop, app.label)) {
+		if((levelOn && levelOff) || (tempOn && tempOff) || (hueOn && hueOff) || (satOn && satOff))
 			incrementalSchedule()
 	}
 }
 
-//Sets schedule for runIncrementalSchedule
-//Called from initializeSchedules and parent.reschedule
+// Sets the schedule for runIncrementalSchedule
+// Called from initializeSchedules and parent.reschedule
 def incrementalSchedule(){
-    if(!timeStart) timeStart = getStartTime()
-    if(!timeStop) timeStop = getStopTime()
+	//Since could be called by parent, get start and stop times
+	if(!state.start) {
+		if(!setStartStopTime("Start")) return
+	}
+	// Stop time required for incremental schedule; otherwise, there are no increments
+	if(!state.stop) {
+		if(!setStartStopTime("Stop")) return
+	}
 
 	// If disabled, return null
 	if(disable || state.disable) {
-		logTrace(928,"Function incrementalSchedule returning; schedule disabled")
+		logTrace(924,"Function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
-	if(!parent.multiStateOn(timeDevice)){
-		logTrace(933,"Since $timeDevice is off, stopping recurring schedules")
-		return
-	}
-
-	// Check if correct day and time just so we don't keep running forever
+	// Check if correct day
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
-	// If mode set and node doesn't match, return null
+	// Check if correct mode
 	if(ifMode && location.mode != ifMode) {
-		logTrace(942,"incrementalSchedule returning, mode $ifMode")
+		logTrace(933,"incrementalSchedule returning, mode $ifMode")
 		return
 	}
 
 	// If between start and stop time (if start time after stop time, then if after start time)
-	if(parent.timeBetween(timeStart, timeStop, app.label)){        
+	if(parent.timeBetween(state.start, state.stop, app.label)){
+		// Check if device(s) are on
+		if(!parent.multiStateOn(timeDevice)){
+			logTrace(941,"Since $timeDevice is off, stopping recurring schedules")
+			return
+		}
+
 		// Run first iteration now
 		runIncrementalSchedule()
 //TO-DO: Figure out how long between each change, and schedule for that duration, rather than every X seconds.
 //TO-DO: Add state variable setting for minimum duration
 //TO-DO: Add warning on setup page if minimum duration is too low (override it?)
 		runIn(20,incrementalSchedule)
-		logTrace(954,"Scheduling incrementalSchedule for 20 seconds")
+		logTrace(951,"Scheduling incrementalSchedule for 20 seconds")
 		return true
 	} else {
-		logTrace(957,"Schedule ended; now after $timeStop")
+		logTrace(954,"Schedule ended; now after $state.stop")
 	}
 }
 
@@ -973,6 +970,7 @@ def runIncrementalSchedule(){
 			// Set temp
 			if(defaults.temp != "Null"){
 				currentTemp = it.currentColorTemperature
+				// Only change temp by increments of 3
 				if(defaults.temp - currentTemp > 3 || defaults.temp - currentTemp < -3) parent.singleTemp(it,defaults.temp,app.label)
 			}
 
@@ -982,21 +980,14 @@ def runIncrementalSchedule(){
 	}
 }
 
-//Returns true if schedule turns on
-//used for when Pico resumes schedule
-def returnTimeOn(){
-    if(timeOn) return true
-}
-
 // Performs actual changes at time set with timeOn
 // Called only by schedule set in incrementalSchedule
 def runDayOnSchedule(){
 	if(disable || state.disable) return
 
 	// if mode doesn't match, return
-	if(ifMode){
-		if(location.mode != ifMode) return
-	}
+	if(ifMode && location.mode != ifMode) return
+
 	if(modeChangeOn) setLocationMode(modeChangeOn)
 	if(timeOn == "On"){
 		parent.multiOn(timeDevice,app.label)
@@ -1015,12 +1006,13 @@ def runDayOnSchedule(){
 // Performs actual changes at time set with timeOff
 // Called only by schedule set in incrementalSchedule
 def runDayOffSchedule(){
+	// If no start time, exit
+	if(stop.stop) return
+
 	if(disable || state.disable) return
 
 	// if mode return
-	if(ifMode){
-		if(location.mode != ifMode) return
-	}
+	if(ifMode && location.mode != ifMode) return
 	if(modeChangeOff) setLocationMode(modeChangeOff)
 	if(timeOff == "On"){
 	   parent.multiOn(timeDevice,app.label)
@@ -1033,7 +1025,11 @@ def runDayOffSchedule(){
 	initializeSchedules()
 }
 
-def weekDaysToNum(){
+// Converts full text weekdays as string to be used by cron schedule, and sets as state.weekDays
+// Only called from initialize
+def setWeekDays(){
+	state.weekDays = null
+	if(!timeDays) return
 	dayString = ""
 	timeDays.each{
 		if(it == "Monday") dayString += "MON"
@@ -1062,8 +1058,46 @@ def weekDaysToNum(){
 			dayString += "SUN"
 		}
 	}
-	logTrace(1065,"weekDaysToNum returning $dayString")
-	return dayString
+	logTrace(1061,"weekDaysToNum returning $dayString")
+	state.weekDays = dayString
+	return true
+}
+
+// Calculates duration of the schedule in seconds, and sets as state.totalSeconds
+// Only called by initialize
+def setTotalSeconds(){
+	if(!state.start || !state.stop) {
+		state.totalSeconds = null
+		return false
+	}
+
+	// Calculate duration of schedule
+	totalHours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).hours
+	totalMinutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).minutes
+	totalSeconds = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).seconds + totalMinutes * 60 + totalHours * 60 * 60
+	state.totalSeconds = totalSeconds
+	return true
+}
+
+// Returns percentage of schedule that has elapsed
+// Only called by getDefaultLevel
+def getElapsedPercent(){
+	if(!state.totalSeconds) return false
+
+	// If not between start and stop time, exit
+	if(!parent.timeBetween(state.start, state.stop, app.label)) return false
+
+	//Second calculate the amount of time elapsed from the beginning of the schedule (in seconds)
+	elapsedHours = new Date().hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).hours
+	elapsedMinutes = new Date().minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).minutes
+	elapsedSeconds = new Date().seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).seconds + elapsedMinutes * 60 + elapsedHours * 60 * 60
+
+	//Divide for percentage of time expired (avoid div/0 error)
+	if(elapsedSeconds < 1){
+		return 0
+	} else {
+		return elapsedSeconds / state.totalSeconds
+	}
 }
 
 def logTrace(lineNumber,message = null){
