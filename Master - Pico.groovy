@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -15,8 +15,8 @@
 *  If not, see <http://www.gnu.org/licenses/>.
 *
 *  Name: Master
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Pico.groovy
-*  Version: 0.3.06
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
+*  Version: 0.3.07
 *
 ***********************************************************************************************************************/
 
@@ -837,7 +837,7 @@ preferences {
 
 
 def installed() {
-	logTrace(840. "Installed")
+	logTrace(840, "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
