@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.12
+*  Version: 0.3.13
 *
 ***********************************************************************************************************************/
 
@@ -781,7 +781,7 @@ def getDefaultLevel(device){
 		// if not between start and stop time, return nulls
 		if(!parent.timeBetween(state.start, state.stop, app.label)) return defaults
 
-		if(elapsedPercent == getElapsedPercent())
+		elapsedPercent = getElapsedPercent()
 		if(!elapsedPercent) {
 			logTrace(786,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
 			return
@@ -791,7 +791,7 @@ def getDefaultLevel(device){
 		if(levelOn && (!state.stop || !levelOff)) {
 			defaults.put("level",levelOn)
 		// Otherwise, calculate proportiant level to elapsed time
-		} else {
+		} else if(levelOn){
 			if(levelOff > levelOn){
 				defaults.put("level", (levelOff - levelOn) * elapsedPercent + levelOn as int)
 			} else {
@@ -802,7 +802,7 @@ def getDefaultLevel(device){
 		// Calculate temp same as level
 		if(tempOn && (!state.stop || !tempOff)){
 			defaults.put("temp", tempOn)
-		} else {
+		} else if(tempOn){
 		        if(tempOff > tempOn){
 		            defaults.put("temp", (tempOff - tempOn) * elapsedPercent + tempOn as int)
 		        } else {
@@ -813,7 +813,7 @@ def getDefaultLevel(device){
 		// Calculate hue, using "direction"
 		if(hueOn && (!state.stop || !hueOff)) {
 			defaults.put("hue", hueOn)
-		} else {
+		} else if(hueOn){
 			// hueOn=25, hueOff=75, going 25, 26...74, 75
 			if(hueOff > hueOn && hueDirection == "Forward"){
 				defaults.put("hue", (hueOff - hueOn) * elapsedPercent + hueOn as int)
@@ -834,7 +834,7 @@ def getDefaultLevel(device){
 		// Calculate Sat same as level
 		if(satOn && (!state.stop || !satOff)) {
 			defaults.put("sat", satOn)
-		} else {
+		} else if(satOn) {
 			if(satOff > satOn){
 				defaults.put("sat", (satOff - satOn) * elapsedPercent + satOn as int)
 			} else {
@@ -1099,6 +1099,7 @@ def getElapsedPercent(){
 def logTrace(lineNumber,message = null){
     if(message) {
 	    log.trace "$app.label (line $lineNumber) -- $message"
+        
     } else {
         log.trace "$app.label (line $lineNumber)"
     }
