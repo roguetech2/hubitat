@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.10
+*  Version: 0.3.11
 *
 ***********************************************************************************************************************/
 
@@ -710,23 +710,23 @@ def setStartStopTime(type = "Start"){
 
 	// If no stop time, exit
 	if(type == "Stop" && (!inputStopType || inputStopType == "None")) return
-
-	if(input${type}Type == "Time"){
+    logTrace(1,settings["input${type}Type"])
+    if(settings["input${type}Type"] == "Time"){
 		value = input${type}Time
-	} else if(input${type}Type == "Sunrise"){
-		value = (input${type}SunriseType == "Before" ? parent.getSunrise(input${type}Before * -1,app.label) : parent.getSunrise(input${type}Before,app.label))
-	} else if(input${type}Type == "Sunset"){
-		value = (input${type}SunriseType == "Before" ? parent.getSunset(input${type}Before * -1,app.label) : parent.getSunset(input${type}Before,app.label))
+	} else if(settings["input${type}Type"] == "Sunrise"){
+		value = (settings["input${type}SunriseType"] == "Before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
+	} else if("$input${type}Type" == "Sunset"){
+		value = (settings["input${type}SunriseType"] == "Before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(722,"ERROR: input${type}Type set to $input${type}Type")
+		logTrace(722,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
 		return
 	}
 
-	if(type = "Stop"){
+	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
 	logTrace(728,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
-	state."${type}" =  value
+	state[type] =  value
 	return true
 }
 
@@ -779,7 +779,7 @@ def getDefaultLevel(device){
 		// if not between start and stop time, return nulls
 		if(!parent.timeBetween(state.start, state.stop, app.label)) return defaults
 
-		if(elapsedPercent = getElapsedPercent())
+		if(elapsedPercent == getElapsedPercent())
 		if(!elapsedPercent) {
 			logTrace(784,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
 			return
