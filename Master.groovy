@@ -707,8 +707,12 @@ def reschedule(device,childLabel="Master"){
 /* If a schedule changes something *that* schedule    */
 /* should NOT be rescheduled (Time app handles it).   */
 /* ************************************************** */
-        if(Child.label.substring(0,7) == "Time - " && Child.label != childLabel) {
-            incrementalSchedule = Child.incrementalSchedule()
+        if(Child.label.substring(0,4) == "Time" && Child.label != childLabel) {
+            Child.timeDevice.each {
+                if(device.id == it.id) match = true
+            }
+            if(match == true) incrementalSchedule = Child.incrementalSchedule()
+            match = null
         }
     }
 }
