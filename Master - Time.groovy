@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.13
+*  Version: 0.3.14
 *
 ***********************************************************************************************************************/
 
@@ -690,9 +690,9 @@ def initialize() {
 		// Set start time, stop time, and total seconds
 		if(!setStartStopTime("Start")) return false
 		setStartStopTime("Stop")
+        if(state.start > state.stop) state.stop = null
 		setTotalSeconds()
 		setWeekDays()
-
 		if(state.stop && !setTotalSeconds()) logTrace(696,"ERROR: Unable to calculate total seconds with start \"$state.start\" and stop \"$state.stop\"")
 
 		initializeSchedules()
@@ -777,14 +777,14 @@ def getDefaultLevel(device){
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return defaults
 
 	// If there's a stop time with stop settings (possible, since could be changing mode)
-	if(state.stop && (levelOff || !tempOff || !hueOff || !satOff)){
+	if(state.stop && (!levelOff || !tempOff || !hueOff || !satOff)){
 		// if not between start and stop time, return nulls
 		if(!parent.timeBetween(state.start, state.stop, app.label)) return defaults
 
 		elapsedPercent = getElapsedPercent()
 		if(!elapsedPercent) {
 			logTrace(786,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
-			return
+			return defaults
 		}
 
 		// If only level on, use on value
@@ -917,7 +917,7 @@ def incrementalSchedule(){
 
 	// If disabled, return null
 	if(disable || state.disable) {
-		logTrace(920,"Function incrementalSchedule returning; schedule disabled")
+		logTrace(921,"Function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
@@ -926,7 +926,7 @@ def incrementalSchedule(){
 
 	// Check if correct mode
 	if(ifMode && location.mode != ifMode) {
-		logTrace(929,"incrementalSchedule returning, mode $ifMode")
+		logTrace(930,"incrementalSchedule returning, mode $ifMode")
 		return
 	}
 
@@ -1071,6 +1071,8 @@ def setTotalSeconds(){
 	totalHours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).hours
 	totalMinutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).minutes
 	totalSeconds = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).seconds + totalMinutes * 60 + totalHours * 60 * 60
+
+    if(totalSeconds < 0) totalSeconds = totalSeconds * -1
 	state.totalSeconds = totalSeconds
 	return true
 }
@@ -1078,18 +1080,20 @@ def setTotalSeconds(){
 // Returns percentage of schedule that has elapsed
 // Only called by getDefaultLevel
 def getElapsedPercent(){
-	if(!state.totalSeconds) return false
+    if(!state.totalSeconds) return false
 
 	// If not between start and stop time, exit
-	if(!parent.timeBetween(state.start, state.stop, app.label)) return false
+    if(!parent.timeBetween(state.start, state.stop, app.label)) return false
 
 	//Second calculate the amount of time elapsed from the beginning of the schedule (in seconds)
 	elapsedHours = new Date().hours - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).hours
 	elapsedMinutes = new Date().minutes - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).minutes
 	elapsedSeconds = new Date().seconds - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).seconds + elapsedMinutes * 60 + elapsedHours * 60 * 60
 
+    if(elapsedSeconds < 0) elapsedSeconds = elapsedSeconds * -1
+
 	//Divide for percentage of time expired (avoid div/0 error)
-	if(elapsedSeconds < 1){
+    if(elapsedSeconds < 1){
 		return 0
 	} else {
 		return elapsedSeconds / state.totalSeconds
@@ -1099,7 +1103,6 @@ def getElapsedPercent(){
 def logTrace(lineNumber,message = null){
     if(message) {
 	    log.trace "$app.label (line $lineNumber) -- $message"
-        
     } else {
         log.trace "$app.label (line $lineNumber)"
     }
