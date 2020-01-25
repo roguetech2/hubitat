@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.3.08
+*  Version: 0.3.09
 *
 ***********************************************************************************************************************/
 
@@ -1040,10 +1040,10 @@ def buttonReleased(evt){
 //What's the difference between multiplier, pushMultiplier and holdMultiplier?!
 def dimSpeed(){
 	if(settings.multiplier != null){
-		logTrace(1040,"function dimSpeed returning $pushMultiplier")
+		logTrace(1043,"function dimSpeed returning $pushMultiplier")
 		return pushMultiplier
 	} else {
-		logTrace(1043,"function dimSpeed returning 1.2")
+		logTrace(1046,"function dimSpeed returning 1.2")
 		return 1.2
 	}
 }
@@ -1051,10 +1051,10 @@ def dimSpeed(){
 def holdDimSpeed(){
 	logTrace("$app.label: function holdDimSpeed starting")
 	if(settings.multiplier != null){
-		logTrace("$app.label: function holdDimSpeed returning $holdMultiplier")
+		logTrace(1054,"Function holdDimSpeed returning $holdMultiplier")
 		return holdMultiplier
 	} else {
-		logTrace("$app.label: function holdDimSpeed returning 1.4")
+		logTrace(1057,"Function holdDimSpeed returning 1.4")
 		return 1.4
 	}
 }
@@ -1062,11 +1062,11 @@ def holdDimSpeed(){
 // counts number of steps for brighten and dim
 // action = "dim" or "brighten"
 def getSteps(level, action){
-	logTrace("$app.label: function getSteps starting [level: $level, action: $action]")
+	logTrace(1065,"Function getSteps starting [level: $level, action: $action]")
 	def steps = 0
 
 	if (action != "dim" && action != "brighten"){
-		logTrace("$app.label: function getSteps returning null (invalid action")
+		logTrace(1069,"Function getSteps returning null (invalid action")
 		return false
 	}
 
@@ -1087,7 +1087,7 @@ def getSteps(level, action){
 			level = parent.nextLevel(level, action,app.getId())
 		}
 	}
-	logTrace(1089,"Function getSteps returning $steps")
+	logTrace(1090,"Function getSteps returning $steps")
 	return steps
 }
 
@@ -1142,7 +1142,7 @@ def setSubscribeLevel(data){
 		}
 	}
 	if(device == null) {
-		logTrace(1144,"Function setSubscribeLevel returning (no matching device)")
+		logTrace(1145,"Function setSubscribeLevel returning (no matching device)")
 		return
 	}
 	level = data.level as int
@@ -1211,7 +1211,7 @@ def holdBrighten(device){
 			reschedule(it)
         } else {
             if(level > 99){
-                logTrace(1660,"Pico: Can't brighten $it; already 100%.")
+                logTrace(1214,"Pico: Can't brighten $it; already 100%.")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
@@ -1254,6 +1254,10 @@ def compareDeviceList(device,list){
 	}
 }
 
-def logTrace(lineNumber,message){
-	log.trace "$app.label (line $lineNumber) -- $message"
+def logTrace(lineNumber,message = null){
+    if(message) {
+	    log.trace "$app.label (line $lineNumber) -- $message"
+    } else {
+        log.trace "$app.label (line $lineNumber)"
+    }
 }
