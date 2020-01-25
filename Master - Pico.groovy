@@ -16,7 +16,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.3.07
+*  Version: 0.3.08
 *
 ***********************************************************************************************************************/
 
@@ -887,7 +887,7 @@ def buttonPushed(evt){
 			case "5": parent.multiOff(controlDevice,app.label)
                 logTrace(888,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; turning off")
 		}
-	} else if(!multiDevice && advanceSetup){
+	} else if(!multiDevice && advancedSetup){
 			switch(settings["buttonPush${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(893,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; turning on")
@@ -966,7 +966,7 @@ def buttonHeld(evt){
 			case "5": parent.multiOff(controlDevice,app.label)
                     logTrace(966,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning off")
 		}
-	} else if(!multiDevice && advanceSetup && !replicateHold){
+	} else if(!multiDevice && advancedSetup && !replicateHold){
 			switch(settings["buttonPush${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(971,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
@@ -983,7 +983,7 @@ def buttonHeld(evt){
 				case "off": parent.multiOff(controlDevice,app.label)
                     logTrace(983,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
-	} else if(!multiDevice && advanceSetup && replicateHold){
+	} else if(!multiDevice && advancedSetup && replicateHold){
 			switch(settings["buttonHold${buttonNumber}"]){
 				case "on": parent.multiOn(controlDevice,app.label)
                     logTrace(988,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
@@ -1000,7 +1000,7 @@ def buttonHeld(evt){
 				case "off": parent.multiOff(controlDevice,app.label)
                     logTrace(1000,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
 			}
-	} else if(multiDevice && advanceSetup && replicateHold){
+	} else {
 		if(settings["button_${buttonNumber}_hold_toggle"] != null) {
 			logTrace(1004,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; remapped and advanced setup; toggling")
 			if (settings.color == "Separate"){
