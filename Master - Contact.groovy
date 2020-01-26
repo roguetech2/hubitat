@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -9,14 +9,11 @@
 *
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  for more details.
-*
-*  You should have received a copy of the GNU General Public License along with this program.
-*  If not, see <http://www.gnu.org/licenses/>.
+*  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.3.24
+*  Version: 0.3.26
 * 
 ***********************************************************************************************************************/
 
@@ -528,6 +525,14 @@ def scheduleClose(){
 			parent.multiUnlock(locks,app.label)
 		}
 	}
+}
+
+def getDevice(deviceId){
+    switches.each{
+        if(it.id == deviceId){
+            return it
+        }
+    }
 }
 
 def logTrace(message){
