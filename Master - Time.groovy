@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.3.16
+*  Version: 0.3.17
 *
 ***********************************************************************************************************************/
 
@@ -24,14 +24,13 @@ definition(
     description: "Schedules, times and default settings",
     parent: "master:Master",
     category: "Convenience",
-    iconUrl: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face_s.png",
-    iconX2Url: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face.png"
+    iconUrl: "http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png",
+    iconX2Url: "http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png"
 )
 
 preferences {
-    
-	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/16/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/16/error.png\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
     page(name: "setup", install: true, uninstall: true) {
         section() {
@@ -49,7 +48,7 @@ preferences {
                 if(app.label){
                     displayDevicesOption()
                 }
-                input "disable", "bool", title: "<b><font color=\"#000099\">Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
+                input "disable", "bool", title: "<b><font color=\"#000099\">This Schedule is disabled.</font></b> Reenable it?", submitOnChange:true
             }
 
             //if not disabled, then show everything
@@ -60,7 +59,7 @@ preferences {
                     displayDevicesOption()
                     //if no devices, stop
                     if(timeDevice){
-                        input "disable", "bool", title: "Schedule is enabled. Disable it?", submitOnChange:true
+                        input "disable", "bool", title: "This schedule is enabled. Disable it?", submitOnChange:true
                         displayStartTimeTypeOption()
                         if(inputStartType == "Time"){
                             displayStartTimeOption()
@@ -107,7 +106,7 @@ preferences {
                                     if(!tempEnable) displayColorOption()
                                     displayModeOption()
                                 }
-                                if(!error) input "timeDisableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
+                                if(!error) input "disableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
                             }
                         }
                     }
@@ -159,7 +158,7 @@ def displayInfo(text = "Null"){
 }
 
 def displayNameOption(){
-    displayLabel(text="Set name for this schedule")
+    displayLabel("Set name for this schedule")
 	label title: "", required: true, submitOnChange:true
 /* ************************************************** */
 /* TO-DO: Test the name is unique; otherwise          */
@@ -471,7 +470,7 @@ def displayTemperatureOption(){
     }
     if(tempOn > 5400) errorMessage("Beginning color temperature can't be more than 5,400. Correct before saving.")
     if(tempOn && tempOn < 1800) errorMessage("Beginning color temperature can't be less than 1,800. Correct before saving.")
-    if(tempOff > 5400) errorMessage("Ending color temperature can't be more than 1,800. Correct before saving.")
+    if(tempOff > 5400) errorMessage("Ending color temperature can't be more than 5,400. Correct before saving.")
     if(tempOff && tempOff < 1800) errorMessage("Ending color temperature can't be less than 1,800. Correct before saving.")
 }
 
@@ -628,13 +627,13 @@ def displayModeOption(){
 /* ************************************************** */
 
 def installed() {
-	logTrace(631, "Installed")
+	logTrace(630, "Installed")
 	app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(637,"Updated")
+	logTrace(636,"Updated")
 	initialize()
 }
 
@@ -687,7 +686,7 @@ def initialize() {
 
 		initializeSchedules()
 	}
-	logTrace(690,"Initialized")
+	logTrace(689,"Initialized")
 }
 
 def setStartStopTime(type = "Start"){
@@ -695,7 +694,7 @@ def setStartStopTime(type = "Start"){
 	if(type == "Stop") state.stop = null
 
 	if(type != "Start" && type != "Stop"){
-		logTrace(698,"ERROR: Invalid variable passed to setStartStopTime")
+		logTrace(697,"ERROR: Invalid variable passed to setStartStopTime")
 		return
 	}
 
@@ -709,14 +708,14 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "Sunset"){
 		value = (settings["input${type}SunriseType"] == "Before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(712,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		logTrace(711,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(719,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	logTrace(718,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
@@ -731,10 +730,9 @@ def getDefaultLevel(device){
 
 	// If no device match, return nulls
 	timeDevice.findAll( {it.id == device.id} ).each {
-		//logTrace(734,"getDefaultLevel matched device $device and $it")
+		//logTrace(733,"getDefaultLevel matched device $device and $it")
 		match = true
 	}
-
 	if(!match) return defaults
 
 	// If there's a matching device, check and set state variables
@@ -747,20 +745,20 @@ def getDefaultLevel(device){
 
 	// if no start levels, return nulls
 	if(!levelOn && !tempOn && !hueOn && !satOn){
-		logTrace(750,"No starting levels set for $device")
+		logTrace(748,"No starting levels set for $device")
 		return defaults
 	}
 
 	// If disabled, return nulls
 	if(disable || state.disable) {
-		logTrace(756,"Default level for $device null, schedule disabled")
+		logTrace(754,"Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(763,"Default level for $device null, mode $ifMode")
+			logTrace(761,"Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
@@ -772,12 +770,13 @@ def getDefaultLevel(device){
     if(state.stop) {
         if(!parent.timeBetween(state.start, state.stop, app.label)) return defaults
     }
-    
+
 	// If there's a stop time with stop settings (possible, since could be changing mode)
 	if(state.stop && (levelOff || tempOff || hueOff || satOff)){
-        elapsedPercent = getElapsedPercent()
-		if(!elapsedPercent) {
-			logTrace(780,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
+        elapsedFraction = getElapsedFraction()
+
+		if(!elapsedFraction) {
+			logTrace(779,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
 			return defaults
 		}
 
@@ -787,9 +786,9 @@ def getDefaultLevel(device){
 		// Otherwise, calculate proportiant level to elapsed time
 		} else if(levelOn){
 			if(levelOff > levelOn){
-				defaults.put("level", (levelOff - levelOn) * elapsedPercent + levelOn as int)
+				defaults.put("level", (levelOff - levelOn) * elapsedFraction + levelOn as int)
 			} else {
-				defaults.put("level", levelOn - (levelOn - levelOff) * elapsedPercent as int)
+				defaults.put("level", levelOn - (levelOn - levelOff) * elapsedFraction as int)
 			}
 		}
 
@@ -798,9 +797,9 @@ def getDefaultLevel(device){
             defaults.put("temp", tempOn)
         } else if(tempOn){
             if(tempOff > tempOn){
-                defaults.put("temp", (tempOff - tempOn) * elapsedPercent + tempOn as int)
+                defaults.put("temp", (tempOff - tempOn) * elapsedFraction + tempOn as int)
             } else {
-                defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedPercent as int)
+                defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedFraction as int)
             }
 		}
 
@@ -810,18 +809,18 @@ def getDefaultLevel(device){
 		} else if(hueOn){
 			// hueOn=25, hueOff=75, going 25, 26...74, 75
 			if(hueOff > hueOn && hueDirection == "Forward"){
-				defaults.put("hue", (hueOff - hueOn) * elapsedPercent + hueOn as int)
+				defaults.put("hue", (hueOff - hueOn) * elapsedFraction + hueOn as int)
 			// hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
 			} else if(hueOff > hueOn && hueDirection == "Reverse"){
-				defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * elapsedPercent as int)
+				defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * elapsedFraction as int)
 				if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
 			//hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
 			} else if(hueOff < hueOn && hueDirection == "Forward"){
-				defaults.put("hue", (100 - hueOn + hueOff)  * elapsedPercent + hueOn as int)
+				defaults.put("hue", (100 - hueOn + hueOff)  * elapsedFraction + hueOn as int)
 				if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
 			//hueOn=75, hueOff=25, going 75, 74 ... 26, 25
 			} else if(hueOff < hueOn && hueDirection == "Reverse"){
-				defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedPercent as int)
+				defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedFraction as int)
 			}
 		}
 
@@ -830,9 +829,9 @@ def getDefaultLevel(device){
 			defaults.put("sat", satOn)
 		} else if(satOn) {
 			if(satOff > satOn){
-				defaults.put("sat", (satOff - satOn) * elapsedPercent + satOn as int)
+				defaults.put("sat", (satOff - satOn) * elapsedFraction + satOn as int)
 			} else {
-				defaults.put("sat", (100 - satOn + satOff) * elapsedPercent + satOn as int)
+				defaults.put("sat", (100 - satOn + satOff) * elapsedFraction + satOn as int)
 				if(defaults.sat > 100) defaults.put("sat", defaults.sat - 100)
 			}
 		}
@@ -849,7 +848,7 @@ def getDefaultLevel(device){
 	// Round potential fan level
 	if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
 
-	logTrace(852,"Default levels $defaults for $device")
+	logTrace(851,"Default levels $defaults for $device")
 	return defaults
 }
 
@@ -861,7 +860,7 @@ def initializeSchedules(){
 
 	// If disabled, return null
 	if(state.disable) {
-		logTrace(864,"initializeSchedules returning; schedule disabled")
+		logTrace(863,"initializeSchedules returning; schedule disabled")
 		return
 	}
 
@@ -870,10 +869,10 @@ def initializeSchedules(){
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format('mm').toInteger()
     
 	if(state.weekDays) {
-		logTrace(873,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+		logTrace(872,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
 		schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOnSchedule)
 	} else {
-		logTrace(876,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+		logTrace(875,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 		schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 	}
 
@@ -882,10 +881,10 @@ def initializeSchedules(){
 		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('HH').toInteger()
 		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('mm').toInteger()
 		if(state.weekDays) {
-			logTrace(885,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+			logTrace(884,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOffSchedule)
 		} else {
-			logTrace(888,"Scheduling runDayOffSchedule " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+			logTrace(887,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule)
 		}
 	}
@@ -904,6 +903,7 @@ def incrementalSchedule(){
 	if(!state.start) {
 		if(!setStartStopTime("Start")) return
 	}
+
 	// Stop time required for incremental schedule; otherwise, there are no increments
 	if(!state.stop) {
 		if(!setStartStopTime("Stop")) return
@@ -934,14 +934,15 @@ def incrementalSchedule(){
 
 		// Run first iteration now
 		runIncrementalSchedule()
+        
 //TO-DO: Figure out how long between each change, and schedule for that duration, rather than every X seconds.
 //TO-DO: Add state variable setting for minimum duration
 //TO-DO: Add warning on setup page if minimum duration is too low (override it?)
 		runIn(20,incrementalSchedule)
-		// logTrace(941,"Scheduling incrementalSchedule for 20 seconds")
+		// logTrace(942,"Scheduling incrementalSchedule for 20 seconds")
 		return true
 	} else {
-		// logTrace(944,"Schedule ended; now after $state.stop")
+		// logTrace(945,"Schedule ended; now after $state.stop")
 	}
 }
 
@@ -954,7 +955,6 @@ def runIncrementalSchedule(){
 		if(parent.stateOn(it,app.label)){
 			// Set level
 			defaults = getDefaultLevel(it)
-
 			if(defaults.level != "Null") parent.setToLevel(it,defaults.level,app.label)
 
 			// Set temp
@@ -1062,31 +1062,30 @@ def setTotalSeconds(){
 	}
 
 	// Calculate duration of schedule
-
-
-    logTrace(1067,"Schedule total seconds is $totalTime")
+    logTrace(1065,"Schedule total seconds is $totalTime")
 	state.totalSeconds = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).time / 1000
 	return true
 }
 
 // Returns percentage of schedule that has elapsed
 // Only called by getDefaultLevel
-def getElapsedPercent(){
+def getElapsedFraction(){
     if(!state.totalSeconds) return false
 
 	// If not between start and stop time, exit
     if(!parent.timeBetween(state.start, state.stop, app.label)) return false
 
-    elapsedPercent = Math.floor((new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).time) / 1000)
-    
+    elapsedSeconds = Math.floor((new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).time) / 1000)
+
 	//Divide for percentage of time expired (avoid div/0 error)
-    if(elapsedPercent < 1){
-		elapsedPercent = 0
+    if(elapsedSeconds < 1){
+		elapsedFraction = 0
 	} else {
-		elapsedPercent = Math.floor(elapsedPercent / state.totalSeconds * 100)
+		elapsedFraction = Math.floor(elapsedSeconds / state.totalSeconds * 100) / 100
 	}
-    logTrace(1088,"$elapsedPercent% has elapsed in the schedule")
-    return elapsedPercent / 100
+    
+    logTrace(1087,elapsedFraction * 100 + "% has elapsed in the schedule")
+    return elapsedFraction
 }
 
 def getDevice(deviceId){
