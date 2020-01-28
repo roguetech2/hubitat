@@ -24,8 +24,8 @@ definition(
     description: "Door Sensors",
     parent: "master:Master",
     category: "Convenience",
-    iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
-    iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
+    iconUrl: "http://cdn.device-icons.smartthings.com/locks/lock/unlocked@2x.png",
+    iconX2Url: "http://cdn.device-icons.smartthings.com/locks/lock/unlocked@2x.png"
 )
 
 /* ************************************************** */
@@ -216,7 +216,7 @@ def displayCloseDevices(){
 
 def displayCloseSwitchOptions(){
     if(!closeSwitch) return
-    input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", required: false, multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
+    input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", required: false, multiple: false, width: 12, options: ["none": "Don't turn on or off (but resume schedule)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
     if(closeSwitchAction == "none") displayInfo("Not turning on or off will resume schedule(s), even if overriden when opened")
     if(closeSwitchAction == "resume") displayInfo("Resumes schedules only if schedule is active for the lights/switches selected. If there is no active schedule, it will turn off. To resume active schedule without turning off, select \"Don't turn on or off\".")
 
@@ -310,14 +310,18 @@ def displayTempOption(){
     if(!tempEnable) return
     width = closeSwitch ? 6 : 12
 
-    input "openTemp", "number", title: "Color temperature when opened? (Optional)", required: false, width: width, submitOnChange:true
-    if(openTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
-    if(openTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
-    if(closeSwitch){
-        input "closeTemp", "number", title: "Color temperature when closed? (Optional)", required: false, width: 6, submitOnChange:true
-        if(closeTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
-        if(closeTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
-    }
+	input "openTemp", "number", title: "Color temperature when opened? (Optional)", required: false, width: width, submitOnChange:true
+	if(width == 12){
+		if(openTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
+		if(openTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
+	} else if(width == 6){
+		input "closeTemp", "number", title: "Color temperature when closed? (Optional)", required: false, width: 6, submitOnChange:true
+		if(openTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
+		if(openTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
+		if(closeTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
+		if(closeTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
+	}
+	displayInfo("Temperature color in Kelvin from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000.")
 }
 
 def displayColorOption(){
@@ -325,22 +329,24 @@ def displayColorOption(){
     width = closeSwitch ? 6 : 12
 
     input "openHue", "number", title: "Hue when opened? (Optional)", required: false, width: width, submitOnChange:true
-    input "closeHue", "number", title: "Hue when opened? (Optional)", required: false, width: width, submitOnChange:true
-    if(openHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
-    input "openSat", "number", title: "Saturation when opened?  (Optional)", required: false, width: 6, submitOnChange:true
-    if(closeSwitch){
-        input "closeSat", "number", title: "Saturation when closed?  (Optional)", required: false, width: 6, submitOnChange:true
-        if(openSat > 100) errorMessage("Saturation can't be more than 100. Correct before saving.")
-    }
-    displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
-    displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
+	if(width == 12){
+    		if(openHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
+		input "openSat", "number", title: "Saturation when opened?  (Optional)", required: false, width: width, submitOnChange:true
+		if(openSat > 100) errorMessage("Saturation can't be more than 100. Correct before saving.")
+	} else if width == 6){
+    		input "closeHue", "number", title: "Hue when opened? (Optional)", required: false, width: width, submitOnChange:true
+    		if(openHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
+		if(closeHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
+	}
+	displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
+	displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
 }
 
 def displayStartTimeTypeOption(){
     if(!scheduleEnable) return
     displayLabel("Start time")
 
-    input "timeDays", "enum", title: "On these days (Optional):", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+    input "timeDays", "enum", title: "On these days (defaults to all days)", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
     if(!inputStartType){
         width = 12
     } else if(inputStartType == "Time" || !inputStartSunriseType || inputStartSunriseType == "At"){
@@ -419,7 +425,8 @@ def displayStopTimeTypeOption(){
     } else if(inputStopSunriseType){
         width = 4
     }
-    input "inputStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["None":"Don't stop", "Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+//Must have a stop time - can't have open ended schedule. "None" is not allowed
 }
 
 def displayStopTimeOption(){
@@ -552,40 +559,50 @@ def displayWaitOptions(){
     displayLabel("Delay start and/or stop actions")
     input "openWait", "number", title: "Wait seconds for opening action. (Optional)", defaultValue: false, width: 6, submitOnChange:true
 	input "closeWait", "number", title: "Wait seconds for closing action. (Optional)", defaultValue: false, width: 6, submitOnChange:true
+	if(openWait > 30) errorMessage("Wait time has been set to $openWait <i>minutes</i>. Is that correct?")
+	if(closeWait > 30) errorMessage("Wait time has been set to $closeWait <i>minutes</i>. Is that correct?")
 }
 
 def displayAlertOptions(){
     if(!alertEnable) return
-    displayLabel("Alert by voice or text")
-    if(parent.notificationDevice){
-        input "phone", "phone", title: "Number to text alert? (Optional)", required: false, width: 6, submitOnChange:true
-        input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, required: false, submitOnChange:true
-        if(phoneOpenClose){
-            input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: 6
-        } else {
-            input "phoneOpenClose", "bool", title: "SMS when <b>opened</b>. Click for closed.", submitOnChange:true, width: 6
-        }
-        if(speakOpenClose){
-            input "speakOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true, width: 6
-        } else {
-            input "speakOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true, width: 6
-        }
-        displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
-    } else {
-        input "phone", "phone", title: "Number to text alert? (Optional)", required: false, width: 12, submitOnChange:true
-        if(phoneOpenClose){
-            input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: 12
-        } else {
-            input "phoneOpenClose", "bool", title: "SMS when <b>opened</b>. Click for closed.", submitOnChange:true, width: 12
-        }
-        errorMessage("To have voice message will be sent, set \"Notification device(s)\" in Master app.")
-    }
+	if(parent.notificationDevice){
+    		displayLabel("Alert by voice or text")
+		width = 6
+	} else {
+		dispayLabel("Send text message")
+		width = 12
+	}
+	if(
+        input "phone", "phone", title: "Number to text alert? (Optional)", required: false, width: width, submitOnChange:true
+	if(!validatePhone(phone)) errorMessage("Phone number must be nine digits.")
+        if(width == 6) {
+		input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, required: false, submitOnChange:true
+        	displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
+	}
+	if(phone){
+	        if(phoneOpenClose){
+	            input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: width
+	        } else {
+	            input "phoneOpenClose", "bool", title: "SMS when <b>opened</b>. Click for closed.", submitOnChange:true, width: width
+	        }
+	}
+	if(width == 6 && speakText){
+		if(speakOpenClose){
+		    input "speakOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true, width: 6
+		} else {
+		    input "speakOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true, width: 6
+		}
+	}
+        if(width == 12) errorMessage("To have voice message will be sent, set \"Notification device(s)\" in Master app.")
+
+// This should probably different functions
     input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
-    if(mode || phone || speakText){
-        if(alertOpenOrClose){
-            input "alertOpenOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", defaultValue: false, submitOnChange:true
+// We're missing a mode selection option!!
+    if(modeEnable && mode){
+        if(modeOpenOrClose){
+            input "modeOpenOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", defaultValue: false, submitOnChange:true
         } else {
-            input "alertOpenOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", defaultValue: false, submitOnChange:true
+            input "modeOpenOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", defaultValue: false, submitOnChange:true
         }
     }
     if(phone || speakText){
@@ -593,6 +610,52 @@ def displayAlertOptions(){
         input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home (optional)", multiple: true, required: false, submitOnChange:true
     }
 }
+
+/*
+disableAll - bool - Flag to disable all contacts
+disable - bool - Flag to disable this single contact
+contactDevice - capability.contactSensor - Contact sensor being monitored
+openSwitch - capability.switchLevel - Light device(s) being controlled (when opened, or when opened or closed, depending on closeSwitchDifferent)
+openLock - capability.lock - Lock(s) being controlled
+openSwitchAction - enum (none, on, off, resume, toggle) - Action to perform on openSwitch when opened
+openLockAction - enum (none, lock, unlock) - Action to perform on openLock when opened
+closeSwitchDifferent - bool - Flag to allow different devices for open and close
+closeSwitch - capability.switchLevel - Light device(s) to control when closing. Does not display is closeSwitchDifferent does not equal true.
+closeLock - capability.lock - Lock(s) being controlled when closing. Does not display is closeSwitchDifferent does not equal true.
+closeSwitchAction - enum (none, on, off, resume, toggle) - Action to perform on closeSwitch when closed. "None" will resume any schedule disabled by open.
+closeLockAction - enum (none, lock, unlock) - Action to perform on closeLock when closed
+levelEnable - bool - Flag to enable options to change level
+tempEnable - bool - Flag to enable options to change temperature
+colorEnable - bool - Flag to enable options to change hue and saturation
+delayEnable - bool - Flag to enable options to delay open/close actions
+scheduleEnable - bool - Flag to enable options to set timeframe when contact performs actions
+alertEnable - bool - Flag to enable options for SMS or speech
+modeEnable - bool - Flag to enable option for changing mode
+openLevel - number (1-100) - Level to set openSwitch when opened
+closeLevel - number (1-100) - Level to set closeSwitch when closed
+openTemp - number (1800-5400) - Temperature to set openSwitch when opened
+closeTemp - number (1800-5400) - Temperature to set closeSwitch when closed
+openHue - number (1-100) - Hue to set openSwitch when opened
+closeHue - number (1-100) - Hue to set closeSwitch when closed
+timeDays - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Days on which contact will run. Only displays if scheduleEnable = true
+inputStartType - enum (Time, Sunrise, Sunset) - Sets whether start time is a specific time, or based on sunrise or sunset. Only displays if scheduleEnable = true
+inputStartTime - time - Start Time (only displays when scheduleEnable = true and inputStartType = "Time")
+inputStartSunriseType - enum (At, Before, After) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "Sunrise" or "Sunset")
+inputStartBefore - number - Number of minutes before/after sunrise/sunset for start time (only displays if scheduleEnable = true, inputStartType = "Sunrise" or "Sunset", and inputStartSunriseType = "Before" or "After")
+inputStopType - enum (Time, Sunrise, Sunset) - Sets whether stop time is a specific time, or based on sunrise or sunset. (Only displays if scheduleEnable = true)
+inputStopTime - time - Stop Time (only displays when scheduleEnable = true and inputStopType = "Time")
+inputStopSunriseType - enum (At, Before, After) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "Sunrise" or "Sunset")
+inputStopBefore - number - Number of minutes before/after sunrise/sunset for stop time (only displays if scheduleEnable = true, inputStartType = "Sunrise" or "Sunset", and inputStartSunriseType = "Before" or "After")
+openWait - number - Minutes to delay open action(s). Only displays if delayEnable = true
+closeWait - number - Minutes to delay close action(s). Only displays if delayEnable = true
+phone - phone - Phone number for SMS. Only displays if alertEnable = true
+speakText - text - Text to speak. Only displays if alertEnable = true
+phoneOpenClose - bool - Switch to send alert when door opened, or closed. Only displays if alertEnable = true
+speakOpenClose - bool - Switch to speak text when door opened, or closed. Only displays if alertEnable = true
+modeOpenOrClose - bool - Switch to change mode when door opened, or closed. Only displays if modeEnable = true
+personHome - capability.presenseSensor - Persons any of who must be home for contact to run. 
+personNotHome - capability.presenseSensor - Persons all of who must not be home for contact to run.
+*/
 
 /* ************************************************** */
 /*                                                    */
@@ -688,10 +751,6 @@ def contactChange(evt){
 	}
 
 	// Text first (just in case there's an error later)
-/* ************************************************** */
-/* TO DO: Instead of throwing error (in Master),      */
-/* validate number on setup.                          */
-/* ************************************************** */
 	if(phone && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))){
 		// Only if correct people are home/not home
 		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
@@ -829,6 +888,10 @@ def scheduleClose(){
 			parent.multiUnlock(locks,app.label)
 		}
 	}
+}
+
+def validatePhone(phone){
+	if(phone.length() == 9) return true
 }
 
 def getDevice(deviceId){
