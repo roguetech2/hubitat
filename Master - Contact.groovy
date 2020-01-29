@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.3.26
+*  Version: 0.3.27
 * 
 ***********************************************************************************************************************/
 
@@ -40,7 +40,7 @@ preferences {
         section() {
             // If all disabled, force reenable
             if(disableAll){
-                input "disableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", defaultValue: false, submitOnChange:true
+                input "disableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", submitOnChange:true
                 state.disable = true
             }
 
@@ -92,7 +92,7 @@ preferences {
 
                             varStartTime = getStartTimeVariables()
                             
-                            input "timeOn", "enum", title: "Turn devices on or off ($varStartTime)?", multiple: false, required: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
+                            input "timeOn", "enum", title: "Turn devices on or off ($varStartTime)?", multiple: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
                             if(timeOn){
                                 
 // TO-DO: Add option for on or not on holidays
@@ -111,7 +111,7 @@ preferences {
 
                                 if(checkStopTimeEntered() && inputStopType != "None"){
                                     varStopTime = getStopTimeVariables()
-                                    input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, required: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
+                                    input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
                                 }
                             }
                         }
@@ -125,7 +125,7 @@ preferences {
                         
                     }
                     paragraph error
-                if(!error) input "disableAll", "bool", title: "Disable <b>ALL</b> schedules?", defaultValue: false, submitOnChange:true
+                if(!error) input "disableAll", "bool", title: "Disable <b>ALL</b> schedules?", submitOnChange:true
                 }
             }
         }
@@ -172,6 +172,7 @@ def displayNameOption(){
 def displayDevicesOption(){
     displayLabel("Select which devices to schedule")
     input "contactDevice", "capability.contactSensor", title: "Contact Sensor(s)", multiple: true, required: true, submitOnChange:true
+	if(!contactDevice) displayInfo("Select the contact sensor(s) (doors/windows) for which to set actions.")
 }
 
 def displayOpenDevices(){
@@ -181,54 +182,72 @@ def displayOpenDevices(){
         displayLabel("When opened")
     }
 
-    input "openSwitch", "capability.switchLevel", title: "Lights/switches to control when opened (optional)", multiple: true, required: false, submitOnChange:true
-    input "openLock", "capability.lock", title: "Locks to control when opened (optional)", multiple: true, required: false, submitOnChange:true
+    input "openSwitch", "capability.switchLevel", title: "Lights/switches to control when opened (optional)", multiple: true, submitOnChange:true
+    input "openLock", "capability.lock", title: "Locks to control when opened (optional)", multiple: true, submitOnChange:true
+	if(!openSwitch && !openLock){
+		displayInfo("Select which switches/lights and/or locks to control when the contact (door/window) is opened. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking.")
+	} else if(!openLock){
+		displayInfo("Select lock(s) in order to lock or unlock them when contact is opened. Optional field.")
+	} else if(!openSwitch){
+		displayInfo("Select switches/lights in order to turn on, turn off, toggle, and/or set levels for them when contact is opened. Optional field.")
+	}
 }
 
 def displayOpenSwitchOptions(){
     if(!openSwitch) return
-    input "openSwitchAction", "enum", title: "Turn lights/switches on or off when opened?", required: false, multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
-    if(openSwitchAction == "resume") displayInfo("Schedules resume only if the schedule is active for the lights/switches selected. If there is not any active schedule for the device(s), they will turn off. To resume active schedules without turning off, select \"Don't turn on or off\".")
-
- 
+    input "openSwitchAction", "enum", title: "Turn lights/switches on or off when opened?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
+	if(!openSwitchAction) {
+		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when contact is opened. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will enable any schedule active when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. In other words, it will restore their default state or turn them off. To resume active schedules without turning off, select \"Don't\". Required field.")
+	} else if(openSwitchAction == "resume") {
+		displayInfo("Active schedules will be enabled when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. To resume active schedules without turning off, select \"Don't\".")
+	} 
 }
 
 def displayOpenLockOptions(){
     if(!openLock) return
-    input "openLockAction", "enum", title: "Lock or unlock when opened?", required: false, multiple: false, width: 12, options: ["none": "Don't lock or unlock (leave as is)","lock":"Lock", "unlock":"Unlock"], submitOnChange:true
+    input "openLockAction", "enum", title: "Lock or unlock when opened?", multiple: false, width: 12, options: ["none": "Don't lock or unlock (leave as is)","lock":"Lock", "unlock":"Unlock"], submitOnChange:true
+	if(!openLockAction) displayInfo("Set whether to lock or unlock the lock when the contact is opened. Required field.")
 }
 
 def displayCloseDevices(){
-    displayLabel("When closed")
-    if(openSwitch || openLock) {
-        if(closeSwitchDifferent){
-            input "closeSwitchDifferent", "bool", title: "Control different lights and locks when closed. Click to change.", width: 12, submitOnChange:true
-            input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed (optional)", multiple: true, required: false, submitOnChange:true
-            input "closeLock", "capability.lock", title: "Locks to control when closed (optional)", multiple: true, required: false, submitOnChange:true
-        } else {
-            input "closeSwitchDifferent", "bool", title: "Control same lights and locks when closed. Click to change.", width: 12, submitOnChange:true
-        }
-    } else {
-            input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed (optional)", multiple: true, required: false, submitOnChange:true
-            input "closeLock", "capability.lock", title: "Locks to control when closed (optional)", multiple: true, required: false, submitOnChange:true
-    }
+	displayLabel("When closed")
+	input "closeSwitchDifferent", "bool", title: "Control same lights and locks when closed. Click to change.", width: 12, submitOnChange:true
+	if(closeSwitchDifferent){
+		input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed", multiple: true, submitOnChange:true
+		input "closeLock", "capability.lock", title: "Locks to control when closed", multiple: true, submitOnChange:true
+		if(!openSwitch && !openLock){
+			displayInfo("Select which switches/lights and/or locks to control when the contact is closed. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking.")
+		} else if(!openLock){
+			displayInfo("Select lock(s) in order to lock or unlock them when contact is closed. Optional field.")
+		} else if(!openSwitch){
+			displayInfo("Select switches/lights in order to turn on, turn off, toggle, and/or set levels for them when contact is closed. Optional field.")
+		}
+	} else {
+		if(!closeSwitchDifferent) displayInfo("Change this option to allow control any <i>different</i> switch(es) or lock(s) when closing than when opening the contact.")
+	}
 }
 
 def displayCloseSwitchOptions(){
     if(!closeSwitch) return
-    input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", required: false, multiple: false, width: 12, options: ["none": "Don't turn on or off (but resume schedule)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
-    if(closeSwitchAction == "none") displayInfo("Not turning on or off will resume schedule(s), even if overriden when opened")
-    if(closeSwitchAction == "resume") displayInfo("Resumes schedules only if schedule is active for the lights/switches selected. If there is no active schedule, it will turn off. To resume active schedule without turning off, select \"Don't turn on or off\".")
-
+    input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", multiple: false, width: 12, options: ["none": "Don't turn on or off (but resume schedule)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
+	if(!closeSwitchAction) {
+		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when closing the contact. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will enable any schedule active when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. In other words, it will restore their default state or turn them off. To resume active schedules without turning off, select \"Don't\". Required field.")
+	} else if(closeSwitchAction == "none"){
+		displayInfo("Not turning on or off will resume schedule(s), even if the schedule was overriden when opened.")
+	} else if(closeSwitchAction == "resume") {
+		displayInfo("Active schedules will be enabled when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. To resume active schedules without turning off, select \"Don't\".")
+	}
 }
 
 def displayCloseLockOptions(){
     if(!closeLock) return
     displayLabel("Locks when closed")
-    input "closeLockAction", "enum", title: "Lock or unlock when closed?", required: false, multiple: false, width: 6, options: ["none": "Don't lock or unlock (leave as is)","lock":"Lock", "unlock":"Unlock"], submitOnChange:true
+    input "closeLockAction", "enum", title: "Lock or unlock when closed?", multiple: false, width: 6, options: ["none": "Don't lock or unlock (leave as is)","lock":"Lock", "unlock":"Unlock"], submitOnChange:true
+	if(!closeLockAction) displayInfo("Set whether to lock or unlock the lock when the contact is opened. Required field.")
 }
 
 def displayBinaryOptions(){
+//These need to be moved, either to the top of the UI, and/or to Install, Update and Initialize
     // If change level isn't selected, clear levels
     if(!levelEnable){
         levelOpen = null
@@ -264,6 +283,7 @@ def displayBinaryOptions(){
     } else if(colorEnable){
         paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change temperature color."
     }
+//Should allow both, for settings one value at open and a different at close
     if(!colorEnable && !tempEnable){
         input "colorEnable", "bool", title: "<b>Don't change color.</b> Click to change.", submitOnChange:true
     } else if(!tempEnable){
@@ -291,62 +311,68 @@ def displayBinaryOptions(){
     } else {
         input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
     }
-
+	if(!levelEnable && !tempEnable && !colorEnable && !scheduleEnable && !alertEnable && !modeEnable) displayInfo("Select which option(s) to change, which will allow entering values to set when contact is opened and/or closed. All are optional.")
 }
 
 def displayBrightnessOption(){
     if(!levelEnable) return
-    width = closeSwitch ? 6 : 12
 
-    input "openLevel", "number", title: "Brightness when opened? (Optional)", required: false, width: width, submitOnChange:true
-    if(openLevel > 100) errorMessage("Brightness can't be more than 100. Correct before saving.")
-    if(closeSwitch){
-        input "closeLevel", "number", title: "Brightness when closed? (Optional)", required: false, width: 6, submitOnChange:true
-        if(closeLevel > 100) errorMessage("Brightness can't be more than 100. Correct before saving.")
-    }
+	input "openLevel", "number", title: "Brightness when opened?", width: width, submitOnChange:true
+	input "closeLevel", "number", title: "Brightness when closed?", width: 6, submitOnChange:true
+	if(!openLevel && !closeLevel) displayInfo("Enter the percentage of brightness to set lights/switches, from 1 to 100, when contact opens and/or closes. Either opening or closing brightness is required (or unselect \"Change brightness\").")
+
+	if(openLevel > 100) errorMessage("Brightness is percentage from 1 to 100. Correct opening brightness.")
+        if(closeLevel > 100) errorMessage("Brightness is percentage from 1 to 100. Correct closing brightness.")
 }
 
 def displayTempOption(){
     if(!tempEnable) return
-    width = closeSwitch ? 6 : 12
 
-	input "openTemp", "number", title: "Color temperature when opened? (Optional)", required: false, width: width, submitOnChange:true
-	if(width == 12){
-		if(openTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
-		if(openTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
-	} else if(width == 6){
-		input "closeTemp", "number", title: "Color temperature when closed? (Optional)", required: false, width: 6, submitOnChange:true
-		if(openTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
-		if(openTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
-		if(closeTemp > 5400) errorMessage("Color temperature can't be more than 5,400. Correct before saving.")
-		if(closeTemp && openTemp < 1800) errorMessage("Color temperature can't be less than 1,800. Correct before saving.")
+	input "openTemp", "number", title: "Color temperature when opened?", width: width, submitOnChange:true
+	input "closeTemp", "number", title: "Color temperature when closed?", width: 6, submitOnChange:true
+	if(!openLevel && !closeLevel) {
+		displayInfo("Temperature color is in Kelvin from 1800 to 5400, to set lights/switches when contact opens and/or closes. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. Either opening or closing temperature is required (or unselect \"Change temperature\").")
+	} else {
+		displayInfo("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000.")
 	}
-	displayInfo("Temperature color in Kelvin from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000.")
+
+	if(openTemp < 1800 || openTemp > 5400) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
+	if(closeTemp <  1800 || closeTemp > 5400) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
 }
 
 def displayColorOption(){
     if(!colorEnable) return
-    width = closeSwitch ? 6 : 12
 
-    input "openHue", "number", title: "Hue when opened? (Optional)", required: false, width: width, submitOnChange:true
-	if(width == 12){
-    		if(openHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
-		input "openSat", "number", title: "Saturation when opened?  (Optional)", required: false, width: width, submitOnChange:true
-		if(openSat > 100) errorMessage("Saturation can't be more than 100. Correct before saving.")
-	} else if width == 6){
-    		input "closeHue", "number", title: "Hue when opened? (Optional)", required: false, width: width, submitOnChange:true
-    		if(openHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
-		if(closeHue > 100) errorMessage("Hue can't be more than 100. Correct before saving.")
+	input "openHue", "number", title: "Hue when opened?", width: 6, submitOnChange:true
+    	input "closeHue", "number", title: "Hue when closed?", width: 6, submitOnChange:true
+	input "openSat", "number", title: "Saturation when opened?", width: 6, submitOnChange:true
+    	input "closeSat", "number", title: "Saturation when closed?", width: 6, submitOnChange:true
+	if(!openHue && !closeHue){
+		displayInfo("Hue is the shade of color, from 1 to 100, to set lights/switches when contact opens and/or closes. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. Optional fields.")
+	} else {
+		displayInfo("Hue is the shade of color, from 1 to 100. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
 	}
-	displayInfo("Hue is the shade of color. Number from 1 to 100. Red is 1 or 100. Yellow is 11. Green is 26. Blue is 66. Purple is 73.")
-	displayInfo("Saturation is the amount of color. Percent from 1 to 100, where 1 is hardly any and 100 is maximum amount.")
+	if(!openSat && !closeSat) displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, when contact opens and/or closes. 1 is hardly any color tint and 100 is full color. Optional fields.")
+
+	if(openHue > 100) errorMessage("Hue is from 1 to 100. Correct opening hue.")
+	if(closeHue > 100) errorMessage("Hue is from 1 to 100. Correct closing hue.")
+	if(openSat > 100) errorMessage("Saturation is from 1 to 100. Correct opening saturation.")
+	if(closeSat > 100) errorMessage("Saturation is from 1 to 100. Correct closing saturation.")
 }
+
+
+
+
+// pick up here with display messages
+
+
+
 
 def displayStartTimeTypeOption(){
     if(!scheduleEnable) return
     displayLabel("Start time")
 
-    input "timeDays", "enum", title: "On these days (defaults to all days)", required: false, multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+    input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
     if(!inputStartType){
         width = 12
     } else if(inputStartType == "Time" || !inputStartSunriseType || inputStartSunriseType == "At"){
@@ -354,12 +380,12 @@ def displayStartTimeTypeOption(){
     } else if(inputStartSunriseType){
         width = 4
     }
-    input "inputStartType", "enum", title: "Start Time:", required: false, multiple: false, width: width, options: ["Time":"Start at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStartType", "enum", title: "Start Time:", multiple: false, width: width, options: ["Time":"Start at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
 }
 
 def displayStartTimeOption(){
         if(!scheduleEnable) return
-    input "inputStartTime", "time", title: "Start time", required: false, width: 6, submitOnChange:true
+    input "inputStartTime", "time", title: "Start time", width: 6, submitOnChange:true
 }
 
 def displayStartSunriseOption(){
@@ -369,11 +395,11 @@ def displayStartSunriseOption(){
     } else {
         width = 4
     }
-    input "inputStartSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
+    input "inputStartSunriseType", "enum", title: "At, before or after sunrise:", multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
     if(inputStartSunriseType == "Before"){
-        input "inputStartBefore", "number", title: "Minutes before sunrise:", required: false, width: 4, submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes before sunrise:", width: 4, submitOnChange:true
     } else if(inputStartSunriseType == "After"){
-        input "inputStartBefore", "number", title: "Minutes after sunrise:", required: false, width: 4, submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes after sunrise:", width: 4, submitOnChange:true
     }
 }
 
@@ -384,11 +410,11 @@ def displayStartSunsetOption(){
     } else {
         width = 4
     }
-    input "inputStartSunriseType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
+    input "inputStartSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
     if(inputStartSunriseType == "Before"){
-        input "inputStartBefore", "number", title: "Minutes before sunset:", required: false, width: 4, submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes before sunset:", width: 4, submitOnChange:true
     } else if(inputStartSunriseType == "After"){
-        input "inputStartBefore", "number", title: "Minutes after sunset:", required: false, width: 4, submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes after sunset:", width: 4, submitOnChange:true
     }
 }
 
@@ -425,13 +451,13 @@ def displayStopTimeTypeOption(){
     } else if(inputStopSunriseType){
         width = 4
     }
-    input "inputStopType", "enum", title: "Stop Time:", required: false, multiple: false, width: width, options: ["Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStopType", "enum", title: "Stop Time:", multiple: false, width: width, options: ["Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
 //Must have a stop time - can't have open ended schedule. "None" is not allowed
 }
 
 def displayStopTimeOption(){
         if(!scheduleEnable) return
-    input "inputStopTime", "time", title: "Stop time", required: false, width: 6, submitOnChange:true
+    input "inputStopTime", "time", title: "Stop time", width: 6, submitOnChange:true
 }
 
 def displayStopSunriseOption(){
@@ -441,11 +467,11 @@ def displayStopSunriseOption(){
     } else {
         width = 4
     }
-    input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", required: false, multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
+    input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
     if(inputStopSunriseType == "Before"){
-        input "inputStopBefore", "number", title: "Minutes before sunrise:", required: false, width: 4, submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes before sunrise:", width: 4, submitOnChange:true
     } else if(inputStopSunriseType == "After"){
-        input "inputStopBefore", "number", title: "Minutes after sunrise:", required: false, width: 4, submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes after sunrise:", width: 4, submitOnChange:true
     }
     if(inputStopBefore){
         if(inputStopBefore > 1441){
@@ -473,11 +499,11 @@ def displayStopSunsetOption(){
     } else {
         width = 4
     }
-    input "inputStopSunriseType", "enum", title: "At, before or after sunset:", required: false, multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
+    input "inputStopSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
     if(inputStopSunriseType == "Before"){
-        input "inputStopBefore", "number", title: "Minutes before sunset:", required: false, width: 4, submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes before sunset:", width: 4, submitOnChange:true
     } else if(inputStopSunriseType == "After"){
-        input "inputStopBefore", "number", title: "Minutes after sunset:", required: false, width: 4, submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes after sunset:", width: 4, submitOnChange:true
     }
 }
 
@@ -573,10 +599,10 @@ def displayAlertOptions(){
 		width = 12
 	}
 	if(
-        input "phone", "phone", title: "Number to text alert? (Optional)", required: false, width: width, submitOnChange:true
+        input "phone", "phone", title: "Number to text alert? (Optional)", width: width, submitOnChange:true
 	if(!validatePhone(phone)) errorMessage("Phone number must be nine digits.")
         if(width == 6) {
-		input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, required: false, submitOnChange:true
+		input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, submitOnChange:true
         	displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
 	}
 	if(phone){
@@ -600,14 +626,14 @@ def displayAlertOptions(){
 // We're missing a mode selection option!!
     if(modeEnable && mode){
         if(modeOpenOrClose){
-            input "modeOpenOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", defaultValue: false, submitOnChange:true
+            input "modeOpenOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", submitOnChange:true
         } else {
-            input "modeOpenOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", defaultValue: false, submitOnChange:true
+            input "modeOpenOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", submitOnChange:true
         }
     }
     if(phone || speakText){
-        input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home (optional)", multiple: true, required: false, submitOnChange:true
-        input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home (optional)", multiple: true, required: false, submitOnChange:true
+        input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home", multiple: true, submitOnChange:true
+        input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home", multiple: true, submitOnChange:true
     }
 }
 
