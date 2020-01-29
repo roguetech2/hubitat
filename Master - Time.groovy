@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.1
+*  Version: 0.4.2
 *
 ***********************************************************************************************************************/
 
@@ -33,7 +33,7 @@ preferences {
 	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
 	// If we're missing a value, don't allow save
-    	if(!timeDevice) ||
+    	if((!timeDevice) ||
 	(!timeOn || !inputStartType) ||
 	(inputStartType == "time" && !inputStartTime) ||
 	(inputStopType == "time" && !inputStopTime) ||
@@ -597,7 +597,7 @@ ifMode - mode - Mode system must have for schedule to run
 /* ************************************************** */
 
 def installed() {
-	logTrace(597, "Installed")
+	logTrace(600, "Installed")
 	app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
@@ -613,7 +613,7 @@ def updated() {
 	}
 //Test if these work. If not, no need to build all the others
 
-	logTrace(613,"Updated")
+	logTrace(616,"Updated")
 	initialize()
 }
 
@@ -666,7 +666,7 @@ def initialize() {
 
 		initializeSchedules()
 	}
-	logTrace(666,"Initialized")
+	logTrace(669,"Initialized")
 }
 
 def setStartStopTime(type = "Start"){
@@ -674,7 +674,7 @@ def setStartStopTime(type = "Start"){
 	if(type == "Stop") state.stop = null
 
 	if(type != "Start" && type != "Stop"){
-		logTrace(674,"ERROR: Invalid variable passed to setStartStopTime")
+		logTrace(677,"ERROR: Invalid variable passed to setStartStopTime")
 		return
 	}
 
@@ -688,14 +688,14 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(688,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		logTrace(691,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(695,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	logTrace(698,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
@@ -710,7 +710,7 @@ def getDefaultLevel(device){
 
 	// If no device match, return nulls
 	timeDevice.findAll( {it.id == device.id} ).each {
-		//logTrace(710,"getDefaultLevel matched device $device and $it")
+		//logTrace(713,"getDefaultLevel matched device $device and $it")
 		match = true
 	}
 	if(!match) return defaults
@@ -731,14 +731,14 @@ def getDefaultLevel(device){
 
 	// If disabled, return nulls
 	if(disable || state.disable) {
-		logTrace(731,"Default level for $device null, schedule disabled")
+		logTrace(734,"Default level for $device null, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(738,"Default level for $device null, mode $ifMode")
+			logTrace(741,"Default level for $device null, mode $ifMode")
 			return defaults
 		}
 	}
@@ -756,7 +756,7 @@ def getDefaultLevel(device){
         elapsedFraction = getElapsedFraction()
 
 		if(!elapsedFraction) {
-			logTrace(756,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
+			logTrace(759,"ERROR: Unable to calculate elapsed time with start \"$state.start\" and stop \"$state.stop\"")
 			return defaults
 		}
 
@@ -828,7 +828,7 @@ def getDefaultLevel(device){
 	// Round potential fan level
 	if(parent.isFan(device,app.label) && defaults.level != "Null") defaults.put("level",roundFanLevel(defaults.level))
 
-	logTrace(828,"Default levels $defaults for $device")
+	logTrace(831,"Default levels $defaults for $device")
 	return defaults
 }
 
@@ -840,7 +840,7 @@ def initializeSchedules(){
 
 	// If disabled, return null
 	if(state.disable) {
-		logTrace(840,"initializeSchedules returning; schedule disabled")
+		logTrace(843,"initializeSchedules returning; schedule disabled")
 		return
 	}
 
@@ -849,10 +849,10 @@ def initializeSchedules(){
 	minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format('mm').toInteger()
     
 	if(state.weekDays) {
-		logTrace(849,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+		logTrace(852,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
 		schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOnSchedule)
 	} else {
-		logTrace(852,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+		logTrace(855,"Scheduling runDayOnSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 		schedule("0 " + minutes + " " + hours + " * * ?", runDayOnSchedule)
 	}
 
@@ -861,10 +861,10 @@ def initializeSchedules(){
 		hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('HH').toInteger()
 		minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format('mm').toInteger()
 		if(state.weekDays) {
-			logTrace(861,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
+			logTrace(864,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours ? * $state.weekDays)")
 			schedule("0 " + minutes + " " + hours + " ? * " + state.weekDays, runDayOffSchedule)
 		} else {
-			logTrace(864,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
+			logTrace(867,"Scheduling runDayOffSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " (0 $minutes $hours * * ?)")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule)
 		}
 	}
@@ -891,7 +891,7 @@ def incrementalSchedule(){
 
 	// If disabled, return null
 	if(disable || state.disable) {
-		// logTrace(891,"Function incrementalSchedule returning; schedule disabled")
+		// logTrace(894,"Function incrementalSchedule returning; schedule disabled")
 		return
 	}
 
@@ -900,15 +900,20 @@ def incrementalSchedule(){
 
 	// Check if correct mode
 	if(ifMode && location.mode != ifMode) {
-		// logTrace(900,"incrementalSchedule returning, mode $ifMode")
+		// logTrace(903,"incrementalSchedule returning, mode $ifMode")
 		return
 	}
+
+    if(Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).time < new Date().time){
+        if(!setStartStopTime("Start")) return
+        if(!setStartStopTime("Stop")) return
+    }
 
 	// If between start and stop time (if start time after stop time, then if after start time)
 	if(parent.timeBetween(state.start, state.stop, app.label)){
 		// Check if device(s) are on
 		if(!parent.multiStateOn(timeDevice)){
-			// logTrace(908,"Since $timeDevice is off, stopping recurring schedules")
+			// logTrace(916,"Since $timeDevice is off, stopping recurring schedules")
 			return
 		}
 
@@ -919,10 +924,10 @@ def incrementalSchedule(){
 //TO-DO: Add state variable setting for minimum duration
 //TO-DO: Add warning on setup page if minimum duration is too low (override it?)
 		runIn(20,incrementalSchedule)
-		// logTrace(918,"Scheduling incrementalSchedule for 20 seconds")
+		// logTrace(927,"Scheduling incrementalSchedule for 20 seconds")
 		return true
 	} else {
-		// logTrace(921,"Schedule ended; now after $state.stop")
+		// logTrace(930,"Schedule ended; now after $state.stop")
 	}
 }
 
@@ -960,13 +965,16 @@ def runDayOnSchedule(){
 
 	// Check if correct mode
 	if(ifMode && location.mode != ifMode) {
-		// logTrace(960,"runDayOnSchedule returning, mode $ifMode")
+		// logTrace(968,"runDayOnSchedule returning, mode $ifMode")
 		return
 	}
 
 	// if mode doesn't match, return
 	if(ifMode && location.mode != ifMode) return
 
+    if(!setStartStopTime("Start")) return
+    if(!setStartStopTime("Stop")) return
+    
 	if(modeChangeOn) setLocationMode(modeChangeOn)
 	if(timeOn == "on"){
 		parent.multiOn(timeDevice,app.label)
@@ -978,6 +986,8 @@ def runDayOnSchedule(){
 	} else {
 		// Don't need to set levels, since initializeSchedules will do that
 	}
+  
+
 	//Reschedule everything
 	initializeSchedules()
 }
@@ -989,6 +999,10 @@ def runDayOffSchedule(){
 	if(state.stop) return
 
 	if(disable || state.disable) return
+
+    
+    if(!setStartStopTime("Start")) return
+    if(!setStartStopTime("Stop")) return
 
 	// if mode return
 	if(ifMode && location.mode != ifMode) return
@@ -1037,7 +1051,7 @@ def setWeekDays(){
 			dayString += "SUN"
 		}
 	}
-	logTrace(1037,"weekDaysToNum returning $dayString")
+	logTrace(1054,"weekDaysToNum returning $dayString")
 	state.weekDays = dayString
 	return true
 }
@@ -1052,7 +1066,7 @@ def setTotalSeconds(){
 
 	// Calculate duration of schedule
 	state.totalSeconds = Math.floor((Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.start).time) / 1000)
-	logTrace(1051,"Schedule total seconds is $state.totalSeconds")
+	logTrace(1069,"Schedule total seconds is $state.totalSeconds")
 	return true
 }
 
@@ -1073,8 +1087,12 @@ def getElapsedFraction(){
 		elapsedFraction = Math.floor(elapsedSeconds / state.totalSeconds * 100) / 100
 	}
 
-	if(elapsedFraction > 1) logTrace(1073, "ERROR: elapsedFraction is $elapsedFraction, with second: $state.totalSeconds, elapsedSeconds: $elapsedSeconds, start time: $state.start, stop time: $state.stop")
-	logTrace(1074,elapsedFraction * 100 + "% has elapsed in the schedule")
+    if(elapsedFraction > 1) {
+        if(!setStartStopTime("Start")) return
+        if(!setStartStopTime("Stop")) return
+    }
+    
+	logTrace(1095,elapsedFraction * 100 + "% has elapsed in the schedule")
 	return elapsedFraction
 }
 
