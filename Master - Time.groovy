@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.04
+*  Version: 0.4.05
 *
 ***********************************************************************************************************************/
 
@@ -455,7 +455,7 @@ def displayBrightnessOption(){
         } else {
             displayLabel("Enter beginning and/or ending brightness")
                 input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", width: 6, submitOnChange:true
-                input "levelOff", "number", title: "and ending brightness ($varStartTime)? (Optional)", width: 6, submitOnChange:true
+                input "levelOff", "number", title: "and ending brightness ($varStopTime)?", width: 6, submitOnChange:true
 		if(!levelOn && !levelOff) {
 			displayInfo("Enter the percentage of brightness when turning on $timeOn, from 1 to 100, when starting and/or ending the schedule. If entering both starting and ending brightness, it will transition from beginning to ending brightness for the duration of the schedule. Either starting or ending brightness is required (or unselect \"Change brightness\").")
 		} else if(!levelOn || !levelOff){
@@ -480,7 +480,7 @@ def displayTemperatureOption(){
         } else {
             displayLabel("Enter beginning and/or ending color temperature")
                 input "tempOn", "number", title: "Beginning color temperature ($varStartTime)?", width: 6, submitOnChange:true
-                input "tempOff", "number", title: "and ending color temperature ($varStopTime)? (Optional)", width: 6, submitOnChange:true
+                input "tempOff", "number", title: "and ending color temperature ($varStopTime)?", width: 6, submitOnChange:true
 		if(!tempOn && !tempOff) {
 			displayInfo("Temperature color is in Kelvin from 1800 to 5400, when starting and/or ending the schedule. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. If entering both starting and ending temperature, it will transition from beginning to ending temperature for the duration of the schedule. Either starting or ending temperature is required (or unselect \"Change temperature\").")
 		} else if(!tempOn || !tempOff){
@@ -500,8 +500,8 @@ def displayColorOption(){
 		displayLabel("Enter default hue and saturation")
 		hueOff = null
 		satOff = null
-		input "hueOn", "number", title: "Set hue ($varStartTime)? (Optional)", width: 6, submitOnChange:true
-		input "satOn", "number", title: "Set saturation ($varStartTime)? (Optional)", width: 6, submitOnChange:true
+		input "hueOn", "number", title: "Set hue ($varStartTime)?", width: 6, submitOnChange:true
+		input "satOn", "number", title: "Set saturation ($varStartTime)?", width: 6, submitOnChange:true
 		displayInfo("Hue is the shade of color, from 1 to 100, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
 		displayInfo("Saturation is the percentage depth of color, from 1 to 100, where 1 is hardly any color tint and 100 is full color. Either hue or saturation is required (or unselect \"Change color\").")
 	} else {
@@ -515,12 +515,12 @@ def displayColorOption(){
 				forwardSequence = "75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25"
 				reverseSequence = "75, 74, 73 ... 27, 26, 25"
 			}
-			input "hueOn", "number", title: "Beginning hue ($varStartTime)? (Optional)", width: 4, submitOnChange:true
-			input "hueOff", "number", title: "and ending hue ($varStopTime)? (Optional)", width: 4, submitOnChange:true
+			input "hueOn", "number", title: "Beginning hue ($varStartTime)?", width: 4, submitOnChange:true
+			input "hueOff", "number", title: "and ending hue ($varStopTime)?", width: 4, submitOnChange:true
 			input "hueDirection", "enum", title: "Which order to change hue?", width: 4, submitOnChange:true, options: ["Forward": forwardSequence, "Reverse": reverseSequence]
 		} else {
-			input "hueOn", "number", title: "Beginning hue ($varStartTime)? (Optional)", width: 6, submitOnChange:true
-			input "hueOff", "number", title: "and ending hue ($varStopTime)? (Optional)", width: 6, submitOnChange:true
+			input "hueOn", "number", title: "Beginning hue ($varStartTime)?", width: 6, submitOnChange:true
+			input "hueOff", "number", title: "and ending hue ($varStopTime)?", width: 6, submitOnChange:true
 		}
 		if(hueOn && hueOff && hueDirection){
 			displayInfo("Hue is the shade of color, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
@@ -532,8 +532,8 @@ def displayColorOption(){
 			displayInfo("Hue is the shade of color, from 1 to 100, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. If entering both starting and ending hue, it will transition from beginning to ending temperature for the duration of the schedule. Optional field.")
 		}
 
-                input "satOn", "number", title: "Beginning saturation ($varStartTime)? (Optional)", width: 6, submitOnChange:true
-                input "satOff", "number", title: "and ending saturation ($varStopTime)? (Optional)", width: 6, submitOnChange:true
+                input "satOn", "number", title: "Beginning saturation ($varStartTime)?", width: 6, submitOnChange:true
+                input "satOff", "number", title: "and ending saturation ($varStopTime)?", width: 6, submitOnChange:true
 		if(!satOn && !satOff){
 			displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, when starting and/or ending the schedule. 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from beginning to ending saturation for the duration of the schedule. Optional field.")
 		} else if(!satOn || !satOff){
@@ -555,12 +555,12 @@ def displayModeOption(){
         if(inputStopType == "none"){
             displayLabel("Change Mode $varStartTime")
             input "modeChangeOn", "mode", title: "Set Mode (at $varStartTime)?", width: 6, submitOnChange:true
-            input "ifMode", "mode", title: "Only run if Mode is already? (Optional)", width: 12
+            input "ifMode", "mode", title: "Only run if Mode is already?", width: 12
         } else {
             displayLabel("Change Mode $varStartTime and/or $varStopTime")
             input "modeChangeOn", "mode", title: "Change Mode (at $varStartTime)?", width: 12, submitOnChange:true
 // ifmode is supposed to be "If Mode X, then allow run", not "only change mode if Mode is X" - i think?
-            input "ifMode", "mode", title: "Only run if Mode is already? (Optional)", width: 12
+            input "ifMode", "mode", title: "Only run if Mode is already?", width: 12
         }
     }
 }
