@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -9,14 +9,11 @@
 *
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  for more details.
-*
-*  You should have received a copy of the GNU General Public License along with this program.
-*  If not, see <http://www.gnu.org/licenses/>.
+*  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.21
+*  Version: 0.1.23
 *
 ***********************************************************************************************************************/
 
@@ -42,7 +39,8 @@ definition(
 /* (see humidity).                                    */
 /* ************************************************** */ 
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 	page(name: "setup", install: true, uninstall: true) {
 		section() {
 			// Set disable all
