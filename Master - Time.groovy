@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.06
+*  Version: 0.4.07
 *
 ***********************************************************************************************************************/
 
@@ -907,6 +907,8 @@ def runIncrementalSchedule(){
 		if(parent.stateOn(it,app.label)){
 			// Set level
 			defaults = getDefaultLevel(it)
+			parent.singleLevels(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+			/*
 			if(defaults.level != "Null") parent.setToLevel(it,defaults.level,app.label)
 
 			// Set temp
@@ -918,6 +920,7 @@ def runIncrementalSchedule(){
 
 			// If either Hue or Sat, but not both, set the other to current
 			if(defaults.hue != "Null" || defaults.sat != "Null") parent.singleColor(it,defaults.hue,defaults.sat,app.label)
+			*/
 		}
 	}
 }
@@ -980,9 +983,10 @@ def runDayOffSchedule(){
     if(levelOff || tempOff || hueOff || satOff){
         // Loop through devices
         timeDevice.each{
-            if(levelOff) parent.setToLevel(it,levelOff,app.label)
-            if(tempOff) parent.singleTemp(it,tempOff,app.label)
-            if(hueOff || satOff) singleColor(it, hueOff, satOff)
+		parent.singleLevels(levelOff,tempOff,hueOff,satOff,it,app.label)
+            //if(levelOff) parent.setToLevel(it,levelOff,app.label)
+            //if(tempOff) parent.singleTemp(it,tempOff,app.label)
+            //if(hueOff || satOff) singleColor(it, hueOff, satOff)
         }
     }
 	//Reschedule everything
