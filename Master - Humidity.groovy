@@ -1,7 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
-*  Derived from Craig Romei Copyright (C) 2018
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -10,14 +9,11 @@
 *
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  for more details.
-*
-*  You should have received a copy of the GNU General Public License along with this program.
-*  If not, see <http://www.gnu.org/licenses/>.
+*  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master - Humidity
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - Humidity.groovy
-*  Version: 0.1.10
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
+*  Version: 0.1.11
 *
 ***********************************************************************************************************************/
 
@@ -33,8 +29,8 @@ definition(
 )
 
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/error.png\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
 		
         section() {
