@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.05
+*  Version: 0.4.06
 *
 ***********************************************************************************************************************/
 
@@ -240,7 +240,7 @@ def displayStartSunriseSunsetOption(){
     input "inputStartSunriseType", "enum", title: "At, before or after $inputStartType:", multiple: false, width: width, options: ["at":"At $inputStartType", "before":"Before $inputStartType", "after":"After $inputStartType"], submitOnChange:true
 	if(!inputStartSunriseType) displayInfo("Select whether to start exactly at $inputStartType. To allow entering minutes prior to or after $inputStartType, select \"Before $inputStartType\" or \"After $inputStartType\". Required field.")
     if(inputStartSunriseType == "before" || inputStartSunriseType == "after"){
-        input "inputStartBefore", "number", title: "Minutes $inputStartSunriseType sunrise:", width: 4, submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes $inputStartSunriseType $inputStartType:", width: 4, submitOnChange:true
 	if(!inputStartBefore) displayInfo("Enter the number of minutes $inputStartSunriseType $inputStartType to start the schedule. Required field.")
 // Check if we can get sunrise/set times for info messages
     }
@@ -871,14 +871,14 @@ def incrementalSchedule(){
 	if(ifMode && location.mode != ifMode) {
 		// logTrace(872,"incrementalSchedule returning, mode $ifMode")
 		return
-	}
+    }
 
-               if(state.stop && Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).time < new Date().time) setTime()
-        if(!state.start) return defaults
+    if(state.stop && Date.parse("yyyy-MM-dd'T'HH:mm:ss", state.stop).time < new Date().time) setTime()
+    if(!state.start || !state.stop) return
 
-	// If between start and stop time (if start time after stop time, then if after start time)
-	if(parent.timeBetween(state.start, state.stop, app.label)){
-		// Check if device(s) are on
+    // If between start and stop time (if start time after stop time, then if after start time)
+    if(parent.timeBetween(state.start, state.stop, app.label)){
+        // Check if device(s) are on
 		if(!parent.multiStateOn(timeDevice)){
 			// logTrace(883,"Since $timeDevice is off, stopping recurring schedules")
 			return
