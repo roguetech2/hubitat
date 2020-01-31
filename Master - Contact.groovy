@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.01
+*  Version: 0.4.02
 * 
 ***********************************************************************************************************************/
 
@@ -634,6 +634,7 @@ def displayAlertOptions(){
     input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
 // We're missing a mode selection option!!
     if(modeEnable && mode){
+	
         if(modeOpenClose){
             input "modeOpenClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", submitOnChange:true
         } else {
@@ -754,21 +755,20 @@ def contactChange(evt){
 
        if(inputStartType) setTime()
     
-    
     // if not between start and stop time, return nulls
     if(state.stop && !parent.timeBetween(state.start, state.stop, app.label)) return
 
 	// Unschedule pevious events
 	
-	// New open event resets delayed action
-	// New close event won't override open
+	// If opened a second time, it will reset delayed action
+	// If closed a second time, it won't override open
 	if(evt.value == "open"){
 		unschedule()
 	} else {
 		unschedule(scheduleClose)
 	}
 
-	// Check if people are home (home1 and home2 should be true
+	// Check if people are home (home1 and home2 should be true)
 	if(personHome){
 		home1 = false
 		personHome.each{
@@ -836,6 +836,7 @@ def contactChange(evt){
 		} else {
 // Need to add level, temp and color!!
 // Need to add resume
+// It will get defaults, even if it's supposed to override
 			if(openSwitch) {
 				if(openSwitchAction == "on") {
 					parent.multiOn(openSwitch,app.label)
