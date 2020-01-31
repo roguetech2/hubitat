@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2018 roguetech
+*  Copyright (C) 2020 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -9,14 +9,11 @@
 *
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  for more details.
-*
-*  You should have received a copy of the GNU General Public License along with this program.
-*  If not, see <http://www.gnu.org/licenses/>.
+*  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master - MagicCube
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master - MagicCube.groovy
-*  Version: 0.2.06
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
+*  Version: 0.2.07
 * 
 ***********************************************************************************************************************/
 
@@ -32,7 +29,8 @@ definition(
 )
 
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     page(name: "setup", install: true, uninstall: true) {
 		section() {
 			paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this MagicCube setup:</b></div>"
@@ -379,8 +377,8 @@ def buttonEvent1(evt){
     if(button_1_toggle) parent.toggle(button_1_toggle,app.label)
     if(button_1_on) parent.multiOn(button_1_on,app.label)
     if(button_1_off) parent.multiOff(button_1_off,app.label)
-    if(button_1_dim) parent.dim(button_1_dim,true,app.getId())
-    if(button_1_brighten) parent.brighten(button_1_brighten,true,app.getId())
+    if(button_1_dim) parent.dim("dim",button_1_dim,true,app.getId())
+    if(button_1_brighten) parent.dim("brighten",button_1_brighten,true,app.getId())
     if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
     	logTrace("$app.label (line 385) -- No action defined for shaking of $evt.displayName")
     }
@@ -405,8 +403,8 @@ def buttonEvent2(evt){
     if(button_2_toggle) parent.toggle(button_2_toggle,app.label)
     if(button_2_on) parent.multiOn(button_2_on,app.label)
     if(button_2_off) parent.multiOff(button_2_off,app.label)
-    if(button_2_dim) parent.dim(button_2_dim,true,app.getId())
-    if(button_2_brighten) parent.brighten(button_2_brighten,true,app.getId())
+    if(button_2_dim) parent.dim("dim",button_2_dim,true,app.getId())
+    if(button_2_brighten) parent.dim("brighten",button_2_brighten,true,app.getId())
     if(!button_2_toggle && !button_2_on && !button_2_off && !button_2_dim && !button_2_brighten){
     	logTrace("$app.label (line 385) -- No action defined for flipping 90° of $evt.displayName")
     }
@@ -431,8 +429,8 @@ def buttonEvent3(evt){
     if(button_3_toggle) parent.toggle(button_3_toggle,app.label)
     if(button_3_on) parent.multiOn(button_3_on,app.label)
     if(button_3_off) parent.multiOff(button_3_off,app.label)
-    if(button_3_dim) parent.dim(button_3_dim,true,app.getId())
-    if(button_3_brighten) parent.brighten(button_3_brighten,true,app.getId())
+    if(button_3_dim) parent.dim("dim",button_3_dim,true,app.getId())
+    if(button_3_brighten) parent.dim("brighten",button_3_brighten,true,app.getId())
     if(!button_3_toggle && !button_3_on && !button_3_off && !button_3_dim && !button_3_brighten){
     	logTrace("$app.label (line 437) -- No action defined for flipping 180° of $evt.displayName")
     }
@@ -457,8 +455,8 @@ def buttonEvent4(evt){
     if(button_4_toggle) parent.toggle(button_4_toggle,app.label)
     if(button_4_on) parent.multiOn(button_4_on,app.label)
     if(button_4_off) parent.multiOff(button_4_off,app.label)
-    if(button_4_dim) parent.dim(button_4_dim,true,app.getId())
-    if(button_4_brighten) parent.brighten(button_4_brighten,true,app.getId())
+    if(button_4_dim) parent.dim("dim",button_4_dim,true,app.getId())
+    if(button_4_brighten) parent.dim("brighten",button_4_brighten,true,app.getId())
     if(!button_4_toggle && !button_4_on && !button_4_off && !button_4_dim && !button_4_brighten){
     	logTrace("$app.label (line 463) -- No action defined for sliding of $evt.displayName")
     }
@@ -483,8 +481,8 @@ def buttonEvent5(evt){
     if(button_5_toggle) parent.toggle(button_5_toggle,app.label)
     if(button_5_on) parent.multiOn(button_5_on,app.label)
     if(button_5_off) parent.multiOff(button_5_off,app.label)
-    if(button_5_dim) parent.dim(button_5_dim,true,app.getId())
-    if(button_5_brighten) parent.brighten(button_5_brighten,true,app.getId())
+    if(button_5_dim) parent.dim("dim",button_5_dim,true,app.getId())
+    if(button_5_brighten) parent.dim("brighten",button_5_brighten,true,app.getId())
     if(!button_5_toggle && !button_5_on && !button_5_off && !button_5_dim && !button_5_brighten){
     	logTrace("$app.label (line 489) -- No action defined for knocking of $evt.displayName")
     }
@@ -508,8 +506,8 @@ def buttonEvent6(evt){
     if(button_6_toggle) parent.toggle(button_6_toggle,app.label)
     if(button_6_on) parent.multiOn(button_6_on,app.label)
     if(button_6_off) parent.multiOff(button_6_off,app.label)
-    if(button_6_dim) parent.dim(button_6_dim,true,app.getId())
-    if(button_6_brighten) parent.brighten(button_6_brighten,true,app.getId())
+    if(button_6_dim) parent.dim("dim",button_6_dim,true,app.getId())
+    if(button_6_brighten) parent.dim("brighten",button_6_brighten,true,app.getId())
     if(!button_6_toggle && !button_6_on && !button_6_off && !button_6_dim && !button_6_brighten){
     	logTrace("$app.label (line 514) -- No action defined for clockwise rotating of $evt.displayName")
     }
@@ -534,8 +532,8 @@ def buttonEvent7(evt){
     if(button_7_toggle) parent.toggle(button_7_toggle,app.label)
     if(button_7_on) parent.multiOn(button_7_on,app.label)
     if(button_7_off) parent.multiOff(button_7_off,app.label)
-    if(button_7_dim) parent.dim(button_7_dim,true,app.getId())
-    if(button_7_brighten) parent.brighten(button_7_brighten,true,app.getId())
+    if(button_7_dim) parent.dim("dim",button_7_dim,true,app.getId())
+    if(button_7_brighten) parent.dim("brighten",button_7_brighten,true,app.getId())
     if(!button_7_toggle && !button_7_on && !button_7_off && !button_7_dim && !button_7_brighten){
     	logTrace("$app.label (line 540) -- No action defined for counter-clockwise rotating of $evt.displayName")
     }
