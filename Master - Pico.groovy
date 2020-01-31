@@ -9,14 +9,11 @@
 *
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  for more details.
-*f
-*  You should have received a copy of the GNU General Public License along with this program.
-*  If not, see <http://www.gnu.org/licenses/>.
+*  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.3.10
+*  Version: 0.3.11
 *
 ***********************************************************************************************************************/
 
@@ -45,8 +42,8 @@ definition(
 /* dims lower than schedule is at, pause schedule.    */
 /* ************************************************** */
 preferences {
-	infoIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://files.softicons.com/download/toolbar-icons/fatcow-hosting-icons-by-fatcow/png/32/error.png\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
     page(name: "setup", install: true, uninstall: true) {
 		if(!multiDevice){
@@ -876,13 +873,13 @@ def buttonPushed(evt){
 			case "1": parent.multiOn(controlDevice,app.label)
                 message = "turning on"
 				break
-			case "2": parent.brighten(controlDevice,app.getId())
+			case "2": parent.dim("brighten",controlDevice,app.getId())
                 message = "brightening"
 				break
 			case "3": parent.toggle(controlDevice,app.label)
                 message = "toggling"
 				break
-			case "4": parent.dim(controlDevice,app.getId())
+			case "4": parent.dim("dim",controlDevice,app.getId())
                 message = "dimming"
 				break
 			case "5": parent.multiOff(controlDevice,app.label)
@@ -894,13 +891,13 @@ def buttonPushed(evt){
 				case "on": parent.multiOn(controlDevice,app.label)
                     message = "turning on"
 					break
-				case "brighten": parent.brighten(controlDevice,app.getId())
+				case "brighten": parent.dim("brighten",controlDevice,app.getId())
                     message = "brightening"
 					break
 				case "toggle": parent.toggle(controlDevice,app.label)
                     message = "toggling"
 					break
-				case "dim": parent.dim(controlDevice,app.getId())
+				case "dim": parent.dim("dim",controlDevice,app.getId())
                     message = "dimming"
 					break
 				case "off": parent.multiOff(controlDevice,app.label)
@@ -927,11 +924,11 @@ def buttonPushed(evt){
         }
         if(settings["button_${state.buttonNumber}_push_dim"]) {
             logTrace(929,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming")
-            parent.dim(settings["button_${state.buttonNumber}_push_dim"],app.getId())
+            parent.dim("dim",settings["button_${state.buttonNumber}_push_dim"],app.getId())
         }
         if(settings["button_${state.buttonNumber}_push_brighten"]) {
             logTrace(933,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening")
-            parent.brighten(settings["button_${state.buttonNumber}_push_brighten"],app.getId())
+            parent.dim("brighten",settings["button_${state.buttonNumber}_push_brighten"],app.getId())
         }
     }
 }
@@ -1148,8 +1145,8 @@ def setSubscribeLevel(data){
 		logTrace(1148,"Function setSubscribeLevel returning (no matching device)")
 		return
 	}
-	level = data.level as int
-	parent.setToLevel(device,level,app.label)
+	parent.singleLevels(data.level,,,,device,app.label)
+	//parent.setToLevel(device,level,,,,app.label)
 	reschedule(it)
 }
 
@@ -1184,7 +1181,8 @@ def holdDim(device){
         if(parent.isFan(it,app.label) == true){
             parent.dim(it,app.getId())
         } else if(!parent.stateOn(it,app.label)){
-            parent.setToLevel(it,1,app.label)
+		parent.singleLevels(1,,,,device,app.label)
+            //parent.setToLevel(it,1,app.label)
 			parent.reschedule(it,app.label)
         } else {
             if(level < 2){
@@ -1208,9 +1206,10 @@ def holdBrighten(device){
 
     device.each{
         if(parent.isFan(it,app.label)){
-            parent.brighten(it,app.label)
+            parent.dim("brighten",it,app.label)
         } else if(!parent.stateOn(it,app.label)){
-            parent.setToLevel(it,1,app.label)
+		parent.singleLevels(1,,,,device,app.label)
+            //parent.setToLevel(it,1,app.label)
 			reschedule(it)
         } else {
             if(level > 99){
