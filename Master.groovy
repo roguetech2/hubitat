@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.36
+*  Version: 0.1.37
 *
 ***********************************************************************************************************************/
 
@@ -184,6 +184,7 @@ def initialize() {
 	logTrace(184,"Initialized")
 }
 
+// Returns app name with app title prepended
 def appendAppTitle(appName,appTitle){
     //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
     if(appName.length() < appTitle.length() - 6){
@@ -200,9 +201,10 @@ def appendAppTitle(appName,appTitle){
 // Functions for turning on lights/fans
 
 // Turn on a group of switches
+// Sets to level dictated by schedule(s)
 def multiOn(device,childLabel="Master"){
 	device.each{
-  		singleOn(it,childLabel)
+  		singleOn("on",it,childLabel)
 
 		// Using temp vars since each app will overwrite with null
 		// Need to clear between devices
@@ -267,17 +269,18 @@ def runRetrySchedule(data){
         if((data.retryAction == "on" && stateOn(it)) || (data.retryAction == "off" && !stateOn(it))){
             reschedule(it,data.childLabel)
             if(state.retryAction == "on"){
-                if(data.defaultLevel) setToLevel(it,data.defaultLevel,data.childLabel)
-                if(data.defaultTemp) singleTemp(it,data.defaultTemp,data.childLabel)
-                if(data.defaultHue && data.defaultSat) singleColor(it,data.defaultHue,data.defaultSat,data.childLabel)
+		if(data.defaultLevel || data.defaultTemp || data.defaultHue || data.defaultSat) singleLevels(data.defaultLevel, data.defaultTemp, data.defaultHue, data.defaultSat, it, childLabel)
+                //if(data.defaultLevel) setToLevel(it,data.defaultLevel,data.childLabel)
+                //if(data.defaultTemp) singleTemp(it,data.defaultTemp,data.childLabel)
+                //if(data.defaultHue && data.defaultSat) singleColor(it,data.defaultHue,data.defaultSat,data.childLabel)
             }
             return true
         } else {
             logTrace(274,"$it isn't $retryAction yet; trying again",data.childLabel)
             if(data.retryAction == "on"){
-                singleOn(it)
+                singleOn("on",it)
             } else {
-                singleOff(it)
+                singleOn("off",it)
             }
             // Reschedule it
             // First, use 1/4 seconds, for 1 second
@@ -297,10 +300,19 @@ def runRetrySchedule(data){
     }
 }
 
-// Turn on a single switch
-def singleOn(device,childLabel = "Master"){
-	device.on()
-	logTrace(301,"Turned on $device",childLabel)
+// Turns a single switch on or off
+// onOrOff = "on" of "off"
+// device is single device object
+// Not used by any child apps (as of 1/31/20)
+def singleOn(onOrOff, device,childLabel = "Master"){
+	if(onOrOff == "on"){
+		device.on()
+	} else if(onOrOff == "off){
+		device.off()
+	} else {
+		logTrace(307,"ERROR: Invalid value for onOrOff of $onOrOff for singleOn function",childLabel)
+	}
+	logTrace(301,"Turned $onOrOff $device",childLabel)
 }
 
 // Functions for turning off switches
@@ -308,18 +320,12 @@ def singleOn(device,childLabel = "Master"){
 // Turn off a group of switches
 def multiOff(device,childLabel="Master"){
 	device.each{
-		singleOff(it,childLabel)
+		singleOn("off",it,childLabel)
 
 		// Check if it responded (which auto-reschedules to recheck)
         data = [retryDeviceId: device.id, retryAction: "off", retryDefaultLevel: defaultLevel, retryDefaultTemp: defaultTemp, retryDefaultHue: defaultHue, retryDefaultSat: defaultSat, retryCount: null, childLabel: childLabel]
 		runRetrySchedule(data)
 	}
-}
-
-// Turn off a single switch
-def singleOff(device,childLabel = "Master"){
-	device.off()
-	logTrace(320,"Turned off $device",childLabel)
 }
 
 // Toggle a group of switches
@@ -328,7 +334,7 @@ def toggle(device,childLabel="Master"){
         if(!stateOn(it,childLabel)){
             // Using temp vars since each app will overwrite with null
             // Need to clear between devices
-            singleOn(it,childLabel)
+            singleOn("on",it,childLabel)
             if(isDimmable(it) || isColor(it)){
                 def defaultLevel
                 def defaultTemp
@@ -366,7 +372,7 @@ logTrace(1,data)
             // Check if it responded (which auto-reschedules to recheck)
             runRetrySchedule(data)
         } else {
-            singleOff(it,childLabel)
+            singleOn("off",it,childLabel)
             data = [retryDeviceId: device.id, retryAction: "off", retryDefaultLevel: null, retryDefaultTemp: null, retryDefaultHue: null, retryDefaultSat: null, retryCount: null, childLabel: childLabel]
             logTrace(2,data)
             // Check if it responded (which auto-reschedules to recheck)
@@ -375,6 +381,38 @@ logTrace(1,data)
     }
 }
 
+def dim(action,device,childId="Master"){
+	childLabel = getAppLabel(childId)
+	if(action != "dim" && action != "brighten"){
+		logTrace(386,"ERROR: Invalid action \"$action\" sent to dim",childLabel)
+		return
+	}
+
+	device.each{
+		if(isDimmable(it,childLabel)){
+			// dimming a fan that's on (decrease by 25)
+			if(action == "dim" && isFan(it,childLabel) && stateOn(it,childLabel)){
+				value = it.currentLevel - 25
+			// brightening a fan that's on (increase by 25)
+			} else if(action == "bright" && isFan(it,childLabel) && stateOn(it,childLabel)){
+				value = it.currentLevel + 25
+			// dimming or brightening non-fan that's on (use nextLevel)
+			} else if(!isFan(it,childLabel) && stateOn(it,childLabel)){
+				value = nextLevel(it.currentLevel, action, childLabel)
+			// dimming or brightening (anything) when off (turn on and set to level 1)
+			} else if(!stateOn(it,childLabel)){
+				singleOn("on",it,childLabel)
+				value = 1
+			}
+			if(value) {
+				if(isFan(it,childLabel)) roundFanLevel(value,childLabel)
+				singleLevels(value,,,,it,childLabel)
+				logTrace(410,"Set level of $it to $value",childLabel)
+			}
+		}
+}
+
+/*
 // Dim a group of dimmers
 def dim(device,childId="Master"){
 	childLabel = getAppLabel(childId)
@@ -384,27 +422,31 @@ def dim(device,childId="Master"){
 			if(isFan(it,childLabel)){
 				// If not fan is not on, turn it on by setting level 100
 				if(!stateOn(it,childLabel)){
-					setToLevel(it,75,childLabel)
+					singleLevels(75,,,,it,childLabel)
+					//setToLevel(it,75,childLabel)
 					reschedule(it,childLabel)
 				} else {
 					// If fan is on low, turn it off
 					if(it.currentLevel< 26){
-						singleOff(it,childLabel)
+						singleOn("off",it,childLabel)
 					} else {
-						setToLevel(it,it.currentLevel - 25,childLabel)
+						singleLevels(it.currentLevel - 25,,,,it,childLabel)
+						//setToLevel(it,it.currentLevel - 25,childLabel)
 						reschedule(it,childLabel)
 					}
 				}
 			} else if(!isFan(it,childLabel)){
 				// If not light is not on, then turn it on by setting level 1
 				if (!stateOn(it,childLabel)){
-					setToLevel(it,1,childLabel)
+					singleLevels(1,,,,it,childLabel)
+					//setToLevel(it,1,childLabel)
 					reschedule(it,childLabel)
 				} else if(it.currentLevel == 1){
 					logTrace(398,"Can't dim $device; already at 1%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "dim", childLabel)
-					setToLevel(it,newLevel,childLabel)
+					singleLevels(newLevel,,,,it,childLabel)
+					//setToLevel(it,newLevel,childLabel)
 				}
 			}
 		}
@@ -419,33 +461,122 @@ def brighten(device,childId="Master"){
 			if(isFan(it,childLabel)){
 				// If fan is not on, turn it on by setting level to 25 (low)
 				if(!stateOn(it,childLabel)){
-					singleOn(it,childLabel)
-					setToLevel(it,25,childLabel)
+					singleOn("on",it,childLabel)
+					singleLevels(25,,,,it,childLabel)
+					//setToLevel(it,25,childLabel)
 					reschedule(it,childLabel)
 				} else {
 					// If fan is on high, don't do anything
 					if(it.currentLevel > 74){
 						return
 					} else {
-						setToLevel(it,it.currentLevel + 25,childLabel)
+						singleLevels(it.currentLevel + 25,,,,it,childLabel)
+						//setToLevel(it,it.currentLevel + 25,childLabel)
 						reschedule(it,childLabel)
 					}
 				}
 			} else if(!isFan(it,childLabel)){
 				// If light is not on, turn it on by setting level to 1
 				if (!stateOn(it,childLabel)){
-					setToLevel(it,25,childLabel)
+					singleLevels(25,,,,it,childLabel)
+					//setToLevel(it,25,childLabel)
 					reschedule(it,childLabel)
 				} else if(it.currentLevel == 100){
 					logTrace(434,"Can't brighten $device; already at 100%",childLabel)
 				} else {
 					newLevel = nextLevel(it.currentLevel, "brighten",childId)
-					setToLevel(it,newLevel,childLabel)
+					singleLevels(newLevel,,,,it,childLabel)
+					//setToLevel(it,newLevel,childLabel)
 				}
 			}
 		}
 	}
 }
+*/
+
+// Sets level, temp, hue, and/or sat
+// Validates level, temp, hue and sat
+// Returns true if it does anything
+def singleLevels(level,temp,hue,sat,device,childLabel = "Master"){
+	if(level == "Null") {
+		level = null
+	} else if(level){
+		level = level as int
+	}
+	if(temp == "Null") {
+		temp = null
+	} else if(temp){
+		temp = temp as int
+	}
+	if(hue == "Null") {
+		hue = null
+	} else if(hue){
+		hue = hue as int
+	}
+	if(sat == "Null") {
+		sat = null
+	} else if(sat){
+		sat = sat as int
+	}
+
+	if(!level && !temp && !hue && !sat) {
+		logTrace(487,"ERROR: No valid changes sent to singleLevels",childLabel)
+		return
+	}
+	if(!device) {
+		logTrace(491,"ERROR: Null device sent to singleLevels",childLabel)
+		return
+	}
+	if(level && !validateLevel(level,childLabel)){
+		logTrace(495,"ERROR: Invalid level sent to singleLevels",childLabel)
+		return
+	}
+	if(temp && !validateTemp(temp,childLabel)){
+		logTrace(499,"ERROR: Invalid temp sent to singleLevels",childLabel)
+		return
+	}
+	if(hue || sat && !validate(hue,sat,childLabel)){
+		logTrace(503,"ERROR: Invalid hue or sat sent to singleLevels",childLabel)
+		return
+	}
+
+	if(!stateOn(device,childLabel)) return
+
+	message = "Set "
+	if(level) {
+		if(validateLevel(level,childLabel)){
+			if(device.currentLevel != level && isDimmable(device,childLabel)) {
+				if(isFan(device,childLabel)) level = roundFanLevel(level,childLabel)
+				device.setLevel(level)
+				message = message + "level: $level; "
+			}
+		} else {
+			logTrace(488,"ERROR: Invalid level \"$level\" sent to singleLevels",childLabel)
+		}	
+	}
+	isColor = isColor(device,childLabel)
+	if(temp){
+		if(validateTemp(temp,childLabel)){
+			if((defaults.temp - currentTemp > 3 || defaults.temp - currentTemp < -3) && isColor){
+				device.setColorTemperature(temp as int)
+				message = message + "temp: $temp; "
+			}
+		} else {
+			logTrace(499,"ERROR: Invalid temp \"$temp\"sent to singleLevels",childLabel)
+		}
+	}
+	if(hue || sat){
+		if(validateHueSat(hue,sat,childLabel) && isColor){
+        		device.setColor([hue: hue, saturation: sat])
+			message = message + "hue: $hue; sat: $sat; "
+		} else {
+			logTrace(499,"ERROR: Invalid hue \"$hue\" and sat \"$sat\" sent to singleLevels",childLabel)
+		}
+	}
+	logTrace(510,"$message device $device",childLabel)
+	return true
+}
+
 
 // Set level (brighten or dim) a single dimmer
 def setToLevel(device,level,childLabel="Master"){
@@ -487,6 +618,7 @@ def singleUnlock(device, childLabel = "Master"){
 	logTrace(481,"Unlocked $device",childLabel)
 }
 
+//Deprecated
 // Set temperature color of single device
 def singleTemp(device, temp,childLabel="Master"){
 	if(!isTemp(device,childLabel)) return
@@ -494,7 +626,7 @@ def singleTemp(device, temp,childLabel="Master"){
 	logTrace(488,"Set temperature color of $device to $temp",childLabel)
 }
 
-
+// Deprecated
 // Set color (hue and saturation) of single device
 def singleColor(device, hue, sat, childLabel="Master"){
 	if(!isColor(device,childLabel)) return
@@ -604,32 +736,36 @@ def stateOn(device,childLabel="Master"){
     if(device.currentValue("switch") == "on") return true
 }
 
-// Validation functions
+// Returns true if level value is either valid or null
+def validateLevel(value, childLabel="Master"){
+	if(value){
+		value = value as int 
+		if(value < 1 || value > 100) return false
+	}
+    return true
+}
 
+// Returns true if temp value is either valid or null
 def validateTemp(value, childLabel="Master"){
     if(value){
         value = value as int   
-            if(value < 2200) {
-                value = 2200
-            } else if(value > 6500){
-                value = 6500
-            } else {
-                logTrace(611,"Default temperature of $value is not valid",childLabel)
-                return false
-            }
+            if(value < 2200 || value > 6500) return false
     }
-    return value
+    return true
 }
 
-def validateLevel(value, childLabel="Master"){
-    if(value){
-        value = value as int 
-            if(value < 1 || value > 100){
-                logTrace(622,"ERROR: Default level of $value is not valid",childLabel)
-                return false
-            }
+// Returns true if neither hue nor sat are invalid
+// Returns true if both are null values
+def validateHueSat(hue,sat, childLabel="Master"){
+    if(hue){
+        hue = hue as int 
+        if(hue < 1 || hue > 100) return false
     }
-    return value
+    if(sat){
+        sat = sat as int 
+        if(sat < 1 || sat > 100) return false
+    }
+    return true
 }
 
 def validateMultiplier(value, childLabel="Master"){
