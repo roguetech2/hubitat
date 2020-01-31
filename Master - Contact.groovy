@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.3.27
+*  Version: 0.4.01
 * 
 ***********************************************************************************************************************/
 
@@ -68,8 +68,8 @@ preferences {
                         if(openSwitch) displayOpenSwitchOptions()
                         //change from "!openLock" to "openLock"
                         if(!openLock) displayOpenLockOptions()
-                            displayCloseDevices()
-                        if(closeSwitch) displayCloseSwitchOptions()
+                        if(openSwitch) displayCloseDevices()
+                        displayCloseSwitchOptions()
                         displayBinaryOptions()
                         displayBrightnessOption()
                         displayTempOption()
@@ -162,6 +162,7 @@ def displayInfo(text = "Null"){
 def displayNameOption(){
     displayLabel("Set name for this contact sensor routine")
 	label title: "", required: true, submitOnChange:true
+        if(!app.label) displayInfo("Name this schedule. Each schedule must have a unique name.")
 /* ************************************************** */
 /* TO-DO: Test the name is unique; otherwise          */
 /* rescheduling won't work, since we use "childLabel" */
@@ -182,10 +183,10 @@ def displayOpenDevices(){
         displayLabel("When opened")
     }
 
-    input "openSwitch", "capability.switchLevel", title: "Lights/switches to control when opened (optional)", multiple: true, submitOnChange:true
-    input "openLock", "capability.lock", title: "Locks to control when opened (optional)", multiple: true, submitOnChange:true
+    input "openSwitch", "capability.switchLevel", title: "Lights/switches to control when opened", multiple: true, submitOnChange:true
+    input "openLock", "capability.lock", title: "Locks to control when opened", multiple: true, submitOnChange:true
 	if(!openSwitch && !openLock){
-		displayInfo("Select which switches/lights and/or locks to control when the contact (door/window) is opened. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking.")
+		displayInfo("Select which switches/lights and/or locks to control when the contact (door/window) is opened. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking. Optional fields.")
 	} else if(!openLock){
 		displayInfo("Select lock(s) in order to lock or unlock them when contact is opened. Optional field.")
 	} else if(!openSwitch){
@@ -228,7 +229,7 @@ def displayCloseDevices(){
 }
 
 def displayCloseSwitchOptions(){
-    if(!closeSwitch) return
+    if(!openSwitch || !openSwitchAction || (closeSwitchDifferent && !closeSwitch)) return
     input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", multiple: false, width: 12, options: ["none": "Don't turn on or off (but resume schedule)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
 	if(!closeSwitchAction) {
 		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when closing the contact. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will enable any schedule active when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. In other words, it will restore their default state or turn them off. To resume active schedules without turning off, select \"Don't\". Required field.")
@@ -271,35 +272,37 @@ def displayBinaryOptions(){
         satClose = null
     }
 
-    if(!levelEnable){
-        input "levelEnable", "bool", title: "<b>Don't change brightness.</b> Click to change.", submitOnChange:true
-    } else {
-        input "levelEnable", "bool", title: "<b>Change brightness.</b> Click to change.", submitOnChange:true
-    }
-    if(!tempEnable && !colorEnable){
-        input "tempEnable", "bool", title: "<b>Don't change temperature color.</b> Click to change.", submitOnChange:true
-    } else if(!colorEnable){
-        input "tempEnable", "bool", title: "<b>Change temperature color.</b> Click to change.", submitOnChange:true
-    } else if(colorEnable){
-        paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change temperature color."
-    }
-//Should allow both, for settings one value at open and a different at close
-    if(!colorEnable && !tempEnable){
-        input "colorEnable", "bool", title: "<b>Don't change color.</b> Click to change.", submitOnChange:true
-    } else if(!tempEnable){
-        input "colorEnable", "bool", title: "<b>Change color.</b> Click to change.", submitOnChange:true
-    } else if(tempEnable){
-        paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change color."
-    }
-    if(delayEnable){
-        input "delayEnable", "bool", title: "<b>Delay actions when opening or closing.</b> Click to change.", submitOnChange:true
-    } else {
-        input "delayEnable", "bool", title: "<b>Don't delay actions when opening or closing.</b> Click to change.", submitOnChange:true
-    }
-    if(scheduleEnable){
-        input "scheduleEnable", "bool", title: "<b>Set schedule.</b> Click to change.", submitOnChange:true
-    } else {
-        input "scheduleEnable", "bool", title: "<b>Do not set schedule.</b> Click to change.", submitOnChange:true
+    if(openSwitch){
+        if(!levelEnable){
+            input "levelEnable", "bool", title: "<b>Don't change brightness.</b> Click to change.", submitOnChange:true
+        } else {
+            input "levelEnable", "bool", title: "<b>Change brightness.</b> Click to change.", submitOnChange:true
+        }
+        if(!tempEnable && !colorEnable){
+            input "tempEnable", "bool", title: "<b>Don't change temperature color.</b> Click to change.", submitOnChange:true
+        } else if(!colorEnable){
+            input "tempEnable", "bool", title: "<b>Change temperature color.</b> Click to change.", submitOnChange:true
+        } else if(colorEnable){
+            paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change temperature color."
+        }
+        //Should allow both, for settings one value at open and a different at close
+        if(!colorEnable && !tempEnable){
+            input "colorEnable", "bool", title: "<b>Don't change color.</b> Click to change.", submitOnChange:true
+        } else if(!tempEnable){
+            input "colorEnable", "bool", title: "<b>Change color.</b> Click to change.", submitOnChange:true
+        } else if(tempEnable){
+            paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change color."
+        }
+        if(delayEnable){
+            input "delayEnable", "bool", title: "<b>Delay actions when opening or closing.</b> Click to change.", submitOnChange:true
+        } else {
+            input "delayEnable", "bool", title: "<b>Don't delay actions when opening or closing.</b> Click to change.", submitOnChange:true
+        }
+        if(scheduleEnable){
+            input "scheduleEnable", "bool", title: "<b>Set schedule.</b> Click to change.", submitOnChange:true
+        } else {
+            input "scheduleEnable", "bool", title: "<b>Do not set schedule.</b> Click to change.", submitOnChange:true
+        }
     }
     if(alertEnable){
         input "alertEnable", "bool", title: "<b>Send alert.</b> Click to change.", submitOnChange:true
@@ -317,7 +320,7 @@ def displayBinaryOptions(){
 def displayBrightnessOption(){
     if(!levelEnable) return
 
-	input "openLevel", "number", title: "Brightness when opened?", width: width, submitOnChange:true
+	input "openLevel", "number", title: "Brightness when opened?", width: 6, submitOnChange:true
 	input "closeLevel", "number", title: "Brightness when closed?", width: 6, submitOnChange:true
 	if(!openLevel && !closeLevel) displayInfo("Enter the percentage of brightness to set lights/switches, from 1 to 100, when contact opens and/or closes. Either opening or closing brightness is required (or unselect \"Change brightness\").")
 
@@ -328,16 +331,16 @@ def displayBrightnessOption(){
 def displayTempOption(){
     if(!tempEnable) return
 
-	input "openTemp", "number", title: "Color temperature when opened?", width: width, submitOnChange:true
+	input "openTemp", "number", title: "Color temperature when opened?", width: 6, submitOnChange:true
 	input "closeTemp", "number", title: "Color temperature when closed?", width: 6, submitOnChange:true
-	if(!openLevel && !closeLevel) {
+	if(!openTemp && !closeTemp){
 		displayInfo("Temperature color is in Kelvin from 1800 to 5400, to set lights/switches when contact opens and/or closes. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. Either opening or closing temperature is required (or unselect \"Change temperature\").")
-	} else {
+	} else if(!openTemp || !closeTemp){
 		displayInfo("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000.")
 	}
 
-	if(openTemp < 1800 || openTemp > 5400) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
-	if(closeTemp <  1800 || closeTemp > 5400) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
+	if(openTemp && (openTemp < 1800 || openTemp > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
+	if(closeTemp && (closeTemp <  1800 || closeTemp > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct opening temperature.")
 }
 
 def displayColorOption(){
@@ -349,10 +352,14 @@ def displayColorOption(){
     	input "closeSat", "number", title: "Saturation when closed?", width: 6, submitOnChange:true
 	if(!openHue && !closeHue){
 		displayInfo("Hue is the shade of color, from 1 to 100, to set lights/switches when contact opens and/or closes. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. Optional fields.")
-	} else {
+	} else if(!openHue || !closeHue){
 		displayInfo("Hue is the shade of color, from 1 to 100. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
 	}
-	if(!openSat && !closeSat) displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, when contact opens and/or closes. 1 is hardly any color tint and 100 is full color. Optional fields.")
+    if(!openSat && !closeSat){
+        displayInfo("Saturation is the percentage amount of color tint, from 1 to 100, when contact opens and/or closes. 1 is hardly any color tint and 100 is full color. Optional fields.")
+    } else if(!openSat || !closeSat){
+        displayInfo("Saturation is the amount of color tint, from 1 to 100. 1 is hardly any color tint and 100 is full color.")
+    }
 
 	if(openHue > 100) errorMessage("Hue is from 1 to 100. Correct opening hue.")
 	if(closeHue > 100) errorMessage("Hue is from 1 to 100. Correct closing hue.")
@@ -585,8 +592,8 @@ def displayWaitOptions(){
     displayLabel("Delay start and/or stop actions")
     input "openWait", "number", title: "Wait seconds for opening action. (Optional)", defaultValue: false, width: 6, submitOnChange:true
 	input "closeWait", "number", title: "Wait seconds for closing action. (Optional)", defaultValue: false, width: 6, submitOnChange:true
-	if(openWait > 30) errorMessage("Wait time has been set to $openWait <i>minutes</i>. Is that correct?")
-	if(closeWait > 30) errorMessage("Wait time has been set to $closeWait <i>minutes</i>. Is that correct?")
+	if(openWait > 1800) errorMessage("Wait time has been set to " + Math.round(openWait / 60) + " <i>minutes</i>. Is that correct?")
+	if(closeWait > 1800) errorMessage("Wait time has been set to  " + Math.round(closeWait / 60) + " <i>minutes</i>. Is that correct?")
 }
 
 def displayAlertOptions(){
@@ -598,9 +605,11 @@ def displayAlertOptions(){
 		dispayLabel("Send text message")
 		width = 12
 	}
-	if(
-        input "phone", "phone", title: "Number to text alert? (Optional)", width: width, submitOnChange:true
-	if(!validatePhone(phone)) errorMessage("Phone number must be nine digits.")
+
+        input "phone", "phone", title: "Number to text alert?", width: width, submitOnChange:true
+ 
+    if(phone && !(validatePhone(phone))) errorMessage("Phone number is not valid.")
+
         if(width == 6) {
 		input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, submitOnChange:true
         	displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
@@ -625,10 +634,10 @@ def displayAlertOptions(){
     input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
 // We're missing a mode selection option!!
     if(modeEnable && mode){
-        if(modeOpenOrClose){
-            input "modeOpenOrClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", submitOnChange:true
+        if(modeOpenClose){
+            input "modeOpenClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", submitOnChange:true
         } else {
-            input "modeOpenOrClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", submitOnChange:true
+            input "modeOpenClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", submitOnChange:true
         }
     }
     if(phone || speakText){
@@ -636,6 +645,7 @@ def displayAlertOptions(){
         input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home", multiple: true, submitOnChange:true
     }
 }
+
 
 /*
 disableAll - bool - Flag to disable all contacts
@@ -678,7 +688,7 @@ phone - phone - Phone number for SMS. Only displays if alertEnable = true
 speakText - text - Text to speak. Only displays if alertEnable = true
 phoneOpenClose - bool - Switch to send alert when door opened, or closed. Only displays if alertEnable = true
 speakOpenClose - bool - Switch to speak text when door opened, or closed. Only displays if alertEnable = true
-modeOpenOrClose - bool - Switch to change mode when door opened, or closed. Only displays if modeEnable = true
+modeOpenClose - bool - Switch to change mode when door opened, or closed. Only displays if modeEnable = true
 personHome - capability.presenseSensor - Persons any of who must be home for contact to run. 
 personNotHome - capability.presenseSensor - Persons all of who must not be home for contact to run.
 */
@@ -690,13 +700,13 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 /* ************************************************** */
 
 def installed() {
-	logTrace("$app.label (line 310) -- Installed")
+	logTrace(703,"Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label (line 316) -- Updated")
+	logTrace(709,"Updated")
 	unsubscribe()
 	initialize()
 }
@@ -705,7 +715,6 @@ def initialize() {
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
 	unschedule()
-    
     
 	// If date/time for last SMS not set, initialize it to 5 minutes ago
 	// Allows an SMS immediately
@@ -717,40 +726,37 @@ def initialize() {
 	} else {
 		state.disable = false
     }
-    
-	if(!contactDisable && !state.contactDisable) {
+
+	if(!disable && !state.disable) {
 		subscribe(contactDevice, "contact.open", contactChange)
-		subscribe(contactDevice, "contact.closed", contactChange)
+		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
+
+	logTrace(746,"Initialized")
 }
 
 def contactChange(evt){
-	if(contactDisable || state.contactDisable) return
+	logTrace(750,"Contact sensor $evt.displayName $evt.value")
+	if(disable || state.disable) return
 
-	logTrace("$app.label (line 340) -- Contact sensor $evt.displayName $evt.value")
+	logTrace(750,"Contact sensor $evt.displayName $evt.value")
 	
-	// If mode set and node doesn't match, return null
-	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label (line 342) -- Contact sensor not triggered; mode location.mode doesn't match ifMode")
-		return
+	// If mode set and node doesn't match, return nulls
+	if(ifMode){
+		if(location.mode != ifMode) {
+			logTrace(755,"Contact disabled, mode $ifMode")
+			return defaults
+		}
 	}
 
-	// Set timeStart and timeStop, if sunrise or sunset
-	if(timeStartSunrise) timeStart = parent.getSunrise(timeStartOffset,timeStartOffsetNegative,app.label)
-	if(timeStartSunset) timeStart = parent.getSunset(timeStartOffset,timeStartOffsetNegative,app.label)
-	if(timeStopSunrise) timeStop = parent.getSunrise(timeStopOffset,timeStopOffsetNegative,app.label)
-	if(timeStopSunset) timeStop = parent.getSunset(timeStopOffset,timeStopOffsetNegative,app.label)
+	// If not correct day, return nulls
+	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
-	// if not between start and stop time
-	if(timeStop){
-		if(!parent.timeBetween(timeStart, timeStop,app.label)) return
-	}
-	
-	// If not correct day, return null
-	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace("$app.label (line 359) -- Contact sensor not triggered; not correct day")
-		return
-	}
+       if(inputStartType) setTime()
+    
+    
+    // if not between start and stop time, return nulls
+    if(state.stop && !parent.timeBetween(state.start, state.stop, app.label)) return
 
 	// Unschedule pevious events
 	
@@ -777,7 +783,7 @@ def contactChange(evt){
 	}
 
 	// Text first (just in case there's an error later)
-	if(phone && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))){
+	if(phone && ((phoneOpenClose && evt.value == "open") || (!phoneOpenClose && evt.value == "closed"))){
 		// Only if correct people are home/not home
 		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
 			def now = new Date()
@@ -810,7 +816,7 @@ def contactChange(evt){
 	}
 
 	// Give voice alert
-	if(speakText && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) {
+	if(speakText && ((speakOpenClose && evt.value == "open") || (!speakOpenClose && evt.value == "closed"))) {
 		// Only if correct people are home/not home
 		if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
 			parent.speak(speakText,app.label)
@@ -818,16 +824,18 @@ def contactChange(evt){
 	}
 
 	// Set mode
-	if(mode && ((openOrClose && evt.value == "open") || (!openOrClose && evt.value == "closed"))) parent.changeMode(mode,app.label)
+	if(mode && ((modeOpenClose && evt.value == "open") || (!modeOpenClose && evt.value == "closed"))) parent.changeMode(mode,app.label)
 
 	// Perform open events (for switches and locks)
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace("$app.label (line 437) -- Scheduling scheduleOpen in $openWait seconds")
+			logTrace(841,"Scheduling scheduleOpen in $openWait seconds")
 			runIn(openWait,scheduleOpen)
 		// Otherwise perform immediately
 		} else {
+// Need to add level, temp and color!!
+// Need to add resume
 			if(openSwitch) {
 				if(openSwitchAction == "on") {
 					parent.multiOn(openSwitch,app.label)
@@ -838,36 +846,37 @@ def contactChange(evt){
 				}
 			}
 			if(locks){
-				if(actionOpenLock == "lock"){
-					parent.multiLock(locks,app.label)
-				} else if(actionOpenLock == "unlock"){
-					parent.multiUnlock(locks,app.label)
+				if(openLockAction == "lock"){
+					parent.multiLock(openLock,app.label)
+				} else if(openLockAction == "unlock"){
+					parent.multiUnlock(openLock,app.label)
 				}
 			}
 		}
 
 	// Perform close events (for switches and locks)
 	} else {
+        
 		// Schedule delay
 		if(closeWait) {
-			logTrace("$app.label (line 463) -- Scheduling scheduleClose in $closeWait seconds")
+			logTrace(869,"Scheduling scheduleClose in $closeWait seconds")
 			runIn(closeWait,scheduleClose)
 		// Otherwise perform immediately
 		} else {
-			if(openSwitch) {
+			if(closeSwitch) {
 				if(closeSwitchAction == "on") {
-					parent.multiOn(openSwitch,app.label)
+					parent.multiOn(closeSwitch,app.label)
 				} else if(closeSwitchAction == "off"){
-					parent.multiOff(openSwitch,app.label)
+					parent.multiOff(closeSwitch,app.label)
 				} else if(closeSwitchAction == "toggle"){
-					parent.toggle(openSwitch,app.label)
+					parent.toggle(closeSwitch,app.label)
 				}
 			}
-			if(locks){
+			if(closeLock){
 				if(closeLockAction == "lock"){
-					parent.multiLock(locks,app.label)
+					parent.multiLock(closeLock,app.label)
 				} else if(closeLockAction == "unlock"){
-					parent.multiUnlock(locks,app.label)
+					parent.multiUnlock(closeLock,app.label)
 				}
 			}
 		}
@@ -875,7 +884,7 @@ def contactChange(evt){
 }
 
 def scheduleOpen(){
-	if(contactDisable || state.contactDisable) return
+	if(disable || state.disable) return
 
 	if(openSwitch) {
 		if(openSwitchAction == "on") {
@@ -886,19 +895,24 @@ def scheduleOpen(){
 			parent.toggle(openSwitch,app.label)
 		}
 	}
-	if(locks){
-		if(actionOpenLock == "lock"){
-			parent.multiLock(locks,app.label)
-		} else if(actionOpenLock == "unlock"){
-			parent.multiUnlock(locks,app.label)
+	if(openLock){
+		if(openLockAction == "lock"){
+			parent.multiLock(openLock,app.label)
+		} else if(openLockAction == "unlock"){
+			parent.multiUnlock(openLock,app.label)
 		}
 	}
 }
 
 def scheduleClose(){
-	if(contactDisable || state.contactDisable) return
+    if(disable || state.disable) return
+    
+    if(!closeSwitchDifferent) {
+        closeSwitch = openSwitch
+        closeLock = openLock
+    }
 
-	if(closeSwitch) {
+    if(closeSwitch) {
 		if(closeSwitchAction == "on") {
 			parent.multiOn(closeSwitch,app.label)
 		} else if(closeSwitchAction == "off"){
@@ -907,17 +921,66 @@ def scheduleClose(){
 			parent.toggle(closeSwitch,app.label)
 		}
 	}
-	if(locks){
+	if(closeLock){
 		if(closeLockAction == "lock"){
-			parent.multiLock(locks,app.label)
+			parent.multiLock(closeLock,app.label)
 		} else if(closeLockAction == "unlock"){
-			parent.multiUnlock(locks,app.label)
+			parent.multiUnlock(closeLock,app.label)
 		}
 	}
 }
 
 def validatePhone(phone){
-	if(phone.length() == 9) return true
+        //Normalize phone number
+    phone = phone.replaceAll(" ","");
+    phone = phone.replaceAll("\\(","");
+    phone = phone.replaceAll("\\)","");
+    phone = phone.replaceAll("-","");
+    phone = phone.replaceAll("\\.","");
+    phone = phone.replaceAll("\\+","");
+    if(!phone.isNumber()) {
+        return false
+    }
+    if(phone.length() == 10) {
+        phone = "+1" + phone
+    } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
+        phone = "+" + phone
+    } else {
+        return false
+    }
+    return phone
+}
+
+def setTime (){
+    if(!setStartStopTime("Start")) return
+    if(!setStartStopTime("Stop")) return 
+}
+
+def setStartStopTime(type = "Start"){
+    if(type == "Start") state.start = null
+	if(type == "Stop") state.stop = null
+
+	// If no stop time, exit
+	if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
+
+    if(settings["input${type}Type"] == "time"){
+		value = settings["input${type}Time"]
+	} else if(settings["input${type}Type"] == "sunrise"){
+		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
+	} else if(settings["input${type}Type"] == "sunset"){
+		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
+	} else {
+		logTrace(975,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		return
+	}
+
+	if(type == "Stop"){
+		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
+	}
+	logTrace(982,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	if(type == "Start") state.start = value
+	if(type == "Stop") state.stop = value
+	return true
 }
 
 def getDevice(deviceId){
