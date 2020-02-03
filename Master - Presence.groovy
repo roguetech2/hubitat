@@ -216,19 +216,19 @@ preferences {
 }
 
 def installed() {
-	logTrace("$app.label (line 221) -- Installed")
+	logTrace(219,"Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace("$app.label (line 227) -- Updated")
+	logTrace(225,"Updated")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace("$app.label (line 233) -- Initialized")
+	logTrace(231,"Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -236,7 +236,7 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace("$app.label (line 241) -- $evt.displayName status changed to $evt.value")
+	logTrace(239,"$evt.displayName status changed to $evt.value")
 	
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
@@ -259,14 +259,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace("$app.label (line 264) -- Presence handler doing nothing; house is $occupied")
+			logTrace(262,"Presence handler doing nothing; house is $occupied")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace("$app.label (line 271) -- Presence handler doing nothing; $location.mode is not $ifMode")
+		logTrace(269,"Presence handler doing nothing; $location.mode is not $ifMode")
 		return
 	}
 	
@@ -281,7 +281,7 @@ def presenceHandler(evt) {
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace("$app.label (line 286) -- Presence handler doing nothing; not correct day")
+		logTrace(284,"Presence handler doing nothing; not correct day")
 		return
 	}
 
@@ -308,24 +308,10 @@ def presenceHandler(evt) {
 	// Set mode
 	if(mode) parent.changeMode(mode,app.label)
 	// Turn on/off lights
-	if(switches){
-		if(actionSwitches == "on") {
-			parent.multiOn(actionSwitches,app.label)
-		} else if(actionSwtiches == "off"){
-			parent.multiOff(actionSwitches,app.label)
-		} else if(actionSwitches == "toggle"){
-			parent.toggle(actionSwitches,app.label)
-		}
-	}
+	if(switches) multiOn(actionSwitches,switches)
 
 	// Lock/unlock doors
-	if(locks){
-		if(actionLocks == "lock"){
-			parent.multiLock(locks,app.label)
-		} else if(actionLocks == "unlock"){
-			parent.multiUnlock(locks,app.label)
-		}
-	}
+	if(locks) parent.multiLock(actionLocks,locks,app.label)
 
 	// Flash alert
 	if(flashColor && noFlashColor) {
@@ -411,6 +397,30 @@ def convertRgbToHsl(color){
 	
 }
 
-def logTrace(message){
-	//log.trace message
+def multiOn(action,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+        logTrace(402,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        return
+    }
+
+    parent.multiOn(action,device,app.label)
+
+    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
+    parent.runRetrySchedule(data)
+}
+
+def getDevice(deviceId){
+    actionSwitches.each{
+        if(it.id == deviceId){
+            return it
+        }
+    }
+}
+
+def logTrace(lineNumber,message = null){
+    if(message) {
+	    log.trace "$app.label (line $lineNumber) -- $message"
+    } else {
+        log.trace "$app.label (line $lineNumber)"
+    }
 }
