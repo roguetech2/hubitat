@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.07
+*  Version: 0.2.08
 * 
 ***********************************************************************************************************************/
 
@@ -333,212 +333,137 @@ def dimSpeed(){
 }
 
 def installed() {
-    logTrace("$app.label (line 338) -- Installed")
+    logTrace(336,"Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    logTrace("$app.label (line 344) -- Updated")
+    logTrace(342,"Updated")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    logTrace("$app.label (line 348) -- Initialized")
+    logTrace(348,"Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
-    subscribe(buttonDevice, "pushed.1", buttonEvent1)
-    subscribe(buttonDevice, "pushed.2", buttonEvent2)
-    subscribe(buttonDevice, "pushed.3", buttonEvent3)
-    subscribe(buttonDevice, "pushed.5", buttonEvent5)
-    subscribe(buttonDevice, "pushed.6", buttonEvent6)
-    subscribe(buttonDevice, "pushed.7", buttonEvent7)
+    subscribe(buttonDevice, "pushed.1", buttonEvent)
+    subscribe(buttonDevice, "pushed.2", buttonEvent)
+    subscribe(buttonDevice, "pushed.3", buttonEvent)
+    subscribe(buttonDevice, "pushed.5", buttonEvent)
+    subscribe(buttonDevice, "pushed.6", buttonEvent)
+    subscribe(buttonDevice, "pushed.7", buttonEvent)
 }
 
-def buttonEvent1(evt){
-    def buttonNumber = evt.value
+def buttonEvent(evt){
+    atomicState.buttonNumber = evt.value
 
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(shake && shake == "on") button_1_on = controlDevice
-		if(shake && shake == "off") button_1_off = controlDevice
-		if(shake && shake == "dim") button_1_dim = controlDevice
-		if(shake && shake == "brighten") button_1_brighten = controlDevice
-		if(shake && shake == "toggle") button_1_toggle = controlDevice
-	}
-
-
-    logTrace("$app.label (line 375) -- $evt.displayName shaken")
+    logTrace(363,"$evt.displayName $evt.value")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
-    if(button_1_toggle) parent.toggle(button_1_toggle,app.label)
-    if(button_1_on) parent.multiOn(button_1_on,app.label)
-    if(button_1_off) parent.multiOff(button_1_off,app.label)
-    if(button_1_dim) parent.dim("dim",button_1_dim,true,app.getId())
-    if(button_1_brighten) parent.dim("brighten",button_1_brighten,true,app.getId())
-    if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
-    	logTrace("$app.label (line 385) -- No action defined for shaking of $evt.displayName")
+    // Set device if using simple setup
+    if(!multiDevice){
+        if((atomicState.buttonNumber == 1 && shake && shake == "on") ||
+           (atomicState.buttonNumber == 2 && f90 && f90 == "on") ||
+           (atomicState.buttonNumber == 3 && f180 && f180 == "on") ||
+           (atomicState.buttonNumber == 4 && slide && slide == "on") ||
+           (atomicState.buttonNumber == 5 && knock && knock == "on") ||
+           (atomicState.buttonNumber == 6 && clockwise && clockwise == "on") ||
+           (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "on")){
+        multiOn("on",controlDevice)
+        } else if((atomicState.buttonNumber == 1 && shake && shake == "off") ||
+           (atomicState.buttonNumber == 2 && f90 && f90 == "off") ||
+           (atomicState.buttonNumber == 3 && f180 && f180 == "off") ||
+           (atomicState.buttonNumber == 4 && slide && slide == "off") ||
+           (atomicState.buttonNumber == 5 && knock && knock == "off") ||
+           (atomicState.buttonNumber == 6 && clockwise && clockwise == "off") ||
+           (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "off")){
+            multiOn("off",controlDevice)
+            } else if((atomicState.buttonNumber == 1 && shake && shake == "dim") ||
+           (atomicState.buttonNumber == 2 && f90 && f90 == "dim") ||
+           (atomicState.buttonNumber == 3 && f180 && f180 == "dim") ||
+           (atomicState.buttonNumber == 4 && slide && slide == "dim") ||
+           (atomicState.buttonNumber == 5 && knock && knock == "dim") ||
+           (atomicState.buttonNumber == 6 && clockwise && clockwise == "dim") ||
+           (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "dim")){
+            parent.dim("dim",controlDevice,app.getId())
+             } else if((atomicState.buttonNumber == 1 && shake && shake == "brighten") ||
+           (atomicState.buttonNumber == 2 && f90 && f90 == "brighten") ||
+           (atomicState.buttonNumber == 3 && f180 && f180 == "brighten") ||
+           (atomicState.buttonNumber == 4 && slide && slide == "brighten") ||
+           (atomicState.buttonNumber == 5 && knock && knock == "brighten") ||
+           (atomicState.buttonNumber == 6 && clockwise && clockwise == "brighten") ||
+           (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "brighten")){
+            parent.dim("brighten",controlDevice,app.getId())
+             } else if((atomicState.buttonNumber == 1 && shake && shake == "toggle") ||
+           (atomicState.buttonNumber == 2 && f90 && f90 == "toggle") ||
+           (atomicState.buttonNumber == 3 && f180 && f180 == "toggle") ||
+           (atomicState.buttonNumber == 4 && slide && slide == "toggle") ||
+           (atomicState.buttonNumber == 5 && knock && knock == "toggle") ||
+           (atomicState.buttonNumber == 6 && clockwise && clockwise == "toggle") ||
+           (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "toggle")){
+            multiOn("toggle",controlDevice)
+        } else {
+            logTrace(410,"No action defined for $atomicState.buttonNumber of $evt.displayName")
+        }
+    } else {
+        if(settings["button_${atomicState.buttonNumber}_on"]) multiOn("on",settings["button_${atomicState.buttonNumber}_on"])
+        if(settings["button_${atomicState.buttonNumber}_off"]) multiOn("off",settings["button_${atomicState.buttonNumber}_off"])
+        if(settings["button_${atomicState.buttonNumber}_dim"]) parent.dim("dim",settings["button_${atomicState.buttonNumber}_dim"],app.getId())
+        if(settings["button_${atomicState.buttonNumber}_brighten"]) parent.dim("brighten",settings["button_${atomicState.buttonNumber}_brighten"],app.getId())
+        if(settings["button_${atomicState.buttonNumber}_toggle"]) multiOn("toggle",settings["button_${atomicState.buttonNumber}_toggle"])
+        if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
+            logTrace(419,"No action defined for $atomicState.buttonNumber of $evt.displayName")
+        }
     }
 }
 
-def buttonEvent2(evt){
-    def buttonNumber = evt.value
-
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(f90 && f90 == "on") button_2_on = controlDevice
-		if(f90 && f90 == "off") button_2_off = controlDevice
-		if(f90 && f90 == "dim") button_2_dim = controlDevice
-		if(f90 && f90 == "brighten") button_2_brighten = controlDevice
-		if(f90 && f90 == "toggle") button_2_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 401) -- $evt.displayName flipped 90°")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_2_toggle) parent.toggle(button_2_toggle,app.label)
-    if(button_2_on) parent.multiOn(button_2_on,app.label)
-    if(button_2_off) parent.multiOff(button_2_off,app.label)
-    if(button_2_dim) parent.dim("dim",button_2_dim,true,app.getId())
-    if(button_2_brighten) parent.dim("brighten",button_2_brighten,true,app.getId())
-    if(!button_2_toggle && !button_2_on && !button_2_off && !button_2_dim && !button_2_brighten){
-    	logTrace("$app.label (line 385) -- No action defined for flipping 90° of $evt.displayName")
+def getDevice(deviceId){
+// I'm betting this doesn't work right.
+        if(multiDevice){
+        if(settings["button_${atomicState.buttonNumber}_on"]) {
+            device = settings["button_${atomicState.buttonNumber}_on"]
+        } else if(settings["button_${atomicState.buttonNumber}_off"]) {
+            device = settings["button_${atomicState.buttonNumber}_off"]
+        } else if(settings["button_${atomicState.buttonNumber}_dim"]) {
+            device = settings["button_${atomicState.buttonNumber}_dim"] 
+        } else if(settings["button_${atomicState.buttonNumber}_brighten"]) {
+            device = settings["button_${atomicState.buttonNumber}_brighten"] 
+        } else if(settings["button_${atomicState.buttonNumber}_toggle"]) {
+            device = settings["button_${atomicState.buttonNumber}_toggle"] 
+        }
+    } else {
+        if((shake && atomicState.buttonNumber == 1) ||  
+           (f90 && atomicState.buttonNumber == 2) || 
+           (f180 && atomicState.buttonNumber == 3) || 
+           (slide && atomicState.buttonNumber == 4) || 
+           (knock && atomicState.buttonNumber == 5) || 
+           (clockwise && atomicState.buttonNumber == 6) || 
+           (counterClockwise && atomicState.buttonNumber == 7))
+            device = controlDevice
     }
+    return device
 }
 
-def buttonEvent3(evt){
-    def buttonNumber = evt.value
-
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(f180 && f180 == "on") button_3_on = controlDevice
-		if(f180 && f180 == "off") button_3_off = controlDevice
-		if(f180 && f180 == "dim") button_3_dim = controlDevice
-		if(f180 && f180 == "brighten") button_3_brighten = controlDevice
-		if(f180 && f180 == "toggle") button_3_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 427) -- $evt.displayName flipped 180°")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_3_toggle) parent.toggle(button_3_toggle,app.label)
-    if(button_3_on) parent.multiOn(button_3_on,app.label)
-    if(button_3_off) parent.multiOff(button_3_off,app.label)
-    if(button_3_dim) parent.dim("dim",button_3_dim,true,app.getId())
-    if(button_3_brighten) parent.dim("brighten",button_3_brighten,true,app.getId())
-    if(!button_3_toggle && !button_3_on && !button_3_off && !button_3_dim && !button_3_brighten){
-    	logTrace("$app.label (line 437) -- No action defined for flipping 180° of $evt.displayName")
+def multiOn(action,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+        logTrace(453,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        return
     }
+
+    parent.multiOn(action,device,app.label)
+
+    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
+    parent.runRetrySchedule(data)
 }
 
-def buttonEvent4(evt){
-    def buttonNumber = evt.value
-
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(slide && slide == "on") button_4_on = controlDevice
-		if(slide && slide == "off") button_4_off = controlDevice
-		if(slide && slide == "dim") button_4_dim = controlDevice
-		if(slide && slide == "brighten") button_4_brighten = controlDevice
-		if(slide && slide == "toggle") button_4_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 453) -- $evt.displayName slid")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_4_toggle) parent.toggle(button_4_toggle,app.label)
-    if(button_4_on) parent.multiOn(button_4_on,app.label)
-    if(button_4_off) parent.multiOff(button_4_off,app.label)
-    if(button_4_dim) parent.dim("dim",button_4_dim,true,app.getId())
-    if(button_4_brighten) parent.dim("brighten",button_4_brighten,true,app.getId())
-    if(!button_4_toggle && !button_4_on && !button_4_off && !button_4_dim && !button_4_brighten){
-    	logTrace("$app.label (line 463) -- No action defined for sliding of $evt.displayName")
+def logTrace(lineNumber,message = null){
+    if(message) {
+	    log.trace "$app.label (line $lineNumber) -- $message"
+    } else {
+        log.trace "$app.label (line $lineNumber)"
     }
-}
-
-def buttonEvent5(evt){
-    def buttonNumber = evt.value
-
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(knock && knock == "on") button_5_on = controlDevice
-		if(knock && knock == "off") button_5_off = controlDevice
-		if(knock && knock == "dim") button_5_dim = controlDevice
-		if(knock && knock == "brighten") button_5_brighten = controlDevice
-		if(knock && knock == "toggle") button_5_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 479) -- $evt.displayName knocked")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_5_toggle) parent.toggle(button_5_toggle,app.label)
-    if(button_5_on) parent.multiOn(button_5_on,app.label)
-    if(button_5_off) parent.multiOff(button_5_off,app.label)
-    if(button_5_dim) parent.dim("dim",button_5_dim,true,app.getId())
-    if(button_5_brighten) parent.dim("brighten",button_5_brighten,true,app.getId())
-    if(!button_5_toggle && !button_5_on && !button_5_off && !button_5_dim && !button_5_brighten){
-    	logTrace("$app.label (line 489) -- No action defined for knocking of $evt.displayName")
-    }
-}
-
-def buttonEvent6(evt){
-    def buttonNumber = evt.value
-	
-	if(!multiDevice){
-		if(clockwise && clockwise == "on") button_6_on = controlDevice
-		if(clockwise && clockwise == "off") button_6_off = controlDevice
-		if(clockwise && clockwise == "dim") button_6_dim = controlDevice
-		if(clockwise && clockwise == "brighten") button_6_brighten = controlDevice
-		if(clockwise && clockwise == "toggle") button_6_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 504) -- $evt.displayName rotated clockwise")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_6_toggle) parent.toggle(button_6_toggle,app.label)
-    if(button_6_on) parent.multiOn(button_6_on,app.label)
-    if(button_6_off) parent.multiOff(button_6_off,app.label)
-    if(button_6_dim) parent.dim("dim",button_6_dim,true,app.getId())
-    if(button_6_brighten) parent.dim("brighten",button_6_brighten,true,app.getId())
-    if(!button_6_toggle && !button_6_on && !button_6_off && !button_6_dim && !button_6_brighten){
-    	logTrace("$app.label (line 514) -- No action defined for clockwise rotating of $evt.displayName")
-    }
-}
-
-def buttonEvent7(evt){
-    def buttonNumber = evt.value
-
-	// Set device if using simple setup
-	if(!multiDevice){
-		if(counterClockwise && counterClockwise == "on") button_7_on = controlDevice
-		if(counterClockwise && counterClockwise == "off") button_7_off = controlDevice
-		if(counterClockwise && counterClockwise == "dim") button_7_dim = controlDevice
-		if(counterClockwise && counterClockwise == "brighten") button_7_brighten = controlDevice
-		if(counterClockwise && counterClockwise == "toggle") button_7_toggle = controlDevice
-	}
-
-    logTrace("$app.label (line 530) -- $evt.displayName rotated counter-clockwise")
-    if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
-    if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
-
-    if(button_7_toggle) parent.toggle(button_7_toggle,app.label)
-    if(button_7_on) parent.multiOn(button_7_on,app.label)
-    if(button_7_off) parent.multiOff(button_7_off,app.label)
-    if(button_7_dim) parent.dim("dim",button_7_dim,true,app.getId())
-    if(button_7_brighten) parent.dim("brighten",button_7_brighten,true,app.getId())
-    if(!button_7_toggle && !button_7_on && !button_7_off && !button_7_dim && !button_7_brighten){
-    	logTrace("$app.label (line 540) -- No action defined for counter-clockwise rotating of $evt.displayName")
-    }
-}
-
-def logTrace(message) {
-	//log.trace message
 }
