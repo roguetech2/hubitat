@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.02
+*  Version: 0.4.03
 * 
 ***********************************************************************************************************************/
 
@@ -701,13 +701,13 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 /* ************************************************** */
 
 def installed() {
-	logTrace(703,"Installed")
+	logTrace(704,"Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(709,"Updated")
+	logTrace(710,"Updated")
 	unsubscribe()
 	initialize()
 }
@@ -733,19 +733,18 @@ def initialize() {
 		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
 
-	logTrace(746,"Initialized")
+	logTrace(736,"Initialized")
 }
 
 def contactChange(evt){
-	logTrace(750,"Contact sensor $evt.displayName $evt.value")
 	if(disable || state.disable) return
 
-	logTrace(750,"Contact sensor $evt.displayName $evt.value")
+	logTrace(742,"Contact sensor $evt.displayName $evt.value")
 	
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(755,"Contact disabled, mode $ifMode")
+			logTrace(747,"Contact disabled, mode $ifMode")
 			return defaults
 		}
 	}
@@ -830,29 +829,15 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(841,"Scheduling scheduleOpen in $openWait seconds")
+			logTrace(832,"Scheduling scheduleOpen in $openWait seconds")
 			runIn(openWait,scheduleOpen)
 		// Otherwise perform immediately
 		} else {
 // Need to add level, temp and color!!
 // Need to add resume
 // It will get defaults, even if it's supposed to override
-			if(openSwitch) {
-				if(openSwitchAction == "on") {
-					parent.multiOn(openSwitch,app.label)
-				} else if(openSwitchAction == "off"){
-					parent.multiOff(openSwitch,app.label)
-				} else if(openSwitchAction == "toggle"){
-					parent.toggle(openSwitch,app.label)
-				}
-			}
-			if(locks){
-				if(openLockAction == "lock"){
-					parent.multiLock(openLock,app.label)
-				} else if(openLockAction == "unlock"){
-					parent.multiUnlock(openLock,app.label)
-				}
-			}
+			if(openSwitch) multiOn(openSwitchAction,openSwitch)
+            if(locks) parent.multiLock(openLockActionopenLock,app.label)
 		}
 
 	// Perform close events (for switches and locks)
@@ -860,26 +845,12 @@ def contactChange(evt){
         
 		// Schedule delay
 		if(closeWait) {
-			logTrace(869,"Scheduling scheduleClose in $closeWait seconds")
+			logTrace(848,"Scheduling scheduleClose in $closeWait seconds")
 			runIn(closeWait,scheduleClose)
 		// Otherwise perform immediately
 		} else {
-			if(closeSwitch) {
-				if(closeSwitchAction == "on") {
-					parent.multiOn(closeSwitch,app.label)
-				} else if(closeSwitchAction == "off"){
-					parent.multiOff(closeSwitch,app.label)
-				} else if(closeSwitchAction == "toggle"){
-					parent.toggle(closeSwitch,app.label)
-				}
-			}
-			if(closeLock){
-				if(closeLockAction == "lock"){
-					parent.multiLock(closeLock,app.label)
-				} else if(closeLockAction == "unlock"){
-					parent.multiUnlock(closeLock,app.label)
-				}
-			}
+			if(closeSwitch) multiOn(closeSwitchAction,closeSwitch)
+			if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 		}
 	}
 }
@@ -887,22 +858,8 @@ def contactChange(evt){
 def scheduleOpen(){
 	if(disable || state.disable) return
 
-	if(openSwitch) {
-		if(openSwitchAction == "on") {
-			parent.multiOn(openSwitch,app.label)
-		} else if(openSwitchAction == "off"){
-			parent.multiOff(openSwitch,app.label)
-		} else if(openSwitchAction == "toggle"){
-			parent.toggle(openSwitch,app.label)
-		}
-	}
-	if(openLock){
-		if(openLockAction == "lock"){
-			parent.multiLock(openLock,app.label)
-		} else if(openLockAction == "unlock"){
-			parent.multiUnlock(openLock,app.label)
-		}
-	}
+	if(openSwitch) multiOn(openSwitchAction,openSwitch)
+	if(openLock) parent.multiLock(openLockAction,openLock,app.label)
 }
 
 def scheduleClose(){
@@ -913,22 +870,8 @@ def scheduleClose(){
         closeLock = openLock
     }
 
-    if(closeSwitch) {
-		if(closeSwitchAction == "on") {
-			parent.multiOn(closeSwitch,app.label)
-		} else if(closeSwitchAction == "off"){
-			parent.multiOff(closeSwitch,app.label)
-		} else if(closeSwitchAction == "toggle"){
-			parent.toggle(closeSwitch,app.label)
-		}
-	}
-	if(closeLock){
-		if(closeLockAction == "lock"){
-			parent.multiLock(closeLock,app.label)
-		} else if(closeLockAction == "unlock"){
-			parent.multiUnlock(closeLock,app.label)
-		}
-	}
+    if(closeSwitch) multiOn(closeSwitchAction,closeSwitch)
+	if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 }
 
 def validatePhone(phone){
@@ -971,17 +914,29 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(975,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		logTrace(917,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(982,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	logTrace(924,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
+}
+
+def multiOn(action,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+        logTrace(932,"ERROR: Invalid action \"$action\" sent to multiOn")
+        return
+    }
+
+    parent.multiOn(action,device,app.label)
+
+    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
+    parent.runRetrySchedule(data)
 }
 
 def getDevice(deviceId){
