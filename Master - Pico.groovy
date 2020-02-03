@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.3.11
+*  Version: 0.4.01
 *
 ***********************************************************************************************************************/
 
@@ -29,11 +29,7 @@ definition(
 )
 
 /* ************************************************** */
-/* TO-DO: Add error messages (and change info icon    */
-/* (see humidity).                                    */
-/* ************************************************** */
-/* ************************************************** */
-/* TO-DO: Add optiobn to disable contact or schedule? */
+/* TO-DO: Add option to disable contact or schedule?  */
 /* ************************************************** */
 /* ************************************************** */
 /* TO-DO: Have Pico disable and/or pause schedules,   */
@@ -45,79 +41,29 @@ preferences {
 	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
 	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
-    page(name: "setup", install: true, uninstall: true) {
+    if(app.label && buttonDevice && numButton) install = true
+    if(!multiDevice) {
+        if(advancedSetup && !buttonPush1 && !buttonPush2 && !buttonPush3 && !buttonPush4 && !buttonPush5) install = false
+        if(!advancedSetup && !controlDevice) install = false
+    }
+    //if(advancedSetup && !buttonPush1 && !buttonPush2 && !buttonPush3 && !buttonPush4 && !buttonPush5 == "on") install = false
+
+    page(name: "setup", install: install, uninstall: true) {
 		if(!multiDevice){
 			section() {
-				paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-				label title: "", required: true, submitOnChange:true
-				if(!app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				} else if(app.label){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					if(!buttonDevice){
-						paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-					} else if(buttonDevice){
-						paragraph "<div style=\"background-color:BurlyWood\"><b> Set type of Pico:</b></div>"
-						input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-						if(!numButton){
-							paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-						} else if(numButton){
-							paragraph "<div style=\"background-color:BurlyWood\"><b> Advanced options: </b></div>"
-							paragraph "$infoIcon For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-							if(!advancedSetup){
-								input "advancedSetup", "bool", title: "<b>Using normal button actions.</b> Click to map buttons to other actions.", defaultValue: false, submitOnChange:true
-							} else {
-								input "advancedSetup", "bool", title: "<b>Allowing mapping buttons to custom actions.</b> Clck to use normal button actions.", defaultValue: false, submitOnChange:true
-							}
+				displayNameOption()
+				if(app.label){
+                    displayPicoOption()
+					if(buttonDevice){
+						displayPicoTypeOption()
+						if(numButton){
+							displayAdvancedSetupOption()
+                            displayMultiDeviceOption()
 
-							input "multiDevice", "bool", title: "Mutli-control: <b>Controls one set of light(s)/switch(es).</b> Click for Pico to independantly control different sets of lights/switches (eg a light and a fan).", defaultValue: false, submitOnChange:true
-							paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
-
-/* ************************************************** */
-/* TO-DO: Add locks? Any reason someone might want to */
-/* use a Pico to lock a door?? (Ditto for             */
-/* MagicCubes.)                                       */
-/* ************************************************** */
-							input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, required: true, submitOnChange:true
-
-							if(advancedSetup){
-								paragraph "$infoIcon <b>Pro-tip</b>: Profiles for Multi-control enabled and disabled are stored separatly, allowing toggling between two different setups. To do this, set the options both with Multi-control disabled and enabled."
-							}
-							if(!controlDevice){
-								paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-							} else if(controlDevice){
+							if(controlDevice){
 								if(advancedSetup){
-									if(!replicateHold){
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
-										input "buttonPush1", "enum", title: "With Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") 
-											input "buttonPush2", "enum", title: "With \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "5 button") input "buttonPush3", "enum", title: "With Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "With \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										input "buttonPush5", "enum", title: "With Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
-									} else {
-										paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
-										input "buttonPush1", "enum", title: "Pushing Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") 
-											input "buttonPush2", "enum", title: "Pushing \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "5 button") input "buttonPush3", "enum", title: "Pushing Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") input "buttonPush4", "enum", title: "Pushing \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										input "buttonPush5", "enum", title: "Pushing Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-
-										input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
-
-										input "buttonHold1", "enum", title: "Holding Top (\"On\") button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") 
-											input "buttonHold2", "enum", title: "Holding \"Brighten\" button?", required: false, multiple: false, options: ["brighten":"Brighten","dim":"Dim", "on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
-										if(numButton == "5 button") input "buttonHold3", "enum", title: "Holding Center button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										if(numButton == "4 button" || numButton == "5 button") input "buttonHold4", "enum", title: "Holding \"Dim\" button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-										input "buttonHold5", "enum", title: "Holding Bottom (\"Off\") button?", required: false, multiple: false, options: ["on":"Turn on", "off":"Turn off", "toggle":"Toggle","dim":"Dim", "brighten":"Brighten"], submitOnChange:true
-
-									}
+									displaySelectActionsOption()
 								} else {
-									paragraph "To set different functions to each button, change to Advanced actions by clicking \"Simple actions\"."
 									if(!replicateHold){ 
 										paragraph "<div style=\"background-color:GhostWhite\"> Pushing Top button (\"On\") turns on.</div>"
 										if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Brighten\" button brightens.</div>"
@@ -133,16 +79,8 @@ preferences {
 									}
 								}
 
-								if(!advancedSetup || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush2 == "dim" || buttonPush2 == "brighten" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold2 == "dim" || buttonHold2 == "brighten" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold5 == "dim" || buttonHold5 == "brighten"){
-									paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-									paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
-									input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
-								}
-								if(!advancedSetup || buttonPush1 == "on" || buttonPush1 == "off" || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush1 == "toggle" || buttonPush2 == "on" || buttonPush2 == "off" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush3 == "toggle" || buttonPush4 == "on" || buttonPush4 == "off" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush4 == "toggle" || buttonPush5 == "on" || buttonPush5 == "off" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonPush5 == "toggle" || buttonHold1 == "on" || buttonHold1 == "off" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold1 == "toggle" || buttonHold2 == "on" || buttonHold2 == "off" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold3 == "toggle" || buttonHold4 == "on" || buttonHold4 == "off" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold4 == "toggle" || buttonHold5 == "on" || buttonHold5 == "off" || buttonHold5 == "dim" || buttonHold5 == "brighten" || buttonHold5 == "toggle"){ 
-									paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
-								} else {
-									paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
-								}
+								if(!advancedSetup || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush2 == "dim" || buttonPush2 == "brighten" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold2 == "dim" || buttonHold2 == "brighten" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold5 == "dim" || buttonHold5 == "brighten")
+									displayPushMultiplierOption()
 							}
 						}
 					}
@@ -153,60 +91,29 @@ preferences {
 
 //Multi device select
 
-			if(!app.label){
+			if(!advancedSetup){
 				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else if(app.label && !buttonDevice){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else if(app.label && buttonDevice && !numButton){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set type of Pico:</b></div>"
-					input "numButton", "enum", title: "Pico buttons?", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-				}
-			} else if(app.label && buttonDevice && numButton && !advancedSetup){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set type of Pico:</b></div>"
-					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Advanced options: </b></div>"
-
-					paragraph "$infoIcon For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-					input "advancedSetup", "bool", title: "<b>Using normal button actions.</b> Click to map buttons to other actions.", defaultValue: false, submitOnChange:true
-					input "multiDevice", "bool", title: "Multi-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
-					paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+					displayNameOption()
+                    if(app.label) displayPicoOption()
+					if(app.label && buttonDevice) displayPicoTypeOption()
+					if(app.label && buttonDevice && numButton) displayAdvancedSetupOption()
+                    if(app.label && buttonDevice && numButton)
+                        displayMultiDeviceOption()
 
 					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 
-					paragraph "$infoIcon To set different functions to each button, change to Advanced actions by clicking \"Simple actions\"."
 					if(!replicateHold){
-						input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
+						input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_2_push_brighten", "capability.switchLevel", title: "\"Brighten\" button brightens?", multiple: true, required: false, submitOnChange:true
+							input "button_2_push_brighten", "capability.switchLevel", title: "\"Brighten\" button brightens?", multiple: true, submitOnChange:true
 						}
 						if(numButton == "5 button"){
-							input "button_3_push_toggle", "capability.switch", title: "Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+							input "button_3_push_toggle", "capability.switch", title: "Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
 						}
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_4_push_dim", "capability.switchLevel", title: "\"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
+							input "button_4_push_dim", "capability.switchLevel", title: "\"Dim\" button dims?", multiple: true, submitOnChange:true
 						}
-						if(!error) input "button_5_push_off", "capability.switch", title: "Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
+						input "button_5_push_off", "capability.switch", title: "Bottom (\"Off\") button turns off?", multiple: true, submitOnChange:true
 
 						if(!replicateHold){
 							input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
@@ -215,17 +122,17 @@ preferences {
 						}
 
 					} else if(replicateHold){
-						input "button_1_push_on", "capability.switch", title: "Pushing Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
+						input "button_1_push_on", "capability.switch", title: "Pushing Top \"On\" button turns on?", multiple: true, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_2_push_brighten", "capability.switchLevel", title: "Pushing \"Brighten\" button brightens?", multiple: true, required: false, submitOnChange:true
+							input "button_2_push_brighten", "capability.switchLevel", title: "Pushing \"Brighten\" button brightens?", multiple: true, submitOnChange:true
 						}
 						if(numButton == "5 button"){
-							input "button_3_push_toggle", "capability.switch", title: "Pushing Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+							input "button_3_push_toggle", "capability.switch", title: "Pushing Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
 						}
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_4_push_dim", "capability.switchLevel", title: "Pushing \"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
+							input "button_4_push_dim", "capability.switchLevel", title: "Pushing \"Dim\" button dims?", multiple: true, submitOnChange:true
 						}
-						input "button_5_push_off", "capability.switch", title: "Pushing Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
+						input "button_5_push_off", "capability.switch", title: "Pushing Bottom (\"Off\") buttont turns off?", multiple: true, submitOnChange:true
 
 						if(!replicateHold){
 							input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
@@ -233,620 +140,564 @@ preferences {
 							input "replicateHold", "bool", title: "Holding Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
 						}
 						
-						input "button_1_hold_on", "capability.switch", title: "Holding Top \"On\" button turns on?", multiple: true, required: false, submitOnChange:true
+						input "button_1_hold_on", "capability.switch", title: "Holding Top \"On\" button turns on?", multiple: true, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_2_hold_brighten", "capability.switchLevel", title: "Holding \"Brighten\" button brightens?", multiple: true, required: false, submitOnChange:true
+							input "button_2_hold_brighten", "capability.switchLevel", title: "Holding \"Brighten\" button brightens?", multiple: true, submitOnChange:true
 						}
 						if(numButton == "5 button"){
-							input "button_3_hold_toggle", "capability.switch", title: "Holding Center button toggles? (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
+							input "button_3_hold_toggle", "capability.switch", title: "Holding Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
 						}
 						if(numButton == "4 button" || numButton == "5 button"){
-							input "button_4_hold_dim", "capability.switchLevel", title: "Holding \"Dim\" button dims?", multiple: true, required: false, submitOnChange:true
+							input "button_4_hold_dim", "capability.switchLevel", title: "Holding \"Dim\" button dims?", multiple: true, submitOnChange:true
 						}
-						input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") buttont turns off?", multiple: true, required: false, submitOnChange:true
+						input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") buttont turns off?", multiple: true, submitOnChange:true
 					}
 
 					
 					if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
-						paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-						paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
-						input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
-					}
-					if(button_1_push_on || button_2_push_brighten || button_4_push_toggle || button_4_push_dim || button_5_push_off || button_1_hold_on || button_2_hold_brighten || button_4_hold_toggle || button_4_hold_dim || button_5_hold_off){
-						paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
-					} else {
-						paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
+                        displayPushMultiplier()
 					}
 				}
-			} else if(app.label && buttonDevice && numButton && advancedSetup){
-				section() {
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set name for this Pico setup:</b></div>"
-					label title: "", required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select Pico device to setup:</b></div>"
-					input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, required: true, submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set type of Pico:</b></div>"
-					input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, required: true, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Advanced options: </b></div>"
+            } else if(advancedSetup){
+                section() {
+                    displayNameOption()
+                    displayPicoOption()
+                    displayPicoTypeOption()
+                    displayAdvancedSetupOption()
+                    paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
+                }
 
-					paragraph "$infoIcon For each action, select which lights or switches to turn on, turn off, toggle, dim/slow, and/or brighten/speed up. Do not have an action both turn on and off the same light/switch (use Toggle). Do not have an action both dim/slow and brighten/speed up the same light/fan."
-					input "advancedSetup", "bool", title: "<b>Allowing mapping buttons to custom actions.</b> Clck to use normal button actions.", defaultValue: false, submitOnChange:true
-					input "multiDevice", "bool", title: "Mutli-control: <b>Independantly control different sets of lights/switches.</b> Click for Pico to control only one set of lights/switches.", defaultValue: true, submitOnChange:true
-					paragraph "$infoIcon Use this option if you only want to control one light or set of lights. Change this option if, for instance, you want to turn on some lights, and brighten/dim <i>different lights</i>."
+                if(app.label && buttonDevice && numButton){
+                    section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+                        if(button_1_push_on) {
+                            input "button_1_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                        } else {
+                            input "button_1_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                        }
+                        if(button_1_push_off) {
+                            input "button_1_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                            // Can't turn on and off
+                            if(button_1_push_on && parent.compareDeviceLists(button_1_push_off,button_1_push_on,app.label)) errorMessage("Can't set same button to turn on and off the same device")
+                        } else {
+                            input "button_1_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                        }
+                        if(button_1_push_toggle && !error){
+                            input "button_1_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                            // Can't toggle and turn on/off
+                            if(button_1_push_on || button_1_push_off){
+                                if((button_1_push_on || button_1_push_off) && (parent.compareDeviceLists(button_1_push_on,button_1_push_toggle,app.label) || parent.compareDeviceLists(button_1_push_off,button_1_push_toggle,app.label)))
+                                errorMessage("Can't set same button to toggle as well as turn on or off the same device")
+                            }
+                        } else if(!error) {
+                            input "button_1_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                        }
+                        if(button_1_push_dim && !error){
+                            input "button_1_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                            // Can't dim and turn off
+                            if(button_1_push_off && compareDeviceList(button_1_push_off,button_1_push_dim)) errorMessage("Can't set same button to turn off and dim the same device")
+                        } else if(!error) {
+                            input "button_1_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                        }
+                        if(button_1_push_brighten && !error) {
+                            input "button_1_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                            // Can't brighten and turn off
+                            if(button_1_push_off && compareDeviceList(button_1_push_off,button_1_push_brighten)) errorMessage("Can't set same button to turn off and brighten the same device")
+                        } else if(!error) {
+                            input "button_1_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                        }
+                    }
+                    if(numButton == "4 button" || numButton == "5 button"){
+                        section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                            if(button_2_push_brighten) {
+                                input "button_2_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_2_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_2_push_toggle) {
+                                input "button_2_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_2_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_2_push_on) {
+                                input "button_2_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                if(button_2_push_toggle && parent.compareDeviceLists(button_2_push_toggle,button_2_push_on)) errorMessage("Can't set same button to toggle as well as turn on or off the same device")
+                            } else {
+                                input "button_2_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_2_push_off && !error){
+                                input "button_2_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                if(button_2_push_toggle && parent.compareDeviceLists(button_2_push_toggle,button_2_push_off)) errorMessage("Can't set same button to toggle and off the same device")
+                                if(button_2_push_on && parent.compareDeviceLists(button_2_push_toggle,button_2_push_off,app.label)) errorMessage("Can't set same button to turn on and off the same device")
+                            } else if(!error) {
+                                input "button_2_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_2_push_dim && !error) {
+                                input "button_2_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                if(button_2_push_off && compareDeviceList(button_2_push_off,button_2_push_dim)) errorMessage("Can't set same button to turn off and dim the same device")
+                                if(button_2_push_brighten && compareDeviceList(button_2_push_brighten,button_2_push_dim)) errorMessage("Can't set same button to brighten and dim the same device")
+                            } else if(!error) {
+                                input "button_2_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                        }
+                    }
+                    if(numButton == "5 button"){
+                        section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                            if(button_3_push_toggle) {
+                                input "button_3_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_3_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_3_push_on) {
+                                input "button_3_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                if(button_3_push_toggle && compareDeviceList(button_3_push_toggle,button_3_push_on)) errorMessage("Can't set same button to toggle and turn on the same device")
+                            } else {
+                                input "button_3_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_3_push_off && !error) {
+                                input "button_3_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                if(button_3_push_off && compareDeviceList(button_3_push_off,button_3_push_on)) errorMessage("Can't set same button to turn on and off the same device")
+                            } else if(!error) {
+                                input "button_3_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_3_push_dim && !error) {
+                                input "button_3_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                if(button_3_push_off && compareDeviceList(button_3_push_off,button_3_push_dim)) errorMessage("Can't set same button to dim and off the same device")
+                            } else if(!error) {
+                                input "button_3_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_3_push_brighten && !error) {
+                                input "button_3_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                if(button_3_push_off && compareDeviceList(button_3_push_off,button_3_push_brighten)) errorMessage("Can't set same button to brighten and off the same device")
+                                if(button_3_push_dim && compareDeviceList(button_3_push_dim,button_3_push_brighten)) errorMessage("Can't set same button to dim and brighten the same device")
+                            } else if(!error) {
+                                input "button_3_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                        }
+                    }
+                    if(numButton == "4 button" || numButton == "5 button"){
+                        section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                            if(button_4_push_dim) {
+                                input "button_4_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:truee
+                            } else {
+                                input "button_4_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_4_push_toggle) {
+                                input "button_4_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_4_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_4_push_on && !error) {
+                                input "button_4_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                if(button_3_push_toggle && compareDeviceList(button_4_push_toggle,button_3_push_on)) errorMessage("Can't set same button to toggle and turn on the same device")
+                            } else if(!error) {
+                                input "button_4_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_4_push_off && !error) {
+                                input "button_4_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                if(button_4_push_toggle && compareDeviceList(button_4_push_toggle,button_4_push_off)) errorMessage("Can't set same button to toggle and turn off the same device")
+                                if(button_4_push_on && compareDeviceList(button_4_push_toggle,button_4_push_off)) errorMessage("Can't set same button to on and turn off the same device")
+                            } else if(!error) {
+                                input "button_4_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_4_push_brighten && !error) {
+                                input "button_4_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                if(button_4_push_dim && compareDeviceList(button_4_push_dim,button_4_push_brighten)) errorMessage("Can't set same button to dim and brighten the same device")
+                                if(button_4_push_off && compareDeviceList(button_4_push_dim,button_4_push_brighten)) errorMessage("Can't set same button to brighten and turn off the same device")
+                            } else if(!error) {
+                                input "button_4_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                        }
+                    }
 
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
-				}
-					
-				section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-					if(button_1_push_on) {
-						input "button_1_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-					} else {
-						input "button_1_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-					}
-					if(button_1_push_off) {
-						input "button_1_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-						// Can't turn on and off
-						if(button_1_push_on){
-							error = parent.compareDeviceLists(button_1_push_off,button_1_push_on,app.label)
-							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-						}
-					} else {
-						input "button_1_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-					}
-
-					if(button_1_push_toggle && !error) {
-						input "button_1_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-						// Can't toggle and turn on/off
-						if(button_1_push_on || button_1_push_off){
-							error = parent.compareDeviceLists(button_1_push_on,button_1_push_toggle,app.label)
-							error = parent.compareDeviceLists(button_1_push_off,button_1_push_toggle,app.label)
-							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn on or off the same device.</div>"
-						}
-					} else if(!error) {
-						input "button_1_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-					}
-					
-					if(button_1_push_dim && !error) {
-						input "button_1_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-						// Can't dim and turn off
-						if(button_1_push_off){
-							error = compareDeviceList(button_1_push_off,button_1_push_dim)
-							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and dim the same device.</div>"
-						}
-					} else if(!error) {
-						input "button_1_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-					}
-					
-
-					if(button_1_push_brighten && !error) {
-						input "button_1_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-						// Can't brighten and turn off
-						if(button_1_push_off){
-							error = compareDeviceList(button_1_push_off,button_1_push_brighten)
-							if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and brighten the same device.</div>"
-						}
-					} else if(!error) {
-						input "button_1_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-					}
-				}
-				if((numButton == "4 button" || numButton == "5 button")  && !error){
-					section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-						if(button_2_push_brighten) {
-							input "button_2_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-						} else {
-							input "button_2_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_2_push_toggle) {
-							input "button_2_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-						} else {
-							input "button_2_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_2_push_on) {
-							input "button_2_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-							if(button_2_push_toggle){
-								error = parent.compareDeviceLists(button_2_push_toggle,button_2_push_on)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn on or off the same device.</div>"
-							}
-						} else {
-							input "button_2_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_2_push_off && !error) {
-							input "button_2_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-							if(button_2_push_toggle){
-								error = parent.compareDeviceLists(button_2_push_toggle,button_2_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and off the same device.</div>"
-							}
-							if(button_2_push_on){
-								error = parent.compareDeviceLists(button_2_push_toggle,button_2_push_off,app.label)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_2_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_2_push_dim && !error) {
-							input "button_2_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-							if(button_2_push_off){
-								error = compareDeviceList(button_2_push_off,button_2_push_dim)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and dim the same device.</div>"
-							}
-							if(button_2_push_brighten){
-								error = compareDeviceList(button_2_push_brighten,button_2_push_dim)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and dim the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_2_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-					}
-				}
-				if(numButton == "5 button" && !error){
-					section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-						if(button_3_push_toggle) {
-							input "button_3_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-						} else {
-							input "button_3_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_3_push_on) {
-							input "button_3_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-							if(button_3_push_toggle){
-								error = compareDeviceList(button_3_push_toggle,button_3_push_on)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn on the same device.</div>"
-							}
-						} else {
-							input "button_3_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_3_push_off && !error) {
-							input "button_3_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-							if(button_3_push_off){
-								error = compareDeviceList(button_3_push_off,button_3_push_on)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_3_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_3_push_dim && !error) {
-							input "button_3_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-							if(button_3_push_off){
-								error = compareDeviceList(button_3_push_off,button_3_push_dim)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_3_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_3_push_brighten && !error) {
-							input "button_3_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							if(button_3_push_off){
-								error = compareDeviceList(button_3_push_off,button_3_push_brighten)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and off the same device.</div>"
-							}
-							if(button_3_push_dim){
-								error = compareDeviceList(button_3_push_dim,button_3_push_brighten)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_3_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-					}
-				}
-				if((numButton == "4 button" || numButton == "5 button")  && !error){
-					section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-						if(button_4_push_dim) {
-							input "button_4_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:truee
-						} else {
-							input "button_4_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_4_push_toggle) {
-							input "button_4_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-						} else {
-							input "button_4_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_4_push_on) {
-							input "button_4_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-							if(button_3_push_toggle){
-								error = compareDeviceList(button_4_push_toggle,button_3_push_on)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn on the same device.</div>"
-							}
-						} else {
-							input "button_4_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_4_push_off && !error) {
-							input "button_4_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-							if(button_4_push_toggle){
-								error = compareDeviceList(button_4_push_toggle,button_4_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn off the same device.</div>"
-							}
-							if(button_4_push_on){
-								error = compareDeviceList(button_4_push_toggle,button_4_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to on and turn off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_4_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_4_push_brighten && !error) {
-							input "button_4_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							if(button_4_push_dim){
-								error = compareDeviceList(button_4_push_dim,button_4_push_brighten)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-							}
-							if(button_4_push_off){
-								error = compareDeviceList(button_4_push_dim,button_4_push_brighten)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and turn off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_4_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-					}
-				}
-
-				if(!error){
-					section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-						if(button_5_push_off) {
-							input "button_5_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false
-						} else {
-							input "button_5_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-						}
-						if(button_5_push_toggle) {
-							input "button_5_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false
-							if(button_5_push_off){
-								error = compareDeviceList(button_5_push_toggle,button_5_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and toggle the same device.</div>"
-							}
-						} else {
-							input "button_5_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-						}
-						if(button_5_push_on && !error) {
-							input "button_5_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false
-							if(button_5_push_off){
-								error = compareDeviceList(button_5_push_toggle,button_5_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and turn off the same device.</div>"
-							}
-							if(button_5_push_toggle){
-								error = compareDeviceList(button_5_push_off,button_5_push_on)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and turn off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_5_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-						}
-						if(button_5_push_dim && !error) {
-							input "button_5_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-							if(button_5_push_off){
-								error = compareDeviceList(button_5_push_dim,button_5_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and turn off the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_5_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_5_push_brighten && !error) {
-							input "button_5_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							if(button_5_push_off){
-								error = compareDeviceList(button_5_push_brighten,button_5_push_off)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and turn off the same device.</div>"
-							}
-							if(button_5_push_dim){
-								error = compareDeviceList(button_5_push_brighten,button_5_push_dim)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_5_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-					}
-				}
-
-				
-				if(!replicateHold && !error){
-					section(){
-						input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize.", submitOnChange:true, defaultValue: false
-					}
-				} else if(!error) {
-					section(){
-						input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
-					}
+                    if(!error){
+                        section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+                            if(button_5_push_off) {
+                                input "button_5_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_5_push_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_5_push_toggle) {
+                                input "button_5_push_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                if(button_5_push_off && compareDeviceList(button_5_push_toggle,button_5_push_off)) errorMessage("Can't set same button to turn off and toggle the same device")
+                            } else {
+                                input "button_5_push_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_5_push_on && !error) {
+                                input "button_5_push_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                if(button_5_push_off && compareDeviceList(button_5_push_toggle,button_5_push_off)) errorMessage("Can't set same button to turn on and turn off the same device")
+                                if(button_5_push_toggle && compareDeviceList(button_5_push_off,button_5_push_on)) errorMessage("Can't set same button to turn on and turn off the same device")
+                            } else if(!error) {
+                                input "button_5_push_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_5_push_dim && !error) {
+                                input "button_5_push_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                if(button_5_push_off && compareDeviceList(button_5_push_dim,button_5_push_off)) errorMessage("Can't set same button to dim and turn off the same device")
+                            } else if(!error) {
+                                input "button_5_push_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_5_push_brighten && !error) {
+                                input "button_5_push_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                if(button_5_push_off && compareDeviceList(button_5_push_brighten,button_5_push_off)) errorMessage("Can't set same button to brighten and turn off the same device")
+                                if(button_5_push_dim && compareDeviceList(button_5_push_brighten,button_5_push_dim)) errorMessage("Can't set same button to dim and brighten the same device")
+                            } else if(!error) {
+                                input "button_5_push_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                        }
+                    }
 
 
-// Advanced Hold
-
-					section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-						if(button_1_hold_on) {
-							input "button_1_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-						} else {
-							input "button_1_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-						if(button_1_hold_off) {
-							input "button_1_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-							// Can't turn on and off
-							if(button_1_hold_on){
-								error = parent.compareDeviceLists(button_1_hold_off,button_1_hold_on,app.label)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-							}
-						} else {
-							input "button_1_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-
-						if(button_1_hold_toggle && !error) {
-							input "button_1_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-							// Can't toggle and turn on/off
-							if(button_1_hold_on){
-								error = parent.compareDeviceLists(button_1_hold_on,button_1_hold_toggle,app.label)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn on the same device.</div>"
-							}
-							if(button_1_hold_off){
-								error = parent.compareDeviceLists(button_1_hold_off,button_1_hold_toggle,app.label)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn ogg the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_1_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-
-						if(button_1_hold_dim && !error) {
-							input "button_1_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-							// Can't dim and turn off
-							if(button_1_hold_off){
-								error = compareDeviceList(button_1_hold_off,button_1_hold_dim)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and dim the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_1_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
+                    if(!replicateHold && !error){
+                        section(){
+                            input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize.", submitOnChange:true, defaultValue: false
+                        }
+                    } else if(!error) {
+                        section(){
+                            input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
+                        }
 
 
-						if(button_1_hold_brighten && !error) {
-							input "button_1_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							// Can't brighten and turn off
-							if(button_1_hold_off){
-								error = compareDeviceList(button_1_hold_off,button_1_hold_brighten)
-								if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and brighten the same device.</div>"
-							}
-						} else if(!error) {
-							input "button_1_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-						}
-					}
-					if((numButton == "4 button" || numButton == "5 button")  && !error){
-						section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-							if(button_2_hold_brighten) {
-								input "button_2_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-							} else {
-								input "button_2_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_2_hold_toggle) {
-								input "button_2_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-							} else {
-								input "button_2_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_2_hold_on) {
-								input "button_2_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-								if(button_2_hold_toggle){
-									error = parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_on,app.label)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle as well as turn on or off the same device.</div>"
-								}
-							} else {
-								input "button_2_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_2_hold_off && !error) {
-								input "button_2_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-								if(button_2_hold_toggle){
-									error = parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_off,app.label)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and off the same device.</div>"
-								}
-								if(button_2_hold_on){
-									error = parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_off,app.label)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_2_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_2_hold_dim && !error) {
-								input "button_2_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-								if(button_2_hold_off){
-									error = compareDeviceList(button_2_hold_off,button_2_hold_dim)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and dim the same device.</div>"
-								}
-								if(button_2_hold_brighten){
-									error = compareDeviceList(button_2_hold_brighten,button_2_hold_dim)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and dim the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_2_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-						}
-					}
-					if(numButton == "5 button" && !error){
-						section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-							if(button_3_hold_toggle) {
-								input "button_3_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-							} else {
-								input "button_3_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_3_hold_on) {
-								input "button_3_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-								if(button_3_hold_toggle){
-									error = compareDeviceList(button_3_hold_toggle,button_3_hold_on)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn on the same device.</div>"
-								}
-							} else {
-								input "button_3_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_3_hold_off && !error) {
-								input "button_3_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-								if(button_3_hold_off){
-									error = compareDeviceList(button_3_hold_off,button_3_hold_on)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_3_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_3_hold_dim && !error) {
-								input "button_3_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-								if(button_3_hold_off){
-									error = compareDeviceList(button_3_hold_off,button_3_hold_dim)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_3_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_3_hold_brighten && !error) {
-								input "button_3_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-								if(button_3_hold_off){
-									error = compareDeviceList(button_3_hold_off,button_3_hold_brighten)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and off the same device.</div>"
-								}
-								if(button_3_hold_dim){
-									error = compareDeviceList(button_3_hold_dim,button_3_hold_brighten)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_3_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-						}
-					}
-					if((numButton == "4 button" || numButton == "5 button")  && !error){
-						section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-							if(button_4_hold_dim) {
-								input "button_4_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:truee
-							} else {
-								input "button_4_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_4_hold_toggle) {
-								input "button_4_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false, submitOnChange:true
-							} else {
-								input "button_4_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_4_hold_on) {
-								input "button_4_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
-								if(button_3_hold_toggle){
-									error = compareDeviceList(button_4_hold_toggle,button_3_hold_on)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn on the same device.</div>"
-								}
-							} else {
-								input "button_4_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_4_hold_off && !error) {
-								input "button_4_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false, submitOnChange:true
-								if(button_4_hold_toggle){
-									error = compareDeviceList(button_4_hold_toggle,button_4_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to toggle and turn off the same device.</div>"
-								}
-								if(button_4_hold_on){
-									error = compareDeviceList(button_4_hold_toggle,button_4_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to on and turn off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_4_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_4_hold_brighten && !error) {
-								input "button_4_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-								if(button_4_hold_dim){
-									error = compareDeviceList(button_4_hold_dim,button_4_hold_brighten)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-								}
-								if(button_4_hold_off){
-									error = compareDeviceList(button_4_hold_dim,button_4_hold_brighten)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and turn off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_4_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-						}
-					}
+                        // Advanced Hold
 
-					if(!error){
-						section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-							if(button_5_hold_off) {
-								input "button_5_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, required: false
-							} else {
-								input "button_5_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-							}
-							if(button_5_hold_toggle) {
-								input "button_5_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, required: false
-								if(button_5_hold_off){
-									error = compareDeviceList(button_5_hold_toggle,button_5_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn off and toggle the same device.</div>"
-								}
-							} else {
-								input "button_5_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-							}
-							if(button_5_hold_on && !error) {
-								input "button_5_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false
-								if(button_5_hold_off){
-									error = compareDeviceList(button_5_hold_toggle,button_5_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and turn off the same device.</div>"
-								}
-								if(button_5_hold_toggle){
-									error = compareDeviceList(button_5_hold_off,button_5_hold_on)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to turn on and turn off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_5_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, required: false
-							}
-							if(button_5_hold_dim && !error) {
-								input "button_5_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, required: false, submitOnChange:true
-								if(button_5_hold_off){
-									error = compareDeviceList(button_5_hold_dim,button_5_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and turn off the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_5_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-							if(button_5_hold_brighten && !error) {
-								input "button_5_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, required: false, submitOnChange:true
-								if(button_5_hold_off){
-									error = compareDeviceList(button_5_hold_brighten,button_5_hold_off)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to brighten and turn off the same device.</div>"
-								}
-								if(button_5_hold_dim){
-									error = compareDeviceList(button_5_hold_brighten,button_5_hold_dim)
-									if(error) paragraph "<div style=\"background-color:Bisque\">$errorIcon Can't set same button to dim and brighten the same device.</div>"
-								}
-							} else if(!error) {
-								input "button_5_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, required: false, submitOnChange:true
-							}
-						}
-					}
-				}
+                        section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+                            if(button_1_hold_on) {
+                                input "button_1_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                            } else {
+                                input "button_1_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                            if(button_1_hold_off) {
+                                input "button_1_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                // Can't turn on and off
+                                if(button_1_hold_on && parent.compareDeviceLists(button_1_hold_off,button_1_hold_on,app.label)) errorMessage("Can't set same button to turn on and off the same device")
+                            } else {
+                                input "button_1_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+
+                            if(button_1_hold_toggle && !error) {
+                                input "button_1_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                // Can't toggle and turn on/off
+                                if(button_1_hold_on && parent.compareDeviceLists(button_1_hold_on,button_1_hold_toggle,app.label)) errorMessage("Can't set same button to toggle as well as turn on the same device")
+                                if(button_1_hold_off && parent.compareDeviceLists(button_1_hold_off,button_1_hold_toggle,app.label)) errorMessage("Can't set same button to toggle as well as turn ogg the same device")
+                            } else if(!error) {
+                                input "button_1_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+
+                            if(button_1_hold_dim && !error) {
+                                input "button_1_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                // Can't dim and turn off
+                                if(button_1_hold_off && compareDeviceList(button_1_hold_off,button_1_hold_dim)) errorMessage("Can't set same button to turn off and dim the same device")
+                            } else if(!error) {
+                                input "button_1_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
 
 
-				if(!error && (button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten)){
-					section(){
-						paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-						paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
-						if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
-							input "pushMultiplier", "decimal", required: false, title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
-						} else {
-							paragraph "", width: 6
-						}
-						if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-						input "holdMultiplier", "decimal", required: false, title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
-						} else {
-							paragraph "", width: 6
-						}
-					}
-				}
-				if(!error && (button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_1_hold_on || button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_3_hold_on || button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_4_hold_on || button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle)){
-					section(){
-						paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
-					}
-				} else if(!error) {
-					section(){
-						paragraph "<div style=\"background-color:MistyRose\"><b> No actions selected. Do NOT save.</b></div>"
-					}
-				}
+                            if(button_1_hold_brighten && !error) {
+                                input "button_1_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                // Can't brighten and turn off
+                                if(button_1_hold_off && compareDeviceList(button_1_hold_off,button_1_hold_brighten)) errorMessage("Can't set same button to turn off and brighten the same device")
+                            } else if(!error) {
+                                input "button_1_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                            }
+                        }
+                        if((numButton == "4 button" || numButton == "5 button")  && !error){
+                            section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                                if(button_2_hold_brighten) {
+                                    input "button_2_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                } else {
+                                    input "button_2_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_2_hold_toggle) {
+                                    input "button_2_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                } else {
+                                    input "button_2_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_2_hold_on) {
+                                    input "button_2_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                    if(button_2_hold_toggle && parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_on,app.label)) errorMessage("Can't set same button to toggle as well as turn on or off the same device")
+                                } else {
+                                    input "button_2_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_2_hold_off && !error) {
+                                    input "button_2_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                    if(button_2_hold_toggle && parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_off,app.label)) errorMessage("Can't set same button to toggle and off the same device")
+                                    if(button_2_hold_on && parent.compareDeviceLists(button_2_hold_toggle,button_2_hold_off,app.label)) errorMessage("Can't set same button to turn on and off the same device")
+                                } else if(!error) {
+                                    input "button_2_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_2_hold_dim && !error) {
+                                    input "button_2_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                    if(button_2_hold_off && compareDeviceList(button_2_hold_off,button_2_hold_dim)) errorMessage("Can't set same button to turn off and dim the same device")
+                                    if(button_2_hold_brighten && compareDeviceList(button_2_hold_brighten,button_2_hold_dim)) errorMessage("Can't set same button to brighten and dim the same device")
+                                } else if(!error) {
+                                    input "button_2_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                            }
+                        }
+                        if(numButton == "5 button" && !error){
+                            section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                                if(button_3_hold_toggle) {
+                                    input "button_3_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                } else {
+                                    input "button_3_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_3_hold_on) {
+                                    input "button_3_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                    if(button_3_hold_toggle && compareDeviceList(button_3_hold_toggle,button_3_hold_on)) errorMessage("Can't set same button to toggle and turn on the same device")
+                                } else {
+                                    input "button_3_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_3_hold_off && !error) {
+                                    input "button_3_push_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                    if(button_3_hold_off && compareDeviceList(button_3_hold_off,button_3_hold_on)) errorMessage("Can't set same button to turn on and off the same device")
+                                } else if(!error) {
+                                    input "button_3_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_3_hold_dim && !error) {
+                                    input "button_3_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                    if(button_3_hold_off && compareDeviceList(button_3_hold_off,button_3_hold_dim)) errorMessage("Can't set same button to dim and off the same device")
+                                } else if(!error) {
+                                    input "button_3_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_3_hold_brighten && !error) {
+                                    input "button_3_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                    if(button_3_hold_off && compareDeviceList(button_3_hold_off,button_3_hold_brighten)) errorMessage("Can't set same button to brighten and off the same device")
+                                    if(button_3_hold_dim && compareDeviceList(button_3_hold_dim,button_3_hold_brighten)) errorMessage("Can't set same button to dim and brighten the same device")
+                                } else if(!error) {
+                                    input "button_3_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                            }
+                        }
+                        if((numButton == "4 button" || numButton == "5 button")  && !error){
+                            section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                                if(button_4_hold_dim) {
+                                    input "button_4_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:truee
+                                } else {
+                                    input "button_4_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_4_hold_toggle) {
+                                    input "button_4_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                } else {
+                                    input "button_4_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_4_hold_on) {
+                                    input "button_4_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                    if(button_3_hold_toggle && compareDeviceList(button_4_hold_toggle,button_3_hold_on)) errorMessage("Can't set same button to toggle and turn on the same device")
+                                } else {
+                                    input "button_4_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_4_hold_off && !error) {
+                                    input "button_4_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                    if(button_4_hold_toggle && compareDeviceList(button_4_hold_toggle,button_4_hold_off)) errorMessage("Can't set same button to toggle and turn off the same device")
+                                    if(button_4_hold_on && compareDeviceList(button_4_hold_toggle,button_4_hold_off)) errorMessage("Can't set same button to on and turn off the same device")
+                                } else if(!error) {
+                                    input "button_4_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_4_hold_brighten && !error) {
+                                    input "button_4_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                    if(button_4_hold_dim && compareDeviceList(button_4_hold_dim,button_4_hold_brighten)) errorMessage("Can't set same button to dim and brighten the same device")
+                                    if(button_4_hold_off && compareDeviceList(button_4_hold_dim,button_4_hold_brighten)) errorMessage("Can't set same button to brighten and turn off the same device")
+                                } else if(!error) {
+                                    input "button_4_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                            }
+                        }
+
+                        if(!error){
+                            section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+                                if(button_5_hold_off) {
+                                    input "button_5_hold_off", "capability.switch", title: "<b>Turns Off</b>", multiple: true, submitOnChange:true
+                                } else {
+                                    input "button_5_hold_off", "capability.switch", title: "Turns Off <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_5_hold_toggle) {
+                                    input "button_5_hold_toggle", "capability.switch", title: "<b>Toggles</b> (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
+                                    if(button_5_hold_off && compareDeviceList(button_5_hold_toggle,button_5_hold_off)) errorMessage("Can't set same button to turn off and toggle the same device")
+                                } else {
+                                    input "button_5_hold_toggle", "capability.switch", title: "Toggles (if on, turn off; if off, turn on) <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_5_hold_on && !error) {
+                                    input "button_5_hold_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, submitOnChange:true
+                                    if(button_5_hold_off && compareDeviceList(button_5_hold_toggle,button_5_hold_off)) errorMessage("Can't set same button to turn on and turn off the same device")
+                                    if(button_5_hold_toggle && compareDeviceList(button_5_hold_off,button_5_hold_on)) errorMessage("Can't set same button to turn on and turn off the same device")
+                                } else if(!error) {
+                                    input "button_5_hold_on", "capability.switch", title: "Turns On <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_5_hold_dim && !error) {
+                                    input "button_5_hold_dim", "capability.switchLevel", title: "<b>Dims</b>", multiple: true, submitOnChange:true
+                                    if(button_5_hold_off && compareDeviceList(button_5_hold_dim,button_5_hold_off)) errorMessage("Can't set same button to dim and turn off the same device")
+                                } else if(!error) {
+                                    input "button_5_hold_dim", "capability.switchLevel", title: "Dims <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                                if(button_5_hold_brighten && !error) {
+                                    input "button_5_hold_brighten", "capability.switchLevel", title: "<b>Brightens</b>", multiple: true, submitOnChange:true
+                                    if(button_5_hold_off && compareDeviceList(button_5_hold_brighten,button_5_hold_off)) errorMessage("Can't set same button to brighten and turn off the same device")
+                                    if(button_5_hold_dim && compareDeviceList(button_5_hold_brighten,button_5_hold_dim)) errorMessage("Can't set same button to dim and brighten the same device")
+                                } else if(!error) {
+                                    input "button_5_hold_brighten", "capability.switchLevel", title: "Brightens <font color=\"gray\">(Select devices)</font>", multiple: true, submitOnChange:true
+                                }
+                            }
+                        }
+                    }
+
+                    if(!error && (button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten)){
+                        section(){
+                            displayPushHoldMultiplierOption()
+                        }
+                    }
+                }
 			}
 		}
 	}
 }
 
+// Display functions
+
+def errorMessage(text){
+    if(error){
+        error = error + "<br />$errorIcon $text"
+    } else {
+        error = "<div style=\"background-color:Bisque\">$errorIcon $text"
+    }
+}
+
+def displayLabel(text){
+    if(!text) {
+        paragraph "<div style=\"background-color:BurlyWood\"> </div>"
+    } else {
+        paragraph "<div style=\"background-color:BurlyWood\"><b> $text:</b></div>"
+    }
+}
+
+def displayInfo(text = "Null"){
+    if(text == "Null") {
+        paragraph "<div style=\"background-color:AliceBlue\"> </div>"
+    } else {
+        paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $text</div>"
+    }
+}
+
+def displayNameOption(){
+    displayLabel("Set name for this Pico setup")
+	label title: "", required: true, submitOnChange:true
+    if(!app.label) displayInfo("Name this Pico setup. Each pico setup must have a unique name.")
+/* ************************************************** */
+/* TO-DO: Test the name is unique; otherwise          */
+/* rescheduling won't work, since we use "childLabel" */
+/* variable.                                          */
+/* ************************************************** */
+}
+
+def displayPicoOption(){
+    displayLabel("Select Pico device(s) to setup")
+    input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, submitOnChange:true
+    if(!buttonDevice) displayInfo("Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.")
+}
+
+def displayPicoTypeOption(){
+    displayLabel("Set type of Pico")
+    input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, options: ["2 button", "4 button", "5 button"], submitOnChange:true
+    if(!numButton) displayInfo("Set how many buttons the Pico has.")
+}
+
+def displayAdvancedSetupOption(){
+    displayLabel("Custom buttons and/or devices")
+    if(advancedSetup){
+        input "advancedSetup", "bool", title: "<b>Allowing custom button actions.</b> Click to use normal button actions.", submitOnChange:true
+        if(numButton == "2 button") {
+            displayInfo("Click to have the on button turn on and the off button to turn off.")
+        } else {
+            displayInfo("Click to have the buttons mapped to the normal function; on button turns on, up button brightens, etc.")
+        }
+    } else {
+        input "advancedSetup", "bool", title: "<b>Using normal button actions.</b> Click to map buttons to other actions.", submitOnChange:true
+        displayInfo("Click to choose what each button does.")
+    }
+}
+
+def displayMultiDeviceOption(){
+    if(multiDevice){
+        input "multiDevice", "bool", title: "<b>Allow different lights for different buttons.</b> Click for all buttons controlling same light(s).", submitOnChange:true
+        displayInfo("Assign light(s)/switch(es) to each button. Click for the buttons to do the same thing for all devices.")
+    } else {
+        input "multiDevice", "bool", title: "<b>Same lights for all buttons.</b> Click to assign different device(s) to different buttons.", submitOnChange:true
+        displayInfo("The buttons will do the same thing for all devices. Click to assign light(s)/switch(es) to each button.")
+
+        input "controlDevice", "capability.switch", title: "Device(s) to control", multiple: true, submitOnChange:true
+    }
+}
+
+def displaySelectActionsOption(){
+        displayLabel("Select what to do for each Pico action")
+        displaySelectActionsButtonOption(1,"Top (\"On\")")
+        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(2,"\"Brighten\"")
+        if(numButton == "5 button") displaySelectActionsButtonOption(3,"Center")
+        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(4,"\"Dim\"")
+        displaySelectActionsButtonOption(5,"Bottom (\"Off\")")
+    if(!replicateHold){
+        input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
+    } else {
+        input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
+
+        displaySelectActionsButtonOption(1,"Top (\"On\")","hold")
+        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(2,"\"Brighten\"","hold")
+        if(numButton == "5 button") displaySelectActionsButtonOption(3,"Center","hold")
+        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(4,"\"Dim\"","hold")
+        displaySelectActionsButtonOption(5,"Bottom (\"Off\")","hold")
+    }
+}
+
+def displaySelectActionsButtonOption(number,text,action = "push"){
+    if(replicateHold && action == "push"){
+        button = "Push"
+        text = "Pushing $text"
+    } else if(replicateHold && action == "hold"){
+        button = "Hold"
+        text = "Holding $text"
+    } else if(!replicateHold){
+        button = "Push"
+        text = "With $text"
+    }
+    input "button${button}${number}", "enum", title: "$text button?", multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+}
+
+def displayPushMultiplierOption(){
+    displayLabel("Set dim and brighten speed")
+    displayMultiplierMessage()
+    input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+}
+
+def displayPushHoldMultiplierOption(){
+    displayLabel("Set dim and brighten speed")
+    displayMultiplierMessage()
+    if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
+        input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
+    } else {
+        paragraph "", width: 6
+    }
+    if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+        input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
+    } else {
+        paragraph "", width: 6
+    }
+}
+
+def displayMultiplierMessage(){
+    displayInfo("Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%).")
+}
 
 def installed() {
-	logTrace(840, "Installed")
+	logTrace(692, "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace(846,"Updated")
+	logTrace(698,"Updated")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(852,"Initialized")
+	logTrace(704,"Initialized")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -856,92 +707,91 @@ def initialize() {
 }
 
 def buttonPushed(evt){
-
-    state.buttonNumber = evt.value
-    state.action = "push"
+    atomicState.buttonNumber = evt.value
+    atomicState.action = "push"
     def colorSwitch
     def whiteSwitch
 
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
 
 	// Treat 2nd button of 2-button Pico as "off" (eg button 5)
-	if(state.buttonNumber == "2" &&  numButton == "2 button") state.buttonNumber = 5
+	if(atomicState.buttonNumber == "2" &&  numButton == "2 button") atomicState.buttonNumber = 5
 
 	// Simple setup
 	if(!multiDevice && !advancedSetup){
-		switch(state.buttonNumber){
-			case "1": parent.multiOn(controlDevice,app.label)
+		switch(atomicState.buttonNumber){
+			case "1": multiOn("on",controlDevice)
                 message = "turning on"
 				break
-			case "2": parent.dim("brighten",controlDevice,app.getId())
+			case "2": parent.dim("brighten",controlDevice,app.label)
                 message = "brightening"
 				break
-			case "3": parent.toggle(controlDevice,app.label)
+			case "3": multiOn("toggle",controlDevice)
                 message = "toggling"
 				break
-			case "4": parent.dim("dim",controlDevice,app.getId())
+			case "4": parent.dim("dim",controlDevice,app.label)
                 message = "dimming"
 				break
-			case "5": parent.multiOff(controlDevice,app.label)
+			case "5": multiOn("off",controlDevice)
                 message = "turning off"
 		}
-        logTrace(891,"Button $state.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $action")
+        logTrace(742,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $action")
 	} else if(!multiDevice && advancedSetup){
-			switch(settings["buttonPush${state.buttonNumber}"]){
-				case "on": parent.multiOn(controlDevice,app.label)
+			switch(settings["buttonPush${atomicState.buttonNumber}"]){
+				case "on": multiOn("on",controlDevice)
                     message = "turning on"
 					break
-				case "brighten": parent.dim("brighten",controlDevice,app.getId())
+				case "brighten": parent.dim("brighten",controlDevice,app.label)
                     message = "brightening"
 					break
-				case "toggle": parent.toggle(controlDevice,app.label)
+				case "toggle": multiOn("toggle",controlDevice)
                     message = "toggling"
 					break
-				case "dim": parent.dim("dim",controlDevice,app.getId())
+				case "dim": parent.dim("dim",controlDevice,app.label)
                     message = "dimming"
 					break
-				case "off": parent.multiOff(controlDevice,app.label)
+				case "off": multiOn("off",controlDevice)
                     message = "turning off"
 			}
-            logTrace(909,"Button $state.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message")
+            logTrace(760,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message")
     // if(multiDevice && (!advancedSetup || advancedSetup))
 	} else {
-        if(settings["button_${state.buttonNumber}_push_toggle"] != null) {
-            logTrace(913,"Button $state.buttonNumber of " + settings["button_${state.buttonNumber}_push_toggle"] + " pushed for $controlDevice; remapped and advanced setup; toggling")
+        if(settings["button_${atomicState.buttonNumber}_push_toggle"] != null) {
+            logTrace(764,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling")
             if (settings.color == "Separate"){
-                toggleSeparate(settings["button_${state.buttonNumber}_push_toggle"])
+                toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
             } else {
-                parent.toggle(settings["button_${state.buttonNumber}_push_toggle"],app.label)
+                multiOn("toggle",settings["button_${atomicState.buttonNumber}_push_toggle"])
             }
         }
-        if(settings["button_${state.buttonNumber}_push_on"]) {
-            logTrace(921,"Button $state.buttonNumber of buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on")
-            parent.multiOn(settings["button_${state.buttonNumber}_push_on"],app.label)
+        if(settings["button_${atomicState.buttonNumber}_push_on"]) {
+            logTrace(772,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on")
+            multiOn("on",settings["button_${atomicState.buttonNumber}_push_on"])
         }
-        if(settings["button_${state.buttonNumber}_push_off"]){
-            logTrace(925,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off")
-            parent.multiOff(settings["button_${state.buttonNumber}_push_off"],app.label)
+        if(settings["button_${atomicState.buttonNumber}_push_off"]){
+            logTrace(776,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off")
+            multiOn("off",settings["button_${atomicState.buttonNumber}_push_off"])
         }
-        if(settings["button_${state.buttonNumber}_push_dim"]) {
-            logTrace(929,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming")
-            parent.dim("dim",settings["button_${state.buttonNumber}_push_dim"],app.getId())
+        if(settings["button_${atomicState.buttonNumber}_push_dim"]) {
+            logTrace(780,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming")
+            parent.dim("dim",settings["button_${atomicState.buttonNumber}_push_dim"],app.label)
         }
-        if(settings["button_${state.buttonNumber}_push_brighten"]) {
-            logTrace(933,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening")
-            parent.dim("brighten",settings["button_${state.buttonNumber}_push_brighten"],app.getId())
+        if(settings["button_${atomicState.buttonNumber}_push_brighten"]) {
+            logTrace(784,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening")
+            parent.dim("brighten",settings["button_${atomicState.buttonNumber}_push_brighten"],app.label)
         }
     }
 }
 
 def buttonHeld(evt){
 
-    state.buttonNumber = evt.value
-    state.action = "held"
+    atomicState.buttonNumber = evt.value
+    atomicState.action = "held"
     def colorSwitch
     def whiteSwitch
 
 	// Treat 2nd button of 2-button Pico as "off" (eg button 5)
-	if(state.buttonNumber == "2" &&  numButton == "2 button") state.buttonNumber = 5
+	if(atomicState.buttonNumber == "2" &&  numButton == "2 button") atomicState.buttonNumber = 5
 
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -950,125 +800,119 @@ def buttonHeld(evt){
 // We are missing multiDevice + advancedSetup (minus replicateHold)!!
 //But, why does multiDevice lead to multiOn/Off??
 
-	if(!multiDevice && !advancedSetup && !replicateHold){
-		switch(state.buttonNumber){
-			case "1": parent.multiOn(controlDevice,app.label)
-                    logTrace(959,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning on")
-				break
-			case "2": holdBrighten(controlDevice,app.label)
-                    logTrace(962,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; simple setup; brightening")
-				break
-			case "3": parent.toggle(controlDevice,app.label)
-                    logTrace(965,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; simple setup; toggling")
-				break
-			case "4": holdDim(controlDevice,app.label)
-                    logTrace(968,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; simple setup; dimming")
-				break
-			case "5": parent.multiOff(controlDevice,app.label)
-                    logTrace(971,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; simple setup; turning off")
-		}
-	} else if(!multiDevice && advancedSetup && !replicateHold){
-			switch(settings["buttonPush${state.buttonNumber}"]){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace(976,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace(979,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace(982,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace(985,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace(988,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-	} else if(!multiDevice && advancedSetup && replicateHold){
-			switch(settings["buttonHold${state.buttonNumber}"]){
-				case "on": parent.multiOn(controlDevice,app.label)
-                    logTrace(993,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning on")
-					break
-				case "brighten": holdBrighten(controlDevice,app.label)
-                    logTrace(996,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; brightening")
-					break
-				case "toggle": parent.toggle(controlDevice,app.label)
-                    logTrace(999,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; toggling")
-					break
-				case "dim": holdDim(controlDevice,app.label)
-                    logTrace(1002,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; dimming")
-					break
-				case "off": parent.multiOff(controlDevice,app.label)
-                    logTrace(1005,"Button $state.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; turning off")
-			}
-	} else {
+    if(!multiDevice && !advancedSetup && !replicateHold){
+        switch(atomicState.buttonNumber){
+            case "1": multiOn("on",controlDevice)
+            action = "turning on"
+            break
+            case "2": holdBrighten(controlDevice,app.label)
+            action = "brightening"
+            break
+            case "3": multiOn("toggle",controlDevice)
+            action = "toggling"
+            break
+            case "4": holdDim(controlDevice,app.label)
+            action = "dimming"
+            break
+            case "5": multiOn("off",controlDevice)
+            action = "turning off"
+        }
+        logTrace(824,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; simple setup; $action")
+    } else if(!multiDevice && advancedSetup && !replicateHold){
+        switch(settings["buttonPush${atomicState.buttonNumber}"]){
+            case "on": multiOn("on",controlDevice)
+            action = "turning on"
+            break
+            case "brighten": holdBrighten(controlDevice,app.label)
+            action = "brightening"
+            break
+            case "toggle": multiOn("toggle",controlDevice)
+            action = "toggling"
+            break
+            case "dim": holdDim(controlDevice,app.label)
+            action = "dimming"
+            break
+            case "off": multiOn("off",controlDevice)
+            action = "turning off"
+        }
+        logTrace(842,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $action")
+    } else if(!multiDevice && advancedSetup && replicateHold){
+        switch(settings["buttonHold${atomicState.buttonNumber}"]){
+            case "on": multiOn("on",controlDevice)
+            action = "turning on"
+            break
+            case "brighten": holdBrighten(controlDevice,app.label)
+            action = "brightening"
+            break
+            case "toggle": multiOn("toggle",controlDevice)
+            action = "toggling"
+            break
+            case "dim": holdDim(controlDevice,app.label)
+            action = "dimming"
+            break
+            case "off": multiOn("off",controlDevice)
+            action = "turning off"
+        }
+        logTrace(860,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $action")
+    } else {
 		if(settings["button_${buttonNumber}_hold_toggle"] != null) {
-			logTrace(1009,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling")
+			logTrace(863,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling")
 			if (settings.color == "Separate"){
-				toggleSeparate(settings["button_${state.buttonNumber}_push_toggle"])
+				toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
 			} else {
-				parent.toggle(settings["button_${state.buttonNumber}_push_toggle"],app.label)
+				multiOn("toggle",settings["button_${atomicState.buttonNumber}_push_toggle"])
 			}
 		}
-		if(settings["button_${state.buttonNumber}_hold_on"]) {
-			logTrace(1017,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on")
-			parent.multiOn(settings["button_${state.buttonNumber}_hold_on"],app.label)
+		if(settings["button_${atomicState.buttonNumber}_hold_on"]) {
+			logTrace(871,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on")
+			multiOn("on",settings["button_${atomicState.buttonNumber}_hold_on"])
 		}
-		if(settings["button_${state.buttonNumber}_hold_off"]) {
-			logTrace(1021,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off")
-			parent.multiOff(settings["button_${state.buttonNumber}_hold_off"],app.label)
+		if(settings["button_${atomicState.buttonNumber}_hold_off"]) {
+			logTrace(875,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off")
+			multiOn("off",settings["button_${atomicState.buttonNumber}_hold_off"])
 		}
-		if(settings["button_${state.buttonNumber}_hold_dim"]) {
-			logTrace(1025,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming")
-			holdDim(settings["button_${state.buttonNumber}_hold_dim"])
+		if(settings["button_${atomicState.buttonNumber}_hold_dim"]) {
+			logTrace(879,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming")
+			holdDim(settings["button_${atomicState.buttonNumber}_hold_dim"])
 		}
-		if(settings["button_${state.buttonNumber}_hold_brighten"]) {
-			logTrace(1029,"Button $state.buttonNumber of $buttonDevice pushed for " + settings["button_${state.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening")
-			holdBrighten(settings["button_${state.buttonNumber}_hold_brighten"])
+		if(settings["button_${atomicState.buttonNumber}_hold_brighten"]) {
+			logTrace(883,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening")
+			holdBrighten(settings["button_${atomicState.buttonNumber}_hold_brighten"])
 		}
 	}
 }
 
 def buttonReleased(evt){
-	state.buttonNumber = evt.value
-	if (state.buttonNumber == "2" || (state.buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (state.buttonNumber == "1" && settings.numButton == "2 button")){
-		logTrace(1038,"Button $state.buttonNumber of $buttonDevice released, unscheduling all")
+	atomicState.buttonNumber = evt.value
+	if (atomicState.buttonNumber == "2" || (atomicState.buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (atomicState.buttonNumber == "1" && settings.numButton == "2 button")){
+		logTrace(892,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all")
 		unschedule()
 	}
 }
 
 
 //What's the difference between multiplier, pushMultiplier and holdMultiplier?!
-def dimSpeed(){
-	if(settings.multiplier != null){
-		logTrace(1047,"function dimSpeed returning $pushMultiplier")
+def getDimSpeed(){
+    if(atomicState.action == "push" &&  pushMultiplier){
+		return pushMultiplier
+    } else if(atomicState.action == "held" &&  holdMultiplier){
+        return holdMultiplier
+    } else if(atomicState.action == "held" &&  !pushMultiplier){
 		return pushMultiplier
 	} else {
-		logTrace(1050,"function dimSpeed returning 1.2")
 		return 1.2
-	}
-}
-
-def holdDimSpeed(){
-	if(settings.multiplier != null){
-		logTrace(1057,"Function holdDimSpeed returning $holdMultiplier")
-		return holdMultiplier
-	} else {
-		logTrace(1060,"Function holdDimSpeed returning 1.4")
-		return 1.4
 	}
 }
 
 // counts number of steps for brighten and dim
 // action = "dim" or "brighten"
 def getSteps(level, action){
-	logTrace(1068,"Function getSteps starting [level: $level, action: $action]")
-	def steps = 0
-
 	if (action != "dim" && action != "brighten"){
-		logTrace(1072,"Function getSteps returning null (invalid action")
+		logTrace(915,"ERROR: Invalid value for action \"$action\" sent to getSteps function")
 		return false
 	}
+    
+	def steps = 0
 
 	// If as already level 1 and dimming or 100 and brightening
 	if((action == "dim" && level < 2) || (action == "brighten" && level > 99)){
@@ -1087,90 +931,88 @@ def getSteps(level, action){
 			level = parent.nextLevel(level, action,app.getId())
 		}
 	}
-	logTrace(1093,"Function getSteps returning $steps")
+	logTrace(938,"Function getSteps returning $steps")
 	return steps
 }
 
 def setSubscribeLevel(data){
-
 	button_1_hold_dim.each{
 		if (it.id == data.device) device = it
 	}
-	if (device == null){
+	if(!device){
 		button_1_hold_brighten.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_2_hold_dim.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_2_hold_brighten.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_3_hold_dim.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_3_hold_brighten.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_4_hold_dim.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_4_hold_brighten.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_5_hold_dim.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if (device == null){
+	if(!device){
 		button_5_hold_brighten.each{
 			if (it.id == data.device) device = it
 		}
 	}
-	if(device == null) {
-		logTrace(1148,"Function setSubscribeLevel returning (no matching device)")
+	if(!device) {
+		logTrace(992,"Function setSubscribeLevel returning (no matching device)")
 		return
 	}
-	parent.singleLevels(data.level,,,,device,app.label)
-	//parent.setToLevel(device,level,,,,app.label)
+	parent.singleLevels(data.level,null,null,null,device,app.label)
 	reschedule(it)
 }
 
 def toggleSeparate(device){
 	device.each{
-		if(it.currentValue("hue") && it.currentValue("switch") == "on") {
+		if(it.currentValue("hue") && parent.isOn(it)) {
 			colorSwitch = "on"
-		} else if(!it.currentValue("hue") && it.currentValue("switch") == "on") {
+		} else if(!it.currentValue("hue") && parent.isOn(it)) {
 			whiteSwitch = "on"
 		}
 	}
 	// color on, white on, turn off color
-	if (colorSwitch == "on" && whiteSwitch == "on"){
-		parent.multiOff(device,app.label)
+	if(colorSwitch == "on" && whiteSwitch == "on"){
+		multiOn("off",device)
 	// color on, white off; turn white on
-	} else if (colorSwitch == "on" && whiteSwitch != "on"){
-		parent.multiOn(device,app.label)
+	} else if(colorSwitch == "on" && whiteSwitch != "on"){
+		multiOn("on",device)
 	//color off, white on; turn off white and turn on color
-	} else if (colorSwitch != "on" && whiteSwitch == "on"){
-		parent.multiOff(device,"white",app.label)
-		parent.multiOn(device,app.label)
+	} else if(colorSwitch != "on" && whiteSwitch == "on"){
+		multiOn("off",device,"white")
+		multiOn("on",device)
 	// both off; turn color on
-	} else if (colorSwitch != "on" && whiteSwitch != "on"){
-		parent.multiOn(device,app.label)
+	} else if(colorSwitch != "on" && whiteSwitch != "on"){
+		multiOn("on",device)
 	}
 }
 
@@ -1179,14 +1021,14 @@ def holdDim(device){
 	
     device.each{
         if(parent.isFan(it,app.label) == true){
-            parent.dim(it,app.getId())
-        } else if(!parent.stateOn(it,app.label)){
-		parent.singleLevels(1,,,,device,app.label)
+            parent.dim(it,app.label)
+        } else if(!parent.isOn(it,app.label)){
+		parent.singleLevels(1,null,null,null,device,app.label)
             //parent.setToLevel(it,1,app.label)
 			parent.reschedule(it,app.label)
         } else {
             if(level < 2){
-                log.Trace("Can't dim $it; already 1%.")
+                logTrace(1035,"Can't dim $it; already 1%.")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
@@ -1207,13 +1049,12 @@ def holdBrighten(device){
     device.each{
         if(parent.isFan(it,app.label)){
             parent.dim("brighten",it,app.label)
-        } else if(!parent.stateOn(it,app.label)){
-		parent.singleLevels(1,,,,device,app.label)
-            //parent.setToLevel(it,1,app.label)
+        } else if(!parent.isOn(it,app.label)){
+		    parent.singleLevels(1,null,null,null,device,app.label)
 			reschedule(it)
         } else {
             if(level > 99){
-                logTrace(1217,"Can't brighten $it; already 100%.")
+                logTrace(1061,"Can't brighten $it; already 100%.")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
@@ -1256,24 +1097,36 @@ def compareDeviceList(device,list){
 	}
 }
 
+def multiOn(action,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+        logTrace(1106,"ERROR: Invalid action \"$action\" sent to multiOn")
+        return
+    }
+
+    parent.multiOn(action,device,app.id)
+
+    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
+    parent.runRetrySchedule(data)
+}
+
 def getDevice(deviceId){
     if(!multiDevice) {
         device = controlDevice
-    } else if(state.action == "push"){
-        if(settings["button_${state.buttonNumber}_${state.action}_toggle"] != null) {
-            device = settings["button_${state.buttonNumber}_${state.action}_toggle"]
-        } else if(settings["button_${state.buttonNumber}_${state.action}_on"]) {
-            device = settings["button_${state.buttonNumber}_${state.action}_on"]
-        } else if(settings["button_${state.buttonNumber}_${state.action}_off"]) {
-            device = settings["button_${state.buttonNumber}_${state.action}_off"]
-        } else if(settings["button_${state.buttonNumber}_${state.action}_dim"]) {
-            device = settings["button_${state.buttonNumber}_${state.action}_dim"]
-        } else if(settings["button_${state.buttonNumber}_${state.action}_brighten"]) {
-            device = settings["button_${state.buttonNumber}_${state.action}_brighten"]
+    } else if(atomicState.action == "push"){
+        if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_toggle"] != null) {
+            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_toggle"]
+        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_on"]) {
+            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_on"]
+        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_off"]) {
+            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_off"]
+        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_dim"]) {
+            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_dim"]
+        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_brighten"]) {
+            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_brighten"]
         }
-    } else if(state.action == "held" && !multiDevice && replicateHold){
+    } else if(atomicState.action == "held" && !multiDevice && replicateHold){
 			device = controlDevice
-	} else if(state.action == "held"){
+	} else if(atomicState.action == "held"){
         if(settings["button_${buttonNumber}_hold_toggle"]) {
             device = settings["button_${buttonNumber}_push_toggle"]
         } else if(settings["button_${buttonNumber}_hold_on"]) {
