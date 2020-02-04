@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.03
+*  Version: 0.4.04
 * 
 ***********************************************************************************************************************/
 
@@ -933,10 +933,20 @@ def multiOn(action,device){
         return
     }
 
-    parent.multiOn(action,device,app.label)
-
-    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-    parent.runRetrySchedule(data)
+    device.each{
+        if(action == "toggle"){
+            if(parent.isOn(it,childLabel)){
+                newAction = "off"
+            } else {
+                newAction = "on"
+            }
+        } else {
+            newAction = action
+        }
+        parent.singleOn(newAction,it,childLabel)
+        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
+        parent.runRetrySchedule(data)
+    }
 }
 
 def getDevice(deviceId){
