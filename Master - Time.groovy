@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.08
+*  Version: 0.4.09
 *
 ***********************************************************************************************************************/
 
@@ -774,7 +774,7 @@ def runIncrementalSchedule(){
 
 // Performs actual changes at time set with timeOn
 // Called only by schedule set in incrementalSchedule
-def runDayOnSchedule(){
+def runDayOnSchedule(data = null){
 	if(disable || state.disable) return
 
 	// Check if correct day
@@ -791,7 +791,7 @@ def runDayOnSchedule(){
 	} else if(timeOn == "off"){
 		multiOn("off",timeDevice)
 	} else if(timeOn == "toggle"){
-		multiOn(toggle,timeDevice)
+		multiOn("toggle",timeDevice)
 	}
     
 	//  initializeSchedules sets levels
@@ -812,6 +812,8 @@ def runDayOffSchedule(){
 	if(ifMode && location.mode != ifMode) return
 
     if(!setTime()) return
+    
+    
 
 	if(modeChangeOff) setLocationMode(modeChangeOff)
 	if(timeOff == "on"){
@@ -844,7 +846,7 @@ def getDefaultLevel(deviceId){
 
 	// If no device match, return nulls
 	timeDevice.findAll( {it.id == deviceId} ).each {
-		//logTrace(853,"getDefaultLevel matched deviceId $deviceId as $it")
+		//logTrace(849,"getDefaultLevel matched deviceId $deviceId as $it")
         device = it
 		match = true
     }
@@ -856,20 +858,20 @@ def getDefaultLevel(deviceId){
 
     // if no start levels, return nulls
     if(!levelOn && !tempOn && !hueOn && !satOn){
-        logTrace(865,"No starting levels set for $device")
+        logTrace(861,"No starting levels set for $device")
         return defaults
 	}
 
 	// If disabled, return nulls
 	if(disable || state.disable) {
-		logTrace(871,"Returning null level for $device, schedule disabled")
+		logTrace(867,"Returning null level for $device, schedule disabled")
 		return defaults
 	}
 
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(878,"Return null level for $device, mode $ifMode")
+			logTrace(874,"Return null level for $device, mode $ifMode")
 			return defaults
 		}
 	}
@@ -885,7 +887,7 @@ def getDefaultLevel(deviceId){
         elapsedFraction = getElapsedFraction()
 
 		if(!elapsedFraction) {
-			logTrace(894,"ERROR: Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"")
+			logTrace(890,"ERROR: Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"")
 			return defaults
 		}
     }
@@ -941,7 +943,7 @@ def getDefaultLevel(deviceId){
         defaults.put("sat",satOn)
     }
 
-	logTrace(950,"Returning levels $defaults for $device")
+	//logTrace(946,"Returning levels $defaults for $device")
 	return defaults
 }
 
@@ -954,7 +956,7 @@ def setTime(){
 // Requires type value of "Start" or "Stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
     if(type != "Start" && type != "Stop") {
-       logTrace(963,"ERROR: Invalid value for type \"$type\" sent to setStartStopTime function")
+       logTrace(959,"ERROR: Invalid value for type \"$type\" sent to setStartStopTime function")
        return
        }
        
@@ -971,14 +973,14 @@ def setStartStopTime(type){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(980,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		logTrace(976,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(987,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	logTrace(983,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
 	if(type == "Start") atomicState.start = value
 	if(type == "Stop") atomicState.stop = value
 	return true
@@ -1017,7 +1019,7 @@ def setWeekDays(){
 			dayString += "SUN"
 		}
 	}
-	logTrace(1026,"weekDaysToNum returning $dayString")
+	logTrace(1022,"weekDaysToNum returning $dayString")
 	state.weekDays = dayString
 	return true
 }
@@ -1032,7 +1034,7 @@ def setTotalSeconds(){
 
 	// Calculate duration of schedule
 	state.totalSeconds = Math.floor((Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
-	logTrace(1041,"Schedule total seconds is $state.totalSeconds")
+	logTrace(1037,"Schedule total seconds is $state.totalSeconds")
 	return true
 }
 
@@ -1055,20 +1057,30 @@ def getElapsedFraction(){
 
     if(elapsedFraction > 1 && !setTime()) return
 
-	logTrace(1064,elapsedFraction * 100 + "% has elapsed in the schedule")
+	//logTrace(1060,elapsedFraction * 100 + "% has elapsed in the schedule")
 	return elapsedFraction
 }
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(1070,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        logTrace(1066,"ERROR: Invalid action \"$action\" sent to multiOn")
         return
     }
 
-    parent.multiOn(action,device,app.label)
-
-    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-    parent.runRetrySchedule(data)
+    device.each{
+        if(action == "toggle"){
+            if(parent.isOn(it,childLabel)){
+                newAction = "off"
+            } else {
+                newAction = "on"
+            }
+        } else {
+            newAction = action
+        }
+        parent.singleOn(newAction,it,childLabel)
+        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
+        parent.runRetrySchedule(data)
+    }
 }
 
 def getDevice(deviceId){
