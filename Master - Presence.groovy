@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.23
+*  Version: 0.1.24
 *
 ***********************************************************************************************************************/
 
@@ -399,18 +399,28 @@ def convertRgbToHsl(color){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(402,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        logTrace(402,"ERROR: Invalid action \"$action\" sent to multiOn")
         return
     }
 
-    parent.multiOn(action,device,app.label)
-
-    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-    parent.runRetrySchedule(data)
+    device.each{
+        if(action == "toggle"){
+            if(parent.isOn(it,childLabel)){
+                newAction = "off"
+            } else {
+                newAction = "on"
+            }
+        } else {
+            newAction = action
+        }
+        parent.singleOn(newAction,it,childLabel)
+        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
+        parent.runRetrySchedule(data)
+    }
 }
 
 def getDevice(deviceId){
-    actionSwitches.each{
+    switches.each{
         if(it.id == deviceId){
             return it
         }
