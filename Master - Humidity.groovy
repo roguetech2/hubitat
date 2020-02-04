@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.12
+*  Version: 0.1.13
 *
 ***********************************************************************************************************************/
 
@@ -749,7 +749,7 @@ def getRelativePercentage(base,percent){
 }
 
 def multiOn(action,device) {
-    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+    if(!action || (action != "on" && action != "off")) {
         logTrace(753,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
         return
     }
@@ -765,9 +765,11 @@ def multiOn(action,device) {
     } else {
         parent.multiOn(action,switches,app.label)
     }
-
-    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-    parent.runRetrySchedule(data)
+    
+    device.each{
+        data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
+        parent.runRetrySchedule(data)
+    }
 }
 
 def logTrace(lineNumber,message = null){
