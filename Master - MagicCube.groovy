@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.08
+*  Version: 0.2.09
 * 
 ***********************************************************************************************************************/
 
@@ -450,14 +450,24 @@ def getDevice(deviceId){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(453,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        logTrace(453,"ERROR: Invalid action \"$action\" sent to multiOn")
         return
     }
 
-    parent.multiOn(action,device,app.label)
-
-    data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-    parent.runRetrySchedule(data)
+    device.each{
+        if(action == "toggle"){
+            if(parent.isOn(it,childLabel)){
+                newAction = "off"
+            } else {
+                newAction = "on"
+            }
+        } else {
+            newAction = action
+        }
+        parent.singleOn(newAction,it,childLabel)
+        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
+        parent.runRetrySchedule(data)
+    }
 }
 
 def logTrace(lineNumber,message = null){
