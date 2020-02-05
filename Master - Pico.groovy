@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.02
+*  Version: 0.4.03
 *
 ***********************************************************************************************************************/
 
@@ -685,19 +685,19 @@ def displayMultiplierMessage(){
 }
 
 def installed() {
-	logTrace(688, "Installed")
+	logTrace(688, "Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace(694,"Updated")
+	logTrace(694,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(700,"Initialized")
+	logTrace(700,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -735,7 +735,7 @@ def buttonPushed(evt){
 			case "5": multiOn("off",controlDevice)
                 message = "turning off"
 		}
-        logTrace(738,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action")
+        logTrace(738,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
 	} else if(!multiDevice && advancedSetup){
 			switch(settings["buttonPush${atomicState.buttonNumber}"]){
 				case "on": multiOn("on",controlDevice)
@@ -753,11 +753,11 @@ def buttonPushed(evt){
 				case "off": multiOn("off",controlDevice)
                     message = "turning off"
 			}
-            logTrace(756,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message")
+            logTrace(756,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message","trace")
     // if(multiDevice && (!advancedSetup || advancedSetup))
 	} else {
         if(settings["button_${atomicState.buttonNumber}_push_toggle"] != null) {
-            logTrace(760,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling")
+            logTrace(760,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
             if (settings.color == "Separate"){
                 toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
             } else {
@@ -765,19 +765,19 @@ def buttonPushed(evt){
             }
         }
         if(settings["button_${atomicState.buttonNumber}_push_on"]) {
-            logTrace(768,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on")
+            logTrace(768,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on","trace")
             multiOn("on",settings["button_${atomicState.buttonNumber}_push_on"])
         }
         if(settings["button_${atomicState.buttonNumber}_push_off"]){
-            logTrace(772,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off")
+            logTrace(772,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off","trace")
             multiOn("off",settings["button_${atomicState.buttonNumber}_push_off"])
         }
         if(settings["button_${atomicState.buttonNumber}_push_dim"]) {
-            logTrace(776,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming")
+            logTrace(776,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming","trace")
             parent.dim("dim",settings["button_${atomicState.buttonNumber}_push_dim"],app.label)
         }
         if(settings["button_${atomicState.buttonNumber}_push_brighten"]) {
-            logTrace(780,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening")
+            logTrace(780,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening","trace")
             parent.dim("brighten",settings["button_${atomicState.buttonNumber}_push_brighten"],app.label)
         }
     }
@@ -853,10 +853,10 @@ def buttonHeld(evt){
             case "off": multiOn("off",controlDevice)
             action = "turning off"
         }
-        logTrace(856,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action")
+        logTrace(856,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action","trace")
     } else {
 		if(settings["button_${buttonNumber}_hold_toggle"] != null) {
-			logTrace(859,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling")
+			logTrace(859,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
 			if (settings.color == "Separate"){
 				toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
 			} else {
@@ -864,19 +864,19 @@ def buttonHeld(evt){
 			}
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_on"]) {
-			logTrace(867,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on")
+			logTrace(867,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on","trace")
 			multiOn("on",settings["button_${atomicState.buttonNumber}_hold_on"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_off"]) {
-			logTrace(871,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off")
+			logTrace(871,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off","trace")
 			multiOn("off",settings["button_${atomicState.buttonNumber}_hold_off"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_dim"]) {
-			logTrace(875,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming")
+			logTrace(875,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming","trace")
 			holdDim(settings["button_${atomicState.buttonNumber}_hold_dim"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_brighten"]) {
-			logTrace(879,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening")
+			logTrace(879,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening","trace")
 			holdBrighten(settings["button_${atomicState.buttonNumber}_hold_brighten"])
 		}
 	}
@@ -885,7 +885,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
 	atomicState.buttonNumber = evt.value
 	if (atomicState.buttonNumber == "2" || (atomicState.buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (atomicState.buttonNumber == "1" && settings.numButton == "2 button")){
-		logTrace(888,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all")
+		logTrace(888,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all","trace")
 		unschedule()
 	}
 }
@@ -908,7 +908,7 @@ def getDimSpeed(){
 // action = "dim" or "brighten"
 def getSteps(level, action){
 	if (action != "dim" && action != "brighten"){
-		logTrace(911,"ERROR: Invalid value for action \"$action\" sent to getSteps function")
+		logTrace(911,"Invalid value for action \"$action\" sent to getSteps function","error")
 		return false
 	}
     
@@ -931,7 +931,7 @@ def getSteps(level, action){
 			level = parent.nextLevel(level, action,app.getId())
 		}
 	}
-	logTrace(934,"Function getSteps returning $steps")
+	logTrace(934,"Function getSteps returning $steps","debug")
 	return steps
 }
 
@@ -985,7 +985,7 @@ def setSubscribeLevel(data){
 		}
 	}
 	if(!device) {
-		logTrace(988,"Function setSubscribeLevel returning (no matching device)")
+		logTrace(988,"Function setSubscribeLevel returning (no matching device)","trace")
 		return
 	}
 	parent.singleLevels(data.level,null,null,null,device,app.label)
@@ -1028,7 +1028,7 @@ def holdDim(device){
 			parent.reschedule(it,app.label)
         } else {
             if(level < 2){
-                logTrace(1031,"Can't dim $it; already 1%.")
+                logTrace(1031,"Can't dim $it; already 1%.","info")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
@@ -1054,7 +1054,7 @@ def holdBrighten(device){
 			reschedule(it)
         } else {
             if(level > 99){
-                logTrace(1057,"Can't brighten $it; already 100%.")
+                logTrace(1057,"Can't brighten $it; already 100%.","info")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
@@ -1099,7 +1099,7 @@ def compareDeviceList(device,list){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(1102,"ERROR: Invalid action \"$action\" sent to multiOn")
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -1156,10 +1156,28 @@ def getDevice(deviceId){
     }
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
