@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.09
+*  Version: 0.2.10
 * 
 ***********************************************************************************************************************/
 
@@ -333,19 +333,19 @@ def dimSpeed(){
 }
 
 def installed() {
-    logTrace(336,"Installed")
+    logTrace(336,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    logTrace(342,"Updated")
+    logTrace(342,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    logTrace(348,"Initialized")
+    logTrace(348,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -360,7 +360,7 @@ def initialize() {
 def buttonEvent(evt){
     atomicState.buttonNumber = evt.value
 
-    logTrace(363,"$evt.displayName $evt.value")
+    logTrace(363,"$evt.displayName $evt.value","info")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -407,7 +407,7 @@ def buttonEvent(evt){
            (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "toggle")){
             multiOn("toggle",controlDevice)
         } else {
-            logTrace(410,"No action defined for $atomicState.buttonNumber of $evt.displayName")
+            logTrace(410,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     } else {
         if(settings["button_${atomicState.buttonNumber}_on"]) multiOn("on",settings["button_${atomicState.buttonNumber}_on"])
@@ -416,7 +416,7 @@ def buttonEvent(evt){
         if(settings["button_${atomicState.buttonNumber}_brighten"]) parent.dim("brighten",settings["button_${atomicState.buttonNumber}_brighten"],app.getId())
         if(settings["button_${atomicState.buttonNumber}_toggle"]) multiOn("toggle",settings["button_${atomicState.buttonNumber}_toggle"])
         if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
-            logTrace(419,"No action defined for $atomicState.buttonNumber of $evt.displayName")
+            logTrace(419,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     }
 }
@@ -450,7 +450,7 @@ def getDevice(deviceId){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(453,"ERROR: Invalid action \"$action\" sent to multiOn")
+        logTrace(453,"Invalid action \"$action\" sent to multiOn", "error")
         return
     }
 
@@ -470,10 +470,28 @@ def multiOn(action,device){
     }
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
