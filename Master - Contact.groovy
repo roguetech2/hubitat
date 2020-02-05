@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.04
+*  Version: 0.4.05
 * 
 ***********************************************************************************************************************/
 
@@ -701,13 +701,13 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 /* ************************************************** */
 
 def installed() {
-	logTrace(704,"Installed")
+	logTrace(704,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(710,"Updated")
+	logTrace(710,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
@@ -733,18 +733,18 @@ def initialize() {
 		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
 
-	logTrace(736,"Initialized")
+	logTrace(736,"Initialized","trace")
 }
 
 def contactChange(evt){
 	if(disable || state.disable) return
 
-	logTrace(742,"Contact sensor $evt.displayName $evt.value")
+	logTrace(742,"Contact sensor $evt.displayName $evt.value","debug")
 	
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(747,"Contact disabled, mode $ifMode")
+			logTrace(747,"Contact disabled, mode $ifMode","trace")
 			return defaults
 		}
 	}
@@ -829,7 +829,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(832,"Scheduling scheduleOpen in $openWait seconds")
+			logTrace(832,"Scheduling scheduleOpen in $openWait seconds","trace")
 			runIn(openWait,scheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -845,7 +845,7 @@ def contactChange(evt){
         
 		// Schedule delay
 		if(closeWait) {
-			logTrace(848,"Scheduling scheduleClose in $closeWait seconds")
+			logTrace(848,"Scheduling scheduleClose in $closeWait seconds","trace")
 			runIn(closeWait,scheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -914,14 +914,14 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(917,"ERROR: input" + type + "Type set to " + settings["input${type}Type"])
+		logTrace(917,"input" + type + "Type set to " + settings["input${type}Type"],"error")
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(924,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone))
+	logTrace(924,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
@@ -929,7 +929,7 @@ def setStartStopTime(type = "Start"){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(932,"ERROR: Invalid action \"$action\" sent to multiOn")
+        logTrace(932,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -962,10 +962,27 @@ def getDevice(deviceId){
     }
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
