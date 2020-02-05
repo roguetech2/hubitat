@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.24
+*  Version: 0.1.25
 *
 ***********************************************************************************************************************/
 
@@ -216,19 +216,19 @@ preferences {
 }
 
 def installed() {
-	logTrace(219,"Installed")
+	logTrace(219,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(225,"Updated")
+	logTrace(225,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace(231,"Initialized")
+	logTrace(231,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -236,7 +236,7 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace(239,"$evt.displayName status changed to $evt.value")
+	logTrace(239,"$evt.displayName status changed to $evt.value","debug")
 	
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
@@ -259,14 +259,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace(262,"Presence handler doing nothing; house is $occupied")
+			logTrace(262,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(269,"Presence handler doing nothing; $location.mode is not $ifMode")
+		logTrace(269,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
 		return
 	}
 	
@@ -281,7 +281,7 @@ def presenceHandler(evt) {
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace(284,"Presence handler doing nothing; not correct day")
+		logTrace(284,"Presence handler doing nothing; not correct day","trace")
 		return
 	}
 
@@ -294,15 +294,19 @@ def presenceHandler(evt) {
 		def now = new Date()
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
-			parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
-			log.info "$app.label -- Sent SMS for $evt.displayName's arrival at $now."
+			//parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
+			logTrace(298, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
 		} else {
-			parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
-			log.info "$app.label -- Sent SMS for $evt.displayName's departure at $now."
+			//parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
+			logTrace("SMS no longer supported until updates complete. $evt.displayName's departure at $now.","info")
 		}
 	}
 
 	// Send voice notification
+// Needs to be changed and/or expanded to push notifications
+//input "notificationDevice", "capability.notification", multiple: false, required: false
+// notificationDevice.deviceNotification("Here is the message!")
+// https://community.hubitat.com/t/coding-help-for-new-he-user/14925/2
 	if(speakText) parent.speak(speakText,app.label)
 
 	// Set mode
@@ -399,7 +403,7 @@ def convertRgbToHsl(color){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(402,"ERROR: Invalid action \"$action\" sent to multiOn")
+        logTrace(402,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -427,10 +431,28 @@ def getDevice(deviceId){
     }
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
