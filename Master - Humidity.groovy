@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.13
+*  Version: 0.1.14
 *
 ***********************************************************************************************************************/
 
@@ -416,19 +416,19 @@ humidityStopMinutesManual - bool
 */
 
 def installed() {
-	logTrace(419,"Installed")
+	logTrace(419,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace(425,"Updated")
+	logTrace(425,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace(431,"Initialized")
+	logTrace(431,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -473,14 +473,14 @@ def humidityHandler(evt) {
 	if(humidityControlDevice)
 		state.controlHumidity = averageHumidity(humidityControlDevice)
 
-	/*
-	logTrace(477,"function humidityHandler [lastHumidity = $state.lastHumidity]")
-	logTrace(478,"function humidityHandler [lastHumidityDate = $state.lastHumidityDate]")
-	logTrace(479,"function humidityHandler [currentHumidityDate = $state.currentHumidityDate]")
-	logTrace(480,"function humidityHandler [startingHumidity = $state.startingHumidity]")
-	logTrace(481,"function humidityHandler [humidityChangeRate = $state.humidityChangeRate]")
-	*/
-	logTrace(483,"Current humidity of $evt.displayName is $state.currentHumidity; auto on is $state.automaticallyTurnedOn")
+
+	logTrace(477,"function humidityHandler [lastHumidity = $state.lastHumidity]","debug")
+	logTrace(478,"function humidityHandler [lastHumidityDate = $state.lastHumidityDate]","debug")
+	logTrace(479,"function humidityHandler [currentHumidityDate = $state.currentHumidityDate]","debug")
+	logTrace(480,"function humidityHandler [startingHumidity = $state.startingHumidity]","debug")
+	logTrace(481,"function humidityHandler [humidityChangeRate = $state.humidityChangeRate]","debug")
+
+	logTrace(483,"Current humidity of $evt.displayName is $state.currentHumidity; auto on is $state.automaticallyTurnedOn","trace")
 	fanIsOn = parent.isMultiOn(switches,app.label)
 
 	// If the fan is auto-on, turn it off? (Or need to schedule off?)
@@ -494,7 +494,7 @@ def humidityHandler(evt) {
 		} else {
 			// Schedule timed off - should have already happen when turned on
 			if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
-				logTrace(497,"Scheduling check-in to turn off in $humidityWaitMinutes minutes")
+				logTrace(497,"Scheduling check-in to turn off in $humidityWaitMinutes minutes","trace")
 				state.scheduleStarted = true
 				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 				return
@@ -509,7 +509,7 @@ def humidityHandler(evt) {
 			} else if(turnFanOff && humidityWaitMinutes && humidityWaitMinutes > 0 && !state.shortScheduledOff){
 				runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 				state.shortScheduledOff = true
-				logTrace(512,"Scheduling check-in to turn off in $humidityWaitMinutes minutes")
+				logTrace(512,"Scheduling check-in to turn off in $humidityWaitMinutes minutes","trace")
 				return
 			// Unless there isn't a cool-down, in which case just turn off
 			} else if(turnFanOff && !humidityWaitMinutes){
@@ -524,7 +524,7 @@ def humidityHandler(evt) {
 		turnFanOff = checkOffCriteria()
 		// Schedule timed off - should have already happened when turned on
 		if(!turnFanOff && humidityStopMinutes && humidityStopMinutes > 0 && !state.scheduleStarted){
-			logTrace(527,"Scheduling check-in to turn off in $humidityWaitMinutes minutes (manual on).")
+			logTrace(527,"Scheduling check-in to turn off in $humidityWaitMinutes minutes (manual on).","trace")
 			state.scheduleStarted = true
 			runIn(60 * humidityWaitMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 			return
@@ -545,7 +545,7 @@ def humidityHandler(evt) {
 
 			// Set schedule for turn off (setting after turned on, to keep it more accurate)
 			if(humidityStopMinutes && humidityStopMinutes > 0){
-				logTrace(548,"Scheduling check-in to turn off in $humidityStopMinutes minutes")
+				logTrace(548,"Scheduling check-in to turn off in $humidityStopMinutes minutes","trace")
 				state.scheduleStarted = true
 				runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff, [overwrite: false])
 			}
@@ -559,7 +559,7 @@ def switchHandler(evt) {
 	if(evt.value == "on"){
 		// Set scheduled turn off
 		if(!state.automaticallyTurnedOn && humidityStopMinutesManual && humidityStopMinutes && humidityStopMinutes > 0) {
-			logTrace(562,"Scheduling fan off in $humidityStopMinutes minutes (manually turned on)")
+			logTrace(562,"Scheduling fan off in $humidityStopMinutes minutes (manually turned on)","trace")
 			runIn(60 * humidityStopMinutes.toInteger(), scheduleTurnOff)
 			return
 		}
@@ -567,7 +567,7 @@ def switchHandler(evt) {
 		state.shortScheduledOff = false
 		state.scheduleStarted = false
 		state.automaticallyTurnedOn = false
-		logTrace(570,"Resetting values to off")
+		logTrace(570,"Resetting values to off","debug")
 	}		   
 }
 
@@ -593,11 +593,11 @@ def checkOnCriteria(){
 		if(state.currentHumidity > percentThreshold){
 			// Set flag for one of several conditions being met
 			if(multiStartTrigger) {
-				logTrace(596,"One condition for turning on met (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)")
+				logTrace(596,"One condition for turning on met (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)","debug")
 				turnFanOn = true
 			// Only condition met
 			} else {
-				logTrace(600,"Condition for turning on met (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)")
+				logTrace(600,"Condition for turning on met (current: $state.currentHumidity; start difference: $humidityControlStartDifference; threshold: $percentThreshold)","debug")
 				return true
 			}
 		//Conditions not met
@@ -611,11 +611,11 @@ def checkOnCriteria(){
 		if(state.currentHumidity > humidityStartThreshold) {
 			// Set flag for one of several conditions being met
 			if(multiStartTrigger) {
-				logTrace(614,"One condition for turning on met (current: $state.currentHumidity; start threshold: $humidityStartThreshold)")
+				logTrace(614,"One condition for turning on met (current: $state.currentHumidity; start threshold: $humidityStartThreshold)","debug")
 				turnFanOn = true
 			// Only condition met
 			} else {
-				logTrace(618,"Condition for turning on met (current: $state.currentHumidity; start threshold: $humidityStartThreshold)")
+				logTrace(618,"Condition for turning on met (current: $state.currentHumidity; start threshold: $humidityStartThreshold)","debug")
 				return true
 			}
 		//Conditions not met
@@ -629,11 +629,11 @@ def checkOnCriteria(){
 		if(humidityIncreaseRate > state.humidityChangeRate) {
 			// Set flag for one of several conditions being met
 			if(multiStartTrigger) {
-				logTrace(632,"One condition for turning on met (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)")
+				logTrace(632,"One condition for turning on met (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)","debug")
 				turnFanOn = true
 			// Only condition met
 			} else {
-				logTrace(636,"Condition for turning on met (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)")
+				logTrace(636,"Condition for turning on met (change rate: $state.humidityChangeRate; threshold: $humidityIncreaseRate)","debug")
 				return true
 			}
 		//Conditions not met
@@ -643,9 +643,9 @@ def checkOnCriteria(){
 	}
 
 	if(turnFanOn) {
-		logTrace(646,"All conditions matched; turning fan on")
+		logTrace(646,"All conditions matched; turning fan on","trace")
 	} else {
-		logTrace(648,"ERROR: All conditions for turn off should have been tested")
+		logTrace(648,"All conditions for turn on should have been tested","error")
 	}
 	return turnFanOn
 }
@@ -657,11 +657,11 @@ def checkOffCriteria(){
 		if(state.currentHumidity < percentThreshold){
 			// Set flag for one of several conditions being met
 			if(multiStopTrigger) {
-				logTrace(660,"One condition for turning off met (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
+				logTrace(660,"One condition for turning off met (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)","debug")
 				turnFanOff = true
 			// Only condition met
 			} else {
-				logTrace(664,"Condition for turning off met (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)")
+				logTrace(664,"Condition for turning off met (current: $state.currentHumidity; stop difference: $humidityControlStopDifference; threshold: $percentThreshold)","debug")
 				return true
 			}
 		// Only condition not met
@@ -675,11 +675,11 @@ def checkOffCriteria(){
 		if(state.currentHumidity < humidityStopThreshold) {
 			// Set flag for one of several conditions being met
 			if(multiStopTrigger) {
-				logTrace(678,"One condition for turning off met (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
+				logTrace(678,"One condition for turning off met (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)","debug")
 				turnFanOff = true
 			// Only condition met
 			} else {
-				logTrace(682,"Condition for turning off met (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)")
+				logTrace(682,"Condition for turning off met (current: $state.currentHumidity; stop threshold: $humidityStopThreshold; threshold: $percentThreshold)","debug")
 				return true
 			}
 		// Only condition not met
@@ -694,11 +694,11 @@ def checkOffCriteria(){
 		if(state.currentHumidity < percentThreshold){
 			// Set flag for one of several conditions being met
 			if(multiStopTrigger) {
-				logTrace(697,"One condition for turning off met (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
+				logTrace(697,"One condition for turning off met (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)","debug")
 				turnFanOff = true
 			// Only condition met
 			} else {
-				logTrace(701,"Condition for turning off met (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)")
+				logTrace(701,"Condition for turning off met (current: $state.currentHumidity; stop decrease: $humidityStopDecrease; threshold: $percentThreshold)","debug")
 				return true
 			}
 		// Only condition not met
@@ -714,11 +714,11 @@ def checkOffCriteria(){
 		if(time > stop){
 			// Set flag for one of several conditions being met
 			if(multiStopTrigger) {
-				logTrace(717,"One condition for turning off met (time now: $time; stop time: $stop)")
+				logTrace(717,"One condition for turning off met (time now: $time; stop time: $stop)","debug")
 				turnFanOff = true
 			// Shouldn't happen, since schedule should have executed
 			} else {
-				logTrace(721,"Condition for turning off met (time now: $time; stop time: $stop)")
+				logTrace(721,"Condition for turning off met (time now: $time; stop time: $stop)","debug")
 				return true
 			}
 		// Only condition not met
@@ -728,9 +728,9 @@ def checkOffCriteria(){
 	}
 
 	if(turnFanOff) {
-		logTrace(731,"All conditions matched; turning fan off")
+		logTrace(731,"All conditions matched; turning fan off","trace")
 	} else {
-		logTrace(733,"ERROR: All conditions for turn off should have been tested")
+		logTrace(733,"All conditions for turn off should have been tested","error")
 	}
 	return turnFanOff
 }
@@ -750,7 +750,7 @@ def getRelativePercentage(base,percent){
 
 def multiOn(action,device) {
     if(!action || (action != "on" && action != "off")) {
-        logTrace(753,"ERROR: Invalid value for action \"$action\" sent to multiOn function")
+        logTrace(753,"Invalid value for action \"$action\" sent to multiOn function","error")
         return
     }
 
@@ -772,10 +772,28 @@ def multiOn(action,device) {
     }
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
