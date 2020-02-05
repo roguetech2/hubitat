@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.07
+*  Version: 0.0.08
 *
 ***********************************************************************************************************************/
 
@@ -164,7 +164,7 @@ personHome - device
 */
 
 def installed() {
-	logTrace(167,"Installed")
+	logTrace(167,"Installed","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -173,13 +173,13 @@ def installed() {
 }
 
 def updated() {
-	logTrace(176,"Updated")
+	logTrace(176,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(182,"Initialized")
+	logTrace(182,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -188,7 +188,7 @@ def initialize() {
 		unschedule()
 		stat.firstNotice = false
 		state.activity = []
-		logTrace(191,"Washer-dryer disabled")
+		logTrace(191,"Washer-dryer disabled","debug")
 		return
 	}
 
@@ -201,16 +201,16 @@ def initialize() {
 }
 
 def washerHandler(evt) {
-	logTrace(204,"washerHandler starting [evt:  $evt ($evt.value)]")
+	logTrace(204,"washerHandler starting [evt:  $evt ($evt.value)]","debug")
 
 	// If already started alerting, exit
 	if(state.firstNotice){
-		logTrace(208,"Washer/dryer notices already processing")
+		logTrace(208,"Washer/dryer notices already processing","trace")
 		return
 	}
 
 	if(washerContactDevice && washerContactDevice.contact == "open") {
-		logTrace(216,"Washer Handler doing nothing, contact is open")
+		logTrace(216,"Washer Handler doing nothing, contact is open","trace")
 		return
 	}
 
@@ -231,7 +231,7 @@ def washerHandler(evt) {
 	// Remove stale activity
 	state.activity.each {
 		if(it < target) {
-			logTrace(234,"function washerHandler removed value $it")
+			logTrace(234,"function washerHandler removed value $it","debug")
 			toRemove.add(it);
 		}
 	}
@@ -239,17 +239,17 @@ def washerHandler(evt) {
 
 	// get count
 	listSize = state.activity.size()
-	logTrace(242,"function washerHandler registered $listSize events in the last half hour")
+	logTrace(242,"function washerHandler registered $listSize events in the last half hour","trace")
 
 	// If 10 or more motion events in half hour, washer/dryer is running
 	if(listSize > 10){
-		logTrace(246,"Scheduling inactivity check for 6 minutes")
+		logTrace(246,"Scheduling inactivity check for 6 minutes","trace")
 		runIn(60 * 6, washerSchedule)
 	}
 }
 
 def contactHandler(evt) {
-	logTrace(252,"$evt.displayName changed to $evt.value")
+	logTrace(252,"$evt.displayName changed to $evt.value","debug")
 
 	unschedule()
 	state.firstNotice = false
@@ -264,14 +264,14 @@ def washerSchedule(){
 			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop,app.label)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-			logTrace(267,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)")
+			logTrace(267,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)","trace")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: true])
-			logTrace(269,"function washerSchedule returning (not between start time and stop time)")
+			logTrace(269,"function washerSchedule returning (not between start time and stop time)","trace")
 			return
 		}
 	} else if(timeStart && timeStop && !wait){
 		if(!parent.timeBetween(timeStart, timeStop,app.label) || (timeDays && !parent.todayInDayList(timeDays,app.label))) {
-			logTrace(274,"function washerSchedule returning (not between start time and stop time)")
+			logTrace(274,"function washerSchedule returning (not between start time and stop time)","trace")
 			state.firstnotice = false
 			state.activity = []
 			return
@@ -300,29 +300,46 @@ def washerSchedule(){
 
 		// Schedule repeat notices
 		if(repeat && repeatMinutes){
-			logTrace(303,"Scheduling repeat notifition for $repeatMinutes")
+			logTrace(303,"Scheduling repeat notifition for $repeatMinutes","trace")
 			runIn(60 * repeatMinutes, washerSchedule)
 		}
 
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
-		logTrace(309,"Scheduling notifition for $repeatMinutes; not currently home")
+		logTrace(309,"Scheduling notifition for $repeatMinutes; not currently home","trace")
 		runIn(60 * 10, washerSchedule)
 		return
 
 	// If not home and not wait, clear and exit
 	} else if(!present && !wait){
-		logTrace(315,"Washer Schedule doing nothing; not home")
+		logTrace(315,"Washer Schedule doing nothing; not home","trace")
 		state.firstnotice = false
 		state.activity = []
 		return
 	}
 }
 
-def logTrace(lineNumber,message = null){
-    if(message) {
-	    log.trace "$app.label (line $lineNumber) -- $message"
-    } else {
-        log.trace "$app.label (line $lineNumber)"
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace"){
+    message = (message ? " -- $message" : "")
+    if(lineNumber) message = "(line $lineNumber)$message"
+    message = "$app.label $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        //log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
