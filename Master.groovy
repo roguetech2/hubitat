@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.1.38
+*  Version: 0.1.39
 *
 ***********************************************************************************************************************/
 
@@ -170,18 +170,18 @@ def mainPage() {
 }
 
 def installed() {
-    logTrace(173,"Installed")
+    logTrace(173,"Installed","trace")
     state.masterInstalled = true
     initialize()
 }
 
 def updated() {
-    logTrace(179,"Updated")
+    logTrace(179,"Updated","trace")
     initialize()
 }
 
 def initialize() {
-    logTrace(184,"Initialized")
+    logTrace(184,"Initialized","trace")
 }
 
 // Returns app name with app title prepended
@@ -200,6 +200,11 @@ def appendAppTitle(appName,appTitle){
 
 // Functions for turning on lights/fans
 
+/*
+Restructure the app to:
+get rid of multiOn (use separate child functions instead)
+*/
+
 // Turn on a group of switches
 // Sets to level dictated by schedule(s)
 def multiOn(action,device,childLabel="Master"){
@@ -210,16 +215,21 @@ def multiOn(action,device,childLabel="Master"){
             singleOn("off",it,childLabel)
         } else if(action == "toggle"){
             if(isOn(it,childLabel)){
-            singleOn("off",it,childLabel)
+                singleOn("off",it,childLabel)
             } else {
-            singleOn("on",it,childLabel)
+                singleOn("on",it,childLabel)
             }
         }
     }
 }
 
+/*
+Restructure the app to:
+rename singleOn to setSingleState (maybe??)
+*/
+
 // Turns a single switch on or off
-// onOrOff = "on" of "off"
+// action = "on" or "off"
 // device is single device object
 // Not used by any child apps (as of 1/31/20)
 def singleOn(action, device,childLabel = "Master"){
@@ -228,9 +238,10 @@ def singleOn(action, device,childLabel = "Master"){
     } else if(action == "off"){
         device.off()
     } else {
-        logTrace(231,"ERROR: Invalid value for action \"$action\" sent to singleOn function",childLabel)
+        logTrace(231,"Invalid value for action \"$action\" sent to singleOn function","error",childLabel)
+        return
     }
-    logTrace(233,"Turned $action $device",childLabel)
+    logTrace(234,"Turned $action $device","info",childLabel)
 }
 
 // Lock or unlock a group of locks
@@ -243,14 +254,24 @@ def multiLock(action,device, childLabel = "Master"){
 // Lock or unlock a single lock
 def singleLock(action,device, childLabel = "Master"){
     if(action == "lock"){
-    device.lock()
+        device.lock()
     } else if(action == "unlock"){
-    device.unlock()
+        device.unlock()
     } else {
-        logTrace(250,"ERROR: Invalid value for action \"$action\" sent to singleLock function")
+        logTrace(251,"Invalid value for action \"$action\" sent to singleLock function","error",childLabel)
     }
-    logTrace(252,action + "ed $device",childLabel)
+    logTrace(253,action + "ed $device","info",childLabel)
 }
+
+/*
+Restructure the app to:
+Use looped pause of, say, max 20 50ms increments, until on
+get rid of runRetrySchedule
+Add function setMultiLevels(multiDevice, childLabel)
+setMultiLevels
+	[if on] getDefaults (each)
+	[if on] setSingleLevel (each)
+*/
 
 // Runs check whether the device responded to on/off command
 // If it didn't it retries and reschedules
@@ -281,7 +302,7 @@ def runRetrySchedule(data){
                     if(defaults.hue != "Null") defaultHue = defaults.hue
                     if(defaults.sat != "Null") defaultSat = defaults.sat
                     if(defaults.level != "Null" || defaults.temp != "Null" || defaults.hue != "Null" || defaults.sat != "Null")
-                    logTrace(284,"Default levels of $defaults found for $it with $Child.label",data.childLabel)
+                    logTrace(285,"Default levels of $defaults found for $it with $Child.label","trace",data.childLabel)
                 }
             }
         }
@@ -336,7 +357,7 @@ def runRetrySchedule(data){
                 time = "1"
                 runIn(1,runRetrySchedule, [data: [deviceId: data.deviceId, action: data.action, getLevel: data.getLevel, childLabel: data.childLabel, count: data.count]])
             }
-            logTrace(339,"$it isn't $data.retryAction yet; trying again and scheduling recheck in $time second",data.childLabel)
+            logTrace(340,"$it isn't $data.action yet; trying again and scheduling recheck in $time second",data.childLabel)
         }
         return false
     }
@@ -344,7 +365,7 @@ def runRetrySchedule(data){
 
 def dim(action,device,childLabel="Master"){
     if(action != "dim" && action != "brighten"){
-        logTrace(347,"ERROR: Invalid value for action \"$action\" sent to dim function",childLabel)
+        logTrace(348,"Invalid value for action \"$action\" sent to dim function","error",childLabel)
         return
     }
 
@@ -367,11 +388,18 @@ def dim(action,device,childLabel="Master"){
             if(levelValue) {
                 if(isFan(it,childLabel)) roundFanLevel(levelValue,childLabel)
                 singleLevels(levelValue,null,null,null,it,childLabel)
-                logTrace(370,"Set level of $it to $levelValue",childLabel)
+                logTrace(371,"Set level of $it to $levelValue","info",childLabel)
             }
         }
     }
 }
+
+/*
+Restructure the app to:
+Replace singleLevels with:
+	setMultiLevels, which calls getDefaults, then setSingleLevel
+	setSingleLevel, which sets levels to specific level
+*/
 
 // Sets level, temp, hue, and/or sat
 // Validates level, temp, hue and sat
@@ -383,23 +411,23 @@ def singleLevels(level,temp,hue,sat,device,childLabel = "Master"){
     if(sat == "Null") sat = null
 
     if(!level && !temp && !hue && !sat){
-        logTrace(386,"ERROR: No valid changes sent to singleLevels",childLabel)
+        logTrace(387,"No valid changes sent to singleLevels","error",childLabel)
         return
     }
     if(!device){
-        logTrace(390,"ERROR: Null device sent to singleLevels",childLabel)
+        logTrace(391,"Null device sent to singleLevels","error",childLabel)
         return
     }
     if(level && !validateLevel(level,childLabel)){
-        logTrace(394,"ERROR: Invalid value for level \"$level\" sent to singleLevels function",childLabel)
+        logTrace(395,"Invalid value for level \"$level\" sent to singleLevels function","error",childLabel)
         return
     }
     if(temp && !validateTemp(temp,childLabel)){
-        logTrace(398,"ERROR: Invalid value for temp \"$temp\" sent to singleLevels funuction",childLabel)
+        logTrace(399,"Invalid value for temp \"$temp\" sent to singleLevels funuction","error",childLabel)
         return
     }
     if((hue || sat) && !validateHueSat(hue,sat,childLabel)){
-        logTrace(402,"ERROR: Invalid value for hue \"$hue\" or sat \"$sat\" sent to singleLevels function",childLabel)
+        logTrace(403,"Invalid value for hue \"$hue\" or sat \"$sat\" sent to singleLevels function","error",childLabel)
         return
     }
 
@@ -409,7 +437,7 @@ def singleLevels(level,temp,hue,sat,device,childLabel = "Master"){
     if(level){
         if(device.currentLevel != level && isDimmable(device,childLabel)){
             if(isFan(device,childLabel)) level = roundFanLevel(level,childLabel)
-            logTrace(1,"$device $level")
+
             device.setLevel(level)
             message = message + "level: $level; "
         }	
@@ -422,13 +450,14 @@ def singleLevels(level,temp,hue,sat,device,childLabel = "Master"){
             message = message + "temp: $temp; "
         }
     }
+// Need to compare to current temp, hue and/or sat
     if(hue || sat){
         if(isColor){
             device.setColor([hue: hue, saturation: sat])
             message = message + "hue: $hue; sat: $sat; "
         }
     }
-    if(message != "Set ") logTrace(430,"$message device $device",childLabel)
+    if(message != "Set ") logTrace(433,"$message device $device","debug",childLabel)
     return true
 }
 
@@ -443,11 +472,11 @@ def nextLevel(level, action, childLabel="Master"){
         }
         if(!dimSpeed){
             dimSpeed = 1.2
-            logTrace(445,"ERROR: Failed to find dimSpeed in function nextLevel",childLabel)
+            logTrace(448,"Failed to find dimSpeed in function nextLevel","error",childLabel)
         }
     }
     if (action != "dim" && action != "brighten"){
-        logTrace(449,"ERROR: Invalid value for action \"$action\" sent to nextLevel function",childLabel)
+        logTrace(452,"Invalid value for action \"$action\" sent to nextLevel function","error",childLabel)
         return false
     }
     def newLevel = level as int
@@ -481,10 +510,11 @@ def changeMode(mode, childLabel = "Master", device = "Null") {
     if(location.mode == mode) return
     oldMode = location.mode
     setLocationMode(mode)
-    logTrace(483,"Changed Mode from $oldMode to $mode",childLabel)
+    logTrace(486,"Changed Mode from $oldMode to $mode","info",childLabel)
 }
 
 // Send SMS text message to $phone with $message
+//SMS IS NO LONGER SUPPORTED
 def sendText(phone, message,childLabel){
     //Normalize phone number
     phone = phone.replaceAll(" ","");
@@ -494,7 +524,7 @@ def sendText(phone, message,childLabel){
     phone = phone.replaceAll("\\.","");
     phone = phone.replaceAll("\\+","");
     if(!phone.isNumber()) {
-        logTrace(496,"Phone number $phone is not valid (message \"$message\" not sent)",childLabel)
+        logTrace(499,"Phone number $phone is not valid (message \"$message\" not sent)","error",childLabel)
         return false
     }
     if(phone.length() == 10) {
@@ -502,7 +532,7 @@ def sendText(phone, message,childLabel){
     } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
         phone = "+" + phone
     }
-    logTrace(504,"Sent \"$message\" to $phone",childLabel)
+    logTrace(507,"Sent \"$message\" to $phone","info",childLabel)
     sendSms(phone,message)
     return true
 }
@@ -512,10 +542,10 @@ def sendText(phone, message,childLabel){
 def isMultiOn(device,childLabel="Master"){
     multiState = false
     device.each{
-        if(isOn(it,childLabel)) multiOn = true
+        if(isOn(it,childLabel)) value = true
     }
-    //logTrace(516,"Function isMultiOn returning $multiOn for $device",childLabel)
-    return multiOn
+    logTrace(519,"Function isMultiOn returning $value for $value","debug",childLabel)
+    return value
 }
 
 // Test state of a single switch
@@ -552,7 +582,7 @@ def validateHueSat(hue,sat, childLabel="Master"){
 def validateMultiplier(value, childLabel="Master"){
     if(value){
         if(value < 1 || value > 100){
-            logTrace(554,"ERROR: Multiplier $value is not valid",childLabel)
+            logTrace(557,"Multiplier $value is not valid","error",childLabel)
             return
         }
     }
@@ -610,7 +640,7 @@ def roundFanLevel(level, childLabel="Master"){
     } else if (level > 0 && level < 33){
         value = 25
     }
-    logTrace(612,"Setting level for fan to $value from $level",childLabel)
+    logTrace(615,"Setting level for fan to $value from $level","info",childLabel)
     return value
 }
 
@@ -623,8 +653,18 @@ def getAppId(childLabel){
     if(child) return child
 }
 
+/*
+Restructure the app to:
+reschedule
+	exit if Child.label == childLabel
+	schedule runDailySchedule [on]
+	schedule runDailySchedule [off]
+	[if correct time] schedule runIncrementalSchedule
+	[if correct time] runIncrementalSchedule
+*/
+
 def reschedule(device,childLabel="Master"){
-    logTrace(626,"Rescheduling $device",childLabel)
+    logTrace(629,"Rescheduling $device","trace",childLabel)
     childApps.each {Child->
         /* ************************************************** */
         /* TO-DO: We need to test this! If we use a Pico, it  */
@@ -687,11 +727,11 @@ def todayInDayList(days,childLabel="Master"){
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel="Master"){
     if(!timeStart) {
-        logTrace(689,"ERROR: Function timeBetween returning false (no start time)",childLabel)
+        logTrace(692,"Function timeBetween returning false (no start time)","error",childLabel)
         return
     }
     if(!timeStop) {
-        logTrace(693,"Function timeBetween returning false (no stop time)",childLabel)
+        logTrace(696,"Function timeBetween returning false (no stop time)","trace",childLabel)
         return
     }
 
@@ -701,23 +741,23 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
     varNow = now()
     if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
         if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-            //logTrace(703,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),childLabel)
+            logTrace(706,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
             return true
         }
     }
     if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-        //logTrace(708,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),childLabel)
+        logTrace(708,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
         return true
     }
 }
 
 def speak(text,childLabel="Master"){
     if(!notificationDevice) {
-        logTrace(715,"ERROR: No speech device for \"$text\"",childLabel)
+        logTrace(718,"No speech device for \"$text\"","error",childLabel)
         return
     }
     notificationDevice.speak(text)
-    logTrace(719,"Sending speech \"$text\"",childLabel)
+    logTrace(722,"Sending speech \"$text\"","info",childLabel)
 }
 
 /* ************************************************** */
@@ -770,11 +810,28 @@ def compareDeviceLists(firstDevice,secondDevice){
     return false
 }
 
-def logTrace(lineNumber,message = null,childLabel = null){
+//lineNumber should be a number, but can be text
+//message is the log message, and is not required
+//type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
+def logTrace(lineNumber,message = null, type = "trace",childLabel = "Master"){
     message = (message ? " -- $message" : "")
-    if(childLabel && childLabel != "Master"){
-        log.trace "$app.label (line $lineNumber) [$childLabel]$message"
-    } else {
-        log.trace "$app.label (line $lineNumber)$message"
+    if(childLabel != "Master") message = "[$childLabel]$message"
+    if(lineNumber) message = "(line $lineNumber) $message"
+    if(childLabel == "Master") message = "Master $message"
+    switch(type) {
+        case "error":
+        log.error message
+        break
+        case "warn":
+        log.warn message
+        break
+        case "info":
+        log.info message
+        break
+        case "debug":
+        log.debug message
+        break
+        case "trace":
+        log.trace message
     }
 }
