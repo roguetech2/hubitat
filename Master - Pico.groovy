@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.03
+*  Version: 0.4.04
 *
 ***********************************************************************************************************************/
 
@@ -567,8 +567,8 @@ def displayLabel(text){
     }
 }
 
-def displayInfo(text = "Null"){
-    if(text == "Null") {
+def displayInfo(text = ""){
+    if(text == "") {
         paragraph "<div style=\"background-color:AliceBlue\"> </div>"
     } else {
         paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $text</div>"
@@ -1104,58 +1104,34 @@ def multiOn(action,device){
     }
 
     device.each{
-        if(action == "toggle"){
-            if(parent.isOn(it,childLabel)){
-                newAction = "off"
-            } else {
-                newAction = "on"
-            }
-        } else {
-            newAction = action
-        }
-        parent.singleOn(newAction,it,childLabel)
-        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
-        parent.runRetrySchedule(data)
-    }
-}
+        // If toggling to off, turn off
+        if(action == "toggle" && isOn(it)){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+            // If toggling to on, turn on and set levels
+        } else if(action == "toggle" && !isOn(it)){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.sat,defaults.hue,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // If turning on, turn on and set levels
+        } else if(action == "off"){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+        } else if(action == "on"){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
 
-def getDevice(deviceId){
-    if(!multiDevice) {
-        device = controlDevice
-    } else if(atomicState.action == "push"){
-        if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_toggle"] != null) {
-            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_toggle"]
-        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_on"]) {
-            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_on"]
-        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_off"]) {
-            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_off"]
-        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_dim"]) {
-            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_dim"]
-        } else if(settings["button_${atomicState.buttonNumber}_${atomicState.action}_brighten"]) {
-            device = settings["button_${atomicState.buttonNumber}_${atomicState.action}_brighten"]
-        }
-    } else if(atomicState.action == "held" && !multiDevice && replicateHold){
-			device = controlDevice
-	} else if(atomicState.action == "held"){
-        if(settings["button_${buttonNumber}_hold_toggle"]) {
-            device = settings["button_${buttonNumber}_push_toggle"]
-        } else if(settings["button_${buttonNumber}_hold_on"]) {
-            device = settings["button_${buttonNumber}_hold_on"]
-        } else if(settings["button_${buttonNumber}_hold_off"]) {
-            device = settings["button_${buttonNumber}_hold_off"]
-        } else if(settings["button_${buttonNumber}_hold_dim"]) {
-            device = settings["button_${buttonNumber}_hold_dim"]
-        } else if(settings["button_${buttonNumber}_hold_brighten"]) {
-            device = settings["button_${buttonNumber}_hold_brighten"]
-        }
-	}
-    device.each{
-        if(it.id == deviceId){
-            return it
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.sat,defaults.hue,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // Set levels
         }
     }
 }
-
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
