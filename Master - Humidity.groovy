@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.14
+*  Version: 0.1.15
 *
 ***********************************************************************************************************************/
 
@@ -748,30 +748,29 @@ def getRelativePercentage(base,percent){
 	return (100 - base) * percent / 100 + base
 }
 
-def multiOn(action,device) {
+
+def multiOn(action,device){
     if(!action || (action != "on" && action != "off")) {
-        logTrace(753,"Invalid value for action \"$action\" sent to multiOn function","error")
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
-    if(action == "off"){
-        unschedule()
-        if(parent.isMultiOn(action,switches,app.label)){
-            parent.multiOn(action,switches,app.label)
-            state.shortScheduledOff = false
-            state.scheduleStarted = false
-            state.automaticallyTurnedOn = false
-        }
-    } else {
-        parent.multiOn(action,switches,app.label)
-    }
-    
     device.each{
-        data = [deviceId: device.id, action: action, getLevel: true, childLabel: app.label]
-        parent.runRetrySchedule(data)
+        // If toggling to off, turn off
+        if(action == "off"){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+        } else if(action == "on"){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // Set levels
+        }
     }
 }
-
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
@@ -796,4 +795,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
+    return tre
 }
