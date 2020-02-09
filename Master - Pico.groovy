@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.04
+*  Version: 0.4.05
 *
 ***********************************************************************************************************************/
 
@@ -1105,14 +1105,14 @@ def multiOn(action,device){
 
     device.each{
         // If toggling to off, turn off
-        if(action == "toggle" && isOn(it)){
+        if(action == "toggle" && parent.isOn(it)){
             parent.setSingleState("off",it,app.label)
             parent.rescheduleDaily(it,app.label)
             // If toggling to on, turn on and set levels
-        } else if(action == "toggle" && !isOn(it)){
+        } else if(action == "toggle" && !parent.isOn(it,app.label)){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.sat,defaults.hue,it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
             parent.rescheduleAll(it,app.label)
@@ -1123,8 +1123,7 @@ def multiOn(action,device){
         } else if(action == "on"){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
-
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.sat,defaults.hue,it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
             parent.rescheduleAll(it,app.label)
@@ -1156,4 +1155,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
+    return true
 }
