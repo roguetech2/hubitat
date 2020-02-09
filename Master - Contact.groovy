@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.05
+*  Version: 0.4.06
 * 
 ***********************************************************************************************************************/
 
@@ -117,7 +117,7 @@ preferences {
                         }
                         displayWaitOptions()
                         displayAlertOptions()
-// Send SMS and/or speakc (depending who is home)
+// Send SMS and/or speack (depending who is home)
 // Set active time
 // Change Mode
 // Open/close delay
@@ -764,7 +764,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		unschedule()
 	} else {
-		unschedule(scheduleClose)
+		unschedule(runScheduleClose)
 	}
 
 	// Check if people are home (home1 and home2 should be true)
@@ -829,8 +829,8 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(832,"Scheduling scheduleOpen in $openWait seconds","trace")
-			runIn(openWait,scheduleOpen)
+			logTrace(832,"Scheduling runScheduleOpen in $openWait seconds","trace")
+			runIn(openWait,runScheduleOpen)
 		// Otherwise perform immediately
 		} else {
 // Need to add level, temp and color!!
@@ -845,8 +845,8 @@ def contactChange(evt){
         
 		// Schedule delay
 		if(closeWait) {
-			logTrace(848,"Scheduling scheduleClose in $closeWait seconds","trace")
-			runIn(closeWait,scheduleClose)
+			logTrace(848,"Scheduling runScheduleClose in $closeWait seconds","trace")
+			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
 			if(closeSwitch) multiOn(closeSwitchAction,closeSwitch)
@@ -855,14 +855,14 @@ def contactChange(evt){
 	}
 }
 
-def scheduleOpen(){
+def runScheduleOpen(){
 	if(disable || state.disable) return
 
 	if(openSwitch) multiOn(openSwitchAction,openSwitch)
 	if(openLock) parent.multiLock(openLockAction,openLock,app.label)
 }
 
-def scheduleClose(){
+def runScheduleClose(){
     if(disable || state.disable) return
     
     if(!closeSwitchDifferent) {
@@ -929,35 +929,36 @@ def setStartStopTime(type = "Start"){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(932,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        if(action == "toggle"){
-            if(parent.isOn(it,childLabel)){
-                newAction = "off"
-            } else {
-                newAction = "on"
-            }
-        } else {
-            newAction = action
-        }
-        parent.singleOn(newAction,it,childLabel)
-        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
-        parent.runRetrySchedule(data)
-    }
-}
+        // If toggling to off, turn off
+        if(action == "toggle" && parent.isOn(it)){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+            // If toggling to on, turn on and set levels
+        } else if(action == "toggle" && !parent.isOn(it)){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // If turning on, turn on and set levels
+        } else if(action == "off"){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+        } else if(action == "on"){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
 
-def getDevice(deviceId){
-    openSwitch.each{
-        if(it.id == deviceId){
-            return it
-        }
-    }
-    closeSwitch.each{
-        if(it.id == deviceId){
-            return it
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // Set levels
         }
     }
 }
@@ -985,4 +986,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
+    return true
 }
