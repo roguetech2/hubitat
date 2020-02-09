@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.05
+*  Version: 0.4.06
 *
 ***********************************************************************************************************************/
 
@@ -1107,7 +1107,8 @@ def multiOn(action,device){
         // If toggling to off, turn off
         if(action == "toggle" && parent.isOn(it)){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            // Reset incrementalSchedule
+            parent.rescheduleIncremental(it,app.label)
             // If toggling to on, turn on and set levels
         } else if(action == "toggle" && !parent.isOn(it,app.label)){
             parent.setSingleState("on",it,app.label)
@@ -1115,21 +1116,23 @@ def multiOn(action,device){
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // If turning on, turn on and set levels
         } else if(action == "off"){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            // Reset incrementalSchedule
+            parent.rescheduleIncremental(it,app.label)
         } else if(action == "on"){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // Set levels
         }
     }
+    return true
 }
 
 //lineNumber should be a number, but can be text
