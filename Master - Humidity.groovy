@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.15
+*  Version: 0.1.16
 *
 ***********************************************************************************************************************/
 
@@ -751,7 +751,7 @@ def getRelativePercentage(base,percent){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off")) {
-        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(754,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -759,17 +759,18 @@ def multiOn(action,device){
         // If toggling to off, turn off
         if(action == "off"){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
         } else if(action == "on"){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // Set levels
         }
     }
+    return true
 }
 
 //lineNumber should be a number, but can be text
@@ -795,5 +796,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
-    return tre
+    return true
 }
