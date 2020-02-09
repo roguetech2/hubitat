@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.06
+*  Version: 0.4.07
 * 
 ***********************************************************************************************************************/
 
@@ -929,7 +929,7 @@ def setStartStopTime(type = "Start"){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(932,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -937,7 +937,7 @@ def multiOn(action,device){
         // If toggling to off, turn off
         if(action == "toggle" && parent.isOn(it)){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // If toggling to on, turn on and set levels
         } else if(action == "toggle" && !parent.isOn(it)){
             parent.setSingleState("on",it,app.label)
@@ -945,22 +945,22 @@ def multiOn(action,device){
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // If turning on, turn on and set levels
         } else if(action == "off"){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
         } else if(action == "on"){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
-
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // Set levels
         }
     }
+    return true
 }
 
 //lineNumber should be a number, but can be text
