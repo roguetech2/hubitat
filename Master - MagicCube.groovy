@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.10
+*  Version: 0.2.11
 * 
 ***********************************************************************************************************************/
 
@@ -109,7 +109,6 @@ preferences {
 		}
 		if(app.label && buttonDevice && multiDevice){
 			section(hideable: true, hidden: true, "Shaking <font color=\"gray\">(Click to expand/collapse)</font>") {
-				log.debug controlDevice
 				if(button_1_on){
 					input "button_1_on", "capability.switch", title: "<b>Turns On</b>", multiple: true, required: false, submitOnChange:true
 				} else {
@@ -421,55 +420,42 @@ def buttonEvent(evt){
     }
 }
 
-def getDevice(deviceId){
-// I'm betting this doesn't work right.
-        if(multiDevice){
-        if(settings["button_${atomicState.buttonNumber}_on"]) {
-            device = settings["button_${atomicState.buttonNumber}_on"]
-        } else if(settings["button_${atomicState.buttonNumber}_off"]) {
-            device = settings["button_${atomicState.buttonNumber}_off"]
-        } else if(settings["button_${atomicState.buttonNumber}_dim"]) {
-            device = settings["button_${atomicState.buttonNumber}_dim"] 
-        } else if(settings["button_${atomicState.buttonNumber}_brighten"]) {
-            device = settings["button_${atomicState.buttonNumber}_brighten"] 
-        } else if(settings["button_${atomicState.buttonNumber}_toggle"]) {
-            device = settings["button_${atomicState.buttonNumber}_toggle"] 
-        }
-    } else {
-        if((shake && atomicState.buttonNumber == 1) ||  
-           (f90 && atomicState.buttonNumber == 2) || 
-           (f180 && atomicState.buttonNumber == 3) || 
-           (slide && atomicState.buttonNumber == 4) || 
-           (knock && atomicState.buttonNumber == 5) || 
-           (clockwise && atomicState.buttonNumber == 6) || 
-           (counterClockwise && atomicState.buttonNumber == 7))
-            device = controlDevice
-    }
-    return device
-}
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(453,"Invalid action \"$action\" sent to multiOn", "error")
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        if(action == "toggle"){
-            if(parent.isOn(it,childLabel)){
-                newAction = "off"
-            } else {
-                newAction = "on"
-            }
-        } else {
-            newAction = action
+        // If toggling to off, turn off
+        if(action == "toggle" && parent.isOn(it)){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+            // If toggling to on, turn on and set levels
+        } else if(action == "toggle" && !parent.isOn(it,app.label)){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // If turning on, turn on and set levels
+        } else if(action == "off"){
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleDaily(it,app.label)
+        } else if(action == "on"){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleAll(it,app.label)
+            // Set levels
         }
-        parent.singleOn(newAction,it,childLabel)
-        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
-        parent.runRetrySchedule(data)
     }
+    return true
 }
-
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
@@ -494,4 +480,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
+    return true
 }
