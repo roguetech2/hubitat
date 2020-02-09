@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.25
+*  Version: 0.1.26
 *
 ***********************************************************************************************************************/
 
@@ -402,35 +402,29 @@ def convertRgbToHsl(color){
 }
 
 def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(402,"Invalid action \"$action\" sent to multiOn","error")
+    if(!action || (action != "on" && action != "off")) {
+        logTrace(406,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        if(action == "toggle"){
-            if(parent.isOn(it,childLabel)){
-                newAction = "off"
-            } else {
-                newAction = "on"
-            }
-        } else {
-            newAction = action
-        }
-        parent.singleOn(newAction,it,childLabel)
-        data = [deviceId: it.id, action: newAction, getLevel: true, childLabel: app.label]
-        parent.runRetrySchedule(data)
-    }
-}
-
-def getDevice(deviceId){
-    switches.each{
-        if(it.id == deviceId){
-            return it
+        // If toggling to off, turn off
+        if(action == "off"){
+            parent.setSingleState("off",it,app.label)
+            // Reset incrementalSchedule
+            parent.rescheduleIncremental(it,app.label)
+        } else if(action == "on"){
+            parent.setSingleState("on",it,app.label)
+            defaults = parent.getSingleDefaultLevel(it,app.label)
+            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            // Reschedule it
+            // But only if not overriding!
+            parent.rescheduleIncremental(it,app.label)
+            // Set levels
         }
     }
+    return true
 }
-
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
@@ -455,4 +449,5 @@ def logTrace(lineNumber,message = null, type = "trace"){
         case "trace":
         log.trace message
     }
+    return true
 }
