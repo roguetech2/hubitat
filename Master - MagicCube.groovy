@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.11
+*  Version: 0.2.12
 * 
 ***********************************************************************************************************************/
 
@@ -332,19 +332,19 @@ def dimSpeed(){
 }
 
 def installed() {
-    logTrace(336,"Installed","trace")
+    logTrace(335,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    logTrace(342,"Updated","trace")
+    logTrace(341,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    logTrace(348,"Initialized","trace")
+    logTrace(347,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -359,7 +359,7 @@ def initialize() {
 def buttonEvent(evt){
     atomicState.buttonNumber = evt.value
 
-    logTrace(363,"$evt.displayName $evt.value","info")
+    logTrace(362,"$evt.displayName $evt.value","info")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -406,7 +406,7 @@ def buttonEvent(evt){
            (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "toggle")){
             multiOn("toggle",controlDevice)
         } else {
-            logTrace(410,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
+            logTrace(409,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     } else {
         if(settings["button_${atomicState.buttonNumber}_on"]) multiOn("on",settings["button_${atomicState.buttonNumber}_on"])
@@ -415,7 +415,7 @@ def buttonEvent(evt){
         if(settings["button_${atomicState.buttonNumber}_brighten"]) parent.dim("brighten",settings["button_${atomicState.buttonNumber}_brighten"],app.getId())
         if(settings["button_${atomicState.buttonNumber}_toggle"]) multiOn("toggle",settings["button_${atomicState.buttonNumber}_toggle"])
         if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
-            logTrace(419,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
+            logTrace(418,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     }
 }
@@ -423,7 +423,7 @@ def buttonEvent(evt){
 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(426,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
@@ -431,7 +431,7 @@ def multiOn(action,device){
         // If toggling to off, turn off
         if(action == "toggle" && parent.isOn(it)){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // If toggling to on, turn on and set levels
         } else if(action == "toggle" && !parent.isOn(it,app.label)){
             parent.setSingleState("on",it,app.label)
@@ -439,18 +439,18 @@ def multiOn(action,device){
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // If turning on, turn on and set levels
         } else if(action == "off"){
             parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
         } else if(action == "on"){
             parent.setSingleState("on",it,app.label)
             defaults = parent.getSingleDefaultLevel(it,app.label)
             if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             // Reschedule it
             // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
+            parent.rescheduleIncremental(it,app.label)
             // Set levels
         }
     }
