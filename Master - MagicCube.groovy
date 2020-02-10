@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.12
+*  Version: 0.2.13
 * 
 ***********************************************************************************************************************/
 
@@ -420,38 +420,31 @@ def buttonEvent(evt){
     }
 }
 
-
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(426,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(425,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        // If toggling to off, turn off
-        if(action == "toggle" && parent.isOn(it)){
+        if((action == "toggle" && parent.isOn(it)) || action == "off"){
+            // If toggling to off, turn off and reset incremental schedule
             parent.setSingleState("off",it,app.label)
             parent.rescheduleIncremental(it,app.label)
-            // If toggling to on, turn on and set levels
-        } else if(action == "toggle" && !parent.isOn(it,app.label)){
+            return "off"
+        } else if((action == "toggle" && !parent.isOn(it,app.label)) || action == "on"){
+            // If toggling to on, turn on, set levels, and reschedule incremental
             parent.setSingleState("on",it,app.label)
-            defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            // Reschedule it
-            // But only if not overriding!
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getSingleScheduleDefault(it,app.label)
+            // Set default levels, for level and temp, if no shceduled defaults
+            defaults = parent.getSingleDefault(defaults,app.label)
+            // Set default level
+            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             parent.rescheduleIncremental(it,app.label)
             // If turning on, turn on and set levels
-        } else if(action == "off"){
-            parent.setSingleState("off",it,app.label)
-            parent.rescheduleIncremental(it,app.label)
-        } else if(action == "on"){
-            parent.setSingleState("on",it,app.label)
-            defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            // Reschedule it
-            // But only if not overriding!
-            parent.rescheduleIncremental(it,app.label)
-            // Set levels
+            return "on"
         }
     }
     return true
