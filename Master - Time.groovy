@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.12
+*  Version: 0.4.13
 *
 ***********************************************************************************************************************/
 
@@ -700,36 +700,18 @@ def setDailySchedules(){
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
     unschedule(runIncrementalSchedule)
-    // If disabled, exit
-    if(disable || state.disable) {
-        logTrace(704,"Function incrementalSchedule returning; schedule disabled","debug")
+
+    if(!getScheduleActive()) {
+        logTrace(705,"Incremental schedule isn't active, exiting","trace")
         return
     }
-
-    // If not correct day, exit
-    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
-
-    // If mode isn't correct, exit
-    if(ifMode && location.mode != ifMode) {
-        logTrace(713,"incrementalSchedule returning, mode $ifMode","debug")
-        return
-    }
-
-    // If no start or stop time, exit
-    if(!atomicState.start || !atomicState.stop) return
 
     // If nothing to do, exit
     if((!levelOn || !levelOff) && (!tempOn || !tempOff) && (!hueOn || !hueOff) && (!satOn || !satOff)) return
 
-    // If not between start and stop time, exit
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) {
-        logTrace(725,"Schedule ended; now after $atomicState.stop","debug")
-        return
-    }
-
     // If device(s) not on, exit
     if(!parent.isMultiOn(timeDevice)){
-        logTrace(731,"Since $timeDevice is off, stopping recurring schedules","debug")
+        logTrace(714,"Since $timeDevice is off, stopping recurring schedules","debug")
         return
     }
 
@@ -746,7 +728,7 @@ def runIncrementalSchedule(){
 def runDailySchedule(data){
     // If not valid data variable passed, throw error and exit
     if(data.action != "start" && data.action != "stop"){
-        logTrace(748,"Invalid value for action \"$data.action\" sent to runDailySchedule function","error")
+        logTrace(731,"Invalid value for action \"$data.action\" sent to runDailySchedule function","error")
     }
 
     // Set time state variables
@@ -757,7 +739,7 @@ def runDailySchedule(data){
 
     // If not correct day, exit
     if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-        logTrace(759,"Daily schedule ran on off day; that shouldn't happen","error")
+        logTrace(742,"Daily schedule ran on off day; that shouldn't happen","error")
         setDailySchedules()
         return
     }
@@ -772,38 +754,29 @@ def runDailySchedule(data){
     if(modeChangeOn && data.action == "start") setLocationMode(modeChangeOn)
     // Set stop mode
     if(modeChangeOff && data.action == "stop") setLocationMode(modeChangeOff)
-
-    timeDevice.each{
-        // If toggling to off, turn off
-        if(((data.action == "start" && timeOn == "toggle") || (data.action == "stop" && timeOff == "toggle")) && isOn(it)){
-            parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
-            // If toggling to on, turn on and set levels
-        } else if(((data.action == "start" && timeOn == "toggle") || (data.action == "stop" && timeOff == "toggle")) && !isOn(it)){
-            parent.setSingleState("on",it,app.label)
-            singleOn("on",it)
-            if(data.action == "start" && !atomicState.stop){
-                parent.setSingleLevel(levelOn,tempOn,hueOn,satOn,it,app.label)
-            } else {
-                defaults = parent.getSingleDefaultLevel(it,app.label)
-                if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+    if(data.action == "start" && timeOn != "none"){
+        // If there are levels, set them
+        // This will 1) Override other schedules, and 2) Set start level if there's no matching stop
+        if(multiOn(timeOn,timeDevice) == "on"){
+            if(levelOn || tempOn || hueOn || satOn) {
+                if(!levelOn) levelOn = ""
+                if(!tempOn) tempOn = ""
+                if(!hueOn) hueOn = ""
+                if(!satOn) satOn = ""
+                parent.setSingleLevel(levelOn, tempOn, hueOn, satOn, timeDevice,app.label)
             }
-            // Reschedule it
-            // But only if not overriding!
-            parent.rescheduleAll(it,app.label)
-            // If turning on, turn on and set levels
-        } else if((data.action == "start" && timeOn == "off") || (data.action == "stop" && timeOff == "off")){
-            parent.setSingleState("off",it,app.label)
-            parent.rescheduleDaily(it,app.label)
-        } else if((data.action == "start" && timeOn == "on") || (data.action == "stop" && timeOff == "on")){
-            parent.setSingleState("on",it,app.label)
-            if(data.action == "start" && !atomicState.stop){
-                parent.setSingleLevel(levelOn,tempOn,hueOn,satOn,it,app.label)
-            } else {
-                defaults = parent.getSingleDefaultLevel(it,app.label)
-                if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+        }
+    } else if(data.action == "stop" && timeOff != "none"){
+        // If there are levels, set them
+        // This will 1) Override other schedules, and 2) Set stop level if there's no matching start
+        if(multiOn(timeOff,timeDevice) == "on"){
+            if(levelOff || tempOff || hueOff || satOff) {
+                if(!levelOff) levelOff = ""
+                if(!tempOff) tempOff = ""
+                if(!hueOff) hueOff = ""
+                if(!satOff) satOff = ""
+                parent.setSingleLevel(levelOff, tempOff, hueOff, satOff, timeDevice,app.label)
             }
-            parent.rescheduleAll(it,app.label)
         }
     }
     setDailySchedules()
@@ -819,44 +792,20 @@ def getDefaultLevel(device){
 
     // If no device match, return nulls
     timeDevice.findAll( {it.id == device.id} ).each {
-        logTrace(821,"getDefaultLevel matched device $device","debug")
+        logTrace(795,"getDefaultLevel matched device $device","debug")
 
         match = true
     }
     if(!match) return defaults
 
-    if(!atomicState.start) return defaults
-
-    // if no start levels, return nulls
-    if(!levelOn && !tempOn && !hueOn && !satOn){
-        logTrace(831,"No starting levels set for $device","debug")
-        return defaults
-    }
-
-    // If disabled, return nulls
-    if(disable || state.disable) {
-        logTrace(837,"Returning null level for $device, schedule disabled","debug")
-        return defaults
-    }
-
-    // If mode set and node doesn't match, return nulls
-    if(ifMode && location.mode != ifMode) {
-        logTrace(843,"Return null level for $device, mode $ifMode","debug")
-        return defaults
-    }
-
-    // If not correct day, return nulls
-    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return defaults
-
-    // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return defaults
-
+    if(!getScheduleActive()) return defaults
+    
     // If we need elapsed, then get it
     if((levelOn && levelOff) || (tempOn && tempOff) || (hueOn && hueOff) || (satOn && satOff)){
         elapsedFraction = getElapsedFraction()
 
         if(!elapsedFraction) {
-            logTrace(858,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"","error")
+            logTrace(808,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"","error")
             return defaults
         }
     }
@@ -912,20 +861,23 @@ def getDefaultLevel(device){
         defaults.put("sat",satOn)
     }
 
-    logTrace(914,"Returning levels $defaults for $device","debug")
+    logTrace(864,"Returning levels $defaults for $device","debug")
     return defaults
 }
 
 def setTime(){
     if(!setStartStopTime("Start")) return
-    setStartStopTime("Stop")  
+    setStartStopTime("Stop") 
+    
+    setTotalSeconds()
+    return true
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "Start" or "Stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
     if(type != "Start" && type != "Stop") {
-        logTrace(927,"Invalid value for type \"$type\" sent to setStartStopTime function","error")
+        logTrace(880,"Invalid value for type \"$type\" sent to setStartStopTime function","error")
         return
     }
 
@@ -942,7 +894,7 @@ def setStartStopTime(type){
     } else if(settings["input${type}Type"] == "sunset"){
         value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     } else {
-        logTrace(944,"input" + type + "Type set to " + settings["input${type}Type"],"error")
+        logTrace(897,"input" + type + "Type set to " + settings["input${type}Type"],"error")
         return
     }
 
@@ -950,7 +902,7 @@ def setStartStopTime(type){
         if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
 
-    logTrace(952,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
+    logTrace(905,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
     if(type == "Start") atomicState.start = value
     if(type == "Stop") atomicState.stop = value
     return true
@@ -989,7 +941,7 @@ def setWeekDays(){
             dayString += "SUN"
         }
     }
-    logTrace(991,"weekDaysToNum returning $dayString","debug")
+    logTrace(944,"weekDaysToNum returning $dayString","debug")
     state.weekDays = dayString
     return true
 }
@@ -1004,31 +956,84 @@ def setTotalSeconds(){
 
     // Calculate duration of schedule
     atomicState.totalSeconds = Math.floor((Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
-    logTrace(1006,"Schedule total seconds is $atomicState.totalSeconds","trace")
+    logTrace(959,"Schedule total seconds is $atomicState.totalSeconds","trace")
     return true
 }
 
 // Returns percentage of schedule that has elapsed
 // Only called by getDefaultLevel
 def getElapsedFraction(){
-    if(!atomicState.totalSeconds) setTotalSeconds()
-
     // If not between start and stop time, exit
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return false
+    if(!atomicState.stop || !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return false
 
     elapsedSeconds = Math.floor((new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
 
     //Divide for percentage of time expired (avoid div/0 error)
     if(elapsedSeconds < 1){
-        elapsedFraction = 0
+        elapsedFraction = 1 / atomicState.totalSeconds * 1000 / 1000
     } else {
-        elapsedFraction = Math.floor(elapsedSeconds / atomicState.totalSeconds * 1000) / 1000
+        elapsedFraction = elapsedSeconds / atomicState.totalSeconds * 1000 / 1000
+    }
+    
+    if(elapsedFraction > 1) {
+        logTrace(979,"Over 100% of the schedule has elapsed, so start or stop time hasn't updated correctly.","error")
+        return
     }
 
-    if(elapsedFraction > 1 && !setTime()) return
-
-    logTrace(1029,elapsedFraction * 100 + "% has elapsed in the schedule","debug")
+    logTrace(983,Math.floor(elapsedFraction) * 100 + "% has elapsed in the schedule","debug")
     return elapsedFraction
+}
+
+def getScheduleActive(){
+    // If disabled, return false
+    if(disable || state.disable) return
+
+    // If not correct day, return false
+    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
+
+    // If mode isn't correct, return false
+    if(ifMode && location.mode != ifMode) return
+
+    // If no start or stop time, return false
+    if(!atomicState.start || !atomicState.stop) return
+    
+    // If no start levels, return false
+    if(!levelOn && !tempOn && !hueOn && !satOn) return false
+
+    // If not between start and stop time, return false
+    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    
+    return true
+}
+
+def multiOn(action,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle")) {
+        logTrace(1011,"Invalid action \"$action\" sent to multiOn","error")
+        return
+    }
+    
+    device.each{
+        if((action == "toggle" && parent.isOn(it)) || action == "off"){
+            // If toggling to off, turn off and reset incremental schedule
+            parent.setSingleState("off",it,app.label)
+            parent.rescheduleIncremental(it,app.label)
+            return "off"
+        } else if((action == "toggle" && !parent.isOn(it,app.label)) || action == "on"){
+            // If toggling to on, turn on, set levels, and reschedule incremental
+            parent.setSingleState("on",it,app.label)
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getSingleScheduleDefault(it,app.label)
+            // Set default levels, for level and temp, if no shceduled defaults
+            defaults = parent.getSingleDefault(defaults,app.label)
+            // Set default level
+            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            parent.rescheduleIncremental(it,app.label)
+            // If turning on, turn on and set levels
+            return "on"
+        }
+    }
+    return true
 }
 
 //lineNumber should be a number, but can be text
