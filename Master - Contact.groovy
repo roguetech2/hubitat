@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.07
+*  Version: 0.4.08
 * 
 ***********************************************************************************************************************/
 
@@ -212,7 +212,11 @@ def displayOpenLockOptions(){
 
 def displayCloseDevices(){
 	displayLabel("When closed")
+    if(closeSwitchDifferent){
 	input "closeSwitchDifferent", "bool", title: "Control same lights and locks when closed. Click to change.", width: 12, submitOnChange:true
+    } else {
+	input "closeSwitchDifferent", "bool", title: "Control different lights and locks when closed. Click to change.", width: 12, submitOnChange:true
+    }
 	if(closeSwitchDifferent){
 		input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed", multiple: true, submitOnChange:true
 		input "closeLock", "capability.lock", title: "Locks to control when closed", multiple: true, submitOnChange:true
@@ -273,6 +277,32 @@ def displayBinaryOptions(){
     }
 
     if(openSwitch){
+                if(delayEnable){
+            input "delayEnable", "bool", title: "<b>Delay actions when opening or closing.</b> Click to change.", submitOnChange:true
+        } else {
+            input "delayEnable", "bool", title: "<b>Don't delay actions when opening or closing.</b> Click to change.", submitOnChange:true
+        }
+        if(scheduleEnable){
+            input "scheduleEnable", "bool", title: "<b>Set schedule.</b> Click to change.", submitOnChange:true
+        } else {
+            input "scheduleEnable", "bool", title: "<b>Do not set schedule.</b> Click to change.", submitOnChange:true
+        }
+    }
+    
+    if(alertEnable){
+        input "alertEnable", "bool", title: "<b>Send alert.</b> Click to change.", submitOnChange:true
+    } else {
+        input "alertEnable", "bool", title: "<b>Do not send alert (text or voice).</b> Click to change.", submitOnChange:true
+    }
+    if(!modeEnable){
+        input "modeEnable", "bool", title: "<b>Don't change Mode.</b> Click to change.", submitOnChange:true
+    } else {
+        input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
+    }
+    
+    if(openSwitch){ 
+        paragraph ""
+                   
         if(!levelEnable){
             input "levelEnable", "bool", title: "<b>Don't change brightness.</b> Click to change.", submitOnChange:true
         } else {
@@ -293,26 +323,6 @@ def displayBinaryOptions(){
         } else if(tempEnable){
             paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change color."
         }
-        if(delayEnable){
-            input "delayEnable", "bool", title: "<b>Delay actions when opening or closing.</b> Click to change.", submitOnChange:true
-        } else {
-            input "delayEnable", "bool", title: "<b>Don't delay actions when opening or closing.</b> Click to change.", submitOnChange:true
-        }
-        if(scheduleEnable){
-            input "scheduleEnable", "bool", title: "<b>Set schedule.</b> Click to change.", submitOnChange:true
-        } else {
-            input "scheduleEnable", "bool", title: "<b>Do not set schedule.</b> Click to change.", submitOnChange:true
-        }
-    }
-    if(alertEnable){
-        input "alertEnable", "bool", title: "<b>Send alert.</b> Click to change.", submitOnChange:true
-    } else {
-        input "alertEnable", "bool", title: "<b>Do not send alert (text or voice).</b> Click to change.", submitOnChange:true
-    }
-    if(!modeEnable){
-        input "modeEnable", "bool", title: "<b>Don't change Mode.</b> Click to change.", submitOnChange:true
-    } else {
-        input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
     }
 	if(!levelEnable && !tempEnable && !colorEnable && !scheduleEnable && !alertEnable && !modeEnable) displayInfo("Select which option(s) to change, which will allow entering values to set when contact is opened and/or closed. All are optional.")
 }
@@ -701,13 +711,13 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 /* ************************************************** */
 
 def installed() {
-	logTrace(704,"Installed","trace")
+	logTrace(714,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(710,"Updated","trace")
+	logTrace(720,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
@@ -733,18 +743,18 @@ def initialize() {
 		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
 
-	logTrace(736,"Initialized","trace")
+	logTrace(746,"Initialized","trace")
 }
 
 def contactChange(evt){
 	if(disable || state.disable) return
 
-	logTrace(742,"Contact sensor $evt.displayName $evt.value","debug")
+	logTrace(752,"Contact sensor $evt.displayName $evt.value","debug")
 	
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(747,"Contact disabled, mode $ifMode","trace")
+			logTrace(757,"Contact disabled, mode $ifMode","trace")
 			return defaults
 		}
 	}
@@ -829,14 +839,14 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(832,"Scheduling runScheduleOpen in $openWait seconds","trace")
+			logTrace(842,"Scheduling runScheduleOpen in $openWait seconds","trace")
 			runIn(openWait,runScheduleOpen)
 		// Otherwise perform immediately
 		} else {
 // Need to add level, temp and color!!
 // Need to add resume
 // It will get defaults, even if it's supposed to override
-			if(openSwitch) multiOn(openSwitchAction,openSwitch)
+			if(openSwitch) multiOn(openSwitchAction,"open",openSwitch)
             if(locks) parent.multiLock(openLockActionopenLock,app.label)
 		}
 
@@ -845,11 +855,11 @@ def contactChange(evt){
         
 		// Schedule delay
 		if(closeWait) {
-			logTrace(848,"Scheduling runScheduleClose in $closeWait seconds","trace")
+			logTrace(858,"Scheduling runScheduleClose in $closeWait seconds","trace")
 			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
-			if(closeSwitch) multiOn(closeSwitchAction,closeSwitch)
+			if(closeSwitch) multiOn(closeSwitchAction,"close",closeSwitch)
 			if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 		}
 	}
@@ -858,7 +868,7 @@ def contactChange(evt){
 def runScheduleOpen(){
 	if(disable || state.disable) return
 
-	if(openSwitch) multiOn(openSwitchAction,openSwitch)
+	if(openSwitch) multiOn(openSwitchAction,"open",openSwitch)
 	if(openLock) parent.multiLock(openLockAction,openLock,app.label)
 }
 
@@ -870,7 +880,7 @@ def runScheduleClose(){
         closeLock = openLock
     }
 
-    if(closeSwitch) multiOn(closeSwitchAction,closeSwitch)
+    if(closeSwitch) multiOn(closeSwitchAction,"close",closeSwitch)
 	if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 }
 
@@ -914,50 +924,83 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(917,"input" + type + "Type set to " + settings["input${type}Type"],"error")
+		logTrace(927,"input" + type + "Type set to " + settings["input${type}Type"],"error")
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(924,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
+	logTrace(934,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
 }
 
-def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(932,"Invalid action \"$action\" sent to multiOn","error")
+def multiOn(action,type,device){
+    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume")) {
+        logTrace(942,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        // If toggling to off, turn off
-        if(action == "toggle" && parent.isOn(it)){
+        if((action == "toggle" && parent.isOn(it)) || action == "off"){
+            // If toggling to off, turn off and reset incremental schedule
             parent.setSingleState("off",it,app.label)
             parent.rescheduleIncremental(it,app.label)
-            // If toggling to on, turn on and set levels
-        } else if(action == "toggle" && !parent.isOn(it)){
+            return "off"
+        } else if(action == "resume"){
+            defaults = parent.getSingleScheduleDefault(it,app.label)
+            // Resume schedule, if a schedule is active
+            if(defaults) {
+                parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Otherwise, turn it off
+            } else {
+                parent.setSingleState("off",it,app.label)
+            }
+            parent.rescheduleIncremental(it,app.label)
+        } else if(action == "none"){
+            parent.rescheduleIncremental(it,app.label)            
+        } else if((action == "toggle" && !parent.isOn(it,app.label)) || action == "on"){
+            // If toggling to on, turn on, set levels, and reschedule incremental
             parent.setSingleState("on",it,app.label)
-            defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            // Reschedule it
-            // But only if not overriding!
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getSingleScheduleDefault(it,app.label)
+            // Set default levels, for level and temp, if no scheduled defaults
+            defaults = parent.getSingleDefault(defaults,app.label)
+            // Set open over-ride levels
+            if(type == "open"){
+                if(openLevel) defaults.level = openLevel
+                if(openTemp) {
+                    defaults.temp = openTemp
+                    defaults.hue = null
+                    defaults.sat = null
+                } else if(openHue) {
+                    defaults.hue = openHue
+                    defaults.temp = null
+                    if(openSat && type == "open") defaults.sat = openSat
+                }
+            }
+            // Set close over-ride levels
+            if(type == "close"){
+                if(closeLevel) defaults.level = closeLevel
+                if(closeTemp) {
+                    defaults.temp = closeTemp
+                    defaults.hue = null
+                    defaults.sat = null
+                } else if(closeHue) {
+                    defaults.hue = closeHue
+                    if(closeSat) defaults.sat = closeSat
+                    defaults.temp = null
+                }
+            }
+
+            // Set default level
+            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             parent.rescheduleIncremental(it,app.label)
             // If turning on, turn on and set levels
-        } else if(action == "off"){
-            parent.setSingleState("off",it,app.label)
-            parent.rescheduleIncremental(it,app.label)
-        } else if(action == "on"){
-            parent.setSingleState("on",it,app.label)
-            defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            // Reschedule it
-            // But only if not overriding!
-            parent.rescheduleIncremental(it,app.label)
-            // Set levels
+            return "on"
         }
     }
     return true
