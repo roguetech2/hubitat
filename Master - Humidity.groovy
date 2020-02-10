@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.16
+*  Version: 0.1.17
 *
 ***********************************************************************************************************************/
 
@@ -748,26 +748,31 @@ def getRelativePercentage(base,percent){
 	return (100 - base) * percent / 100 + base
 }
 
-
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off")) {
-        logTrace(754,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(753,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     device.each{
-        // If toggling to off, turn off
         if(action == "off"){
+            // If toggling to off, turn off and reset incremental schedule
             parent.setSingleState("off",it,app.label)
             parent.rescheduleIncremental(it,app.label)
+            return "off"
         } else if(action == "on"){
+            // If toggling to on, turn on, set levels, and reschedule incremental
             parent.setSingleState("on",it,app.label)
-            defaults = parent.getSingleDefaultLevel(it,app.label)
-            if(defaults) parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            // Reschedule it
-            // But only if not overriding!
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getSingleScheduleDefault(it,app.label)
+            // Set default levels, for level and temp, if no shceduled defaults
+            defaults = parent.getSingleDefault(defaults,app.label)
+            // Set default level
+            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             parent.rescheduleIncremental(it,app.label)
-            // Set levels
+            // If turning on, turn on and set levels
+            return "on"
         }
     }
     return true
