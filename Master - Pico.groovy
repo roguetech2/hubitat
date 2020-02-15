@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.07
+*  Version: 0.4.08
 *
 ***********************************************************************************************************************/
 
@@ -1098,34 +1098,69 @@ def compareDeviceList(device,list){
 }
 
 def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(1008,"Invalid action \"$action\" sent to multiOn","error")
+    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
+    
+    // If turning on or off, turn them all on and reset incremental schedule(s)
+    // If turning off, exit
+    if(action == "on" || action == "off"){
+        parent.setStateMulti(action,device,app.label)
+        device.each{
+            parent.rescheduleIncremental(it,app.label)
+        }
+        if(action == "off") return true
+    }
+    // With toggle, need to wait for each device to respond
+    // Instead, should put their current state in a map, then test them all at once
+    // Not only faster, but it'd make this mess a LOT more streamlined
+    if(action == "toggle" || action == "on"){
+        device.each{
+            // Get original state
+            deviceState = parent.isOn(it)
+            // If toggling to off
+            if(action == "toggle" && deviceState){
+                parent.setStateSingle("off",it,app.label)
+                // Else if toggling on
+            } else if(action == "toggle" && !deviceState){
+                parent.setStateSingle("on",it,app.label)
+            }
+            // If turning on, set default levels and over-ride with any contact levels
+            if((action == "toggle" && !deviceState) || action == "on"){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
 
-    device.each{
-        if((action == "toggle" && parent.isOn(it)) || action == "off"){
-            // If toggling to off, turn off and reset incremental schedule
-            parent.setSingleState("off",it,app.label)
-            parent.rescheduleIncremental(it,app.label)
-            return "off"
-        } else if((action == "toggle" && !parent.isOn(it,app.label)) || action == "on"){
-            // If toggling to on, turn on, set levels, and reschedule incremental
-            parent.setSingleState("on",it,app.label)
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getSingleScheduleDefault(it,app.label)
-            logTrace(1,defaults)
-            // Set default levels, for level and temp, if no shceduled defaults
-            defaults = parent.getSingleDefault(defaults,app.label)
-            logTrace(2,defaults)
-            // Set default level
-            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            parent.rescheduleIncremental(it,app.label)
-            // If turning on, turn on and set levels
-            return "on"
+                // Set default levels, for level and temp, if no scheduled defaults
+                defaults = parent.getDefaultSingle(defaults,app.label)
+
+                // Set default level
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+
+                // if toggling on, reschedule incremental
+                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+            }
+            // If toggling, exit
+            if(action == "toggle") return true
         }
     }
+
+    if(action == "resume"){
+        device.each{
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            // Resume schedule, if a schedule is active
+            if(defaults) {
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Otherwise, turn it off
+            } else {
+                parent.setStateSingle("off",it,app.label)
+            }
+        }
+    }
+
+    // If turning on, resuming or "none", reschedule incremental
+    parent.rescheduleIncrementalMulti(device,app.label)
     return true
 }
 
