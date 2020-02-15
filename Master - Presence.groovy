@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.28
+*  Version: 0.1.30
 *
 ***********************************************************************************************************************/
 
@@ -401,20 +401,23 @@ def convertRgbToHsl(color){
 	
 }
 
+// Presense doees not use "resume" or "none" (at least, yet) but easier to keep the code standard
+// This is a bit of a mess, but.... 
 def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle")) {
-        logTrace(406,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(408,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
-    
+
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
     if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    // With toggle, need to wait for each device to respond
-    // Instead, should put their current state in a map, then test them all at once
-    // Not only faster, but it'd make this mess a LOT more streamlined
+    if(action == "off") return true
     if(action == "toggle" || action == "on"){
+        toggleOnDevice = []
+        count = 0
         device.each{
+            count = count + 1
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
@@ -423,22 +426,36 @@ def multiOn(action,device){
                 // Else if toggling on
             } else if(action == "toggle" && !deviceState){
                 parent.setStateSingle("on",it,app.label)
+                // Create list of devices toggled on
+                // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
+                toggleOnDevice.add(count)
             }
+        }
+    }
+    if(action == "toggle" || action == "on" || action == "resume"){
+        newCount = 0
+        device.each{
+            newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
-            if((action == "toggle" && !deviceState) || action == "on"){
+            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
 
-                // Set default levels, for level and temp, if no scheduled defaults
-                defaults = parent.getDefaultSingle(defaults,app.label)
+                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
 
                 // Set default level
-                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                if(action != "resume" || defaults){
+                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                } else if(action == "resume" && !defaults){
+                    parent.setStateSingle("off",it,app.label)
+                }
 
                 // if toggling on, reschedule incremental
                 if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
+            if(action == "toggle") return true
         }
     }
 
@@ -451,6 +468,8 @@ def multiOn(action,device){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
+    //Uncomment return for no logging at all
+    // return
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
