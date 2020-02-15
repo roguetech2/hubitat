@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.10
+*  Version: 0.4.11
 * 
 ***********************************************************************************************************************/
 
@@ -937,20 +937,22 @@ def setStartStopTime(type = "Start"){
 	return true
 }
 
-def multiOn(action,type,device){
+// This is a bit of a mess, but.... 
+def multiOn(action,device){
     if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
-        logTrace(942,"Invalid action \"$action\" sent to multiOn","error")
+        logTrace(943,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
-    
+
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
     if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    // With toggle, need to wait for each device to respond
-    // Instead, should put their current state in a map, then test them all at once
-    // Not only faster, but it'd make this mess a LOT more streamlined
+    if(action == "off") return true
     if(action == "toggle" || action == "on"){
+        toggleOnDevice = []
+        count = 0
         device.each{
+            count = count + 1
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
@@ -959,59 +961,36 @@ def multiOn(action,type,device){
                 // Else if toggling on
             } else if(action == "toggle" && !deviceState){
                 parent.setStateSingle("on",it,app.label)
-            }
-            // If turning on, set default levels and over-ride with any contact levels
-            if((action == "toggle" && !deviceState) || action == "on"){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-                // Set default levels, for level and temp, if no scheduled defaults
-                defaults = parent.getDefaultSingle(defaults,app.label)
-                // Set open over-ride levels
-                if(type == "open"){
-                    if(openLevel) defaults.level = openLevel
-                    if(openTemp) {
-                        defaults.temp = openTemp
-                        defaults.hue = null
-                        defaults.sat = null
-                    } else if(openHue) {
-                        defaults.hue = openHue
-                        defaults.temp = null
-                        if(openSat && type == "open") defaults.sat = openSat
-                    }
-                }
-                // Set close over-ride levels
-                if(type == "close"){
-                    if(closeLevel) defaults.level = closeLevel
-                    if(closeTemp) {
-                        defaults.temp = closeTemp
-                        defaults.hue = null
-                        defaults.sat = null
-                    } else if(closeHue) {
-                        defaults.hue = closeHue
-                        if(closeSat) defaults.sat = closeSat
-                        defaults.temp = null
-                    }
-                }
-
-                // Set default level
-                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                // if toggling on, reschedule incremental
-                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                // Create list of devices toggled on
+                // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
+                toggleOnDevice.add(count)
             }
         }
     }
-
-    if(action == "resume"){
+    if(action == "toggle" || action == "on" || action == "resume"){
+        newCount = 0
         device.each{
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
-            // Resume schedule, if a schedule is active
-            if(defaults) {
-                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                // Otherwise, turn it off
-            } else {
-                parent.setStateSingle("off",it,app.label)
+            newCount = newCount + 1
+            // If turning on, set default levels and over-ride with any contact levels
+            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
+
+                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
+
+                // Set default level
+                if(action != "resume" || defaults){
+                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                } else if(action == "resume" && !defaults){
+                    parent.setStateSingle("off",it,app.label)
+                }
+
+                // if toggling on, reschedule incremental
+                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
+            if(action == "toggle") return true
         }
     }
 
@@ -1024,6 +1003,8 @@ def multiOn(action,type,device){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
+    //Uncomment return for no logging at all
+    // return
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
