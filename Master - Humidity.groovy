@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.17
+*  Version: 0.1.18
 *
 ***********************************************************************************************************************/
 
@@ -749,32 +749,35 @@ def getRelativePercentage(base,percent){
 }
 
 def multiOn(action,device){
-    if(!action || (action != "on" && action != "off")) {
-        logTrace(753,"Invalid action \"$action\" sent to multiOn","error")
+    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
+        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
-    device.each{
-        if(action == "off"){
-            // If toggling to off, turn off and reset incremental schedule
-            parent.setSingleState("off",it,app.label)
+    // If turning on or off, turn them all on and reset incremental schedule(s)
+    // If turning off, exit
+    if(action == "on" || action == "off"){
+        parent.setStateMulti(action,device,app.label)
+        device.each{
             parent.rescheduleIncremental(it,app.label)
-            return "off"
-        } else if(action == "on"){
-            // If toggling to on, turn on, set levels, and reschedule incremental
-            parent.setSingleState("on",it,app.label)
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getSingleScheduleDefault(it,app.label)
-            // Set default levels, for level and temp, if no shceduled defaults
-            defaults = parent.getSingleDefault(defaults,app.label)
-            // Set default level
-            parent.setSingleLevel(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            parent.rescheduleIncremental(it,app.label)
-            // If turning on, turn on and set levels
-            return "on"
         }
+        if(action == "off") return true
     }
+    device.each{
+        // If turning on, set default levels and over-ride with any contact levels
+        // If defaults, then there's an active schedule
+        // So use it for if overriding/reenabling
+        defaults = parent.getScheduleDefaultSingle(it,app.label)
+
+        // Set default levels, for level and temp, if no scheduled defaults
+        defaults = parent.getDefaultSingle(defaults,app.label)
+
+        // Set default level
+        parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+    }
+
+    // If turning on, resuming or "none", reschedule incremental
+    parent.rescheduleIncrementalMulti(device,app.label)
     return true
 }
 
