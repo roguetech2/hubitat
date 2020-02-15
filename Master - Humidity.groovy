@@ -756,24 +756,20 @@ def multiOn(action,device){
 
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
-    if(action == "on" || action == "off"){
-        parent.setStateMulti(action,device,app.label)
+    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
+    if(action == "on"){
         device.each{
-            parent.rescheduleIncremental(it,app.label)
+            // If turning on, set default levels and over-ride with any contact levels
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+
+            // Set default levels, for level and temp, if no scheduled defaults
+            defaults = parent.getDefaultSingle(defaults,app.label)
+
+            // Set default level
+            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
         }
-        if(action == "off") return true
-    }
-    device.each{
-        // If turning on, set default levels and over-ride with any contact levels
-        // If defaults, then there's an active schedule
-        // So use it for if overriding/reenabling
-        defaults = parent.getScheduleDefaultSingle(it,app.label)
-
-        // Set default levels, for level and temp, if no scheduled defaults
-        defaults = parent.getDefaultSingle(defaults,app.label)
-
-        // Set default level
-        parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
     }
 
     // If turning on, resuming or "none", reschedule incremental
