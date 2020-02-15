@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.05
+*  Version: 0.2.6
 *
 ***********************************************************************************************************************/
 
@@ -41,7 +41,8 @@ preferences {
 }
 
 def mainPage() {
-    infoIcon = "<img src=\"http://files.softicons.com/download/system-icons/windows-8-metro-invert-icons-by-dakirby309/ico/Folders%20&%20OS/Info.ico\" width=20 height=20>"
+	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
         if(!state.masterInstalled) {
             section("Click Done.") {
@@ -50,15 +51,18 @@ def mainPage() {
         } else {
             if(showPresences){
                 section(""){
+                    /*
                     input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
+*/
                     input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
                     input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
-                    input "sensors", "capability.battery", title: "Select all sensors:", multiple: true, required: false, submitOnChange:true
+                    //input "sensors", "capability.battery", title: "Select all sensors:", multiple: true, required: false, submitOnChange:true
+                    //paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These will be periodically tested to make sure they are reporting properly. Enter phone number for text notice.</div>"
                     input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These will be periodically tested to make sure they are reporting properly. Enter phone number for text notice.</div>"
+                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Text alerts do not currently work. Will be fixed soon.</div>"
 
                 }
                 /* ********************************************* */
@@ -66,6 +70,7 @@ def mainPage() {
                 /* Try to move it to child app, using this code: */
                 /* https://community.hubitat.com/t/parent-function-to-return-settings-state-data-to-child-app/2261/3 */
                 /* ********************************************* */
+                /*
                 if(notificationDevice && people){
                     section(""){
                         def i = 0
@@ -92,6 +97,7 @@ def mainPage() {
 
                     }
                 }
+*/
                 if(showSchedules){
                     section("Scheduled settings:") {
                         app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
