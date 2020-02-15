@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.14
+*  Version: 0.2.15
 * 
 ***********************************************************************************************************************/
 
@@ -428,13 +428,7 @@ def multiOn(action,device){
     
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
-    if(action == "on" || action == "off"){
-        parent.setStateMulti(action,device,app.label)
-        device.each{
-            parent.rescheduleIncremental(it,app.label)
-        }
-        if(action == "off") return true
-    }
+    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
     // With toggle, need to wait for each device to respond
     // Instead, should put their current state in a map, then test them all at once
     // Not only faster, but it'd make this mess a LOT more streamlined
@@ -464,8 +458,6 @@ def multiOn(action,device){
                 // if toggling on, reschedule incremental
                 if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
-            // If toggling, exit
-            if(action == "toggle") return true
         }
     }
 
