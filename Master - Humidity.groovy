@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.18
+*  Version: 0.1.19
 *
 ***********************************************************************************************************************/
 
@@ -748,27 +748,61 @@ def getRelativePercentage(base,percent){
 	return (100 - base) * percent / 100 + base
 }
 
+// Humidity only uses on and off, but easier to keep the code standard between apps
+// This is a bit of a mess, but.... 
 def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
-        logTrace(1102,"Invalid action \"$action\" sent to multiOn","error")
+    if(!action || (action != "on" && action != "off")) {
+        logTrace(755,"Invalid action \"$action\" sent to multiOn","error")
         return
     }
 
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
     if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    if(action == "on"){
+    if(action == "off") return true
+    if(action == "toggle" || action == "on"){
+        toggleOnDevice = []
+        count = 0
         device.each{
+            count = count + 1
+            // Get original state
+            deviceState = parent.isOn(it)
+            // If toggling to off
+            if(action == "toggle" && deviceState){
+                parent.setStateSingle("off",it,app.label)
+                // Else if toggling on
+            } else if(action == "toggle" && !deviceState){
+                parent.setStateSingle("on",it,app.label)
+                // Create list of devices toggled on
+                // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
+                toggleOnDevice.add(count)
+            }
+        }
+    }
+    if(action == "toggle" || action == "on" || action == "resume"){
+        newCount = 0
+        device.each{
+            newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
 
-            // Set default levels, for level and temp, if no scheduled defaults
-            defaults = parent.getDefaultSingle(defaults,app.label)
+                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
 
-            // Set default level
-            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Set default level
+                if(action != "resume" || defaults){
+                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                } else if(action == "resume" && !defaults){
+                    parent.setStateSingle("off",it,app.label)
+                }
+
+                // if toggling on, reschedule incremental
+                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+            }
+            if(action == "toggle") return true
         }
     }
 
