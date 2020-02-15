@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.03
+*  Version: 0.2.04
 *
 ***********************************************************************************************************************/
 
@@ -201,7 +201,7 @@ def appendAppTitle(appName,appTitle){
 // Turns multiple switches on or off, then waits for all of them to be on
 // action = "on" or "off"
 def setStateMulti(action, device,childLabel = "Master"){
-    if(state != "on" && action != "off"){
+    if(action != "on" && action != "off"){
         logTrace(205,"Invalid value for action \"$action\" sent to setStateMulti function","error",childLabel)
         return
     }
