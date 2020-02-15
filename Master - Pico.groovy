@@ -11,9 +11,9 @@
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 *  <http://www.gnu.org/licenses/> for more details.
 *
-*  Name: Master
+*  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.08
+*  Version: 0.4.09
 *
 ***********************************************************************************************************************/
 
@@ -1105,13 +1105,7 @@ def multiOn(action,device){
     
     // If turning on or off, turn them all on and reset incremental schedule(s)
     // If turning off, exit
-    if(action == "on" || action == "off"){
-        parent.setStateMulti(action,device,app.label)
-        device.each{
-            parent.rescheduleIncremental(it,app.label)
-        }
-        if(action == "off") return true
-    }
+    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
     // With toggle, need to wait for each device to respond
     // Instead, should put their current state in a map, then test them all at once
     // Not only faster, but it'd make this mess a LOT more streamlined
@@ -1141,8 +1135,6 @@ def multiOn(action,device){
                 // if toggling on, reschedule incremental
                 if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
-            // If toggling, exit
-            if(action == "toggle") return true
         }
     }
 
