@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.13
+*  Version: 0.4.14
 *
 ***********************************************************************************************************************/
 
@@ -154,7 +154,7 @@ preferences {
 					}
 
 					if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
-                        displayPushMultiplier()
+                        displayPushMultiplierOption()
 					}
 				}
             } else if(advancedSetup){
@@ -662,7 +662,11 @@ def displaySelectActionsButtonOption(number,text,action = "push"){
 def displayPushMultiplierOption(){
     displayLabel("Set dim and brighten speed")
     displayMultiplierMessage()
-    input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+    if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+        input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 6
+    } else {
+        input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 12
+    }
 }
 
 def displayPushHoldMultiplierOption(){
