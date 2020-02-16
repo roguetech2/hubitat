@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.12
+*  Version: 0.4.13
 * 
 ***********************************************************************************************************************/
 
@@ -24,7 +24,7 @@ definition(
     description: "Door Sensors",
     parent: "master:Master",
     category: "Convenience",
-    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Contact.groovy",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20Contact.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/locks/lock/unlocked@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/locks/lock/unlocked@2x.png"
 )
