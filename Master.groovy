@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.7
+*  Version: 0.2.8
 *
 ***********************************************************************************************************************/
 
@@ -31,6 +31,7 @@ definition(
     author: "roguetech",
     description: "Parent app for automation suite",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/home2-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/home2-icn@2x.png"
 )
