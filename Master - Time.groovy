@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.15
+*  Version: 0.4.16
 *
 ***********************************************************************************************************************/
 
@@ -711,13 +711,13 @@ def runIncrementalSchedule(){
 
     logTrace(3)
     // If device(s) not on, exit
-    if(!parent.isMultiOn(timeDevice)){
+    if(!parent.isOnMulti(timeDevice)){
         logTrace(714,"Since $timeDevice is off, stopping recurring schedules","debug")
         return
     }
 
     // Set levels
-    parent.setMultiLevels(timeDevice,app.label)
+    parent.setLevelsMulti(timeDevice,app.label)
 
     // Reschedule itself
     runIn(20,runIncrementalSchedule)
