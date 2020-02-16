@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.8
+*  Version: 0.2.9
 *
 ***********************************************************************************************************************/
 
@@ -99,12 +99,12 @@ def mainPage() {
                     }
                 }
 */
+            }
                 if(showSchedules){
                     section("Scheduled settings:") {
                         app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
                     }
-                }           
-            }
+                }
             if(showPresences){
                 section("Presence settings:") {
                     app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
