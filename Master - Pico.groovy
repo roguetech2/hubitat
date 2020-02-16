@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.11
+*  Version: 0.4.12
 *
 ***********************************************************************************************************************/
 
@@ -24,6 +24,7 @@ definition(
     description: "Pico and Caseta switches",
     parent: "master:Master",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Pico.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
@@ -92,18 +93,17 @@ preferences {
 //Multi device select
 
 			if(!advancedSetup){
-				section() {
-					displayNameOption()
+                section() {
+                    displayNameOption()
                     if(app.label) displayPicoOption()
-					if(app.label && buttonDevice) displayPicoTypeOption()
-					if(app.label && buttonDevice && numButton) displayAdvancedSetupOption()
-                    if(app.label && buttonDevice && numButton)
-                        displayMultiDeviceOption()
+                    if(app.label && buttonDevice) displayPicoTypeOption()
+                    if(app.label && buttonDevice && numButton) displayAdvancedSetupOption()
+                    if(app.label && buttonDevice && numButton) displayMultiDeviceOption()
 
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
+                    paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 
-					if(!replicateHold){
-						input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, submitOnChange:true
+                    if(!replicateHold){
+                        input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, submitOnChange:true
 						if(numButton == "4 button" || numButton == "5 button"){
 							input "button_2_push_brighten", "capability.switchLevel", title: "\"Brighten\" button brightens?", multiple: true, submitOnChange:true
 						}
@@ -153,7 +153,6 @@ preferences {
 						input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") buttont turns off?", multiple: true, submitOnChange:true
 					}
 
-					
 					if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
                         displayPushMultiplier()
 					}
@@ -164,6 +163,7 @@ preferences {
                     displayPicoOption()
                     displayPicoTypeOption()
                     displayAdvancedSetupOption()
+                    if(app.label && buttonDevice && numButton) displayMultiDeviceOption()
                     paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
                 }
 
@@ -656,7 +656,7 @@ def displaySelectActionsButtonOption(number,text,action = "push"){
         button = "Push"
         text = "With $text"
     }
-    input "button${button}${number}", "enum", title: "$text button?", multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
+    input "button${button}${number}", "enum", title: "$text button?", multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
 }
 
 def displayPushMultiplierOption(){
@@ -669,16 +669,16 @@ def displayPushHoldMultiplierOption(){
     displayLabel("Set dim and brighten speed")
     displayMultiplierMessage()
     if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
-        input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
-    } else {
-        paragraph "", width: 6
+        if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+            input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
+            input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
+        } else {
+            input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 12
+        }
+        } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+            input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 12
+        }
     }
-    if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-        input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
-    } else {
-        paragraph "", width: 6
-    }
-}
 
 def displayMultiplierMessage(){
     displayInfo("Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%).")
