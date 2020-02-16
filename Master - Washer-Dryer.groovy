@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.10
+*  Version: 0.0.11
 *
 ***********************************************************************************************************************/
 
@@ -24,7 +24,7 @@ definition(
     description: "Washer/Dryer",
     parent: "master:Master",
     category: "Convenience",
-    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Washer-Dryer.groovy",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20Washer-Dryer.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
