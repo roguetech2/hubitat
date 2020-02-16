@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.16
+*  Version: 0.2.17
 * 
 ***********************************************************************************************************************/
 
@@ -24,6 +24,7 @@ definition(
     description: "Control MagicCube",
     parent: "master:Master",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - MagicCube.groovy",
     iconUrl: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face_s.png",
     iconX2Url: "https://raw.githubusercontent.com/ClassicGOD/SmartThingsPublic/master/devicetypes/classicgod/xiaomi-magic-cube-controller.src/images/mi_face.png"
 )
