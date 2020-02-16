@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.10
+*  Version: 0.4.11
 *
 ***********************************************************************************************************************/
 
@@ -684,20 +684,39 @@ def displayMultiplierMessage(){
     displayInfo("Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%).")
 }
 
+def createDeviceList(device,list = []){
+	device.each{
+		list.add(it.id)
+	}
+	return list
+}
+
+def compareDeviceList(device,list){
+	device.each{
+		if(list.contains(it.id)) return true
+	}
+}
+
+/* ************************************************** */
+/*                                                    */
+/* End display functions.                             */
+/*                                                    */
+/* ************************************************** */
+
 def installed() {
-	logTrace(688, "Installed","trace")
+	logTrace(707, "Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-	logTrace(694,"Updated","trace")
+	logTrace(713,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(700,"Initialized","trace")
+	logTrace(719,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -735,7 +754,7 @@ def buttonPushed(evt){
 			case "5": multiOn("off",controlDevice)
                 message = "turning off"
 		}
-        logTrace(738,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
+        logTrace(757,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
 	} else if(!multiDevice && advancedSetup){
 			switch(settings["buttonPush${atomicState.buttonNumber}"]){
 				case "on": multiOn("on",controlDevice)
@@ -753,11 +772,11 @@ def buttonPushed(evt){
 				case "off": multiOn("off",controlDevice)
                     message = "turning off"
 			}
-            logTrace(756,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message","trace")
+            logTrace(775,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message","trace")
     // if(multiDevice && (!advancedSetup || advancedSetup))
 	} else {
         if(settings["button_${atomicState.buttonNumber}_push_toggle"] != null) {
-            logTrace(760,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
+            logTrace(779,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
             if (settings.color == "Separate"){
                 toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
             } else {
@@ -765,19 +784,19 @@ def buttonPushed(evt){
             }
         }
         if(settings["button_${atomicState.buttonNumber}_push_on"]) {
-            logTrace(768,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on","trace")
+            logTrace(787,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on","trace")
             multiOn("on",settings["button_${atomicState.buttonNumber}_push_on"])
         }
         if(settings["button_${atomicState.buttonNumber}_push_off"]){
-            logTrace(772,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off","trace")
+            logTrace(791,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off","trace")
             multiOn("off",settings["button_${atomicState.buttonNumber}_push_off"])
         }
         if(settings["button_${atomicState.buttonNumber}_push_dim"]) {
-            logTrace(776,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming","trace")
+            logTrace(795,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming","trace")
             parent.dim("dim",settings["button_${atomicState.buttonNumber}_push_dim"],app.label)
         }
         if(settings["button_${atomicState.buttonNumber}_push_brighten"]) {
-            logTrace(780,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening","trace")
+            logTrace(799,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening","trace")
             parent.dim("brighten",settings["button_${atomicState.buttonNumber}_push_brighten"],app.label)
         }
     }
@@ -817,7 +836,7 @@ def buttonHeld(evt){
             case "5": multiOn("off",controlDevice)
             action = "turning off"
         }
-        logTrace(820,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; simple setup; $atomicState.action")
+        logTrace(839,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; simple setup; $atomicState.action")
     } else if(!multiDevice && advancedSetup && !replicateHold){
         switch(settings["buttonPush${atomicState.buttonNumber}"]){
             case "on": multiOn("on",controlDevice)
@@ -835,7 +854,7 @@ def buttonHeld(evt){
             case "off": multiOn("off",controlDevice)
             action = "turning off"
         }
-        logTrace(838,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action")
+        logTrace(857,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action")
     } else if(!multiDevice && advancedSetup && replicateHold){
         switch(settings["buttonHold${atomicState.buttonNumber}"]){
             case "on": multiOn("on",controlDevice)
@@ -853,10 +872,10 @@ def buttonHeld(evt){
             case "off": multiOn("off",controlDevice)
             action = "turning off"
         }
-        logTrace(856,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action","trace")
+        logTrace(875,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action","trace")
     } else {
 		if(settings["button_${buttonNumber}_hold_toggle"] != null) {
-			logTrace(859,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
+			logTrace(878,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
 			if (settings.color == "Separate"){
 				toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
 			} else {
@@ -864,19 +883,19 @@ def buttonHeld(evt){
 			}
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_on"]) {
-			logTrace(867,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on","trace")
+			logTrace(886,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on","trace")
 			multiOn("on",settings["button_${atomicState.buttonNumber}_hold_on"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_off"]) {
-			logTrace(871,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off","trace")
+			logTrace(890,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off","trace")
 			multiOn("off",settings["button_${atomicState.buttonNumber}_hold_off"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_dim"]) {
-			logTrace(875,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming","trace")
+			logTrace(894,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming","trace")
 			holdDim(settings["button_${atomicState.buttonNumber}_hold_dim"])
 		}
 		if(settings["button_${atomicState.buttonNumber}_hold_brighten"]) {
-			logTrace(879,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening","trace")
+			logTrace(898,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening","trace")
 			holdBrighten(settings["button_${atomicState.buttonNumber}_hold_brighten"])
 		}
 	}
@@ -885,7 +904,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
 	atomicState.buttonNumber = evt.value
 	if (atomicState.buttonNumber == "2" || (atomicState.buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (atomicState.buttonNumber == "1" && settings.numButton == "2 button")){
-		logTrace(888,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all","trace")
+		logTrace(907,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all","trace")
 		unschedule()
 	}
 }
@@ -908,7 +927,7 @@ def getDimSpeed(){
 // action = "dim" or "brighten"
 def getSteps(level, action){
 	if (action != "dim" && action != "brighten"){
-		logTrace(911,"Invalid value for action \"$action\" sent to getSteps function","error")
+		logTrace(930,"Invalid value for action \"$action\" sent to getSteps function","error")
 		return false
 	}
     
@@ -931,7 +950,7 @@ def getSteps(level, action){
 			level = parent.nextLevel(level, action,app.getId())
 		}
 	}
-	logTrace(934,"Function getSteps returning $steps","debug")
+	logTrace(953,"Function getSteps returning $steps","debug")
 	return steps
 }
 
@@ -985,7 +1004,7 @@ def setSubscribeLevel(data){
 		}
 	}
 	if(!device) {
-		logTrace(988,"Function setSubscribeLevel returning (no matching device)","trace")
+		logTrace(1007,"Function setSubscribeLevel returning (no matching device)","trace")
 		return
 	}
 	parent.singleLevels(data.level,null,null,null,device,app.label)
@@ -1028,7 +1047,7 @@ def holdDim(device){
 			parent.reschedule(it,app.label)
         } else {
             if(level < 2){
-                logTrace(1031,"Can't dim $it; already 1%.","info")
+                logTrace(1050,"Can't dim $it; already 1%.","info")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
@@ -1054,7 +1073,7 @@ def holdBrighten(device){
 			reschedule(it)
         } else {
             if(level > 99){
-                logTrace(1057,"Can't brighten $it; already 100%.","info")
+                logTrace(1076,"Can't brighten $it; already 100%.","info")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
@@ -1084,79 +1103,164 @@ def getLevel(device){
     return level
 }
 
-def createDeviceList(device,list = []){
-	device.each{
-		list.add(it.id)
-	}
-	return list
+// Gets levels as set for the app
+// Function must be included in all apps that use MultiOn
+def getOverrideLevels(defaults,appAction = null){
+    // Need to add levels
+    return defaults       
 }
 
-def compareDeviceList(device,list){
-	device.each{
-		if(list.contains(it.id)) return true
-	}
+// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Used to track if app turned on device when schedule captures a device state changing to on
+// Must be included in all apps using MultiOn
+def addStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange) {
+        atomicState.deviceChange = "$atomicState.deviceChange:$singleDeviceId:"
+    } else {
+        atomicState.deviceChange = ":$singleDeviceId:"
+    }
+}
+
+// Returns the value of deviceChange
+// Used by schedule when a device state changes to on, to check if an app did it
+// Function must be in every app
+def getStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange){
+        return atomicState.deviceChange.indexOf(":$singleDeviceId:")
+    } else {
+        return false
+    }
+}
+
+// Scheduled funtion to reset the value of deviceChange
+// Must be in every app using MultiOn
+def resetStateDeviceChange(){
+    atomicState.deviceChange = null
+    return
 }
 
 // This is a bit of a mess, but.... 
-def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
-        logTrace(1103,"Invalid action \"$action\" sent to multiOn","error")
+def multiOn(deviceAction,device,appAction = null){
+    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
+        logTrace(1145,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
-    // If turning on or off, turn them all on and reset incremental schedule(s)
-    // If turning off, exit
-    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    if(action == "off") return true
-    if(action == "toggle" || action == "on"){
+    if(deviceAction == "off"){
+        // Turn off devices
+        parent.setStateMulti("off",device,app.label)
+        return true
+    }
+    
+    if(deviceAction == "on"){
+         // Add device ids to deviceChange, so schedule knows it was turned on by an app
+        device.each{
+            addStateDeviceChange(it.id)
+            runIn(1,resetStateDeviceChange)
+        }
+        logTrace(1161,"Device id's turned on are $atomicState.deviceChange","debug")
+        
+        // Turn on devices
+        parent.setStateMulti("on",device,app.label)
+        // Get and set defaults levels for each device
+        device.each{
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            logTrace(1170,"Device is scheduled for $defaults","debug")
+
+            defaults = getOverrideLevels(defaults,appAction)
+
+            logTrace(1174,"With " + app.label + " overrides, using $defaults","debug")
+
+            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+            defaults = parent.getDefaultSingle(defaults,app.label)
+            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            logTrace(1179,"With generic defaults, using $defaults","debug")
+        }
+        return true
+    }
+
+    if(deviceAction == "toggle"){
+        // Create toggleOnDevice variable, used to track which devices are being turned on
         toggleOnDevice = []
+        // Set count variable, used for toggleOnDevice
         count = 0
         device.each{
             count = count + 1
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(action == "toggle" && deviceState){
+            if(deviceState){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
-            } else if(action == "toggle" && !deviceState){
+            } else {
+                // When turning on, add device id to deviceChange, so schedule knows it was turned on by an app
+                addStateDeviceChange(it.id)
+                runIn(1,resetStateDeviceChange)
                 parent.setStateSingle("on",it,app.label)
                 // Create list of devices toggled on
                 // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
                 toggleOnDevice.add(count)
             }
         }
-    }
-    if(action == "toggle" || action == "on" || action == "resume"){
+        // Create newCount variable, which is compared to the [old]count variable
+        // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
-            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
+            if(toggleOnDevice.contains(newCount)){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
 
                 // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
+                defaults = parent.getDefaultSingle(defaults,app.label)
 
                 // Set default level
-                if(action != "resume" || defaults){
+                if(defaults){
                     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else if(action == "resume" && !defaults){
+                } else {
                     parent.setStateSingle("off",it,app.label)
                 }
 
-                // if toggling on, reschedule incremental
-                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                // If toggling on, reschedule incremental
+                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
-            if(action == "toggle") return true
         }
+        return true
     }
 
-    // If turning on, resuming or "none", reschedule incremental
-    parent.rescheduleIncrementalMulti(device,app.label)
-    return true
+    if(deviceAction == "resume"){
+        device.each{
+            // If turning on, set default levels and over-ride with any contact levels
+            if(deviceAction == "resume"){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
+                logTrace(1242,"Scheduled defaults are $defaults","debug")
+
+                defaults = getOverrideLevels(defaults,appAction)
+                logTrace(1245,"With " + app.label + " overrides, using $defaults","debug")
+                
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Set default level
+                if(!defaults){
+                    logTrace(1250,"No schedule to resume for $it; turning off","trace")
+                    parent.setStateSingle("off",it,app.label)
+                }
+
+            }
+        }
+        return true
+    }
+
+    if(deviceAction == "none"){
+        // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        parent.rescheduleIncrementalMulti(device,app.label)
+        return true
+    }
 }
 
 //lineNumber should be a number, but can be text
