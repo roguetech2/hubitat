@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.08
+*  Version: 0.0.09
 *
 ***********************************************************************************************************************/
 
@@ -319,10 +319,19 @@ def washerSchedule(){
 	}
 }
 
+// Returns the value of deviceChange
+// Used by schedule when a device state changes to on, to check if an app did it
+// Function must be in every app
+def getStateDeviceChange(singleDeviceId){
+    return false
+}
+
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
+    //Uncomment return for no logging at all
+    // return
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
