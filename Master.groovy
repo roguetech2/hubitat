@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.6
+*  Version: 0.2.7
 *
 ***********************************************************************************************************************/
 
@@ -402,6 +402,14 @@ def getDefaultSingle(defaults, childLabel = "Master"){
     if((!defaults.temp || defaults.temp == "") && (!defaults.hue || defaults.hue == "")) defaults.temp = 3500
 
     return defaults
+}
+
+def getStateRequest(singleDevice,childLabel){
+        // Loop through all the apps...
+    childApps.each { Child ->
+        if(Child.getStateDeviceChange(singleDevice.id)) return true
+    }
+    return false
 }
 
 def dim(action,device,childLabel="Master"){
