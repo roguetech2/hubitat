@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.20
+*  Version: 0.1.21
 *
 ***********************************************************************************************************************/
 
@@ -748,67 +748,165 @@ def getRelativePercentage(base,percent){
 	return (100 - base) * percent / 100 + base
 }
 
-// Humidity only uses on and off, but easier to keep the code standard between apps
+// Gets levels as set for the app
+// Function must be included in all apps that use MultiOn
+def getOverrideLevels(defaults,appAction = null){
+    // Need to add levels
+    return defaults       
+}
+
+// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Used to track if app turned on device when schedule captures a device state changing to on
+// Must be included in all apps using MultiOn
+def addStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange) {
+        atomicState.deviceChange = "$atomicState.deviceChange:$singleDeviceId:"
+    } else {
+        atomicState.deviceChange = ":$singleDeviceId:"
+    }
+}
+
+// Returns the value of deviceChange
+// Used by schedule when a device state changes to on, to check if an app did it
+// Function must be in every app
+def getStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange){
+        return atomicState.deviceChange.indexOf(":$singleDeviceId:")
+    } else {
+        return false
+    }
+}
+
+// Scheduled funtion to reset the value of deviceChange
+// Must be in every app using MultiOn
+def resetStateDeviceChange(){
+    atomicState.deviceChange = null
+    return
+}
+
+// Humidity only uses on and off
 // This is a bit of a mess, but.... 
-def multiOn(action,device){
-    if(!action || (action != "on" && action != "off")) {
-        logTrace(755,"Invalid action \"$action\" sent to multiOn","error")
+def multiOn(deviceAction,device,appAction = null){
+    if(!deviceAction || (deviceAction != "on" && deviceAction != "off")) {
+        logTrace(791,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
-    // If turning on or off, turn them all on and reset incremental schedule(s)
-    // If turning off, exit
-    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    if(action == "off") return true
-    if(action == "toggle" || action == "on"){
+    if(deviceAction == "off"){
+        // Turn off devices
+        parent.setStateMulti("off",device,app.label)
+        return true
+    }
+    
+    if(deviceAction == "on"){
+         // Add device ids to deviceChange, so schedule knows it was turned on by an app
+        device.each{
+            addStateDeviceChange(it.id)
+            runIn(1,resetStateDeviceChange)
+        }
+        logTrace(807,"Device id's turned on are $atomicState.deviceChange","debug")
+        
+        // Turn on devices
+        parent.setStateMulti("on",device,app.label)
+        // Get and set defaults levels for each device
+        device.each{
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            logTrace(816,"Device is scheduled for $defaults","debug")
+
+            defaults = getOverrideLevels(defaults,appAction)
+
+            logTrace(820,"With " + app.label + " overrides, using $defaults","debug")
+
+            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+            defaults = parent.getDefaultSingle(defaults,app.label)
+            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            logTrace(825,"With generic defaults, using $defaults","debug")
+        }
+        return true
+    }
+
+    if(deviceAction == "toggle"){
+        // Create toggleOnDevice variable, used to track which devices are being turned on
         toggleOnDevice = []
+        // Set count variable, used for toggleOnDevice
         count = 0
         device.each{
             count = count + 1
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(action == "toggle" && deviceState){
+            if(deviceState){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
-            } else if(action == "toggle" && !deviceState){
+            } else {
+                // When turning on, add device id to deviceChange, so schedule knows it was turned on by an app
+                addStateDeviceChange(it.id)
+                runIn(1,resetStateDeviceChange)
                 parent.setStateSingle("on",it,app.label)
                 // Create list of devices toggled on
                 // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
                 toggleOnDevice.add(count)
             }
         }
-    }
-    if(action == "toggle" || action == "on" || action == "resume"){
+        // Create newCount variable, which is compared to the [old]count variable
+        // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
-            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
+            if(toggleOnDevice.contains(newCount)){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
 
                 // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
+                defaults = parent.getDefaultSingle(defaults,app.label)
 
                 // Set default level
-                if(action != "resume" || defaults){
+                if(defaults){
                     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else if(action == "resume" && !defaults){
+                } else {
                     parent.setStateSingle("off",it,app.label)
                 }
 
-                // if toggling on, reschedule incremental
-                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                // If toggling on, reschedule incremental
+                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
-            if(action == "toggle") return true
         }
+        return true
     }
 
-    // If turning on, resuming or "none", reschedule incremental
-    parent.rescheduleIncrementalMulti(device,app.label)
-    return true
+    if(deviceAction == "resume"){
+        device.each{
+            // If turning on, set default levels and over-ride with any contact levels
+            if(deviceAction == "resume"){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
+                logTrace(888,"Scheduled defaults are $defaults","debug")
+
+                defaults = getOverrideLevels(defaults,appAction)
+                logTrace(891,"With " + app.label + " overrides, using $defaults","debug")
+                
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Set default level
+                if(!defaults){
+                    logTrace(896,"No schedule to resume for $it; turning off","trace")
+                    parent.setStateSingle("off",it,app.label)
+                }
+
+            }
+        }
+        return true
+    }
+
+    if(deviceAction == "none"){
+        // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        parent.rescheduleIncrementalMulti(device,app.label)
+        return true
+    }
 }
 
 //lineNumber should be a number, but can be text
