@@ -211,16 +211,16 @@ def displayOpenLockOptions(){
 }
 
 def displayCloseDevices(){
-	displayLabel("When closed")
+    displayLabel("When closed")
     if(closeSwitchDifferent){
-	input "closeSwitchDifferent", "bool", title: "Control same lights and locks when closed. Click to change.", width: 12, submitOnChange:true
+        input "closeSwitchDifferent", "bool", title: "Control different lights and locks when closed. Click to change.", width: 12, submitOnChange:true
     } else {
-	input "closeSwitchDifferent", "bool", title: "Control different lights and locks when closed. Click to change.", width: 12, submitOnChange:true
+        input "closeSwitchDifferent", "bool", title: "Control same lights and locks when closed. Click to change.", width: 12, submitOnChange:true
     }
-	if(closeSwitchDifferent){
-		input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed", multiple: true, submitOnChange:true
-		input "closeLock", "capability.lock", title: "Locks to control when closed", multiple: true, submitOnChange:true
-		if(!openSwitch && !openLock){
+    if(closeSwitchDifferent){
+        input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed", multiple: true, submitOnChange:true
+        input "closeLock", "capability.lock", title: "Locks to control when closed", multiple: true, submitOnChange:true
+        if(!openSwitch && !openLock){
 			displayInfo("Select which switches/lights and/or locks to control when the contact is closed. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking.")
 		} else if(!openLock){
 			displayInfo("Select lock(s) in order to lock or unlock them when contact is closed. Optional field.")
@@ -759,11 +759,11 @@ def contactChange(evt){
 		}
 	}
 
-	// If not correct day, return nulls
-	if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
+    // If not correct day, return nulls
+    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
-       if(inputStartType) setTime()
-    
+    if(inputStartType) setTime()
+
     // if not between start and stop time, return nulls
     if(state.stop && !parent.timeBetween(state.start, state.stop, app.label)) return
 
@@ -846,21 +846,28 @@ def contactChange(evt){
 // Need to add level, temp and color!!
 // Need to add resume
 // It will get defaults, even if it's supposed to override
-			if(openSwitch) multiOn(openSwitchAction,"open",openSwitch)
+			if(openSwitch) multiOn(openSwitchAction,openSwitch,"open")
             if(locks) parent.multiLock(openLockActionopenLock,app.label)
 		}
 
 	// Perform close events (for switches and locks)
 	} else {
-        
 		// Schedule delay
 		if(closeWait) {
-			logTrace(858,"Scheduling runScheduleClose in $closeWait seconds","trace")
+			logTrace(857,"Scheduling runScheduleClose in $closeWait seconds","trace")
 			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
-			if(closeSwitch) multiOn(closeSwitchAction,"close",closeSwitch)
-			if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
+            if(closeSwitch) {
+                multiOn(closeSwitchAction,closeSwitch,"close")
+            } else if(!closeSwitchDifferent && openSwitch){
+                multiOn(closeSwitchAction,openSwitch,"close")
+            }
+            if(closeLock){
+                parent.multiLock(closeLockAction,closeLock,app.label)
+            } else if(!closeSwitchDifferent && openLock){
+                parent.multiLock(closeLockAction,openLock,app.label)
+            }
 		}
 	}
 }
@@ -868,7 +875,7 @@ def contactChange(evt){
 def runScheduleOpen(){
 	if(disable || state.disable) return
 
-	if(openSwitch) multiOn(openSwitchAction,"open",openSwitch)
+	if(openSwitch) multiOn(openSwitchAction,openSwitch,"open")
 	if(openLock) parent.multiLock(openLockAction,openLock,app.label)
 }
 
@@ -880,7 +887,7 @@ def runScheduleClose(){
         closeLock = openLock
     }
 
-    if(closeSwitch) multiOn(closeSwitchAction,"close",closeSwitch)
+    if(closeSwitch) multiOn(closeSwitchAction,closeSwitch,"close")
 	if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 }
 
@@ -924,79 +931,188 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(927,"input" + type + "Type set to " + settings["input${type}Type"],"error")
+		logTrace(934,"input" + type + "Type set to " + settings["input${type}Type"],"error")
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(934,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
+	logTrace(941,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
 }
 
+// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Used to track if app turned on device when schedule captures a device state changing to on
+def addStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange) {
+        atomicState.deviceChange = "$atomicState.deviceChange:$singleDeviceId:"
+    } else {
+        atomicState.deviceChange = ":$singleDeviceId:"
+    }
+}
+
+// Gets levels as set for the app
+// Function must be included in all apps that use MultiOn
+def getOverrideLevels(defaults,appAction = null){
+    if(!defaults) defaults = [:]
+    if(appAction == "open"){
+        if(openLevel) defaults.level = openLevel
+        if(openTemp)  defaults.temp = openTemp
+        if(openHue) defaults.hue = openHue
+        if(openSat) defaults.sat = openSat
+        return defaults
+    } else if(appAction == "close"){
+        if(closeLevel) defaults.level = closeLevel
+        if(closeTemp)  defaults.temp = closeTemp
+        if(closeHue) defaults.hue = closeHue
+        if(closeSat) defaults.sat = closeSat
+        return defaults
+    }
+    return false        
+}
+
+// Returns the value of deviceChange
+// Used by schedule when a device state changes to on, to check if an app did it
+// Function must be in every app
+def getStateDeviceChange(singleDeviceId){
+    if(atomicState.deviceChange){
+        return atomicState.deviceChange.indexOf(":$singleDeviceId:")
+    } else {
+        return false
+    }
+}
+
+// Scheduled funtion to reset the value of deviceChange
+def resetStateDeviceChange(){
+    atomicState.deviceChange = null
+    return
+}
+
 // This is a bit of a mess, but.... 
-def multiOn(action,device){
-    if(!action || (action != "on" && action != "off" && action != "toggle" && action != "resume" && action != "none")) {
-        logTrace(943,"Invalid action \"$action\" sent to multiOn","error")
+def multiOn(deviceAction,device,appAction = null){
+    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
+        logTrace(997,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
-    // If turning on or off, turn them all on and reset incremental schedule(s)
-    // If turning off, exit
-    if(action == "on" || action == "off") parent.setStateMulti(action,device,app.label)
-    if(action == "off") return true
-    if(action == "toggle" || action == "on"){
+    if(deviceAction == "off"){
+        // Turn off devices
+        parent.setStateMulti("off",device,app.label)
+        return true
+    }
+    
+    if(deviceAction == "on"){
+         // Add device ids to deviceChange, so schedule knows it was turned on by an app
+        device.each{
+            addStateDeviceChange(it.id)
+            runIn(1,resetStateDeviceChange)
+        }
+        logTrace(1013,"Device id's turned on are $atomicState.deviceChange","debug")
+        
+        // Turn on devices
+        parent.setStateMulti("on",device,app.label)
+        // Get and set defaults levels for each device
+        device.each{
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            logTrace(1022,"Device is scheduled for $defaults","debug")
+
+            defaults = getOverrideLevels(defaults,appAction)
+            
+            logTrace(1026,"With " + app.label + " overrides, using $defaults","debug")
+            
+            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+            defaults = parent.getDefaultSingle(defaults,app.label)
+                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            logTrace(1031,"With generic defaults, using $defaults","debug")
+        }
+        return true
+    }
+    
+    if(deviceAction == "toggle"){
+        // Create toggleOnDevice variable, used to track which devices are being turned on
         toggleOnDevice = []
+        // Set count variable, used for toggleOnDevice
         count = 0
         device.each{
             count = count + 1
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(action == "toggle" && deviceState){
+            if(deviceState){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
-            } else if(action == "toggle" && !deviceState){
+            } else {
+                // When turning on, add device id to deviceChange, so schedule knows it was turned on by an app
+                addStateDeviceChange(it.id)
+                runIn(1,resetStateDeviceChange)
                 parent.setStateSingle("on",it,app.label)
                 // Create list of devices toggled on
                 // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
                 toggleOnDevice.add(count)
             }
         }
-    }
-    if(action == "toggle" || action == "on" || action == "resume"){
+        // Create newCount variable, which is compared to the [old]count variable
+        // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
-            if(action == "on" || action == "resume" || (action == "toggle" && toggleOnDevice.contains(newCount))){
+            if(toggleOnDevice.contains(newCount)){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
 
                 // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                if(action == "on" || (action == "toggle" && toggleOnDevice.contains(newCount))) defaults = parent.getDefaultSingle(defaults,app.label)
+                defaults = parent.getDefaultSingle(defaults,app.label)
 
                 // Set default level
-                if(action != "resume" || defaults){
+                if(defaults){
                     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else if(action == "resume" && !defaults){
+                } else {
                     parent.setStateSingle("off",it,app.label)
                 }
 
-                // if toggling on, reschedule incremental
-                if(action == "toggle" && !deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                // If toggling on, reschedule incremental
+                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
             }
-            if(action == "toggle") return true
         }
+        return true
     }
 
-    // If turning on, resuming or "none", reschedule incremental
-    parent.rescheduleIncrementalMulti(device,app.label)
-    return true
+    if(deviceAction == "resume"){
+        device.each{
+            // If turning on, set default levels and over-ride with any contact levels
+            if(deviceAction == "resume"){
+                // If defaults, then there's an active schedule
+                // So use it for if overriding/reenabling
+                defaults = parent.getScheduleDefaultSingle(it,app.label)
+                logTrace(1097,"Scheduled defaults are $defaults","debug")
+
+                defaults = getOverrideLevels(defaults,appAction)
+                logTrace(1097,"With " + app.label + " overrides, using $defaults","debug")
+                
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                // Set default level
+                if(!defaults){
+                    logTrace(1103,"No schedule to resume for $it; turning off","trace")
+                    parent.setStateSingle("off",it,app.label)
+                }
+
+            }
+        }
+        return true
+    }
+
+    if(deviceAction == "none"){
+        // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        parent.rescheduleIncrementalMulti(device,app.label)
+        return true
+    }
 }
 
 //lineNumber should be a number, but can be text
@@ -1019,7 +1135,7 @@ def logTrace(lineNumber,message = null, type = "trace"){
         log.info message
         break
         case "debug":
-        //log.debug message
+        log.debug message
         break
         case "trace":
         log.trace message
