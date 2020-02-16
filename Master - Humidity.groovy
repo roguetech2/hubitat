@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.21
+*  Version: 0.1.22
 *
 ***********************************************************************************************************************/
 
@@ -24,6 +24,7 @@ definition(
     description: "Humidity Sensors",
     parent: "master:Master",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Humidity.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png"
 )
