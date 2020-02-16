@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.19
+*  Version: 0.1.20
 *
 ***********************************************************************************************************************/
 
@@ -481,7 +481,7 @@ def humidityHandler(evt) {
 	logTrace(481,"function humidityHandler [humidityChangeRate = $state.humidityChangeRate]","debug")
 
 	logTrace(483,"Current humidity of $evt.displayName is $state.currentHumidity; auto on is $state.automaticallyTurnedOn","trace")
-	fanIsOn = parent.isMultiOn(switches,app.label)
+	fanIsOn = parent.isOnMulti(switches,app.label)
 
 	// If the fan is auto-on, turn it off? (Or need to schedule off?)
 	if(fanIsOn && state.automaticallyTurnedOn){
@@ -578,7 +578,7 @@ def scheduleTurnOff() {
 
 	// If nothing on, do nothing
 	// Should we (allow) turn off just in case?
-	if(!parent.isMultiOn(switches,app.label)) return
+	if(!parent.isOnMulti(switches,app.label)) return
 
 	// Get status for whether criteria to turn off are still matched
 	turnFanOff = checkOffCriteria()
