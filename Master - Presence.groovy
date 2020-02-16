@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.31
+*  Version: 0.1.32
 *
 ***********************************************************************************************************************/
 
@@ -30,6 +30,7 @@ definition(
     description: "Presence - Arriving and Leaving",
     parent: "master:Master",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Presence.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
