@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.17
+*  Version: 0.4.18
 *
 ***********************************************************************************************************************/
 
@@ -24,6 +24,7 @@ definition(
     description: "Schedules, times and default settings",
     parent: "master:Master",
     category: "Convenience",
+    importUrl: "https://raw.githubusercontent.com/roguetech2/hubitat/master/Master - Time.groovy",
     iconUrl: "http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png"
 )
