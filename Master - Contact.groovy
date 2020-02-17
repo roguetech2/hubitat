@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.13
+*  Version: 0.4.14
 * 
 ***********************************************************************************************************************/
 
@@ -34,10 +34,23 @@ definition(
 /* (see humidity).                                    */
 /* ************************************************** */ 
 preferences {
-	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
-    page(name: "setup", install: true, uninstall: true) {
+    infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+    errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
 
+    if((!app.label) ||
+       (!contactDevice) ||
+      (!openSwitch && !openLock && !alertEnable && !modeEnable) ||
+      (alertEnable && !phone && !speakText) ||
+      (modeEnable && !mode)) noInstall = true
+
+    if(noInstall) {
+        install = false
+    } else {
+        install = true
+    }
+
+    page(name: "setup", install: install, uninstall: true) {
         section() {
             // If all disabled, force reenable
             if(disableAll){
@@ -53,7 +66,7 @@ preferences {
                 if(app.label){
                     displayDevicesOption()
                 }
-                input "disable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
+                if(!noInstall) input "disable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
             }
 
             //if not disabled, then show everything
@@ -69,13 +82,19 @@ preferences {
                         if(openSwitch) displayOpenSwitchOptions()
                         //change from "!openLock" to "openLock"
                         if(!openLock) displayOpenLockOptions()
-                        if(openSwitch) displayCloseDevices()
-                        displayCloseSwitchOptions()
-                        displayBinaryOptions()
-                        displayBrightnessOption()
-                        displayTempOption()
-                        displayColorOption()
-                        
+                        if(openSwitch && openSwitchAction) {
+                            displayCloseDevices()
+                            displayCloseSwitchOptions()
+                            if((!closeSwitchDifferent && closeSwitchAction) || (closeSwitchDifferent && closeSwitch && closeSwitchAction)){
+                                displayBinaryOptions()
+                                displayBrightnessOption()
+                                displayTempOption()
+                                displayColorOption()
+                            }
+                        } else if(!openSwitch){
+                            displayBinaryOptions()
+                        }
+
                         displayStartTimeTypeOption()
                         if(inputStartType == "Time"){
                             displayStartTimeOption()
@@ -116,8 +135,11 @@ preferences {
                                 }
                             }
                         }
-                        displayWaitOptions()
-                        displayAlertOptions()
+                        if(!openSwitch || (openSwitch && openSwitchAction)){
+                            displayWaitOptions()
+                            displayAlertOptions()
+                            displayModeOptions()
+                        }
 // Send SMS and/or speack (depending who is home)
 // Set active time
 // Change Mode
@@ -163,7 +185,7 @@ def displayInfo(text = "Null"){
 def displayNameOption(){
     displayLabel("Set name for this contact sensor routine")
 	label title: "", required: true, submitOnChange:true
-        if(!app.label) displayInfo("Name this schedule. Each schedule must have a unique name.")
+        if(!app.label) displayInfo("Name this contact routine. Each contact must have a unique name.")
 /* ************************************************** */
 /* TO-DO: Test the name is unique; otherwise          */
 /* rescheduling won't work, since we use "childLabel" */
@@ -197,9 +219,9 @@ def displayOpenDevices(){
 
 def displayOpenSwitchOptions(){
     if(!openSwitch) return
-    input "openSwitchAction", "enum", title: "Turn lights/switches on or off when opened?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
+    input "openSwitchAction", "enum", title: "Turn lights/switches on or off when opened?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on":"Turn on", "off":"Turn off", "toggle":"Toggle"], submitOnChange:true
 	if(!openSwitchAction) {
-		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when contact is opened. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will enable any schedule active when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. In other words, it will restore their default state or turn them off. To resume active schedules without turning off, select \"Don't\". Required field.")
+		displayInfo("Set whether to turn on or off, or toggle device(s), when contact is opened. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. Required field.")
 	} else if(openSwitchAction == "resume") {
 		displayInfo("Active schedules will be enabled when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. To resume active schedules without turning off, select \"Don't\".")
 	} 
@@ -221,11 +243,11 @@ def displayCloseDevices(){
     if(closeSwitchDifferent){
         input "closeSwitch", "capability.switchLevel", title: "Lights/switches to control when closed", multiple: true, submitOnChange:true
         input "closeLock", "capability.lock", title: "Locks to control when closed", multiple: true, submitOnChange:true
-        if(!openSwitch && !openLock){
-			displayInfo("Select which switches/lights and/or locks to control when the contact is closed. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking.")
-		} else if(!openLock){
+        if(!closeSwitch && !closeLock){
+			displayInfo("Select which switches/lights and/or locks to control when the contact is closed. This will allow turning on, turning off, toggling, and/or setting levels for lights/switches, and/or locking or unlocking. Required field (or unselect to control different lights).")
+		} else if(!closeLock){
 			displayInfo("Select lock(s) in order to lock or unlock them when contact is closed. Optional field.")
-		} else if(!openSwitch){
+		} else if(!closeSwitch){
 			displayInfo("Select switches/lights in order to turn on, turn off, toggle, and/or set levels for them when contact is closed. Optional field.")
 		}
 	} else {
@@ -234,10 +256,10 @@ def displayCloseDevices(){
 }
 
 def displayCloseSwitchOptions(){
-    if(!openSwitch || !openSwitchAction || (closeSwitchDifferent && !closeSwitch)) return
+    if(closeSwitchDifferent && !closeSwitch) return
     input "closeSwitchAction", "enum", title: "Turn lights/switches on or off when closed?", multiple: false, width: 12, options: ["none": "Don't turn on or off (but resume schedule)","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
 	if(!closeSwitchAction) {
-		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when closing the contact. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will enable any schedule active when the contact sensor opens, and turn off if there are no active schedules. If there is not any active schedule for the device(s), they will turn off. In other words, it will restore their default state or turn them off. To resume active schedules without turning off, select \"Don't\". Required field.")
+		displayInfo("Set whether to turn on or off, or toggle $timeDevice, when closing the contact. If it should not turn on, turn off, or toggle, then select \"Don't\". Toggle turns on devices that are off, and turns off devices that are on. \"Resume schedule\" will resume any schedule(s) disabled on open. If there is not any schedule for the device(s), the device will be turned off. To resume active schedules without turning off, select \"Don't\". Required field.")
 	} else if(closeSwitchAction == "none"){
 		displayInfo("Not turning on or off will resume schedule(s), even if the schedule was overriden when opened.")
 	} else if(closeSwitchAction == "resume") {
@@ -296,7 +318,7 @@ def displayBinaryOptions(){
         input "alertEnable", "bool", title: "<b>Do not send alert (text or voice).</b> Click to change.", submitOnChange:true
     }
     if(!modeEnable){
-        input "modeEnable", "bool", title: "<b>Don't change Mode.</b> Click to change.", submitOnChange:true
+        input "modeEnable", "bool", title: "<b>Do not change Mode.</b> Click to change.", submitOnChange:true
     } else {
         input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
     }
@@ -324,8 +346,10 @@ def displayBinaryOptions(){
         } else if(tempEnable){
             paragraph " &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Don't change color."
         }
-    }
-	if(!levelEnable && !tempEnable && !colorEnable && !scheduleEnable && !alertEnable && !modeEnable) displayInfo("Select which option(s) to change, which will allow entering values to set when contact is opened and/or closed. All are optional.")
+        if(!levelEnable && !tempEnable && !colorEnable && !scheduleEnable && !alertEnable && !modeEnable) displayInfo("Select which option(s) to change, which will allow entering values to set when contact is opened and/or closed. All are optional.")
+    } else {
+        if(!modeEnable && !alertEnable) displayInfo("Select whether to send an alert or change mode when opend or closed. Both are optional.")
+            }
 }
 
 def displayBrightnessOption(){
@@ -609,25 +633,25 @@ def displayWaitOptions(){
 
 def displayAlertOptions(){
     if(!alertEnable) return
-	if(parent.notificationDevice){
-    		displayLabel("Alert by voice or text")
-		width = 6
-	} else {
-		dispayLabel("Send text message")
-		width = 12
-	}
+    if(parent.notificationDevice){
+        displayLabel("Alert by voice or text")
+        width = 6
+    } else {
+        dispayLabel("Send text message")
+        width = 12
+    }
 
-        input "phone", "phone", title: "Number to text alert?", width: width, submitOnChange:true
- 
+    input "phone", "phone", title: "Number to text alert?", width: width, submitOnChange:true
+
     if(phone && !(validatePhone(phone))) errorMessage("Phone number is not valid.")
 
-        if(width == 6) {
-		input "speakText", "text", title: "Voice notification text? (Optional)", width: 6, submitOnChange:true
-        	displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
-	}
-	if(phone){
-	        if(phoneOpenClose){
-	            input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: width
+    if(parent.notificationDevice) {
+        input "speakText", "text", title: "Voice notification text?", width: 6, submitOnChange:true
+        displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app. Either phone number or speech text is required (or unselect to send alert).")
+    }
+    if(phone){
+        if(phoneOpenClose){
+            input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: width
 	        } else {
 	            input "phoneOpenClose", "bool", title: "SMS when <b>opened</b>. Click for closed.", submitOnChange:true, width: width
 	        }
@@ -641,20 +665,31 @@ def displayAlertOptions(){
 	}
         if(width == 12) errorMessage("To have voice message will be sent, set \"Notification device(s)\" in Master app.")
 
-// This should probably different functions
-    input "modeEnable", "bool", title: "<b>Change Mode.</b> Click to change.", submitOnChange:true
-// We're missing a mode selection option!!
-    if(modeEnable && mode){
-	
-        if(modeOpenClose){
-            input "modeOpenClose", "bool", title: "When <b>opened</b>, change mode, text and/or notification. Click for when closed.", submitOnChange:true
-        } else {
-            input "modeOpenClose", "bool", title: "When <b>closed</b>, change mode, text and/or notification. Click for on opened.", submitOnChange:true
-        }
-    }
     if(phone || speakText){
         input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home", multiple: true, submitOnChange:true
         input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home", multiple: true, submitOnChange:true
+    }
+}
+
+def displayModeOptions(){
+    if(alertEnable && (!phone && !speakText)) return
+    if(modeEnable){
+        input "mode", "mode", title: "Select Hubitat's \"Mode\" to set when opened.", width: 12, submitOnChange:true
+        if(mode){
+            if(modeOpenClose){
+                input "modeOpenClose", "bool", title: "Change Mode when <b>opened</b>, change mode. Click for when closed.", submitOnChange:true
+            } else {
+                input "modeOpenClose", "bool", title: "Change Mode when <b>closed</b>, change mode. Click for on opened.", submitOnChange:true
+            }
+        }
+    }
+    if((modeEnable && mode) || !modeEnable){
+        input "ifMode", "mode", title: "Only run if Mode is already?", width: 12, submitOnChange:true
+        if(ifMode){
+            displayInfo("This will limit the contact sensor from running unless Hubitat's Mode is $ifMode.")
+        } else {
+            displayInfo("This will limit the contact sensor from running unless Hubitat's Mode is as selected. Optional field.")
+        }
     }
 }
 
@@ -712,13 +747,13 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 /* ************************************************** */
 
 def installed() {
-	logTrace(714,"Installed","trace")
+	logTrace(750,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(720,"Updated","trace")
+	logTrace(756,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
@@ -744,18 +779,18 @@ def initialize() {
 		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
 
-	logTrace(746,"Initialized","trace")
+	logTrace(782,"Initialized","trace")
 }
 
 def contactChange(evt){
 	if(disable || state.disable) return
 
-	logTrace(752,"Contact sensor $evt.displayName $evt.value","debug")
+	logTrace(788,"Contact sensor $evt.displayName $evt.value","debug")
 	
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			logTrace(757,"Contact disabled, mode $ifMode","trace")
+			logTrace(793,"Contact disabled, mode $ifMode","trace")
 			return defaults
 		}
 	}
@@ -840,7 +875,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(842,"Scheduling runScheduleOpen in $openWait seconds","trace")
+			logTrace(878,"Scheduling runScheduleOpen in $openWait seconds","trace")
 			runIn(openWait,runScheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -855,7 +890,7 @@ def contactChange(evt){
 	} else {
 		// Schedule delay
 		if(closeWait) {
-			logTrace(857,"Scheduling runScheduleClose in $closeWait seconds","trace")
+			logTrace(893,"Scheduling runScheduleClose in $closeWait seconds","trace")
 			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -932,14 +967,14 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(934,"input" + type + "Type set to " + settings["input${type}Type"],"error")
+		logTrace(970,"input" + type + "Type set to " + settings["input${type}Type"],"error")
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(941,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
+	logTrace(977,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
@@ -995,7 +1030,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def multiOn(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        logTrace(997,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(1033,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
@@ -1011,7 +1046,7 @@ def multiOn(deviceAction,device,appAction = null){
             addStateDeviceChange(it.id)
             runIn(1,resetStateDeviceChange)
         }
-        logTrace(1013,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1049,"Device id's turned on are $atomicState.deviceChange","debug")
         
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
@@ -1020,16 +1055,16 @@ def multiOn(deviceAction,device,appAction = null){
             // If defaults, then there's an active schedule
             // So use it for if overriding/reenabling
             defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logTrace(1022,"Device is scheduled for $defaults","debug")
+            logTrace(1058,"Device is scheduled for $defaults","debug")
 
             defaults = getOverrideLevels(defaults,appAction)
             
-            logTrace(1026,"With " + app.label + " overrides, using $defaults","debug")
+            logTrace(1062,"With " + app.label + " overrides, using $defaults","debug")
             
             // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
             defaults = parent.getDefaultSingle(defaults,app.label)
                     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            logTrace(1031,"With generic defaults, using $defaults","debug")
+            logTrace(1067,"With generic defaults, using $defaults","debug")
         }
         return true
     }
@@ -1092,15 +1127,15 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(1097,"Scheduled defaults are $defaults","debug")
+                logTrace(1130,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(1097,"With " + app.label + " overrides, using $defaults","debug")
+                logTrace(1133,"With " + app.label + " overrides, using $defaults","debug")
                 
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(1103,"No schedule to resume for $it; turning off","trace")
+                    logTrace(1138,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
                 }
 
