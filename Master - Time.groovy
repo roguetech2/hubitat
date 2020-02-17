@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.19
+*  Version: 0.4.20
 *
 ***********************************************************************************************************************/
 
@@ -32,6 +32,7 @@ definition(
 preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
 
     // If we're missing a value, don't allow save
     if((!timeDevice) ||
@@ -46,7 +47,8 @@ preferences {
        (tempEnable && !tempOn && !tempOff) ||
        (colorEnable && !hueOn && !hueOff && !satOn && !satOff) ||
        (colorEnable && hueOn && hueOff && !hueDirection) ||
-       (modeEnable && !modeChangeOn && !modeChangeOff)) noInstall = true
+       (modeEnable && !modeChangeOn && !modeChangeOff) ||
+      (levelOn > 100 || levelOff >100 || tempOn < 1800 || tempOn > 5400 || tempOff < 1800 || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
 
     if(noInstall) {
         install = false
@@ -58,7 +60,7 @@ preferences {
         section() {
             // If all disabled, force reenable
             if(disableAll){
-                input "disableAll", "bool", title: "<b>All schedules are disabled.</b> Reenable?", submitOnChange:true
+                input "disableAll", "bool", title: "<b><i>ALL</i> schedules are disabled.</b> Reenable?", submitOnChange:true
                 state.disable = true
             }
 
@@ -133,6 +135,7 @@ preferences {
                         }
                     }
                 }
+                if(warning) paragraph "$warning</div>"
                 if(error) paragraph "$error</div>"
             }
         }
@@ -157,9 +160,17 @@ preferences {
 
 def errorMessage(text){
     if(error){
-        error = error + "<br />$errorIcon $text"
+        error = "$error<br />$errorIcon $text"
     } else {
         error = "<div style=\"background-color:Bisque\">$errorIcon $text"
+    }
+}
+
+def warningMessage(text){
+    if(warning){
+        warning = "$warning<br />$warningIcon $text"
+    } else {
+        warning = "<div style=\"background-color:LemonChiffon\">$warningIcon $text"
     }
 }
 
@@ -171,11 +182,15 @@ def displayLabel(text = "Null"){
     }
 }
 
-def displayInfo(text = "Null"){
+def displayInfo(text = "Null",noDisplayIcon = null){
     if(text == "Null") {
         paragraph "<div style=\"background-color:AliceBlue\"> </div>"
     } else {
-        paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $text</div>"
+        if(noDisplayIcon){
+            paragraph "<div style=\"background-color:AliceBlue\"> &nbsp; &nbsp; $text</div>"
+        } else {
+            paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $text</div>"
+        }
     }
 }
 
@@ -186,14 +201,15 @@ def displayNameOption(){
     /* ************************************************** */
     /* TO-DO: Test the name is unique; otherwise          */
     /* rescheduling won't work, since we use "childLabel" */
-    /* variable.                                          */
+    /* variable. No clue how to do that, since it         */
+    /* doesn't seem can call a parent function in setup.  */
     /* ************************************************** */
 }
 
 def displayDevicesOption(){
-    displayLabel("Select which devices to schedule")
+    displayLabel("Select which device(s) to schedule")
     input "timeDevice", "capability.switch", title: "Device(s)?", multiple: true, required: true, submitOnChange:true
-    if(!timeDevice) displayInfo("Select which device(s) to control.")
+    if(!timeDevice) displayInfo("Select which device(s) to schedule, either for controlling the device or setting default levels.")
 }
 
 def displayTimeOnOption(){
@@ -253,7 +269,7 @@ def displayStartSunriseSunsetOption(){
             message = message + "a day"
         }
         message = message + ". That may not work right."
-        errorMessage(message)
+        warningMessage(message)
     }
 }
 
@@ -288,7 +304,19 @@ def displayStopTimeTypeOption(){
         width = 4
     }
     input "inputStopType", "enum", title: "Stop Time:", multiple: false, width: width, options: ["none":"Don't stop", "time":"Stop at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
-    if(!inputStopType) displayInfo("If wanting to perform actions when ending, or to have the Device(s) setting change over time, select whether to stop at a specific time, or stop based on sunrise and sunset for the Hubitat location. If only triggering actions at start time, then select \"None\" to proceed. Required field.")
+    if(!inputStopType) {
+        if(timeOn == "on" || timeOn == "off"){
+            message = "turn the device(s) $timeOn"
+        } else if(timeOn == "toggle"){
+            message = "toggle the device(s)"
+        } else if(timeOn == "none"){
+            message = "change the device(s)'s level"
+        }
+        displayInfo("Select \"Don't stop\" only if you only want to $message $varStartTime. Select to enter a stop time or use sunrise/sunset if you want to:")
+        displayInfo("• Set the device(s) turn on, turn off, or toggle at the end of the schedule, or","none")
+        displayInfo("• Set the device(s) to a default level throughout a portion of the day, or","none")
+        displayInfo("• Set the device(s) to transition levels over time.","none")
+    }
 }
 
 def displayStopTimeOption(){
@@ -320,7 +348,7 @@ def displayStopSunriseSunsetOption(){
             message = message + "a day"
         }
         message = message + ". That may not work right."
-        errorMessage(message)
+        warningMessage(message)
     }
 }
 
@@ -357,7 +385,7 @@ def getStartTimeVariables(){
         } else {
             message = message + "a day."
         }
-        parent.errorMessage(message)
+        warningMessage(message)
     }
 }
 
@@ -449,7 +477,7 @@ def displayBrightnessOption(){
         levelOff = null
         input "levelOn", "number", title: "Set brightness ($varStartTime)?", width: 12, submitOnChange:true
         if(!levelOn) {
-            displayInfo("Enter the percentage of brightness when turning on $timeOn, from 1 to 100. Required field (or unselect \"Change brightness\").")
+            displayInfo("Enter the percentage of brightness when turning on, from 1 to 100. Required field (or unselect \"Change brightness\").")
         } else {
             displayInfo("Brightness is percentage from 1 to 100.")
         }
@@ -458,15 +486,16 @@ def displayBrightnessOption(){
         input "levelOn", "number", title: "Beginning brightness ($varStartTime)?", width: 6, submitOnChange:true
         input "levelOff", "number", title: "and ending brightness ($varStopTime)?", width: 6, submitOnChange:true
         if(!levelOn && !levelOff) {
-            displayInfo("Enter the percentage of brightness when turning on $timeOn, from 1 to 100, when starting and/or ending the schedule. If entering both starting and ending brightness, it will transition from beginning to ending brightness for the duration of the schedule. Either starting or ending brightness is required (or unselect \"Change brightness\").")
+            displayInfo("Enter the percentage of brightness when turning on, from 1 to 100, when starting and/or ending the schedule. If entering both starting and ending brightness, it will transition from beginning to ending brightness for the duration of the schedule. Either starting or ending brightness is required (or unselect \"Change brightness\").")
         } else if(!levelOn || !levelOff){
-            displayInfo("Enter the percentage of brightness when turning on $timeOn, from 1 to 100. If entering both starting and ending brightness, it will transition from beginning to ending brightness for the duration of the schedule.")
+            displayInfo("Enter the percentage of brightness when turning on, from 1 to 100. If entering both starting and ending brightness, it will transition from beginning to ending brightness for the duration of the schedule.")
         } else {
             displayInfo("Brightness is percentage from 1 to 100.")
         }
-        if(!levelOn && levelOff && timeOff == "off") errorMessage("With no beginning brightness while setting Device(s) to turn off, setting an ending brightness won't do anything.")
+        if(!levelOn && levelOff && timeOff == "off") warningMessage("With no beginning brightness while setting Device(s) to turn off, setting an ending brightness won't do anything.")
     }
 
+    if(levelOn && levelOn == levelOff) warningMessage("Beginning and ending brightness are both set to $levelOn. This won't hurt anything, but the Stop brightness setting won't actually <i>do</i> anything.")
     if(levelOn > 100) errorMessage("Brightness is percentage from 1 to 100. Correct beginning brightness.")
     if(levelOff > 100) errorMessage("Brightness is percentage from 1 to 100. Correct ending brightness.")
 }
@@ -491,6 +520,7 @@ def displayTemperatureOption(){
             }
         }
     }
+    if(tempOn && tempOn == tempOff) warningMessage("Beginning and ending color temperature are both set to $tempOn. This won't hurt anything, but the Stop color temperature setting won't actually <i>do</i> anything.")
     if(tempOn && (tempOn < 1800 || tempOn > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct beginning temperature.")
     if(tempOff && (tempOff < 1800 || tempOff > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct ending temperature.")
 }
@@ -544,6 +574,8 @@ def displayColorOption(){
         }
     }
 
+    if(hueOn && hueOn == hueOff) warningMessage("Beginning and ending hue are both set to $hueOn. This won't hurt anything, but the Stop hue setting won't actually <i>do</i> anything.")
+    if(satOn && satOn == satOff) warningMessage("Beginning and ending saturation are both set to $satOn. This won't hurt anything, but the Stop saturation setting won't actually <i>do</i> anything.")
     if(hueOn > 100) errorMessage("Beginning hue can't be more than 100. Correct before saving.")
     if(hueOff && hueOff > 100) errorMessage("Ending hue can't be more than 100. Correct before saving.")
     if(satOn > 100) errorMessage("Beginning saturation can't be more than 100. Correct before saving.")
@@ -555,14 +587,18 @@ def displayModeOption(){
     if(modeEnable){
         if(inputStopType == "none"){
             displayLabel("Change Mode $varStartTime")
-            input "modeChangeOn", "mode", title: "Set Mode (at $varStartTime)?", width: 6, submitOnChange:true
-            input "ifMode", "mode", title: "Only run if Mode is already?", width: 12
+            input "modeChangeOn", "mode", title: "Set Hubitat's \"Mode\" ($varStartTime)?", width: 12, submitOnChange:true
         } else {
             displayLabel("Change Mode $varStartTime and/or $varStopTime")
-            input "modeChangeOn", "mode", title: "Change Mode (at $varStartTime)?", width: 12, submitOnChange:true
-            // ifmode is supposed to be "If Mode X, then allow run", not "only change mode if Mode is X" - i think?
-            input "ifMode", "mode", title: "Only run if Mode is already?", width: 12
+            input "modeChangeOn", "mode", title: "Set Hubitat's \"Mode\" ($varStartTime)?", width: 6, submitOnChange:true
+            input "modeChangeOff", "mode", title: "Set Hubitat's \"Mode\" ($varStopTime)?", width: 6, submitOnChange:true
         }
+    }
+    input "ifMode", "mode", title: "Only run if Mode is already?", width: 12, submitOnChange:true
+    if(ifMode){
+        displayInfo("This will limit the schedule from running unless Hubitat's Mode is $ifMode.")
+    } else {
+        displayInfo("This will limit the schedule from running unless Hubitat's Mode is as selected. Optional field.")
     }
 }
 
