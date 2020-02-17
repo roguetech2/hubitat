@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.33
+*  Version: 0.1.34
 *
 ***********************************************************************************************************************/
 
@@ -217,19 +217,19 @@ preferences {
 }
 
 def installed() {
-	logTrace(219,"Installed","trace")
+	logTrace(220,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(225,"Updated","trace")
+	logTrace(226,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace(231,"Initialized","trace")
+	logTrace(232,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -237,7 +237,7 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace(239,"$evt.displayName status changed to $evt.value","debug")
+	logTrace(240,"$evt.displayName status changed to $evt.value","debug")
 	
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
@@ -260,14 +260,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace(262,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
+			logTrace(263,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(269,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
+		logTrace(270,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
 		return
 	}
 	
@@ -282,7 +282,7 @@ def presenceHandler(evt) {
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace(284,"Presence handler doing nothing; not correct day","trace")
+		logTrace(285,"Presence handler doing nothing; not correct day","trace")
 		return
 	}
 
@@ -296,7 +296,7 @@ def presenceHandler(evt) {
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
 			//parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
-			logTrace(298, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
+			logTrace(299, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
 		} else {
 			//parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
 			logTrace("SMS no longer supported until updates complete. $evt.displayName's departure at $now.","info")
@@ -442,7 +442,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def multiOn(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle")) {
-        logTrace(444,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(445,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
@@ -456,9 +456,11 @@ def multiOn(deviceAction,device,appAction = null){
          // Add device ids to deviceChange, so schedule knows it was turned on by an app
         device.each{
             addStateDeviceChange(it.id)
-            runIn(1,resetStateDeviceChange)
+            // Time to schedule resetting deviceChange should match total time of waitStateChange
+            // Might be best to put this in a state variable in Initialize, as a setting?
+            runIn(2,resetStateDeviceChange)
         }
-        logTrace(460,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(463,"Device id's turned on are $atomicState.deviceChange","debug")
         
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
@@ -467,16 +469,17 @@ def multiOn(deviceAction,device,appAction = null){
             // If defaults, then there's an active schedule
             // So use it for if overriding/reenabling
             defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logTrace(469,"Device is scheduled for $defaults","debug")
+            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
+            logTrace(473,logMessage,"debug")
 
             defaults = getOverrideLevels(defaults,appAction)
-
-            logTrace(473,"With " + app.label + " overrides, using $defaults","debug")
+            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels" 
+            logTrace(477,logMessage,"debug")
 
             // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
             defaults = parent.getDefaultSingle(defaults,app.label)
+            logTrace(481,"With generic defaults, using $defaults","debug")
             parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            logTrace(478,"With generic defaults, using $defaults","debug")
         }
         return true
     }
@@ -504,6 +507,7 @@ def multiOn(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
+        logTrace(510,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -539,15 +543,15 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(1242,"Scheduled defaults are $defaults","debug")
+                logTrace(546,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(544,"With " + app.label + " overrides, using $defaults","debug")
+                logTrace(549,"With " + app.label + " overrides, using $defaults","debug")
                 
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(549,"No schedule to resume for $it; turning off","trace")
+                    logTrace(554,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
                 }
 
@@ -567,8 +571,14 @@ def multiOn(deviceAction,device,appAction = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
-    //Uncomment return for no logging at all
+    // Uncomment return for no logging at all
     // return
+
+    // logLevel sets number of log messages
+    // 1 for least (errors only)
+    // 5 for most (all)
+    logLevel = 5
+
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
@@ -577,16 +587,16 @@ def logTrace(lineNumber,message = null, type = "trace"){
         log.error message
         break
         case "warn":
-        log.warn message
+        if(logLevel > 1) log.warn message
         break
         case "info":
-        log.info message
-        break
-        case "debug":
-        //log.debug message
+        if(logLevel > 2) log.info message
         break
         case "trace":
-        log.trace message
+        if(logLevel > 3) log.debug message
+        break
+        case "debug":
+        if(loglevel == 5) log.trace message
     }
     return true
 }
