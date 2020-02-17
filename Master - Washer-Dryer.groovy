@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.11
+*  Version: 0.0.12
 *
 ***********************************************************************************************************************/
 
@@ -165,7 +165,7 @@ personHome - device
 */
 
 def installed() {
-	logTrace(167,"Installed","trace")
+	logTrace(168,"Installed","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -174,13 +174,13 @@ def installed() {
 }
 
 def updated() {
-	logTrace(176,"Updated","trace")
+	logTrace(177,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(182,"Initialized","trace")
+	logTrace(183,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -189,7 +189,7 @@ def initialize() {
 		unschedule()
 		stat.firstNotice = false
 		state.activity = []
-		logTrace(191,"Washer-dryer disabled","debug")
+		logTrace(192,"Washer-dryer disabled","debug")
 		return
 	}
 
@@ -202,16 +202,16 @@ def initialize() {
 }
 
 def washerHandler(evt) {
-	logTrace(204,"washerHandler starting [evt:  $evt ($evt.value)]","debug")
+	logTrace(205,"washerHandler starting [evt:  $evt ($evt.value)]","debug")
 
 	// If already started alerting, exit
 	if(state.firstNotice){
-		logTrace(208,"Washer/dryer notices already processing","trace")
+		logTrace(209,"Washer/dryer notices already processing","trace")
 		return
 	}
 
 	if(washerContactDevice && washerContactDevice.contact == "open") {
-		logTrace(216,"Washer Handler doing nothing, contact is open","trace")
+		logTrace(214,"Washer Handler doing nothing, contact is open","trace")
 		return
 	}
 
@@ -232,7 +232,7 @@ def washerHandler(evt) {
 	// Remove stale activity
 	state.activity.each {
 		if(it < target) {
-			logTrace(234,"function washerHandler removed value $it","debug")
+			logTrace(235,"function washerHandler removed value $it","debug")
 			toRemove.add(it);
 		}
 	}
@@ -240,17 +240,17 @@ def washerHandler(evt) {
 
 	// get count
 	listSize = state.activity.size()
-	logTrace(242,"function washerHandler registered $listSize events in the last half hour","trace")
+	logTrace(243,"function washerHandler registered $listSize events in the last half hour","trace")
 
 	// If 10 or more motion events in half hour, washer/dryer is running
 	if(listSize > 10){
-		logTrace(246,"Scheduling inactivity check for 6 minutes","trace")
+		logTrace(247,"Scheduling inactivity check for 6 minutes","trace")
 		runIn(60 * 6, washerSchedule)
 	}
 }
 
 def contactHandler(evt) {
-	logTrace(252,"$evt.displayName changed to $evt.value","debug")
+	logTrace(253,"$evt.displayName changed to $evt.value","debug")
 
 	unschedule()
 	state.firstNotice = false
@@ -265,14 +265,14 @@ def washerSchedule(){
 			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop,app.label)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-			logTrace(267,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)","trace")
+			logTrace(268,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)","trace")
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: true])
-			logTrace(269,"function washerSchedule returning (not between start time and stop time)","trace")
+			logTrace(270,"function washerSchedule returning (not between start time and stop time)","trace")
 			return
 		}
 	} else if(timeStart && timeStop && !wait){
 		if(!parent.timeBetween(timeStart, timeStop,app.label) || (timeDays && !parent.todayInDayList(timeDays,app.label))) {
-			logTrace(274,"function washerSchedule returning (not between start time and stop time)","trace")
+			logTrace(275,"function washerSchedule returning (not between start time and stop time)","trace")
 			state.firstnotice = false
 			state.activity = []
 			return
@@ -301,19 +301,19 @@ def washerSchedule(){
 
 		// Schedule repeat notices
 		if(repeat && repeatMinutes){
-			logTrace(303,"Scheduling repeat notifition for $repeatMinutes","trace")
+			logTrace(304,"Scheduling repeat notification for $repeatMinutes","trace")
 			runIn(60 * repeatMinutes, washerSchedule)
 		}
 
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
-		logTrace(309,"Scheduling notifition for $repeatMinutes; not currently home","trace")
+		logTrace(310,"Scheduling notification for $repeatMinutes; not currently home","trace")
 		runIn(60 * 10, washerSchedule)
 		return
 
 	// If not home and not wait, clear and exit
 	} else if(!present && !wait){
-		logTrace(315,"Washer Schedule doing nothing; not home","trace")
+		logTrace(316,"Washer Schedule doing nothing; not home","trace")
 		state.firstnotice = false
 		state.activity = []
 		return
@@ -331,8 +331,14 @@ def getStateDeviceChange(singleDeviceId){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
-    //Uncomment return for no logging at all
+    // Uncomment return for no logging at all
     // return
+
+    // logLevel sets number of log messages
+    // 1 for least (errors only)
+    // 5 for most (all)
+    logLevel = 5
+
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
@@ -341,15 +347,16 @@ def logTrace(lineNumber,message = null, type = "trace"){
         log.error message
         break
         case "warn":
-        log.warn message
+        if(logLevel > 1) log.warn message
         break
         case "info":
-        log.info message
-        break
-        case "debug":
-        //log.debug message
+        if(logLevel > 2) log.info message
         break
         case "trace":
-        log.trace message
+        if(logLevel > 3) log.debug message
+        break
+        case "debug":
+        if(loglevel == 5) log.trace message
     }
+    return true
 }
