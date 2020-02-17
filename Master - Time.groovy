@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.20
+*  Version: 0.4.21
 *
 ***********************************************************************************************************************/
 
@@ -35,7 +35,8 @@ preferences {
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
 
     // If we're missing a value, don't allow save
-    if((!timeDevice) ||
+    if((!app.label) ||
+       (!timeDevice) ||
        (!timeOn || !inputStartType) ||
        (inputStartType == "time" && !inputStartTime) ||
        (inputStopType == "time" && !inputStopTime) ||
@@ -48,7 +49,7 @@ preferences {
        (colorEnable && !hueOn && !hueOff && !satOn && !satOff) ||
        (colorEnable && hueOn && hueOff && !hueDirection) ||
        (modeEnable && !modeChangeOn && !modeChangeOff) ||
-      (levelOn > 100 || levelOff >100 || tempOn < 1800 || tempOn > 5400 || tempOff < 1800 || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
+      (levelOn > 100 || levelOff >100 || (tempOn && tempOn < 1800) || tempOn > 5400 || (tempOff && tempOff < 1800) || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
 
     if(noInstall) {
         install = false
