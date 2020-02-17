@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.18
+*  Version: 0.2.19
 * 
 ***********************************************************************************************************************/
 
@@ -333,19 +333,19 @@ def dimSpeed(){
 }
 
 def installed() {
-    logTrace(335,"Installed","trace")
+    logTrace(336,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    logTrace(341,"Updated","trace")
+    logTrace(342,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    logTrace(347,"Initialized","trace")
+    logTrace(348,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -360,7 +360,7 @@ def initialize() {
 def buttonEvent(evt){
     atomicState.buttonNumber = evt.value
 
-    logTrace(362,"$evt.displayName $evt.value","info")
+    logTrace(363,"$evt.displayName $evt.value","info")
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -407,7 +407,7 @@ def buttonEvent(evt){
            (atomicState.buttonNumber == 7 && counterClockwise && counterClockwise == "toggle")){
             multiOn("toggle",controlDevice)
         } else {
-            logTrace(409,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
+            logTrace(410,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     } else {
         if(settings["button_${atomicState.buttonNumber}_on"]) multiOn("on",settings["button_${atomicState.buttonNumber}_on"])
@@ -416,7 +416,7 @@ def buttonEvent(evt){
         if(settings["button_${atomicState.buttonNumber}_brighten"]) parent.dim("brighten",settings["button_${atomicState.buttonNumber}_brighten"],app.getId())
         if(settings["button_${atomicState.buttonNumber}_toggle"]) multiOn("toggle",settings["button_${atomicState.buttonNumber}_toggle"])
         if(!button_1_toggle && !button_1_on && !button_1_off && !button_1_dim && !button_1_brighten){
-            logTrace(418,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
+            logTrace(419,"No action defined for $atomicState.buttonNumber of $evt.displayName","trace")
         }
     }
 }
@@ -460,7 +460,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def multiOn(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        logTrace(462,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(463,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
@@ -474,9 +474,11 @@ def multiOn(deviceAction,device,appAction = null){
          // Add device ids to deviceChange, so schedule knows it was turned on by an app
         device.each{
             addStateDeviceChange(it.id)
-            runIn(1,resetStateDeviceChange)
+            // Time to schedule resetting deviceChange should match total time of waitStateChange
+            // Might be best to put this in a state variable in Initialize, as a setting?
+            runIn(2,resetStateDeviceChange)
         }
-        logTrace(478,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(481,"Device id's turned on are $atomicState.deviceChange","debug")
         
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
@@ -485,16 +487,17 @@ def multiOn(deviceAction,device,appAction = null){
             // If defaults, then there's an active schedule
             // So use it for if overriding/reenabling
             defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logTrace(487,"Device is scheduled for $defaults","debug")
+            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
+            logTrace(491,logMessage,"debug")
 
             defaults = getOverrideLevels(defaults,appAction)
-
-            logTrace(491,"With " + app.label + " overrides, using $defaults","debug")
+            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels" 
+            logTrace(495,logMessage,"debug")
 
             // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
             defaults = parent.getDefaultSingle(defaults,app.label)
+            logTrace(499,"With generic defaults, using $defaults","debug")
             parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-            logTrace(496,"With generic defaults, using $defaults","debug")
         }
         return true
     }
@@ -522,6 +525,7 @@ def multiOn(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
+        logTrace(528,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -557,15 +561,15 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(559,"Scheduled defaults are $defaults","debug")
+                logTrace(564,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(562,"With " + app.label + " overrides, using $defaults","debug")
+                logTrace(567,"With " + app.label + " overrides, using $defaults","debug")
                 
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(567,"No schedule to resume for $it; turning off","trace")
+                    logTrace(572,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
                 }
 
@@ -585,8 +589,14 @@ def multiOn(deviceAction,device,appAction = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
-    //Uncomment return for no logging at all
+    // Uncomment return for no logging at all
     // return
+
+    // logLevel sets number of log messages
+    // 1 for least (errors only)
+    // 5 for most (all)
+    logLevel = 5
+
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
@@ -595,16 +605,16 @@ def logTrace(lineNumber,message = null, type = "trace"){
         log.error message
         break
         case "warn":
-        log.warn message
+        if(logLevel > 1) log.warn message
         break
         case "info":
-        log.info message
-        break
-        case "debug":
-        //log.debug message
+        if(logLevel > 2) log.info message
         break
         case "trace":
-        log.trace message
+        if(logLevel > 3) log.debug message
+        break
+        case "debug":
+        if(loglevel == 5) log.trace message
     }
     return true
 }
