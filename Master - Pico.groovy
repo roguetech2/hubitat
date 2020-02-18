@@ -16,7 +16,7 @@
 *  Version: 0.4.17
 *
 ***********************************************************************************************************************/
-
+//Select device to control, then switch to "map buttons to other actions" = 500 error
 definition(
     name: "Master - Pico",
     namespace: "master",
