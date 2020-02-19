@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.17
+*  Version: 0.4.18
 *
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
@@ -29,17 +29,35 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
 
-/* ************************************************** */
-/* TO-DO: Add option to disable contact or schedule?  */
-/* ************************************************** */
-/* ************************************************** */
-/* TO-DO: Have Pico disable and/or pause schedules,   */
-/* eg if schedule is brightening, and Pico dims,      */
-/* disable schedule; if schedule is dimming and PIco  */
-/* dims lower than schedule is at, pause schedule.    */
-/* ************************************************** */
+/* ************************************************************************ */
+/* TO-DO: BUG! During setup, if a device is selected for all buttons, then  */
+/* switch to "map "map buttons to other actions", it causes a 500 error.    */
+/* ************************************************************************ */
+/* TO-DO: Add option for to set a Pico button to disable contact or         */
+/* schedule?                                                                */
+/* ************************************************************************ */
+/* ************************************************************************ */
+/* TO-DO: Add locks? Maybe like if turning on the porch light equals        */
+/* unlock...?                                                               */
+/* ************************************************************************ */
+/* ************************************************************************ */
+/* TO-DO: Add media device control. Volume increase/decrease, changing      */
+/*  channels (skip, pause, next, etc?)                                      */
+/* ************************************************************************ */
+/* ************************************************************************ */
+/* TO-DO: With growing number of options, add selection for which actions   */
+/* to display. Perhaps even allow entering custom actions? Would there be   */
+/* any advantage over rule machine or button maker or whatever??            */
+/* ************************************************************************ */
+/* ************************************************************************ */
+/* TO-DO: Add auto-pause/disabling of schedules when dimming and            */
+/* and brightening. Will need to know id of device being dimmed, and set a  */
+/* state variable. But the state variable will need to be global. Can that  */
+/* be done? If setting in Master, will it apply to all child apps??         */
+/* ************************************************************************ */
 preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+    warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
     if(app.label && buttonDevice && numButton) install = true
@@ -81,7 +99,7 @@ preferences {
                                 }
 
                                 if(!advancedSetup || buttonPush1 == "dim" || buttonPush1 == "brighten" || buttonPush2 == "dim" || buttonPush2 == "brighten" || buttonPush3 == "dim" || buttonPush3 == "brighten" || buttonPush4 == "dim" || buttonPush4 == "brighten" || buttonPush5 == "dim" || buttonPush5 == "brighten" || buttonHold1 == "dim" || buttonHold1 == "brighten" || buttonHold2 == "dim" || buttonHold2 == "brighten" || buttonHold3 == "dim" || buttonHold3 == "brighten" || buttonHold4 == "dim" || buttonHold4 == "brighten" || buttonHold5 == "dim" || buttonHold5 == "brighten")
-                                displayPushMultiplierOption()
+                                displayMultiplierOption()
                             }
                         }
                     }
@@ -102,6 +120,9 @@ preferences {
 
                     paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 
+/* ************************************************************************ */
+/* TO-DO: Put these inputs in a function.                                   */
+/* ************************************************************************ */
                     if(!replicateHold){
                         input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, submitOnChange:true
                         if(numButton == "4 button" || numButton == "5 button"){
@@ -150,11 +171,11 @@ preferences {
                         if(numButton == "4 button" || numButton == "5 button"){
                             input "button_4_hold_dim", "capability.switchLevel", title: "Holding \"Dim\" button dims?", multiple: true, submitOnChange:true
                         }
-                        input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") buttont turns off?", multiple: true, submitOnChange:true
+                        input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") button turns off?", multiple: true, submitOnChange:true
                     }
 
                     if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
-                        displayPushMultiplierOption()
+                        displayMultiplierOption()
                     }
                 }
             } else if(advancedSetup){
@@ -168,12 +189,20 @@ preferences {
                 }
 
                 if(app.label && buttonDevice && numButton){
-                    if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle) {
-                        hidden = false
-                    } else {
+                    if(!button_1_push_on && !button_1_push_off && !button_1_push_dim && !button_1_push_brighten && !button_1_push_toggle && !button_1_push_resume) {
                         hidden = true
+                        text = "None selected - Click to expand
+                    } else {
+                        hidden = false
+			text = "Click to expand/collapse"
                     }
-                    section(hideable: true, hidden: hidden, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+
+/* ************************************************************************ */
+/* TO-DO: Add warning messages for if dim/brightening and also turning on,  */
+/* toggling or resuming the same device (remove error for dim/brighten with */
+/* resume). Add same to MagicCube.                                          */
+/* ************************************************************************ */
+                    section(hideable: true, hidden: hidden, "Top button (\"On\") <font color=\"gray\">($text)</font>") {
                         button = [1,"on","push"]
                         getAdvancedSwitchInput(button)
 
@@ -181,29 +210,39 @@ preferences {
                         getAdvancedSwitchInput(button)
                         errorMessage(compareDeviceLists(button,"on"))
 
-                        button = [1,"toggle","push"]
+                        button = [1,"resume","push"]
                         getAdvancedSwitchInput(button)
                         errorMessage(compareDeviceLists(button,"on"))
                         errorMessage(compareDeviceLists(button,"off"))
 
+                        button = [1,"toggle","push"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"on"))
+                        errorMessage(compareDeviceLists(button,"off"))
+                        errorMessage(compareDeviceLists(button,"resume"))
+
                         button = [1,"dim","push"]
                         getAdvancedSwitchInput(button)
                         errorMessage(compareDeviceLists(button,"off"))
+                        errorMessage(compareDeviceLists(button,"resume"))
 
                         button = [1,"brighten","push"]
                         getAdvancedSwitchInput(button)
                         errorMessage(compareDeviceLists(button,"off"))
                         errorMessage(compareDeviceLists(button,"dim"))
-
+                        errorMessage(compareDeviceLists(button,"resume"))
                     }
                     //paragraph error
                     if((numButton == "4 button" || numButton == "5 button") && !error){
-                        if(button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle) {
-                            hidden = false
-                        } else {
+                        if(!button_2_push_on && !button_2_push_off && !button_2_push_dim && !button_2_push_brighten && !button_2_push_toggle && !button_2_push_resume) {
                             hidden = true
+                            text = "None selected - Click to expand
+                        } else {
+                            hidden = false
+		    	    text = "Click to expand/collapse"
                         }
-                        section(hideable: true, hidden: hidden, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+
+                        section(hideable: true, hidden: hidden, "\"Brighten\" Button <font color=\"gray\">($text)</font>") {
                             button = [2,"brighten","push"]
                             getAdvancedSwitchInput(button)
 
@@ -225,44 +264,64 @@ preferences {
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"on"))
                             errorMessage(compareDeviceLists(button,"off"))
+
+                            button = [2,"resume","push"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"toggle"))
                         }
                     }
                     if(numButton == "5 button" && !error){
-                        if(button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle) {
-                            hidden = false
-                        } else {
+                        if(!button_3_push_on && !button_3_push_off && !button_3_push_dim && !button_3_push_brighten && !button_3_push_toggle && !button_3_push_resume) {
                             hidden = true
+                            text = "None selected - Click to expand
+                        } else {
+                            hidden = false
+		    	    text = "Click to expand/collapse"
                         }
-                        section(hideable: true, hidden: hidden, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                        section(hideable: true, hidden: hidden, "Middle Button <font color=\"gray\">($text)</font>") {
                             button = [3,"toggle","push"]
                             getAdvancedSwitchInput(button)
+
+                            button = [3,"resume","push"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"toggle"))
 
                             button = [3,"on","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"toggle"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [3,"off","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"on"))
                             errorMessage(compareDeviceLists(button,"toggle"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [3,"dim","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [3,"brighten","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
                             errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"resume"))
                         }
                     }
                     if((numButton == "4 button" || numButton == "5 button") && !error){
-                        if(button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle) {
-                            hidden = false
-                        } else {
+                        if(!button_4_push_on && !button_4_push_off && !button_4_push_dim && !button_4_push_brighten && !button_4_push_toggle && !button_4_push_resume) {
                             hidden = true
+                            text = "None selected - Click to expand
+                        } else {
+                            hidden = false
+		    	    text = "Click to expand/collapse"
                         }
-                        section(hideable: true, hidden: hidden, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
+                        section(hideable: true, hidden: hidden, "\"Dim\" Button <font color=\"gray\">($text)</font>") {
                             button = [4,"dim","push"]
                             getAdvancedSwitchInput(button)
 
@@ -283,36 +342,54 @@ preferences {
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"on"))
                             errorMessage(compareDeviceLists(button,"off"))
+
+                            button = [4,"resume","push"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"toggle"))
                         }
                     }
 
                     if(!error){
-                        if(button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle) {
-                            hidden = false
-                        } else {
+                        if(!button_5_push_on && !button_5_push_off && !button_5_push_dim && !button_5_push_brighten && !button_5_push_toggle && !button_5_push_resume) {
                             hidden = true
+                            text = "None selected - Click to expand
+                        } else {
+                            hidden = false
+		    	    text = "Click to expand/collapse"
                         }
-                        section(hideable: true, hidden: hidden, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
+                        section(hideable: true, hidden: hidden, "Bottom Button (\"Off\") <font color=\"gray\">($text)</font>") {
                             button = [5,"off","push"]
                             getAdvancedSwitchInput(button)
+
+                            button = [5,"resume","push"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
 
                             button = [5,"on","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [5,"toggle","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
                             errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [5,"dim","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
                             button = [5,"brighten","push"]
                             getAdvancedSwitchInput(button)
                             errorMessage(compareDeviceLists(button,"off"))
                             errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"resume"))
                         }
                     }
                     if(!replicateHold && !error){
@@ -325,132 +402,207 @@ preferences {
                         }
 
                         // Advanced Hold
+                        if(!button_1_hold_on && !button_1_hold_off && !button_1_hold_dim && !button_1_hold_brighten && !button_1_hold_toggle && !button_1_hold_resume) {
+                            hidden = true
+                            text = "None selected - Click to expand
+                        } else {
+                            hidden = false
+			    text = "Click to expand/collapse"
+                        }
+                        section(hideable: true, hidden: hidden, "Top button (\"On\") <font color=\"gray\">($text)</font>") {
+                        button = [1,"on","hold"]
+                        getAdvancedSwitchInput(button)
 
-                        section(hideable: true, hidden: true, "Top button (\"On\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-                            button = [1,"on","hold"]
-                            getAdvancedSwitchInput(button)
+                        button = [1,"off","hold"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"on"))
 
-                            button = [1,"off","hold"]
-                            getAdvancedSwitchInput(button)
-                            errorMessage(compareDeviceLists(button,"on"))
+                        button = [1,"resume","hold"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"on"))
+                        errorMessage(compareDeviceLists(button,"off"))
 
-                            button = [1,"toggle","hold"]
-                            getAdvancedSwitchInput(button)
-                            errorMessage(compareDeviceLists(button,"on"))
-                            errorMessage(compareDeviceLists(button,"off"))
+                        button = [1,"toggle","hold"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"on"))
+                        errorMessage(compareDeviceLists(button,"off"))
+                        errorMessage(compareDeviceLists(button,"resume"))
 
-                            button = [1,"dim","hold"]
-                            getAdvancedSwitchInput(button)
-                            errorMessage(compareDeviceLists(button,"off"))
+                        button = [1,"dim","hold"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"off"))
+                        errorMessage(compareDeviceLists(button,"resume"))
 
-                            button = [1,"brighten","hold"]
-                            getAdvancedSwitchInput(button)
-                            errorMessage(compareDeviceLists(button,"off"))
-                            errorMessage(compareDeviceLists(button,"dim"))
+                        button = [1,"brighten","hold"]
+                        getAdvancedSwitchInput(button)
+                        errorMessage(compareDeviceLists(button,"off"))
+                        errorMessage(compareDeviceLists(button,"dim"))
+                        errorMessage(compareDeviceLists(button,"resume"))
                         }
                         if((numButton == "4 button" || numButton == "5 button")  && !error){
-                            section(hideable: true, hidden: true, "\"Brighten\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-                                button = [2,"brighten","hold"]
-                                getAdvancedSwitchInput(button)
+                            if(!button_2_hold_on && !button_2_hold_off && !button_2_hold_dim && !button_2_hold_brighten && !button_2_hold_toggle && !button_2_hold_resume) {
+                                hidden = true
+                                text = "None selected - Click to expand
+                            } else {
+                                hidden = false
+			        text = "Click to expand/collapse"
+                            }
+                            section(hideable: true, hidden: hidden, "\"Brighten\" Button <font color=\"gray\">($text)</font>") {
+                            button = [2,"brighten","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [2,"dim","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
-                                errorMessage(compareDeviceLists(button,"brighten"))
+                            button = [2,"dim","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"brighten"))
 
-                                button = [2,"on","hold"]
-                                getAdvancedSwitchInput(button)
+                            button = [2,"on","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [2,"off","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"brighten"))
-                                errorMessage(compareDeviceLists(button,"dim"))
-                                errorMessage(compareDeviceLists(button,"on"))
+                            button = [2,"off","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"on"))
 
-                                button = [2,"toggle","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"on"))
-                                errorMessage(compareDeviceLists(button,"off"))
+                            button = [2,"toggle","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+
+                            button = [2,"resume","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"toggle"))
                             }
                         }
                         if(numButton == "5 button" && !error){
-                            section(hideable: true, hidden: true, "Middle Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-                                button = [3,"toggle","hold"]
-                                getAdvancedSwitchInput(button)
+                            if(!button_3_hold_on && !button_3_hold_off && !button_3_hold_dim && !button_3_hold_brighten && !button_3_hold_toggle && !button_3_hold_resume) {
+                                hidden = true
+                                text = "None selected - Click to expand
+                            } else {
+                                hidden = false
+			        text = "Click to expand/collapse"
+                            }
+                            section(hideable: true, hidden: hidden, "Middle Button <font color=\"gray\">($text)</font>") {
+                            button = [3,"toggle","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [3,"on","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"toggle"))
+                            button = [3,"resume","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"toggle"))
 
-                                button = [3,"off","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"on"))
-                                errorMessage(compareDeviceLists(button,"toggle"))
+                            button = [3,"on","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"toggle"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
-                                button = [3,"dim","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
+                            button = [3,"off","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"toggle"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
-                                button = [3,"brighten","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
-                                errorMessage(compareDeviceLists(button,"dim"))
+                            button = [3,"dim","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
+
+                            button = [3,"brighten","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"resume"))
                             }
                         }
                         if((numButton == "4 button" || numButton == "5 button")  && !error){
-                            section(hideable: true, hidden: true, "\"Dim\" Button <font color=\"gray\">(Click to expand/collapse)</font>") {
-                                button = [4,"dim","hold"]
-                                getAdvancedSwitchInput(button)
+                            if(!button_4_hold_on && !button_4_hold_off && !button_4_hold_dim && !button_4_hold_brighten && !button_4_hold_toggle && !button_4_hold_resume) {
+                                hidden = true
+                                text = "None selected - Click to expand
+                            } else {
+                                hidden = false
+			        text = "Click to expand/collapse"
+                            }
 
-                                button = [4,"brighten","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"dim"))
+                            section(hideable: true, hidden: hidden, "\"Dim\" Button <font color=\"gray\">($text)</font>") {
+                            button = [4,"dim","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [4,"on","hold"]
-                                getAdvancedSwitchInput(button)
+                            button = [4,"brighten","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"dim"))
 
-                                button = [4,"off","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"dim"))
-                                errorMessage(compareDeviceLists(button,"brighten"))
-                                errorMessage(compareDeviceLists(button,"on"))
+                            button = [4,"on","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [4,"toggle","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"on"))
-                                errorMessage(compareDeviceLists(button,"off"))
+                            button = [4,"off","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"on"))
+
+                            button = [4,"toggle","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+
+                            button = [4,"resume","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"brighten"))
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"toggle"))
                             }
                         }
 
                         if(!error){
-                            section(hideable: true, hidden: true, "Bottom Button (\"Off\") <font color=\"gray\">(Click to expand/collapse)</font>") {
-                                button = [5,"off","hold"]
-                                getAdvancedSwitchInput(button)
+                            if(!button_5_hold_on && !button_5_hold_off && !button_5_hold_dim && !button_5_hold_brighten && !button_5_hold_toggle && !button_5_hold_resume) {
+                                hidden = true
+                                text = "None selected - Click to expand
+                            } else {
+                                hidden = false
+			        text = "Click to expand/collapse"
+                            }
+                            section(hideable: true, hidden: hidden, "Bottom Button (\"Off\") <font color=\"gray\">($text)</font>") {
+                            button = [5,"off","hold"]
+                            getAdvancedSwitchInput(button)
 
-                                button = [5,"on","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
+                            button = [5,"resume","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
 
-                                button = [5,"toggle","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
-                                errorMessage(compareDeviceLists(button,"on"))
+                            button = [5,"on","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
-                                button = [5,"dim","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
+                            button = [5,"toggle","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"on"))
+                            errorMessage(compareDeviceLists(button,"resume"))
 
-                                button = [5,"brighten","hold"]
-                                getAdvancedSwitchInput(button)
-                                errorMessage(compareDeviceLists(button,"off"))
-                                errorMessage(compareDeviceLists(button,"dim"))
+                            button = [5,"dim","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"resume"))
+
+                            button = [5,"brighten","hold"]
+                            getAdvancedSwitchInput(button)
+                            errorMessage(compareDeviceLists(button,"off"))
+                            errorMessage(compareDeviceLists(button,"dim"))
+                            errorMessage(compareDeviceLists(button,"resume"))
                             }
                         }
                     }
 
                     if(!error && (button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten)){
                         section(){
-                            displayPushHoldMultiplierOption()
+                            displayMultiplierOption(true)
                         }
                     }
                     section(){
@@ -464,12 +616,12 @@ preferences {
 
 // Display functions
 
-def errorMessage(text2){
-    if(!text2) return false
+def errorMessage(text){
+    if(!text) return false
     if(error){
-        error = error + "<br />$errorIcon $text2"
+        error = error + "<br />$errorIcon $text"
     } else {
-        error = "<div style=\"background-color:Bisque\">$errorIcon $text2"
+        error = "<div style=\"background-color:Bisque\">$errorIcon $text"
     }
 }
 
@@ -492,12 +644,13 @@ def displayInfo(text = ""){
 def displayNameOption(){
     displayLabel("Set name for this Pico setup")
     label title: "", required: true, submitOnChange:true
-    if(!app.label) displayInfo("Name this Pico setup. Each pico setup must have a unique name.")
-    /* ************************************************** */
-    /* TO-DO: Test the name is unique; otherwise          */
-    /* rescheduling won't work, since we use "childLabel" */
-    /* variable.                                          */
-    /* ************************************************** */
+    if(!app.label) displayInfo("Name this Pico setup. Each Pico setup must have a unique name.")
+/* ************************************************************************ */
+/* TO-DO: Need to test if the app name is unique. BUT we can't call the     */
+/* parent app during setup. So we need to test this during initialize...    */
+/* and what? Auto-rename it? Maybe better than it not working right.        */
+/* Alternatively, we could switch everything over to app.id o.o             */
+/* ************************************************************************ */
 }
 
 def displayPicoOption(){
@@ -561,29 +714,31 @@ def getMultiDeviceInputOption(){
 }
 
 // values sent as list
-// values.1 = number
+// values.0 = number
+// values.1 = on/off/toggle/dim/brighten
 // values.2 = push/hold
-// values.3 = on/off/toggle/dim/brighten
 // populated = value of the input
 def getAdvancedSwitchInput(values,populated = null){
     if(error) return
     text = ""
-    if(populated) text = "$text<b>"
+    if(populated) text += "<b>"
     if(values[1] == "on"){
-        text = text + "Turns On"
+        text += "Turns On"
     } else if(values[1] == "off"){
-        text = text + "Turns Off"
+        text += "Turns Off"
     } else if(values[1] == "toggle"){
-        text = text + "Toggles (if on, turn off; if off, turn on)"
+        text += "Toggles (if on, turn off; if off, turn on)"
     } else if(values[1] == "dim"){
-        text = text + "Dims"
+        text += "Dims"
     } else if(values[1] == "brighten"){
-        text = text + "Brightens"
-    }
+        text += "Brightens"
+    } else if(values[1] == "resume"){
+        text += "Resume schedule(s) (if none, turn off)"
+    }	
     if(populated) {
-        text = text + "</b>"
+        text += "</b>"
     } else {
-        text = text + " <font color=\"gray\">(Select devices)</font>"
+        text += " <font color=\"gray\">(Select devices)</font>"
     }
     if(values[1] == "dim" || values[1] == "brighten"){
         switchType = "switch"
@@ -607,28 +762,30 @@ def displaySelectActionsButtonOption(number,text,action = "push"){
     input "button${button}${number}", "enum", title: "$text button?", multiple: false, options: ["brighten":"Brighten","dim":"Dim","on":"Turn on", "off":"Turn off", "resume": "Resume schedule (if none, turn off)", "toggle":"Toggle"], submitOnChange:true
 }
 
-def displayPushMultiplierOption(){
+/* ************************************************************************ */
+/* TO-DO: Convert from a "multiplier" to using a "percentage", for user     */
+/* ease.                                                                    */
+/* ************************************************************************ */
+def displayMultiplierOption(hold = false){
     displayLabel("Set dim and brighten speed")
     displayMultiplierMessage()
-    if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-        input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 6
-    } else {
-        input "multiplier", "decimal", title: "Mulitplier? (Optional. Default 1.2.)", width: 12
-    }
-}
-
-def displayPushHoldMultiplierOption(){
-    displayLabel("Set dim and brighten speed")
-    displayMultiplierMessage()
-    if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
-        if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 6
-            input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 6
-        } else {
-            input "pushMultiplier", "decimal", title: "<b>Push mulitplier.</b> (Optional. Default 1.2.)", width: 12
+    if(hold){
+        if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
+            if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+                input "pushMultiplier", "decimal", title: "<b>Push multiplier.</b> (Optional. Default 1.2.)", width: 6
+                input "holdMultiplier", "decimal", title: "<b>Hold multiplier.</b> (Optional. Default 1.4.)", width: 6
+            } else {
+                input "pushMultiplier", "decimal", title: "<b>Push multiplier.</b> (Optional. Default 1.2.)", width: 12
+            }
+        } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+            input "holdMultiplier", "decimal", title: "<b>Hold multiplier.</b> (Optional. Default 1.4.)", width: 12
         }
-    } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-        input "holdMultiplier", "decimal", title: "<b>Hold mulitplier.</b> (Optional. Default 1.4.)", width: 12
+    } else {
+        if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+            input "pushMultiplier", "decimal", title: "Multiplier? (Optional. Default 1.2.)", width: 6
+        } else {
+            input "pushMultiplier", "decimal", title: "Multiplier? (Optional. Default 1.2.)", width: 12
+        }
     }
 }
 
@@ -663,36 +820,43 @@ def compareDeviceLists(values,compare){
     return returnText
 }
 
-/* ************************************************** */
-/*                                                    */
-/* End display functions.                             */
-/*                                                    */
-/* ************************************************** */
+/* ************************************************************************ */
+/*                                                                          */
+/* End display functions.                                                   */
+/*                                                                          */
+/* ************************************************************************ */
 
 def installed() {
-    logTrace(673, "Installed","trace")
+    logTrace(830, "Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    logTrace(679,"Updated","trace")
+    logTrace(836,"Updated","trace")
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    logTrace(685,"Initialized","trace")
+    logTrace(842,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
     subscribe(buttonDevice, "pushed", buttonPushed)
     subscribe(buttonDevice, "held", buttonHeld)
     subscribe(buttonDevice, "released", buttonReleased)
+
+    // Treat 2nd button of 2-button Pico as "off" (eg button 5)
 }
 
 def buttonPushed(evt){
-    atomicState.buttonNumber = evt.value
+/* ************************************************************************ */
+/* TO-DO: Merge buttonPushed and buttonHeld functions. The only differences */
+/* are the variable names, dim/brighten functions, and log messages         */
+/* ************************************************************************ */
+    buttonNumber = evt.value
+    // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
     atomicState.action = "push"
     def colorSwitch
     def whiteSwitch
@@ -700,11 +864,16 @@ def buttonPushed(evt){
     if(pushMultiplier) pushMultiplier = parent.validateMultiplier(pushMultiplier,app.label)
 
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(atomicState.buttonNumber == "2" &&  numButton == "2 button") atomicState.buttonNumber = 5
+    if(buttonNumber == "2" &&  numButton == "2 button") buttonNumber = 5
 
+/* ************************************************************************ */
+/* TO-DO: multiDevice & !advancedSetup and !multiDevice && advancedSetup    */
+/* are same logic, just with different switch variable. Merge them. Don't   */
+/* forget to change subscribes.                                             */
+/* ************************************************************************ */
     // Simple setup
     if(!multiDevice && !advancedSetup){
-        switch(atomicState.buttonNumber){
+        switch(buttonNumber){
             case "1": multiOn("on",controlDevice)
             message = "turning on"
             break
@@ -720,9 +889,9 @@ def buttonPushed(evt){
             case "5": multiOn("off",controlDevice)
             message = "turning off"
         }
-        logTrace(723,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
+        logTrace(892,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
     } else if(!multiDevice && advancedSetup){
-        switch(settings["buttonPush${atomicState.buttonNumber}"]){
+        switch(settings["buttonPush${buttonNumber}"]){
             case "on": multiOn("on",controlDevice)
             message = "turning on"
             break
@@ -737,46 +906,52 @@ def buttonPushed(evt){
             break
             case "off": multiOn("off",controlDevice)
             message = "turning off"
+            break
+            case "resume": multiOn("resume",controlDevice)
+            message = "resuming (or turning off)"
         }
-        logTrace(741,"Button $atomicState.buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message","trace")
+        logTrace(913,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; advanced setup; $message","trace")
         // if(multiDevice && (!advancedSetup || advancedSetup))
     } else {
-        if(settings["button_${atomicState.buttonNumber}_push_toggle"] != null) {
-            logTrace(745,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
+        if(settings["button_${buttonNumber}_push_toggle"] != null) {
+            logTrace(914,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
             if (settings.color == "Separate"){
-                toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
+                toggleSeparate(settings["button_${buttonNumber}_push_toggle"])
             } else {
-                multiOn("toggle",settings["button_${atomicState.buttonNumber}_push_toggle"])
+                multiOn("toggle",settings["button_${buttonNumber}_push_toggle"])
             }
         }
-        if(settings["button_${atomicState.buttonNumber}_push_on"]) {
-            logTrace(753,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_on"] +"; remapped and advanced setup; turning on","trace")
-            multiOn("on",settings["button_${atomicState.buttonNumber}_push_on"])
+        if(settings["button_${buttonNumber}_push_on"]) {
+            logTrace(925,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_on"] +"; remapped and advanced setup; turning on","trace")
+            multiOn("on",settings["button_${buttonNumber}_push_on"])
         }
-        if(settings["button_${atomicState.buttonNumber}_push_off"]){
-            logTrace(757,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_off"] + "; remapped and advanced setup; turning off","trace")
-            multiOn("off",settings["button_${atomicState.buttonNumber}_push_off"])
+        if(settings["button_${buttonNumber}_push_off"]){
+            logTrace(929,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_off"] + "; remapped and advanced setup; turning off","trace")
+            multiOn("off",settings["button_${buttonNumber}_push_off"])
         }
-        if(settings["button_${atomicState.buttonNumber}_push_dim"]) {
-            logTrace(761,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming","trace")
-            parent.dim("dim",settings["button_${atomicState.buttonNumber}_push_dim"],app.label)
+        if(settings["button_${buttonNumber}_push_dim"]) {
+            logTrace(933,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_dim"] + "; remapped and advanced setup; dimming","trace")
+            parent.dim("dim",settings["button_${buttonNumber}_push_dim"],app.label)
         }
-        if(settings["button_${atomicState.buttonNumber}_push_brighten"]) {
-            logTrace(765,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening","trace")
-            parent.dim("brighten",settings["button_${atomicState.buttonNumber}_push_brighten"],app.label)
+        if(settings["button_${buttonNumber}_push_brighten"]) {
+            logTrace(937,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_brighten"] + "; remapped and advanced setup; brightening","trace")
+            parent.dim("brighten",settings["button_${buttonNumber}_push_brighten"],app.label)
+        }
+        if(settings["button_${buttonNumber}_push_resume"]) {
+            logTrace(941,"Button $buttonNumber of $buttonDevice pushed for " + settings["button_${buttonNumber}_push_resume"] + "; remapped and advanced setup; brightening","trace")
+            multiOn("resume",settings["button_${buttonNumber}_push_resume"])
         }
     }
 }
 
 def buttonHeld(evt){
-
-    atomicState.buttonNumber = evt.value
+    buttonNumber = evt.value
     atomicState.action = "held"
     def colorSwitch
     def whiteSwitch
 
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(atomicState.buttonNumber == "2" &&  numButton == "2 button") atomicState.buttonNumber = 5
+    if(buttonNumber == "2" &&  numButton == "2 button") buttonNumber = 5
 
     if(holdMultiplier) holdMultiplier = parent.validateMultiplier(holdMultiplier,app.label)
 
@@ -786,7 +961,7 @@ def buttonHeld(evt){
     //But, why does multiDevice lead to multiOn/Off??
 
     if(!multiDevice && !advancedSetup && !replicateHold){
-        switch(atomicState.buttonNumber){
+        switch(buttonNumber){
             case "1": multiOn("on",controlDevice)
             action = "turning on"
             break
@@ -802,9 +977,9 @@ def buttonHeld(evt){
             case "5": multiOn("off",controlDevice)
             action = "turning off"
         }
-        logTrace(805,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; simple setup; $atomicState.action")
+        logTrace(980,"Button $buttonNumber of $buttonDevice held for $controlDevice; simple setup; $atomicState.action")
     } else if(!multiDevice && advancedSetup && !replicateHold){
-        switch(settings["buttonPush${atomicState.buttonNumber}"]){
+        switch(settings["buttonPush${buttonNumber}"]){
             case "on": multiOn("on",controlDevice)
             action = "turning on"
             break
@@ -819,10 +994,13 @@ def buttonHeld(evt){
             break
             case "off": multiOn("off",controlDevice)
             action = "turning off"
+            resume
+            case "resume": multiOn("resume",controlDevice)
+            action = "resuming (or turning off)"
         }
-        logTrace(823,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action")
+        logTrace(1001,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action")
     } else if(!multiDevice && advancedSetup && replicateHold){
-        switch(settings["buttonHold${atomicState.buttonNumber}"]){
+        switch(settings["buttonHold${buttonNumber}"]){
             case "on": multiOn("on",controlDevice)
             action = "turning on"
             break
@@ -837,46 +1015,57 @@ def buttonHeld(evt){
             break
             case "off": multiOn("off",controlDevice)
             action = "turning off"
+            break
+            case "resume": multiOn("resume",controlDevice)
+            action = "resuming (or turning off)"
         }
-        logTrace(841,"Button $atomicState.buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action","trace")
+        logTrace(1022,"Button $buttonNumber of $buttonDevice held for $controlDevice; advanced setup; $atomicState.action","trace")
     } else {
         if(settings["button_${buttonNumber}_hold_toggle"] != null) {
-            logTrace(844,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_push_toggle"] + "; remapped and advanced setup; toggling","trace")
+            logTrace(1025,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_toggle"] + "; remapped and advanced setup; toggling","trace")
             if (settings.color == "Separate"){
-                toggleSeparate(settings["button_${atomicState.buttonNumber}_push_toggle"])
+                toggleSeparate(settings["button_${buttonNumber}_hold_toggle"])
             } else {
-                multiOn("toggle",settings["button_${atomicState.buttonNumber}_push_toggle"])
+                multiOn("toggle",settings["button_${buttonNumber}_hold_toggle"])
             }
         }
-        if(settings["button_${atomicState.buttonNumber}_hold_on"]) {
-            logTrace(852,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on","trace")
-            multiOn("on",settings["button_${atomicState.buttonNumber}_hold_on"])
+        if(settings["button_${buttonNumber}_hold_on"]) {
+            logTrace(1033,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_on"] + "; remapped and advanced setup; turning on","trace")
+            multiOn("on",settings["button_${buttonNumber}_hold_on"])
         }
-        if(settings["button_${atomicState.buttonNumber}_hold_off"]) {
-            logTrace(856,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off","trace")
-            multiOn("off",settings["button_${atomicState.buttonNumber}_hold_off"])
+        if(settings["button_${buttonNumber}_hold_off"]) {
+            logTrace(1037,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_off"] + "; remapped and advanced setup; turning off","trace")
+            multiOn("off",settings["button_${buttonNumber}_hold_off"])
         }
-        if(settings["button_${atomicState.buttonNumber}_hold_dim"]) {
-            logTrace(860,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming","trace")
-            holdDim(settings["button_${atomicState.buttonNumber}_hold_dim"])
+        if(settings["button_${buttonNumber}_hold_dim"]) {
+            logTrace(1041,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_dim"] + "; remapped and advanced setup; dimming","trace")
+            holdDim(settings["button_${buttonNumber}_hold_dim"])
         }
-        if(settings["button_${atomicState.buttonNumber}_hold_brighten"]) {
-            logTrace(864,"Button $atomicState.buttonNumber of $buttonDevice pushed for " + settings["button_${atomicState.buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening","trace")
-            holdBrighten(settings["button_${atomicState.buttonNumber}_hold_brighten"])
+        if(settings["button_${buttonNumber}_hold_brighten"]) {
+            logTrace(1045,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_brighten"] + "; remapped and advanced setup; brightening","trace")
+            holdBrighten(settings["button_${buttonNumber}_hold_brighten"])
+        }
+        if(settings["button_${buttonNumber}_hold_resume"]) {
+            logTrace(1049,"Button $buttonNumber of $buttonDevice held for " + settings["button_${buttonNumber}_hold_resume"] + "; remapped and advanced setup; turning off","trace")
+            multiOn("resume",settings["button_${buttonNumber}_hold_resume"])
         }
     }
 }
 
 def buttonReleased(evt){
-    atomicState.buttonNumber = evt.value
-    if (atomicState.buttonNumber == "2" || (atomicState.buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (atomicState.buttonNumber == "1" && settings.numButton == "2 button")){
-        logTrace(873,"Button $atomicState.buttonNumber of $buttonDevice released, unscheduling all","trace")
+    buttonNumber = evt.value
+    if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
+        logTrace(1058,"Button $buttonNumber of $buttonDevice released, unscheduling all","trace")
         unschedule()
     }
 }
 
-
-//What's the difference between multiplier, pushMultiplier and holdMultiplier?!
+/* ************************************************************************ */
+/* TO-DO: Retest "multiplier" functionality (also in MagicCube). Make sure  */
+/* it's implemented in the UI, and it carries through in the logic. Also    */
+/* rename the variables. "Multiplier" is just stupid. And change it to a    */
+/* "percentage" for user ease.                                              */
+/* ************************************************************************ */
 def getDimSpeed(){
     if(atomicState.action == "push" &&  pushMultiplier){
         return pushMultiplier
@@ -893,7 +1082,7 @@ def getDimSpeed(){
 // action = "dim" or "brighten"
 def getSteps(level, action){
     if (action != "dim" && action != "brighten"){
-        logTrace(896,"Invalid value for action \"$action\" sent to getSteps function","error")
+        logTrace(1085,"Invalid value for action \"$action\" sent to getSteps function","error")
         return false
     }
 
@@ -916,11 +1105,15 @@ def getSteps(level, action){
             level = parent.nextLevel(level, action,app.getId())
         }
     }
-    logTrace(919,"Function getSteps returning $steps","debug")
+    logTrace(1108,"Function getSteps returning $steps","debug")
     return steps
 }
 
-def setSubscribeLevel(data){
+// This is the schedule function that sets the level for progressive dimming
+def runSetProgressiveLevel(data){
+/* ************************************************************************ */
+/* TO-DO: Use a 1 to 5 loop here                                            */
+/* ************************************************************************ */
     button_1_hold_dim.each{
         if (it.id == data.device) device = it
     }
@@ -970,11 +1163,12 @@ def setSubscribeLevel(data){
         }
     }
     if(!device) {
-        logTrace(973,"Function setSubscribeLevel returning (no matching device)","trace")
+        logTrace(1166,"Function runSetProgressiveLevel returning (no matching device)","trace")
         return
     }
-    parent.singleLevels(data.level,null,null,null,device,app.label)
-    reschedule(it)
+    parent.setLevelSingle(data.level,null,null,null,device,app.label)
+// Why reschedule?
+    //parent.reschedule(device)
 }
 
 def toggleSeparate(device){
@@ -1007,20 +1201,23 @@ def holdDim(device){
     device.each{
         if(parent.isFan(it,app.label) == true){
             parent.dim(it,app.label)
+	// If dimming a light that's off, turn it on
+	// setStateSingle does that by setting to 1% level, which is what we want
         } else if(!parent.isOn(it,app.label)){
-            parent.singleLevels(1,null,null,null,device,app.label)
-            //parent.setToLevel(it,1,app.label)
+            //parent.setLevelSingle(1,null,null,null,device,app.label)
+            parent.setStateSingle("on",it,childLabel)
+		// Since we're turning it on, reschedule it
             parent.reschedule(it,app.label)
         } else {
             if(level < 2){
-                logTrace(1016,"Can't dim $it; already 1%.","info")
+                logTrace(1213,"Can't dim $it; already 1%.","info")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
                     newLevel = parent.nextLevel(level, "dim",app.getId())
-                    runInMillis(i*750,setSubscribeLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
+                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
                     level = newLevel
                 }
             }
@@ -1034,19 +1231,21 @@ def holdBrighten(device){
     device.each{
         if(parent.isFan(it,app.label)){
             parent.dim("brighten",it,app.label)
+	// If brightening a light that's off, turn it on at 1%
         } else if(!parent.isOn(it,app.label)){
-            parent.singleLevels(1,null,null,null,device,app.label)
+            //parent.setLevelSingle(1,null,null,null,device,app.label)
+            parent.setStateSingle("on",it,childLabel)
             reschedule(it)
         } else {
             if(level > 99){
-                logTrace(1042,"Can't brighten $it; already 100%.","info")
+                logTrace(1241,"Can't brighten $it; already 100%.","info")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
                     newLevel = parent.nextLevel(level, "brighten",app.getId())
-                    runInMillis(i*750,setSubscribeLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
+                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
                     level = newLevel
                 }
             }
@@ -1069,10 +1268,12 @@ def getLevel(device){
     return level
 }
 
-// Gets levels as set for the app
+// Gets app levels, either user defined (currently, contacts) or per-app defaults (currently, none of them)
 // Function must be included in all apps that use MultiOn
 def getOverrideLevels(defaults,appAction = null){
-    // Need to add levels
+/* ************************************************************************ */
+/* TO-DO: Add brightness, temp, etc., options into UI.                      */
+/* ************************************************************************ */
     return defaults      
 }
 
@@ -1108,7 +1309,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but....
 def multiOn(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        logTrace(1111,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(1312,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
         return
     }
 
@@ -1126,7 +1327,7 @@ def multiOn(deviceAction,device,appAction = null){
             // Might be best to put this in a state variable in Initialize, as a setting?
             runIn(2,resetStateDeviceChange)
         }
-        logTrace(1129,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1330,"Device id's turned on are $atomicState.deviceChange","debug")
 
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
@@ -1136,15 +1337,15 @@ def multiOn(deviceAction,device,appAction = null){
             // So use it for if overriding/reenabling
             defaults = parent.getScheduleDefaultSingle(it,app.label)
             logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
-            logTrace(1139,logMessage,"debug")
+            logTrace(1340,logMessage,"debug")
 
             defaults = getOverrideLevels(defaults,appAction)
             logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels"
-            logTrace(1143,logMessage,"debug")
+            logTrace(1344,logMessage,"debug")
 
             // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
             defaults = parent.getDefaultSingle(defaults,app.label)
-            logTrace(1147,"With generic defaults, using $defaults","debug")
+            logTrace(1348,"With generic defaults, using $defaults","debug")
             parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
         }
         return true
@@ -1173,7 +1374,7 @@ def multiOn(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        logTrace(1176,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1377,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -1209,15 +1410,15 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(1212,"Scheduled defaults are $defaults","debug")
+                logTrace(1413,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(1215,"With " + app.label + " overrides, using $defaults","debug")
+                logTrace(1416,"With " + app.label + " overrides, using $defaults","debug")
 
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(1220,"No schedule to resume for $it; turning off","trace")
+                    logTrace(1421,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
                 }
 
@@ -1259,10 +1460,10 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
