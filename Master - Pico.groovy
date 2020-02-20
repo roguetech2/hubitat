@@ -910,8 +910,7 @@ def buttonPushed(evt){
         } else {
             actionText = "held"
         }
-        logTrace(2,"button_" + buttonNumber + "_" + atomicState.action + "_on")
-        logTrace(3,settings["button_" + buttonNumber + "_" + atomicState.action + "_on"])
+
         if(settings["button_${buttonNumber}_${atomicState.action}_toggle"]) {
             logTrace(918,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_toggle"] + "; remapped and advanced setup; toggling","trace")
             if (settings.color == "Separate"){
