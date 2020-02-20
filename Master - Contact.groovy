@@ -881,7 +881,7 @@ def contactChange(evt){
 // Need to add level, temp and color!!
 // Need to add resume
 // It will get defaults, even if it's supposed to override
-			if(openSwitch) multiOn(openSwitchAction,openSwitch,"open")
+			if(openSwitch) setStateMulti(openSwitchAction,openSwitch,"open")
             if(locks) parent.multiLock(openLockActionopenLock,app.label)
 		}
 
@@ -894,9 +894,9 @@ def contactChange(evt){
 		// Otherwise perform immediately
 		} else {
             if(closeSwitch) {
-                multiOn(closeSwitchAction,closeSwitch,"close")
+                setStateMulti(closeSwitchAction,closeSwitch,"close")
             } else if(!closeSwitchDifferent && openSwitch){
-                multiOn(closeSwitchAction,openSwitch,"close")
+                setStateMulti(closeSwitchAction,openSwitch,"close")
             }
             if(closeLock){
                 parent.multiLock(closeLockAction,closeLock,app.label)
@@ -910,7 +910,7 @@ def contactChange(evt){
 def runScheduleOpen(){
 	if(disable || state.disable) return
 
-	if(openSwitch) multiOn(openSwitchAction,openSwitch,"open")
+	if(openSwitch) setStateMulti(openSwitchAction,openSwitch,"open")
 	if(openLock) parent.multiLock(openLockAction,openLock,app.label)
 }
 
@@ -922,7 +922,7 @@ def runScheduleClose(){
         closeLock = openLock
     }
 
-    if(closeSwitch) multiOn(closeSwitchAction,closeSwitch,"close")
+    if(closeSwitch) setStateMulti(closeSwitchAction,closeSwitch,"close")
 	if(closeLock) parent.multiLock(closeLockAction,closeLock,app.label)
 }
 
