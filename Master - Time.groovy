@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.23
+*  Version: 0.4.24
 *
 ***********************************************************************************************************************/
 
@@ -700,7 +700,7 @@ def initialize() {
         setWeekDays()
 
         setDailySchedules()
-        runIncrementalSchedule()
+        setIncrementalSchedule()
     }
     logTrace(705,"Initialized")
     return true
@@ -755,16 +755,28 @@ def runIncrementalSchedule(){
     }
 
     // Set levels
+/* ************************************************************************ */
+/* TO-DO: Just use setLevelSingle here. I don't think ...Multi is used      */
+/* anywhere else, and we aren't getting any "default" levels within         */
+/* incremental, so wtf is the point of going to parent?                     */
+/* ************************************************************************ */
     parent.setLevelsMulti(timeDevice,app.label)
 
     // Reschedule itself
-    runIn(20,runIncrementalSchedule)
+    setIncrementalSchedule()
     return true
+}
+
+def setIncrementalSchedule(){
+    unschedule(runIncrementalSchedule)
+    runIn(20,runIncrementalSchedule)
+    logTrace(768,"Scheduling incremental for 20 seconds","debug")
 }
 
 // Performs actual changes at time set with timeOn
 // Called only by schedule set in incrementalSchedule
 def runDailySchedule(data){
+    setDailySchedules()
     // If not valid data variable passed, throw error and exit
     if(data.action != "start" && data.action != "stop"){
         logTrace(770,"Invalid value for action \"$data.action\" sent to runDailySchedule function","error")
@@ -779,13 +791,11 @@ def runDailySchedule(data){
     // If not correct day, exit
     if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
         logTrace(781,"Daily schedule ran on off day; that shouldn't happen","error")
-        setDailySchedules()
         return
     }
 
-    // If not correct mode, exit
+    // If not correct mode, reschuexit
     if(ifMode && location.mode != ifMode) {
-        setDailySchedules()
         return
     }
 
@@ -793,52 +803,45 @@ def runDailySchedule(data){
     if(modeChangeOn && data.action == "start") setLocationMode(modeChangeOn)
     // Set stop mode
     if(modeChangeOff && data.action == "stop") setLocationMode(modeChangeOff)
-    if(data.action == "start" && timeOn != "none"){
-        // If there are levels, set them
-        // This will 1) Override other schedules, and 2) Set start level if there's no matching stop
-        if(multiOn(timeOn,timeDevice) == "on"){
-            if(levelOn || tempOn || hueOn || satOn) {
-                if(!levelOn) levelOn = ""
-                if(!tempOn) tempOn = ""
-                if(!hueOn) hueOn = ""
-                if(!satOn) satOn = ""
-                parent.setSingleLevel(levelOn, tempOn, hueOn, satOn, timeDevice,app.label)
-            }
-        }
-    } else if(data.action == "stop" && timeOff != "none"){
-        // If there are levels, set them
-        // This will 1) Override other schedules, and 2) Set stop level if there's no matching start
-        if(multiOn(timeOff,timeDevice) == "on"){
-            if(levelOff || tempOff || hueOff || satOff) {
-                if(!levelOff) levelOff = ""
-                if(!tempOff) tempOff = ""
-                if(!hueOff) hueOff = ""
-                if(!satOff) satOff = ""
-                parent.setSingleLevel(levelOff, tempOff, hueOff, satOff, timeDevice,app.label)
+
+    if(data.action == "start"){
+        // Let the catch-all "multiOn" handle everything
+        // getDefaults will handle starting levels
+        multiOn(timeOn,timeDevice)
+    } else if(data.action == "stop"){
+        multiOn(timeOff,timeDevice)
+
+        // If ending the schedule, then need to set off levels since they won't be captured
+        // in the getDefaults routine
+        if(levelOff || tempOff || hueOff || satOff){
+            timeDevice.each{
+                if(isOn(it)){
+                    if(!levelOff) levelOff = ""
+                    if(!tempOff) tempOff = ""
+                    if(!hueOff) hueOff = ""
+                    if(!satOff) satOff = ""
+                    // If there's a starting level, temp, hue or sat, this will cause levels to
+                    // set a second time, but... it's once a day. Think it's better safe than sorry.
+                    parent.setSingleLevel(levelOff, tempOff, hueOff, satOff, it,app.label)
+                }
             }
         }
     }
-    setDailySchedules()
-    if(data.action == "start") runIncrementalSchedule()
     return true
 }
 
-// Returns array for level, temp, hue and sat
+                   // Returns array for level, temp, hue and sat
 // Should NOT return true or false; always return defaults array
 // Array should return text "Null" for null values
-def getDefaultLevel(device){
-    // Set map with fake values
-    defaults=[level:'',temp:'',hue:'',sat:'']
-
+def getDefaultLevel(device,appLabel){
     // If no device match, return nulls
     timeDevice.findAll( {it.id == device.id} ).each {
         logTrace(835,"getDefaultLevel matched device $device","debug")
-
         match = true
     }
-    if(!match) return defaults
+    if(!match) return
 
-    if(!getScheduleActive()) return defaults
+    if(!getScheduleActive()) return
     
     // If we need elapsed, then get it
     if((levelOn && levelOff) || (tempOn && tempOff) || (hueOn && hueOff) || (satOn && satOff)){
@@ -846,9 +849,14 @@ def getDefaultLevel(device){
 
         if(!elapsedFraction) {
             logTrace(848,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"","error")
-            return defaults
+            return
         }
     }
+
+    if(!levelOn && !tempOn && !hueOn && !satOn) return
+
+    // Initialize defaults map
+    defaults = [:]
 
     if(levelOn && levelOff){
         if(levelOff > levelOn){
@@ -856,7 +864,10 @@ def getDefaultLevel(device){
         } else {
             defaults.put("level", levelOn - (levelOn - levelOff) * elapsedFraction as int)
         }
-    } else if(levelOn && !levelOff){
+    // Just start level doesn't establish a "default"
+    // However, if *this* schedule triggers through runDaily, then we need to capture start level
+    // It does not do anything with "start" levels
+    } else if(levelOn && !levelOff && appLabel == app.label){
         defaults.put("level",levelOn)
     }
 
@@ -866,7 +877,10 @@ def getDefaultLevel(device){
         } else {
             defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedFraction as int)
         }
-    } else if(tempOn && !tempOff){
+    // Just start level doesn't establish a "default"
+    // However, if *this* schedule triggers through runDaily, then we need to capture start level
+    // It does not do anything with "start" levels
+    } else if(tempOn && !tempOff && appLabel == app.label){
         defaults.put("temp",tempOn)
     }
 
@@ -886,7 +900,10 @@ def getDefaultLevel(device){
         } else if(hueOff < hueOn && hueDirection == "Reverse"){
             defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedFraction as int)
         }
-    } else if(hueOn && !hueOff){
+    // Just start level doesn't establish a "default"
+    // However, if *this* schedule triggers through runDaily, then we need to capture start level
+    // It does not do anything with "start" levels
+    } else if(hueOn && !hueOff && appLabel == app.label){
         defaults.put("hue",hueOn)
     }
 
@@ -897,7 +914,9 @@ def getDefaultLevel(device){
         } else {
             defaults.put("sat", satOn - (satOn - satOff) * elapsedFraction as int)
         }
-    } else if(satOn && !satOff){
+    // Just start level doesn't establish a "default"
+    // However, if *this* schedule triggers through runDaily, then we need to capture start level
+    } else if(satOn && !satOff && appLabel == app.label){
         defaults.put("sat",satOn)
     }
 
@@ -908,13 +927,14 @@ def getDefaultLevel(device){
 // Captures device state changes to set levels and start incremental schedule
 // Needs to find whether an app triggered it; if so, app may want to override schedule
 def handleStateChange(event){
+    // This function should be the same as "resume" portion of multiOn, except
+    // no override levels, and not turning off if no level
     // If an app requested the state change, then exit
     if(parent.getStateRequest(event.device,app.label)) {
         logTrace(913,"Device state changed by an app; exiting handleStateChange","debug")
         return
     }
-
-    logTrace(917,"Device $event.device turned on outside of app; handleStateChange handling level changes","debug")
+    logTrace(917,"Device $event.device turned on outside of app; caught by handleStateChange","debug")
 
     // If defaults, then there's an active schedule
     // So use it for if overriding/reenabling
@@ -925,11 +945,10 @@ def handleStateChange(event){
 
     // Set default level
     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,event.device,,app.label)
-
-	logTrace(929,"Set levels $defaults for $event.device, which was turned on outside of the app","debug")
+    logTrace(929,"Set levels $defaults for $event.device, which was turned on outside of the app","debug")
 
     // if toggling on, reschedule incremental
-    parent.rescheduleIncrementalSingle(event.device,,app.label)
+    parent.rescheduleIncrementalSingle(event.device,app.label)
     return
 }
 
@@ -1108,6 +1127,10 @@ def resetStateDeviceChange(){
     return
 }
 
+/* ************************************************************************ */
+/* TO-DO: This is newest and latest and greatest multiOn - copy to all      */
+/* other apps.                                                              */
+/* ************************************************************************ */
 // This is a bit of a mess, but.... 
 def multiOn(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle")) {
@@ -1120,7 +1143,7 @@ def multiOn(deviceAction,device,appAction = null){
         parent.setStateMulti("off",device,app.label)
         return true
     }
-    
+
     if(deviceAction == "on"){
          // Add device ids to deviceChange, so schedule knows it was turned on by an app
         device.each{
@@ -1135,19 +1158,28 @@ def multiOn(deviceAction,device,appAction = null){
         parent.setStateMulti("on",device,app.label)
         // Get and set defaults levels for each device
         device.each{
+/* ************************************************************************ */
+/* TO-DO:  Everything in device.each is identical to what happens in        */
+/* toggling on, so break out a singleOn function.                           */
+/* ************************************************************************ */
             // If defaults, then there's an active schedule
             // So use it for if overriding/reenabling
+            // In scheduler app, this gets defaults for any *other* schedule
             defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
-            logTrace(1142,logMessage,"debug")
+            logMessage = defaults ? "$it scheduled for $defaults" : "$it has no scheduled default levels"
 
+            // If there are defaults, then there's a schedule (the results are corrupted below)
+            if(defaults) parent.rescheduleIncrementalSingle(it,app.label)
+
+            // This does nothing in Time, or other app that has no levels
             defaults = getOverrideLevels(defaults,appAction)
-            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels" 
-            logTrace(1146,logMessage,"debug")
+            logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
 
             // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
             defaults = parent.getDefaultSingle(defaults,app.label)
-            logTrace(1150,"With generic defaults, using $defaults","debug")
+            logMessage += ", so with generic defaults $defaults"
+
+            logTrace(1150,logMessage,"debug")
             parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
         }
         return true
@@ -1163,7 +1195,7 @@ def multiOn(deviceAction,device,appAction = null){
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(deviceState){
+            if(parent.isOn(it)){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
             } else {
@@ -1183,23 +1215,27 @@ def multiOn(deviceAction,device,appAction = null){
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
+            // If newCount is contained in the list of [old]count, then we toggled on
             if(toggleOnDevice.contains(newCount)){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
+                // In scheduler app, this gets defaults for any *other* schedule
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
+                logMessage = defaults ? "$it scheduled for $defaults" : "$it has no scheduled default levels"
+
+                // If there are defaults, then there's a schedule (the results are corrupted below)
+                if(defaults) parent.rescheduleIncrementalSingle(it,app.label)
+
+                // This does nothing in Time, or other app that has no levels
+                defaults = getOverrideLevels(defaults,appAction)
+                logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
 
                 // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
                 defaults = parent.getDefaultSingle(defaults,app.label)
+                logMessage += ", so with generic defaults $defaults"
 
-                // Set default level
-                if(defaults){
-                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else {
-                    parent.setStateSingle("off",it,app.label)
-                }
-
-                // If toggling on, reschedule incremental
-                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                logTrace(1150,logMessage,"debug")
+                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
             }
         }
         return true
@@ -1216,14 +1252,19 @@ def multiOn(deviceAction,device,appAction = null){
 
                 defaults = getOverrideLevels(defaults,appAction)
                 logTrace(1218,"With " + app.label + " overrides, using $defaults","debug")
-                
+
+		// Skipping getting overall defaults, since we're resuming a schedule or exiting;
+		// rather keep things the same level rather than an arbitrary default, and
+		// if we got default, we'd not turn it off
+
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
                     logTrace(1223,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
+                } else {
+                    parent.rescheduleIncrementalSingle(it,app.label)
                 }
-
             }
         }
         return true
@@ -1231,6 +1272,7 @@ def multiOn(deviceAction,device,appAction = null){
 
     if(deviceAction == "none"){
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+	// I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
         return true
     }
@@ -1262,10 +1304,10 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
