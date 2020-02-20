@@ -1054,10 +1054,6 @@ def setStateMulti(deviceAction,device,appAction = null){
         parent.setStateMulti("on",device,app.label)
         // Get and set defaults levels for each device
         device.each{
-            /* ************************************************************************ */
-            /* TO-DO:  Everything in device.each is identical to what happens in        */
-            /* toggling on, so break out a singleOn function.                           */
-            /* ************************************************************************ */
             setStateOnSingle(it,appAction)
         }
         return true
