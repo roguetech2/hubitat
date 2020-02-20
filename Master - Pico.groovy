@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.19
+*  Version: 0.4.20
 *
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
@@ -877,7 +877,7 @@ def buttonPushed(evt){
     }
     if(switchButtonNumber){
         switch(switchButtonNumber){
-            case "1": multiOn("on",controlDevice)
+            case "1": setStateMulti("on",controlDevice)
             message = "turning on"
             break
             case "2": 
@@ -888,7 +888,7 @@ def buttonPushed(evt){
             }
             message = "brightening"
             break
-            case "3": multiOn("toggle",controlDevice)
+            case "3": setStateMulti("toggle",controlDevice)
             message = "toggling"
             break
             case "4": 
@@ -899,7 +899,7 @@ def buttonPushed(evt){
             }
             message = "dimming"
             break
-            case "5": multiOn("off",controlDevice)
+            case "5": setStateMulti("off",controlDevice)
             message = "turning off"
         }
         logTrace(909,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action","trace")
@@ -916,16 +916,16 @@ def buttonPushed(evt){
             if (settings.color == "Separate"){
                 toggleSeparate(settings["button_${buttonNumber}_${atomicState.action}_toggle"])
             } else {
-                multiOn("toggle",settings["button_${buttonNumber}_${atomicState.action}_toggle"])
+                setStateMulti("toggle",settings["button_${buttonNumber}_${atomicState.action}_toggle"])
             }
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_on"]) {
             logTrace(926,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_on"] +"; remapped and advanced setup; turning on","trace")
-            multiOn("on",settings["button_${buttonNumber}_${atomicState.action}_on"])
+            setStateMulti("on",settings["button_${buttonNumber}_${atomicState.action}_on"])
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_off"]){
             logTrace(930,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_off"] + "; remapped and advanced setup; turning off","trace")
-            multiOn("off",settings["button_${buttonNumber}_${atomicState.action}_off"])
+            setStateMulti("off",settings["button_${buttonNumber}_${atomicState.action}_off"])
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_dim"]) {
             logTrace(934,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_dim"] + "; remapped and advanced setup; dimming","trace")
@@ -945,7 +945,7 @@ def buttonPushed(evt){
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_resume"]) {
             logTrace(950,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_resume"] + "; remapped and advanced setup; brightening","trace")
-            multiOn("resume",settings["button_${buttonNumber}_${atomicState.action}_resume"])
+            setStateMulti("resume",settings["button_${buttonNumber}_${atomicState.action}_resume"])
         }
     }
 }
@@ -1082,17 +1082,17 @@ def toggleSeparate(device){
     }
     // color on, white on, turn off color
     if(colorSwitch == "on" && whiteSwitch == "on"){
-        multiOn("off",device)
+        setStateMulti("off",device)
         // color on, white off; turn white on
     } else if(colorSwitch == "on" && whiteSwitch != "on"){
-        multiOn("on",device)
+        setStateMulti("on",device)
         //color off, white on; turn off white and turn on color
     } else if(colorSwitch != "on" && whiteSwitch == "on"){
-        multiOn("off",device,"white")
-        multiOn("on",device)
+        setStateMulti("off",device,"white")
+        setStateMulti("on",device)
         // both off; turn color on
     } else if(colorSwitch != "on" && whiteSwitch != "on"){
-        multiOn("on",device)
+        setStateMulti("on",device)
     }
 }
 
@@ -1207,10 +1207,10 @@ def resetStateDeviceChange(){
     return
 }
 
-// This is a bit of a mess, but....
-def multiOn(deviceAction,device,appAction = null){
+// This is a bit of a mess, but.... 
+def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        logTrace(1213,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(1213,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti","error")
         return
     }
 
@@ -1234,20 +1234,7 @@ def multiOn(deviceAction,device,appAction = null){
         parent.setStateMulti("on",device,app.label)
         // Get and set defaults levels for each device
         device.each{
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
-            logTrace(1241,logMessage,"debug")
-
-            defaults = getOverrideLevels(defaults,appAction)
-            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels"
-            logTrace(1245,logMessage,"debug")
-
-            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-            defaults = parent.getDefaultSingle(defaults,app.label)
-            logTrace(1249,"With generic defaults, using $defaults","debug")
-            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            setStateOnSingle(it,appAction)
         }
         return true
     }
@@ -1262,7 +1249,7 @@ def multiOn(deviceAction,device,appAction = null){
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(deviceState){
+            if(parent.isOn(it)){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
             } else {
@@ -1275,30 +1262,16 @@ def multiOn(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        logTrace(1278,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1265,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
+            // If newCount is contained in the list of [old]count, then we toggled on
             if(toggleOnDevice.contains(newCount)){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-
-                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                defaults = parent.getDefaultSingle(defaults,app.label)
-
-                // Set default level
-                if(defaults){
-                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else {
-                    parent.setStateSingle("off",it,app.label)
-                }
-
-                // If toggling on, reschedule incremental
-                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                setStateOnSingle(it,appAction)
             }
         }
         return true
@@ -1311,18 +1284,23 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(1314,"Scheduled defaults are $defaults","debug")
+                logTrace(1287,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(1317,"With " + app.label + " overrides, using $defaults","debug")
+                logTrace(1290,"With " + app.label + " overrides, using $defaults","debug")
+
+                // Skipping getting overall defaults, since we're resuming a schedule or exiting;
+                // rather keep things the same level rather than an arbitrary default, and
+                // if we got default, we'd not turn it off
 
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(1322,"No schedule to resume for $it; turning off","trace")
+                    logTrace(1299,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
+                } else {
+                    parent.rescheduleIncrementalSingle(it,app.label)
                 }
-
             }
         }
         return true
@@ -1330,9 +1308,33 @@ def multiOn(deviceAction,device,appAction = null){
 
     if(deviceAction == "none"){
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
         return true
     }
+}
+
+// Handles turning on a single device and setting levels
+def setStateOnSingle(singleDevice,appAction = null){
+    // If defaults, then there's an active schedule
+    // So use it for if overriding/reenabling
+    // In scheduler app, this gets defaults for any *other* schedule
+    defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
+    logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
+
+    // If there are defaults, then there's a schedule (the results are corrupted below)
+    if(defaults) parent.rescheduleIncrementalSingle(singleDevice,app.label)
+
+    // This does nothing in Time, or other app that has no levels
+    defaults = getOverrideLevels(defaults,appAction)
+    logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
+
+    // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+    defaults = parent.getDefaultSingle(defaults,app.label)
+    logMessage += ", so with generic defaults $defaults"
+
+    logTrace(1336,logMessage,"debug")
+    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
 }
 
 //lineNumber should be a number, but can be text
