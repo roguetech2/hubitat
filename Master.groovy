@@ -224,39 +224,39 @@ def setStateMulti(action, multiDevice,childLabel = "Master"){
 
 // Turns a single switch on or off
 // action = "on" or "off"
-def setStateSingle(action, device,childLabel = "Master"){
+def setStateSingle(action, singleDevice,childLabel = "Master"){
     if(action == "on"){
-        if(!isFan(device) && isDimmable(device)){
+        if(!isFan(singleDevice) && isDimmable(singleDevice)){
             singleDevice.setLevel(1)
         } else {
-            device.on()
+            singleDevice.on()
         }
     } else if(action == "off"){
-        device.off()
+        singleDevice.off()
     } else {
         logTrace(233,"Invalid value for action \"$action\" sent to setStateSingle function","error",childLabel)
         return
     }
-    logTrace(236,"Turned $action $device","info",childLabel)
+    logTrace(236,"Turned $action $singleDevice","info",childLabel)
 }
 
 // Lock or unlock a group of locks
-def multiLock(action,device, childLabel = "Master"){
-    device.each{
+def multiLock(action,multiDevice, childLabel = "Master"){
+    multiDevice.each{
         singleLock(action,it,childLabel)
     }
 }
 
 // Lock or unlock a single lock
-def singleLock(action,device, childLabel = "Master"){
+def singleLock(action,singleDevice, childLabel = "Master"){
     if(action == "lock"){
-        device.lock()
+        singleDevice.lock()
     } else if(action == "unlock"){
-        device.unlock()
+        singleDevice.unlock()
     } else {
         logTrace(253,"Invalid value for action \"$action\" sent to singleLock function","error",childLabel)
     }
-    logTrace(255,action + "ed $device","info",childLabel)
+    logTrace(255,action + "ed $singleDevice","info",childLabel)
 }
 
 def setLevelsMulti(multiDevice, childLabel = "Master"){
