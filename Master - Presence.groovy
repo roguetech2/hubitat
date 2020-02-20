@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.34
+*  Version: 0.1.35
 *
 ***********************************************************************************************************************/
 
@@ -217,19 +217,19 @@ preferences {
 }
 
 def installed() {
-	logTrace(220,"Installed","trace")
+	logTrace(219,"Installed","trace")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(226,"Updated","trace")
+	logTrace(225,"Updated","trace")
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace(232,"Initialized","trace")
+	logTrace(231,"Initialized","trace")
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -237,7 +237,7 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace(240,"$evt.displayName status changed to $evt.value","debug")
+	logTrace(239,"$evt.displayName status changed to $evt.value","debug")
 	
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
@@ -260,14 +260,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace(263,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
+			logTrace(262,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(270,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
+		logTrace(269,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
 		return
 	}
 	
@@ -282,7 +282,7 @@ def presenceHandler(evt) {
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace(285,"Presence handler doing nothing; not correct day","trace")
+		logTrace(284,"Presence handler doing nothing; not correct day","trace")
 		return
 	}
 
@@ -296,7 +296,7 @@ def presenceHandler(evt) {
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
 			//parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
-			logTrace(299, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
+			logTrace(298, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
 		} else {
 			//parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
 			logTrace("SMS no longer supported until updates complete. $evt.displayName's departure at $now.","info")
@@ -313,7 +313,7 @@ def presenceHandler(evt) {
 	// Set mode
 	if(mode) parent.changeMode(mode,app.label)
 	// Turn on/off lights
-	if(switches) multiOn(actionSwitches,switches)
+	if(switches) setStateMulti(actionSwitches,switches)
 
 	// Lock/unlock doors
 	if(locks) parent.multiLock(actionLocks,locks,app.label)
@@ -440,9 +440,9 @@ def resetStateDeviceChange(){
 
 // Presense does not use "resume" or "none" (at least, not yet)
 // This is a bit of a mess, but.... 
-def multiOn(deviceAction,device,appAction = null){
+def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle")) {
-        logTrace(445,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+        logTrace(1133,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti","error")
         return
     }
 
@@ -451,35 +451,22 @@ def multiOn(deviceAction,device,appAction = null){
         parent.setStateMulti("off",device,app.label)
         return true
     }
-    
+
     if(deviceAction == "on"){
-         // Add device ids to deviceChange, so schedule knows it was turned on by an app
+        // Add device ids to deviceChange, so schedule knows it was turned on by an app
         device.each{
             addStateDeviceChange(it.id)
             // Time to schedule resetting deviceChange should match total time of waitStateChange
             // Might be best to put this in a state variable in Initialize, as a setting?
             runIn(2,resetStateDeviceChange)
         }
-        logTrace(463,"Device id's turned on are $atomicState.deviceChange","debug")
-        
+        logTrace(1151,"Device id's turned on are $atomicState.deviceChange","debug")
+
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
         // Get and set defaults levels for each device
         device.each{
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
-            logTrace(473,logMessage,"debug")
-
-            defaults = getOverrideLevels(defaults,appAction)
-            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels" 
-            logTrace(477,logMessage,"debug")
-
-            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-            defaults = parent.getDefaultSingle(defaults,app.label)
-            logTrace(481,"With generic defaults, using $defaults","debug")
-            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            setStateOnSingle(it,appAction)
         }
         return true
     }
@@ -494,43 +481,29 @@ def multiOn(deviceAction,device,appAction = null){
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(deviceState){
+            if(parent.isOn(it)){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
             } else {
                 // When turning on, add device id to deviceChange, so schedule knows it was turned on by an app
                 addStateDeviceChange(it.id)
-                runIn(1,resetStateDeviceChange)
+                runIn(2,resetStateDeviceChange)
                 parent.setStateSingle("on",it,app.label)
                 // Create list of devices toggled on
                 // This lets us turn all of them on, then loop again so when setting levels, it won't wait for each individual device to respond
                 toggleOnDevice.add(count)
             }
         }
-        logTrace(510,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1189,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
+            // If newCount is contained in the list of [old]count, then we toggled on
             if(toggleOnDevice.contains(newCount)){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-
-                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                defaults = parent.getDefaultSingle(defaults,app.label)
-
-                // Set default level
-                if(defaults){
-                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else {
-                    parent.setStateSingle("off",it,app.label)
-                }
-
-                // If toggling on, reschedule incremental
-                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                setStateOnSingle(it,appAction)
             }
         }
         return true
@@ -543,18 +516,23 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(546,"Scheduled defaults are $defaults","debug")
+                logTrace(1211,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(549,"With " + app.label + " overrides, using $defaults","debug")
-                
+                logTrace(1214,"With " + app.label + " overrides, using $defaults","debug")
+
+                // Skipping getting overall defaults, since we're resuming a schedule or exiting;
+                // rather keep things the same level rather than an arbitrary default, and
+                // if we got default, we'd not turn it off
+
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(554,"No schedule to resume for $it; turning off","trace")
+                    logTrace(1223,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
+                } else {
+                    parent.rescheduleIncrementalSingle(it,app.label)
                 }
-
             }
         }
         return true
@@ -562,9 +540,33 @@ def multiOn(deviceAction,device,appAction = null){
 
     if(deviceAction == "none"){
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
         return true
     }
+}
+
+// Handles turning on a single device and setting levels
+def setStateOnSingle(singleDevice,appAction = null){
+    // If defaults, then there's an active schedule
+    // So use it for if overriding/reenabling
+    // In scheduler app, this gets defaults for any *other* schedule
+    defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
+    logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
+
+    // If there are defaults, then there's a schedule (the results are corrupted below)
+    if(defaults) parent.rescheduleIncrementalSingle(singleDevice,app.label)
+
+    // This does nothing in Time, or other app that has no levels
+    defaults = getOverrideLevels(defaults,appAction)
+    logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
+
+    // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+    defaults = parent.getDefaultSingle(defaults,app.label)
+    logMessage += ", so with generic defaults $defaults"
+
+    logTrace(1260,logMessage,"debug")
+    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
 }
 
 //lineNumber should be a number, but can be text
@@ -593,10 +595,10 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
