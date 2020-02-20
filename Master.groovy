@@ -807,10 +807,10 @@ def logTrace(lineNumber,message = null, type = "trace",childLabel = "Master"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
