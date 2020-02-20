@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.15
+*  Version: 0.4.16
 * 
 ***********************************************************************************************************************/
 
@@ -29,10 +29,12 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/locks/lock/unlocked@2x.png"
 )
 
-/* ************************************************** */
-/* TO-DO: Add error messages (and change info icon    */
-/* (see humidity).                                    */
-/* ************************************************** */ 
+/* ************************************************************************ */
+/* TO-DO: Change icon from to to something  that resembles a door I guess.  */
+/* ************************************************************************ */
+/* ************************************************************************ */
+/* TO-DO: Finish error messages.                                            */
+/* ************************************************************************ */
 preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
@@ -114,8 +116,10 @@ preferences {
                             
                             input "timeOn", "enum", title: "Turn devices on or off ($varStartTime)?", multiple: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
                             if(timeOn){
-                                
-// TO-DO: Add option for on or not on holidays
+
+/* ************************************************************************ */
+/* TO-DO: Add holidays.                                                     */
+/* ************************************************************************ */
                                 displayStopTimeTypeOption()
                                 if(inputStopType == "Time"){
                                     displayStopTimeOption()
@@ -137,15 +141,12 @@ preferences {
                         }
                         if(!openSwitch || (openSwitch && openSwitchAction)){
                             displayWaitOptions()
+/* ************************************************************************ */
+/* TO-DO: Fix SMS, add app notifications                                    */
+/* ************************************************************************ */
                             displayAlertOptions()
                             displayModeOptions()
                         }
-// Send SMS and/or speack (depending who is home)
-// Set active time
-// Change Mode
-// Open/close delay
-// if Mode
-                        
                     }
                     paragraph error
                 if(!error) input "disableAll", "bool", title: "Disable <b>ALL</b> schedules?", submitOnChange:true
@@ -186,11 +187,10 @@ def displayNameOption(){
     displayLabel("Set name for this contact sensor routine")
 	label title: "", required: true, submitOnChange:true
         if(!app.label) displayInfo("Name this contact routine. Each contact must have a unique name.")
-/* ************************************************** */
-/* TO-DO: Test the name is unique; otherwise          */
-/* rescheduling won't work, since we use "childLabel" */
-/* variable.                                          */
-/* ************************************************** */
+/* ************************************************************************ */
+/* TO-DO: Test the name is unique; otherwise rescheduling won't work, since */ 
+/* we use "childLabel" variable.                                            */
+/* ************************************************************************ */
 }
 
 def displayDevicesOption(){
@@ -740,11 +740,11 @@ personHome - capability.presenseSensor - Persons any of who must be home for con
 personNotHome - capability.presenseSensor - Persons all of who must not be home for contact to run.
 */
 
-/* ************************************************** */
-/*                                                    */
-/* End display functions.                             */
-/*                                                    */
-/* ************************************************** */
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
 
 def installed() {
 	logTrace(750,"Installed","trace")
@@ -834,11 +834,10 @@ def contactChange(evt){
 			def now = new Date()
 
 			//if last text was sent less than 5 minutes ago, don't send
-/* ************************************************** */
-/* TO-DO: Add option to override text cooldown        */
-/* period? (Maybe in Master?) Migrate new code to     */
-/* presence app.                                      */
-/* ************************************************** */
+/* ************************************************************************ */
+/* TO-DO: Add option to override text cooldown period? (Maybe in Master?)   */
+/* Same with presence app.                                                  */
+/* ************************************************************************ */
 			// Compute seconds from last sms
 			seconds = (now.getTime()  - state.contactLastSms) / 1000
 
@@ -875,7 +874,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			logTrace(878,"Scheduling runScheduleOpen in $openWait seconds","trace")
+			logTrace(877,"Scheduling runScheduleOpen in $openWait seconds","trace")
 			runIn(openWait,runScheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -890,7 +889,7 @@ def contactChange(evt){
 	} else {
 		// Schedule delay
 		if(closeWait) {
-			logTrace(893,"Scheduling runScheduleClose in $closeWait seconds","trace")
+			logTrace(892,"Scheduling runScheduleClose in $closeWait seconds","trace")
 			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -967,14 +966,14 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		logTrace(970,"input" + type + "Type set to " + settings["input${type}Type"],"error")
+		logTrace(969,"input" + type + "Type set to " + settings["input${type}Type"],"error")
 		return
 	}
 
 	if(type == "Stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	logTrace(977,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
+	logTrace(976,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),"trace")
 	if(type == "Start") state.start = value
 	if(type == "Stop") state.stop = value
 	return true
@@ -1027,10 +1026,11 @@ def resetStateDeviceChange(){
     return
 }
 
+// Contact does not use dim or brighten
 // This is a bit of a mess, but.... 
-def multiOn(deviceAction,device,appAction = null){
-    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        logTrace(1033,"Invalid deviceAction \"$deviceAction\" sent to multiOn","error")
+def setStateMulti(deviceAction,device,appAction = null){
+    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "none")) {
+        logTrace(1133,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti","error")
         return
     }
 
@@ -1039,35 +1039,26 @@ def multiOn(deviceAction,device,appAction = null){
         parent.setStateMulti("off",device,app.label)
         return true
     }
-    
+
     if(deviceAction == "on"){
-         // Add device ids to deviceChange, so schedule knows it was turned on by an app
+        // Add device ids to deviceChange, so schedule knows it was turned on by an app
         device.each{
             addStateDeviceChange(it.id)
             // Time to schedule resetting deviceChange should match total time of waitStateChange
             // Might be best to put this in a state variable in Initialize, as a setting?
             runIn(2,resetStateDeviceChange)
         }
-        logTrace(1051,"Device id's turned on are $atomicState.deviceChange","debug")
-        
+        logTrace(1151,"Device id's turned on are $atomicState.deviceChange","debug")
+
         // Turn on devices
         parent.setStateMulti("on",device,app.label)
         // Get and set defaults levels for each device
         device.each{
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logMessage = defaults ? "Device is scheduled for $defaults" : "Device has no scheduled default levels"
-            logTrace(1061,logMessage,"debug")
-
-            defaults = getOverrideLevels(defaults,appAction)
-            logMessage = defaults ? "With " + app.label + " overrides, using $defaults": "With no override levels" 
-            logTrace(1065,logMessage,"debug")
-
-            // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-            defaults = parent.getDefaultSingle(defaults,app.label)
-            logTrace(1069,"With generic defaults, using $defaults","debug")
-            parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+            /* ************************************************************************ */
+            /* TO-DO:  Everything in device.each is identical to what happens in        */
+            /* toggling on, so break out a singleOn function.                           */
+            /* ************************************************************************ */
+            setStateOnSingle(it,appAction)
         }
         return true
     }
@@ -1082,7 +1073,7 @@ def multiOn(deviceAction,device,appAction = null){
             // Get original state
             deviceState = parent.isOn(it)
             // If toggling to off
-            if(deviceState){
+            if(parent.isOn(it)){
                 parent.setStateSingle("off",it,app.label)
                 // Else if toggling on
             } else {
@@ -1095,30 +1086,16 @@ def multiOn(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        logTrace(1098,"Device id's turned on are $atomicState.deviceChange","debug")
+        logTrace(1189,"Device id's turned on are $atomicState.deviceChange","debug")
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
         device.each{
             newCount = newCount + 1
             // If turning on, set default levels and over-ride with any contact levels
+            // If newCount is contained in the list of [old]count, then we toggled on
             if(toggleOnDevice.contains(newCount)){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-
-                // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-                defaults = parent.getDefaultSingle(defaults,app.label)
-
-                // Set default level
-                if(defaults){
-                    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
-                } else {
-                    parent.setStateSingle("off",it,app.label)
-                }
-
-                // If toggling on, reschedule incremental
-                if(!deviceState) parent.rescheduleIncrementalSingle(it,app.label)
+                setStateOnSingle(it,appAction)
             }
         }
         return true
@@ -1131,18 +1108,23 @@ def multiOn(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(1134,"Scheduled defaults are $defaults","debug")
+                logTrace(1211,"Scheduled defaults are $defaults","debug")
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(1137,"With " + app.label + " overrides, using $defaults","debug")
-                
+                logTrace(1214,"With " + app.label + " overrides, using $defaults","debug")
+
+                // Skipping getting overall defaults, since we're resuming a schedule or exiting;
+                // rather keep things the same level rather than an arbitrary default, and
+                // if we got default, we'd not turn it off
+
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(1142,"No schedule to resume for $it; turning off","trace")
+                    logTrace(1223,"No schedule to resume for $it; turning off","trace")
                     parent.setStateSingle("off",it,app.label)
+                } else {
+                    parent.rescheduleIncrementalSingle(it,app.label)
                 }
-
             }
         }
         return true
@@ -1150,9 +1132,33 @@ def multiOn(deviceAction,device,appAction = null){
 
     if(deviceAction == "none"){
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
+        // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
         return true
     }
+}
+
+// Handles turning on a single device and setting levels
+def setStateOnSingle(singleDevice,appAction = null){
+    // If defaults, then there's an active schedule
+    // So use it for if overriding/reenabling
+    // In scheduler app, this gets defaults for any *other* schedule
+    defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
+    logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
+
+    // If there are defaults, then there's a schedule (the results are corrupted below)
+    if(defaults) parent.rescheduleIncrementalSingle(singleDevice,app.label)
+
+    // This does nothing in Time, or other app that has no levels
+    defaults = getOverrideLevels(defaults,appAction)
+    logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
+
+    // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
+    defaults = parent.getDefaultSingle(defaults,app.label)
+    logMessage += ", so with generic defaults $defaults"
+
+    logTrace(1260,logMessage,"debug")
+    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
 }
 
 //lineNumber should be a number, but can be text
@@ -1181,10 +1187,10 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
