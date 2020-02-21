@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.12
+*  Version: 0.2.13
 *
 ***********************************************************************************************************************/
 
@@ -368,15 +368,17 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
     if(hue || sat){
         // Only update what's needed
         // treat it like a null if current hue/sat being equal to change value 
-        if((!hue || hue == singleDevice.currentHue) && sat != singleDevice.currentSat) {
+        if((!hue || hue == singleDevice.currentHue) && sat != singleDevice.Saturation) {
             // Defaults to existing sat - should we default to 100%?
             singleDevice.setColor([saturation: sat])
-        } else if((!sat || sat == singleDevice.currentSat) && hue != singleDevice.currentHue){
+            message += "sat: $sat; "
+        } else if((!sat || sat == singleDevice.Saturation) && hue != singleDevice.currentHue){
             singleDevice.setColor([hue: hue])
+            message += "hue: $hue; "
         } else if(hue && sat){
             singleDevice.setColor([hue: hue, saturation: sat])
-        }
         message += "hue: $hue; sat: $sat; "
+        }
     }
 
     if(message != "Set ") logTrace(382,"$message of $singleDevice","trace",childLabel)
