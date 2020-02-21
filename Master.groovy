@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.11
+*  Version: 0.2.12
 *
 ***********************************************************************************************************************/
 
@@ -48,8 +48,8 @@ preferences {
 }
 
 def mainPage() {
-	infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
-	errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+    errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
         if(!state.masterInstalled) {
             section("Click Done.") {
@@ -59,8 +59,8 @@ def mainPage() {
             if(showPresences){
                 section(""){
                     /*
-                    input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
+input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
+paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
 */
                     input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
@@ -78,39 +78,39 @@ def mainPage() {
                 /* https://community.hubitat.com/t/parent-function-to-return-settings-state-data-to-child-app/2261/3 */
                 /* ********************************************* */
                 /*
-                if(notificationDevice && people){
-                    section(""){
-                        def i = 0
-                        people.each{
-                            i++
-                                paragraph "<div style=\"background-color:BurlyWood\"><b> Sing Happy Birthday for $it:</b></div>"
-                            if(i == 1) paragraph "This sets Google Home to sing Happy Birthday on the individual's birthday between the times entered, a few minutes after they (or a few minutes after the start time, if they're already home). It can be set to wait for everyone to be home before singing."
-                            if(!settings["happyBDay$i"]){
-                                input "happyBDay${i}", "bool", title: "Do not sing Happy Birthday for $it? Click to sing.", submitOnChange:true
-                            } else {
-                                input "happyBDay${i}", "bool", title: "Sing Happy Birthday for $it? Click to not sing.", submitOnChange:true
-                            }
-                            if(settings["happyBDay$i"]){
-                                input "dateBDay${i}", "date", title: "Enter birthday date for $it."
-                                if(!settings["bDayEveryone$i"]){
-                                    input "bDayEveryone${i}", "bool", title: "Sing regardless of who else is home. Click to only sing with everyone.", submitOnChange:true
-                                } else {
-                                    input "bDayEveryone${i}", "bool", title: "Only sing when everyone is home. Click to sing regardless who's home.", submitOnChange:true
-                                }
-                                input "timeStart", "time", title: "Only sing between start time", required: true, width: 6, submitOnChange:true
-                                input "timeStop", "time", title: "and stop time", required: true, width: 6, submitOnChange:true
-                            }
-                        }
+if(notificationDevice && people){
+section(""){
+def i = 0
+people.each{
+i++
+paragraph "<div style=\"background-color:BurlyWood\"><b> Sing Happy Birthday for $it:</b></div>"
+if(i == 1) paragraph "This sets Google Home to sing Happy Birthday on the individual's birthday between the times entered, a few minutes after they (or a few minutes after the start time, if they're already home). It can be set to wait for everyone to be home before singing."
+if(!settings["happyBDay$i"]){
+input "happyBDay${i}", "bool", title: "Do not sing Happy Birthday for $it? Click to sing.", submitOnChange:true
+} else {
+input "happyBDay${i}", "bool", title: "Sing Happy Birthday for $it? Click to not sing.", submitOnChange:true
+}
+if(settings["happyBDay$i"]){
+input "dateBDay${i}", "date", title: "Enter birthday date for $it."
+if(!settings["bDayEveryone$i"]){
+input "bDayEveryone${i}", "bool", title: "Sing regardless of who else is home. Click to only sing with everyone.", submitOnChange:true
+} else {
+input "bDayEveryone${i}", "bool", title: "Only sing when everyone is home. Click to sing regardless who's home.", submitOnChange:true
+}
+input "timeStart", "time", title: "Only sing between start time", required: true, width: 6, submitOnChange:true
+input "timeStop", "time", title: "and stop time", required: true, width: 6, submitOnChange:true
+}
+}
 
-                    }
-                }
+}
+}
 */
             }
-                if(showSchedules){
-                    section("Scheduled settings:") {
-                        app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
-                    }
+            if(showSchedules){
+                section("Scheduled settings:") {
+                    app(name: "childApps", appName: "Master - Time", namespace: "master", title: "New Schedule", multiple: true)
                 }
+            }
             if(showPresences){
                 section("Presence settings:") {
                     app(name: "childApps", appName: "Master - Presence", namespace: "master", title: "New Presence", multiple: true)
@@ -280,10 +280,10 @@ def setLevelsMulti(multiDevice, childLabel = "Master"){
 // Validates level, temp, hue and sat
 // Returns true if it does anything
 def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
-/* ************************************************************************ */
-/* TO-DO: Change back to using defaults map; we aren't scheduling this      */
-/* function anymore.                                                        */
-/* ************************************************************************ */
+    /* ************************************************************************ */
+    /* TO-DO: Change back to using defaults map; we aren't scheduling this      */
+    /* function anymore.                                                        */
+    /* ************************************************************************ */
     // empty values shouldn't occur anymore, so after testing, remove these
     if(level == "") level = null
     if(temp == "") temp = null
@@ -317,7 +317,7 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
 
     // If no changes, exit
     if(!level && !temp && !hue && !sat){
-	// Shouldn't happen, since there are system level defaults
+        // Shouldn't happen, since there are system level defaults
         logTrace(321,"No valid changes sent to setLevelSingle","error",childLabel)
         return
     }
@@ -326,31 +326,31 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
     // If refuses to turn on, exit
     // Must override cached value
     if(singleDevice.currentValue("switch",true) != "on") {
-	if(!waitStateChange("on",singleDevice,childLabel)) return
+        if(!waitStateChange("on",singleDevice,childLabel)) return
     }
-/* ************************************************************************ */
-/* TO-DO: Test whether overriding cached value of currentValue refreshes    */
-/* the cache. If so, we can check isOn() above, and override cache in       */
-/* waitStateChange to keep things more consistent                           */
-/* ************************************************************************ */
-/* ************************************************************************ */
-/* TO-DO: Test whether we have any race condition or dropped commands below.*/
-/* Do we need to pause between setting level, temp, or color? (The device   */
-/* must be on, per previous statement.)                                     */
-/* ************************************************************************ */
+    /* ************************************************************************ */
+    /* TO-DO: Test whether overriding cached value of currentValue refreshes    */
+    /* the cache. If so, we can check isOn() above, and override cache in       */
+    /* waitStateChange to keep things more consistent                           */
+    /* ************************************************************************ */
+    /* ************************************************************************ */
+    /* TO-DO: Test whether we have any race condition or dropped commands below.*/
+    /* Do we need to pause between setting level, temp, or color? (The device   */
+    /* must be on, per previous statement.)                                     */
+    /* ************************************************************************ */
     message = "Set "
     if(level){
         if(singleDevice.currentLevel != level && isDimmable(singleDevice,childLabel)){
             if(isFan(singleDevice,childLabel)) level = roundFanLevel(level,childLabel)
 
             singleDevice.setLevel(level as int)
-            message = message + "level: $level; "
+            message += "level: $level; "
         }	
     }
     // Temp, hue and sat all requires color device
     if(!isColor(singleDevice,childLabel)){
         logTrace(352,"$message of $singleDevice","trace",childLabel)
-	return true
+        return true
     }
 
     // Color hue takes precendence over temp, but...
@@ -361,8 +361,8 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
         sat = null
     }
     if(temp && temp != singleDevice.currentColorTemperature){
-            singleDevice.setColorTemperature(temp as int)
-            message = message + "temp: $temp; "
+        singleDevice.setColorTemperature(temp as int)
+        message += "temp: $temp; "
     }
     // Need to compare to current temp, hue and/or sat
     if(hue || sat){
@@ -376,7 +376,7 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
         } else if(hue && sat){
             singleDevice.setColor([hue: hue, saturation: sat])
         }
-        message = message + "hue: $hue; sat: $sat; "
+        message += "hue: $hue; sat: $sat; "
     }
 
     if(message != "Set ") logTrace(382,"$message of $singleDevice","trace",childLabel)
@@ -392,9 +392,9 @@ def waitStateChange(action,singleDevice,childLabel = "Master"){
         setStateSingle(action,it,childLabel)
         // Don't use isOn, because it uses cached state
         if((action == "on" && deviceState == "off") || (action == "off" && deviceState == "on")) {
-		pause(10)
+            pause(10)
         } else {
-		loopCount = 201
+            loopCount = 201
         }
     }
     if((action == "on" && deviceState == "on") || (action == "off" && deviceState == "off")) {
@@ -417,24 +417,25 @@ def getScheduleDefaultSingle(singleDevice, childLabel = "Master"){
             // As long as not all the levels are already set...
             if(!defaultLevel || !defaultTemp || !defaultHue || !defaultSat) {
                 // Get their default levels
-                defaults = Child.getDefaultLevel(singleDevice)
-		if(defaults){
-                if(defaults.level && defaults.level != "") defaultLevel = defaults.level
-                if(defaults.temp && defaults.temp != "") defaultTemp = defaults.temp
-                if(defaults.hue && defaults.hue != "") defaultHue = defaults.hue
-                if(defaults.sat && defaults.sat != "") defaultSat = defaults.sat
-                if((defaults.level && defaults.level != "") || (defaults.temp && defaults.temp != "") || (defaults.hue && defaults.hue != "") || (defaults.sat && defaults.sat != ""))
-                logTrace(427,"Default levels of $defaults found for $singleDevice with $Child.label","debug",childLabel)
-}
+                defaults = Child.getDefaultLevel(singleDevice,childLabel)
+                if(defaults){
+                    if(defaults.level) defaultLevel = defaults.level
+                    if(defaults.temp) defaultTemp = defaults.temp
+                    if(defaults.hue) defaultHue = defaults.hue
+                    if(defaults.sat) defaultSat = defaults.sat
+                    if(defaults.level || defaults.temp || defaults.hue || defaults.sat)
+                    logTrace(427,"Default levels of $defaults found for $singleDevice with $Child.label","debug",childLabel)
+                }
             }
         }
     }
+    if(!defaults) defaults = [:]
     // And set the level
     if(defaultLevel || defaultTemp || defaultHue || defaultSat) {
-        if(defaultLevel) defaults.put("level") = defaultLevel
-        if(defaultTemp) defaults.put("temp") = defaultTemp
-        if(defaultHue) defaults.put("hue") = defaultHue
-        if(defaultSat) defaults.put("sat") = defaultSat
+        if(defaultLevel) defaults.put("level",defaultLevel)
+        if(defaultTemp) defaults.put("temp",defaultTemp)
+        if(defaultHue) defaults.put("hue",defaultHue)
+        if(defaultSat) defaults.put("sat",defaultSat)
         return defaults
     } else {
         return
@@ -461,7 +462,7 @@ def getStateRequest(singleDevice,childLabel){
 
 def dim(action,device,childLabel="Master"){
     if(action != "dim" && action != "brighten"){
-        logTrace(464,"Invalid value for action \"$action\" sent to dim function","error",childLabel)
+        logTrace(465,"Invalid value for action \"$action\" sent to dim function","error",childLabel)
         return
     }
 
@@ -484,7 +485,7 @@ def dim(action,device,childLabel="Master"){
             if(levelValue) {
                 if(isFan(it,childLabel)) roundFanLevel(levelValue,childLabel)
                 setLevelSingle(levelValue,"","","",it,childLabel)
-                logTrace(487,"Set level of $it to $levelValue","info",childLabel)
+                logTrace(488,"Set level of $it to $levelValue","info",childLabel)
             }
         }
     }
@@ -500,11 +501,11 @@ def nextLevel(level, action, childLabel="Master"){
         }
         if(!dimSpeed){
             dimSpeed = 1.2
-            logTrace(503,"Failed to find dimSpeed in function nextLevel","error",childLabel)
+            logTrace(504,"Failed to find dimSpeed in function nextLevel","error",childLabel)
         }
     }
     if (action != "dim" && action != "brighten"){
-        logTrace(507,"Invalid value for action \"$action\" sent to nextLevel function","error",childLabel)
+        logTrace(508,"Invalid value for action \"$action\" sent to nextLevel function","error",childLabel)
         return false
     }
     def newLevel = level as int
@@ -537,7 +538,7 @@ def changeMode(mode, childLabel = "Master", device = "") {
     if(location.mode == mode) return
     oldMode = location.mode
     setLocationMode(mode)
-    logTrace(540,"Changed Mode from $oldMode to $mode","info",childLabel)
+    logTrace(541,"Changed Mode from $oldMode to $mode","info",childLabel)
 }
 
 // Send SMS text message to $phone with $message
@@ -551,7 +552,7 @@ def sendText(phone, message,childLabel){
     phone = phone.replaceAll("\\.","");
     phone = phone.replaceAll("\\+","");
     if(!phone.isNumber()) {
-        logTrace(554,"Phone number $phone is not valid (message \"$message\" not sent)","error",childLabel)
+        logTrace(555,"Phone number $phone is not valid (message \"$message\" not sent)","error",childLabel)
         return false
     }
     if(phone.length() == 10) {
@@ -559,7 +560,7 @@ def sendText(phone, message,childLabel){
     } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
         phone = "+" + phone
     }
-    logTrace(562,"Sent \"$message\" to $phone","info",childLabel)
+    logTrace(563,"Sent \"$message\" to $phone","info",childLabel)
     sendSms(phone,message)
     return true
 }
@@ -571,7 +572,7 @@ def isOnMulti(multiDevice,childLabel="Master"){
     multiDevice.each{
         if(isOn(it,childLabel)) value = true
     }
-    logTrace(574,"Function isOnMulti returning $value","debug",childLabel)
+    logTrace(575,"Function isOnMulti returning $value","debug",childLabel)
     return value
 }
 
@@ -610,7 +611,7 @@ def validateHueSat(hue,sat, childLabel="Master"){
 def validateMultiplier(value, childLabel="Master"){
     if(value){
         if(value < 1 || value > 100){
-            logTrace(613,"Multiplier $value is not valid","error",childLabel)
+            logTrace(614,"Multiplier $value is not valid","error",childLabel)
             return
         }
     }
@@ -674,24 +675,13 @@ def roundFanLevel(level, childLabel="Master"){
     } else if (level > 0 && level < 33){
         value = 25
     }
-    logTrace(677,"Setting level for fan to $value from $level","info",childLabel)
+    logTrace(678,"Setting level for fan to $value from $level","info",childLabel)
     return value
 }
 
 def rescheduleIncrementalMulti(multiDevice,childLabel="Master"){
     multiDevice.each{singleDevice->
-        childApps.each {Child->
-            if(Child.label.substring(0,7) == "Time - " && Child.label != childLabel) {
-                Child.timeDevice.each {
-                    if(singleDevice.id == it.id) match = true
-                }
-                if(match == true) {
-                    logTrace(689,"Rescheduling incremental $multiDevice with $Child.label","trace",childLabel)
-                    Child.setIncrementalSchedule()
-                    match = null
-                }
-            }
-        }
+        rescheduleIncrementalSingle(singleDevice,childLabel)
     }
 }
 
@@ -699,10 +689,16 @@ def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
     childApps.each {Child->
         if(Child.label.substring(0,7) == "Time - " && Child.label != childLabel) {
             Child.timeDevice.each {
-                if(singleDevice.id == it.id) match = true
+                if(singleDevice.id == it.id){
+                    // Check if it's between schedule start and stop time
+                    // This would be done by setIncrementalSchedule. The only major advantage of
+                    // doing it here, with timeBetween function, is to prevent extra log messages
+                    time = Child.getStartTimeVariable("start")
+                    if(timeBetween(time[0], time[1],childLabel)) match = true
+                }
             }
             if(match == true) {
-                logTrace(705,"Rescheduling incremental $singleDevice with $Child.label","trace",childLabel)
+                logTrace(701,"Rescheduling incremental $singleDevice with $Child.label","trace",childLabel)
                 Child.setIncrementalSchedule()
                 match = null
             }
@@ -755,11 +751,11 @@ def todayInDayList(days,childLabel="Master"){
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel="Master"){
     if(!timeStart) {
-        logTrace(758,"Function timeBetween returning false (no start time)","error",childLabel)
+        logTrace(754,"Function timeBetween returning false (no start time)","error",childLabel)
         return
     }
     if(!timeStop) {
-        logTrace(762,"Function timeBetween returning false (no stop time)","trace",childLabel)
+        logTrace(758,"Function timeBetween returning false (no stop time)","trace",childLabel)
         return
     }
 
@@ -769,23 +765,23 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
     varNow = now()
     if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
         if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-            logTrace(772,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
+            logTrace(768,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
             return true
         }
     }
     if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-        logTrace(777,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
+        logTrace(773,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
         return true
     }
 }
 
 def speak(text,childLabel="Master"){
     if(!notificationDevice) {
-        logTrace(784,"No speech device for \"$text\"","error",childLabel)
+        logTrace(780,"No speech device for \"$text\"","error",childLabel)
         return
     }
     notificationDevice.speak(text)
-    logTrace(788,"Sending speech \"$text\"","info",childLabel)
+    logTrace(784,"Sending speech \"$text\"","info",childLabel)
     return true
 }
 
@@ -838,7 +834,7 @@ def logTrace(lineNumber,message = null, type = "trace",childLabel = "Master"){
     // 1 for least (errors only)
     // 5 for most (all)
     logLevel = 5
-    
+
     message = (message ? " -- $message" : "")
     if(childLabel != "Master") message = "[$childLabel]$message"
     if(lineNumber) message = "(line $lineNumber) $message"
