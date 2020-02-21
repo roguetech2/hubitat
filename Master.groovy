@@ -693,7 +693,7 @@ def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
                     // Check if it's between schedule start and stop time
                     // This would be done by setIncrementalSchedule. The only major advantage of
                     // doing it here, with timeBetween function, is to prevent extra log messages
-                    time = Child.getStartTimeVariable("start")
+                    time = Child.getTimeVariable()
                     if(timeBetween(time[0], time[1],childLabel)) match = true
                 }
             }
