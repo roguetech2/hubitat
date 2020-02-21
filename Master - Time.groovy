@@ -1073,7 +1073,7 @@ def getElapsedFraction(){
 
 // Used by Master to check whether to reschedule incremental
 // type = "start" or "stop"
-def getStartTimeVariable(type){
+def getTimeVariable(){
     time = [atomicState.start,atomicState.stop]
     return time
 }
