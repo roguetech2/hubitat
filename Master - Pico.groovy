@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.20
+*  Version: 0.4.21
 *
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
@@ -81,7 +81,7 @@ preferences {
 
                             if(controlDevice){
                                 if(advancedSetup){
-                                    displaySelectActionsOption()
+                                    getMultiDeviceInputOption()
                                 } else {
                                     if(!replicateHold){
                                         paragraph "<div style=\"background-color:GhostWhite\"> Pushing Top button (\"On\") turns on.</div>"
