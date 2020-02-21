@@ -301,13 +301,13 @@ def washerSchedule(){
 
 		// Schedule repeat notices
 		if(repeat && repeatMinutes){
-			logTrace(304,"Scheduling repeat notification for $repeatMinutes","trace")
+			logTrace(304,"Scheduling repeat notifition for $repeatMinutes","trace")
 			runIn(60 * repeatMinutes, washerSchedule)
 		}
 
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
-		logTrace(310,"Scheduling notification for $repeatMinutes; not currently home","trace")
+		logTrace(310,"Scheduling notifition for $repeatMinutes; not currently home","trace")
 		runIn(60 * 10, washerSchedule)
 		return
 
@@ -353,10 +353,10 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 2) log.info message
         break
         case "trace":
-        if(logLevel > 3) log.debug message
+        if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.trace message
+        if(loglevel == 5) log.debug message
     }
     return true
 }
