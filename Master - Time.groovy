@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.25
+*  Version: 0.4.26
 *
 ***********************************************************************************************************************/
 
@@ -1069,6 +1069,13 @@ def getElapsedFraction(){
 
     logTrace(1070,Math.floor(elapsedFraction * 100) + "% has elapsed in the schedule","debug")
     return elapsedFraction
+}
+
+// Used by Master to check whether to reschedule incremental
+// type = "start" or "stop"
+def getStartTimeVariable(type){
+    time = [atomicState.start,atomicState.stop]
+    return time
 }
 
 def getScheduleActive(){
