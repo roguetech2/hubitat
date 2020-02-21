@@ -368,14 +368,14 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
     if(hue || sat){
         // Only update what's needed
         // treat it like a null if current hue/sat being equal to change value 
-        if((!hue || hue == singleDevice.currentHue) && sat != singleDevice.Saturation) {
+        if((!hue || hue == singleDevice.currentHue) && sat != singleDevice.currentSaturation) {
             // Defaults to existing sat - should we default to 100%?
             singleDevice.setColor([saturation: sat])
-            message += "sat: $sat; "
-        } else if((!sat || sat == singleDevice.Saturation) && hue != singleDevice.currentHue){
+            message += "sat: $sat; $singleDevice.Saturation"
+        } else if((!sat || sat == singleDevice.currentSaturation) && hue != singleDevice.currentHue){
             singleDevice.setColor([hue: hue])
             message += "hue: $hue; "
-        } else if(hue && sat){
+        } else if(hue && sat && sat != singleDevice.currentSaturation && hue != singleDevice.currentHue){
             singleDevice.setColor([hue: hue, saturation: sat])
         message += "hue: $hue; sat: $sat; "
         }
