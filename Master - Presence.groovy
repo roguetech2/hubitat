@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.37
+*  Version: 0.1.38
 *
 ***********************************************************************************************************************/
 
@@ -34,6 +34,14 @@ definition(
     iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
+
+// logLevel sets number of log messages
+// 0 for none
+// 1 for errors only
+// 5 for all
+def getLogLevel(){
+    return 5
+}
 
 /* ************************************************** */
 /* TO-DO: Add error messages (and change info icon    */
@@ -217,19 +225,19 @@ preferences {
 }
 
 def installed() {
-	logTrace(220,"Installed","trace")
+	if(checkLog(a="trace")) putLog(228,"Installed",a)
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
-	logTrace(226,"Updated","trace")
+	if(checkLog(a="trace")) putLog(234,"Updated",a)
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
-	logTrace(232,"Initialized","trace")
+	if(checkLog(a="trace")) putLog(240,"Initialized",a)
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -237,7 +245,7 @@ def initialize() {
 }
 
 def presenceHandler(evt) {
-	logTrace(240,"$evt.displayName status changed to $evt.value","debug")
+	if(checkLog(a="debug")) putLog(248,"$evt.displayName status changed to $evt.value",a)
 	
 	// If presence is disabled, return null
 	if(state.presenceDisable || presenceDisable) return
@@ -260,14 +268,14 @@ def presenceHandler(evt) {
 			}
 		}
 		if((occupiedHome == "unoccupied" && occupied) || (occupiedHome == "occupied" && !occupied)) {
-			logTrace(263,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome","trace")
+			if(checkLog(a="trace")) putLog(271,"Presence handler doing nothing; occupied status is $occupied instead of $occupiedHome",a)
 			return
 		}
 	}
 		
 	// If mode set and node doesn't match, return null
 	if(ifMode && location.mode != ifMode) {
-		logTrace(270,"Presence handler doing nothing; $location.mode is not $ifMode","trace")
+		if(checkLog(a="trace")) putLog(278,"Presence handler doing nothing; $location.mode is not $ifMode",a)
 		return
 	}
 	
@@ -282,7 +290,7 @@ def presenceHandler(evt) {
 
 	// If not correct day, return null
 	if(timeDays && !parent.todayInDayList(timeDays,app.label)) {
-		logTrace(285,"Presence handler doing nothing; not correct day","trace")
+		if(checkLog(a="trace")) putLog(293,"Presence handler doing nothing; not correct day",a)
 		return
 	}
 
@@ -296,10 +304,10 @@ def presenceHandler(evt) {
 		now = now.format("h:mm a", location.timeZone)
 		if(evt.value == "present"){
 			//parent.sendText(phone,"$evt.displayName arrived at the house $now.",app.label)
-			logTrace(299, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.","info")
+			if(checkLog(a="info")) putLog(307299, "SMS no longer supported until updates complete. $evt.displayName's arrival at $now.",a)
 		} else {
 			//parent.sendText(phone,"$evt.displayName left the house at $now.",app.label)
-			logTrace(302,"SMS no longer supported until updates complete. $evt.displayName's departure at $now.","info")
+			if(checkLog(a="info")) putLog(310,"SMS no longer supported until updates complete. $evt.displayName's departure at $now.",a)
 		}
 	}
 
@@ -442,7 +450,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle")) {
-        logTrace(445,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti","error")
+        if(checkLog(a="error")) putLog(453,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -471,7 +479,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             getAndSetSingleLevels(it,appAction)
         }
-        logTrace(474,"Device id's turned on are $atomicState.deviceChange","debug")
+        if(checkLog(a="debug")) putLog(482,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
         return true
@@ -500,7 +508,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        logTrace(503,"Device id's toggled on are $atomicState.deviceChange","debug")
+        if(checkLog(a="debug")) putLog(511,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -527,10 +535,10 @@ def setStateMulti(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                logTrace(530,"Scheduled defaults are $defaults","debug")
+                if(checkLog(a="debug")) putLog(538,"Scheduled defaults are $defaults",a)
 
                 defaults = getOverrideLevels(defaults,appAction)
-                logTrace(533,"With " + app.label + " overrides, using $defaults","debug")
+                if(checkLog(a="debug")) putLog(541,"With " + app.label + " overrides, using $defaults",a)
 
                 // Skipping getting overall defaults, since we're resuming a schedule or exiting;
                 // rather keep things the same level rather than an arbitrary default, and
@@ -539,7 +547,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
                 // Set default level
                 if(!defaults){
-                    logTrace(542,"No schedule to resume for $it; turning off","trace")
+                    if(checkLog(a="trace")) putLog(550,"No schedule to resume for $it; turning off",a)
                     parent.setStateSingle("off",it,app.label)
                 } else {
                     parent.rescheduleIncrementalSingle(it,app.label)
@@ -584,38 +592,56 @@ def getAndSetSingleLevels(singleDevice,appAction = null){
     defaults = parent.getDefaultSingle(defaults,app.label)
     logMessage += ", so with generic defaults $defaults"
 
-    logTrace(587,logMessage,"debug")
+    if(checkLog(a="debug")) putLog(595,logMessage,a)
     parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
+}
+
+def checkLog(type = null){
+    if(!state.logLevel) getLogLevel()
+    switch(type) {
+        case "error":
+        if(state.logLevel > 0) return "error"
+        break
+        case "warn":
+        if(state.logLevel > 1) return "warn"
+        break
+        case "info":
+        if(state.logLevel > 2) return "info"
+        break
+        case "trace":
+        if(state.logLevel > 3) return "trace"
+        break
+        case "debug":
+        if(state.logLevel == 5) return "debug"
+    }
+    return false
 }
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def logTrace(lineNumber,message = null, type = "trace"){
-    // logLevel sets number of log messages
-    // 0 for none
-    // 1 for errors only
-    // 5 for all
-    logLevel = 5
-
+def putLog(lineNumber,message = null,type = "trace"){
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
+    if(type == "error") message = "<font color=\"red\">$message</font>"
+    if(type == "warn") message = "<font color=\"yellow\">$message</font>"
     switch(type) {
         case "error":
-        if(logLevel > 0) log.error message
-        break
+        log.error(message)
+        return true
         case "warn":
-        if(logLevel > 1) log.warn message
-        break
+        log.warn(message)
+        return true
         case "info":
-        if(logLevel > 2) log.info message
-        break
+        log.info(message)
+        return true
         case "trace":
-        if(logLevel > 3) log.trace message
-        break
+        log.trace(message)
+        return true
         case "debug":
-        if(logLevel == 5) log.debug message
+        log.debug(message)
+        return true
     }
-    return true
+    return
 }
