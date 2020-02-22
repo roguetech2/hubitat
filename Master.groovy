@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.15
+*  Version: 0.2.16
 *
 ***********************************************************************************************************************/
 
@@ -863,7 +863,7 @@ def checkLog(type = null){
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def putLog(lineNumber,message = null,childLabel = "Master"){
+def putLog(lineNumber,message = null,type = null, childLabel = "Master"){
     message = (message ? " -- $message" : "")
     if(childLabel != "Master") message = "[$childLabel]$message"
     if(lineNumber) message = "(line $lineNumber) $message"
