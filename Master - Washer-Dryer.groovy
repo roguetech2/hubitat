@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.12
+*  Version: 0.0.13
 *
 ***********************************************************************************************************************/
 
@@ -331,12 +331,10 @@ def getStateDeviceChange(singleDeviceId){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace"){
-    // Uncomment return for no logging at all
-    // return
-
     // logLevel sets number of log messages
-    // 1 for least (errors only)
-    // 5 for most (all)
+    // 0 for none
+    // 1 for errors only
+    // 5 for all
     logLevel = 5
 
     message = (message ? " -- $message" : "")
@@ -344,7 +342,7 @@ def logTrace(lineNumber,message = null, type = "trace"){
     message = "$app.label $message"
     switch(type) {
         case "error":
-        log.error message
+        if(logLevel > 0) log.error message
         break
         case "warn":
         if(logLevel > 1) log.warn message
@@ -356,7 +354,7 @@ def logTrace(lineNumber,message = null, type = "trace"){
         if(logLevel > 3) log.trace message
         break
         case "debug":
-        if(loglevel == 5) log.debug message
+        if(logLevel == 5) log.debug message
     }
     return true
 }
