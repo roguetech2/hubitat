@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.13
+*  Version: 0.0.14
 *
 ***********************************************************************************************************************/
 
@@ -28,6 +28,14 @@ definition(
     iconUrl: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png",
     iconX2Url: "http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png"
 )
+
+// logLevel sets number of log messages
+// 0 for none
+// 1 for errors only
+// 5 for all
+def getLogLevel(){
+    return 5
+}
 
 /* ************************************************** */
 /* TO-DO: Add error messages (and change info icon    */
@@ -165,7 +173,7 @@ personHome - device
 */
 
 def installed() {
-	logTrace(168,"Installed","trace")
+	if(checkLog(a="trace")) putLog(176,"Installed",a)
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -174,13 +182,13 @@ def installed() {
 }
 
 def updated() {
-	logTrace(177,"Updated","trace")
+	if(checkLog(a="trace")) putLog(185,"Updated",a)
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-	logTrace(183,"Initialized","trace")
+	if(checkLog(a="trace")) putLog(191,"Initialized",a)
 
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
@@ -189,7 +197,7 @@ def initialize() {
 		unschedule()
 		stat.firstNotice = false
 		state.activity = []
-		logTrace(192,"Washer-dryer disabled","debug")
+		if(checkLog(a="debug")) putLog(200,"Washer-dryer disabled",a)
 		return
 	}
 
@@ -202,16 +210,16 @@ def initialize() {
 }
 
 def washerHandler(evt) {
-	logTrace(205,"washerHandler starting [evt:  $evt ($evt.value)]","debug")
+	if(checkLog(a="debug")) putLog(213,"washerHandler starting [evt:  $evt ($evt.value)]",a)
 
 	// If already started alerting, exit
 	if(state.firstNotice){
-		logTrace(209,"Washer/dryer notices already processing","trace")
+		if(checkLog(a="trace")) putLog(217,"Washer/dryer notices already processing",a)
 		return
 	}
 
 	if(washerContactDevice && washerContactDevice.contact == "open") {
-		logTrace(214,"Washer Handler doing nothing, contact is open","trace")
+		if(checkLog(a="trace")) putLog(222,"Washer Handler doing nothing, contact is open",a)
 		return
 	}
 
@@ -232,7 +240,7 @@ def washerHandler(evt) {
 	// Remove stale activity
 	state.activity.each {
 		if(it < target) {
-			logTrace(235,"function washerHandler removed value $it","debug")
+			if(checkLog(a="debug")) putLog(243,"function washerHandler removed value $it",a)
 			toRemove.add(it);
 		}
 	}
@@ -240,17 +248,17 @@ def washerHandler(evt) {
 
 	// get count
 	listSize = state.activity.size()
-	logTrace(243,"function washerHandler registered $listSize events in the last half hour","trace")
+	if(checkLog(a="trace")) putLog(251,"function washerHandler registered $listSize events in the last half hour",a)
 
 	// If 10 or more motion events in half hour, washer/dryer is running
 	if(listSize > 10){
-		logTrace(247,"Scheduling inactivity check for 6 minutes","trace")
+		if(checkLog(a="trace")) putLog(255,"Scheduling inactivity check for 6 minutes",a)
 		runIn(60 * 6, washerSchedule)
 	}
 }
 
 def contactHandler(evt) {
-	logTrace(253,"$evt.displayName changed to $evt.value","debug")
+	if(checkLog(a="debug")) putLog(261,"$evt.displayName changed to $evt.value",a)
 
 	unschedule()
 	state.firstNotice = false
@@ -265,14 +273,14 @@ def washerSchedule(){
 			if(timeToday(timeStop, location.timeZone).time < timeToday(timeStart, location.timeZone).time) timeStop = parent.getTomorrow(timeStop,app.label)
 			hours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('HH').toInteger()
 			minutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format('mm').toInteger()
-			logTrace(268,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)","trace")
+			if(checkLog(a="trace")) putLog(276,"function washerSchedule scheduling for start time (0 $minutes $hours * * ?)",a)
 			schedule("0 " + minutes + " " + hours + " * * ?", runDayOffSchedule, [overwrite: true])
-			logTrace(270,"function washerSchedule returning (not between start time and stop time)","trace")
+			if(checkLog(a="trace")) putLog(278,"function washerSchedule returning (not between start time and stop time)",a)
 			return
 		}
 	} else if(timeStart && timeStop && !wait){
 		if(!parent.timeBetween(timeStart, timeStop,app.label) || (timeDays && !parent.todayInDayList(timeDays,app.label))) {
-			logTrace(275,"function washerSchedule returning (not between start time and stop time)","trace")
+			if(checkLog(a="trace")) putLog(283,"function washerSchedule returning (not between start time and stop time)",a)
 			state.firstnotice = false
 			state.activity = []
 			return
@@ -301,19 +309,19 @@ def washerSchedule(){
 
 		// Schedule repeat notices
 		if(repeat && repeatMinutes){
-			logTrace(304,"Scheduling repeat notifition for $repeatMinutes","trace")
+			if(checkLog(a="trace")) putLog(312,"Scheduling repeat notifition for $repeatMinutes",a)
 			runIn(60 * repeatMinutes, washerSchedule)
 		}
 
 	// If not home and wait, reschedule in 10 minutes
 	} else if(!present && wait){
-		logTrace(310,"Scheduling notifition for $repeatMinutes; not currently home","trace")
+		if(checkLog(a="trace")) putLog(318,"Scheduling notifition for $repeatMinutes; not currently home",a)
 		runIn(60 * 10, washerSchedule)
 		return
 
 	// If not home and not wait, clear and exit
 	} else if(!present && !wait){
-		logTrace(316,"Washer Schedule doing nothing; not home","trace")
+		if(checkLog(a="trace")) putLog(324,"Washer Schedule doing nothing; not home",a)
 		state.firstnotice = false
 		state.activity = []
 		return
@@ -327,34 +335,52 @@ def getStateDeviceChange(singleDeviceId){
     return false
 }
 
+def checkLog(type = null){
+    if(!state.logLevel) getLogLevel()
+    switch(type) {
+        case "error":
+        if(state.logLevel > 0) return "error"
+        break
+        case "warn":
+        if(state.logLevel > 1) return "warn"
+        break
+        case "info":
+        if(state.logLevel > 2) return "info"
+        break
+        case "trace":
+        if(state.logLevel > 3) return "trace"
+        break
+        case "debug":
+        if(state.logLevel == 5) return "debug"
+    }
+    return false
+}
+
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def logTrace(lineNumber,message = null, type = "trace"){
-    // logLevel sets number of log messages
-    // 0 for none
-    // 1 for errors only
-    // 5 for all
-    logLevel = 5
-
+def putLog(lineNumber,message = null,type = "trace"){
     message = (message ? " -- $message" : "")
     if(lineNumber) message = "(line $lineNumber)$message"
     message = "$app.label $message"
+    if(type == "error") message = "<font color=\"red\">$message</font>"
+    if(type == "warn") message = "<font color=\"yellow\">$message</font>"
     switch(type) {
         case "error":
-        if(logLevel > 0) log.error message
-        break
+        log.error(message)
+        return true
         case "warn":
-        if(logLevel > 1) log.warn message
-        break
+        log.warn(message)
+        return true
         case "info":
-        if(logLevel > 2) log.info message
-        break
+        log.info(message)
+        return true
         case "trace":
-        if(logLevel > 3) log.trace message
-        break
+        log.trace(message)
+        return true
         case "debug":
-        if(logLevel == 5) log.debug message
+        log.debug(message)
+        return true
     }
-    return true
+    return
 }
