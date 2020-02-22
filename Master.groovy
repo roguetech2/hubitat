@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.13
+*  Version: 0.2.14
 *
 ***********************************************************************************************************************/
 
@@ -381,7 +381,7 @@ def setLevelSingle(level,temp,hue,sat,singleDevice,childLabel = "Master"){
         }
     }
 
-    if(message != "Set ") logTrace(382,"$message of $singleDevice","trace",childLabel)
+    if(message != "Set ") logTrace(384,"$message of $singleDevice","trace",childLabel)
     return true
 }
 
@@ -400,10 +400,10 @@ def waitStateChange(action,singleDevice,childLabel = "Master"){
         }
     }
     if((action == "on" && deviceState == "on") || (action == "off" && deviceState == "off")) {
-        logTrace(401,"Waited " + (i * 10) + " milliseconds for $singleDevice to turn on","debug",childLabel)
+        logTrace(403,"Waited " + (i * 10) + " milliseconds for $singleDevice to turn on","debug",childLabel)
         return true
     } else {
-        logTrace(404,"$singleDevice refused to turn $action in " + (i * 10) + " milliseconds","error",childLabel)
+        logTrace(406,"$singleDevice refused to turn $action in " + (i * 10) + " milliseconds","error",childLabel)
         return
     }
 }
@@ -426,14 +426,15 @@ def getScheduleDefaultSingle(singleDevice, childLabel = "Master"){
                     if(defaults.hue) defaultHue = defaults.hue
                     if(defaults.sat) defaultSat = defaults.sat
                     if(defaults.level || defaults.temp || defaults.hue || defaults.sat)
-                    logTrace(427,"Default levels of $defaults found for $singleDevice with $Child.label","debug",childLabel)
+                    logTrace(429,"Default levels of $defaults found for $singleDevice with $Child.label","debug",childLabel)
                 }
             }
         }
     }
-    if(!defaults) defaults = [:]
     // And set the level
     if(defaultLevel || defaultTemp || defaultHue || defaultSat) {
+	// Reset defaults to repopulate, just in case something weird happens
+        defaults = [:]
         if(defaultLevel) defaults.put("level",defaultLevel)
         if(defaultTemp) defaults.put("temp",defaultTemp)
         if(defaultHue) defaults.put("hue",defaultHue)
@@ -454,6 +455,8 @@ def getDefaultSingle(defaults, childLabel = "Master"){
     return defaults
 }
 
+// Gets value of true from each Pico, MagicCube, etc., which has turned on
+// singleDevice within the last second or so
 def getStateRequest(singleDevice,childLabel){
     // Loop through all the apps...
     childApps.each { Child ->
@@ -464,7 +467,7 @@ def getStateRequest(singleDevice,childLabel){
 
 def dim(action,device,childLabel="Master"){
     if(action != "dim" && action != "brighten"){
-        logTrace(465,"Invalid value for action \"$action\" sent to dim function","error",childLabel)
+        logTrace(470,"Invalid value for action \"$action\" sent to dim function","error",childLabel)
         return
     }
 
@@ -487,7 +490,7 @@ def dim(action,device,childLabel="Master"){
             if(levelValue) {
                 if(isFan(it,childLabel)) roundFanLevel(levelValue,childLabel)
                 setLevelSingle(levelValue,"","","",it,childLabel)
-                logTrace(488,"Set level of $it to $levelValue","info",childLabel)
+                logTrace(493,"Set level of $it to $levelValue","info",childLabel)
             }
         }
     }
@@ -503,11 +506,11 @@ def nextLevel(level, action, childLabel="Master"){
         }
         if(!dimSpeed){
             dimSpeed = 1.2
-            logTrace(504,"Failed to find dimSpeed in function nextLevel","error",childLabel)
+            logTrace(509,"Failed to find dimSpeed in function nextLevel","error",childLabel)
         }
     }
     if (action != "dim" && action != "brighten"){
-        logTrace(508,"Invalid value for action \"$action\" sent to nextLevel function","error",childLabel)
+        logTrace(513,"Invalid value for action \"$action\" sent to nextLevel function","error",childLabel)
         return false
     }
     def newLevel = level as int
@@ -540,7 +543,7 @@ def changeMode(mode, childLabel = "Master", device = "") {
     if(location.mode == mode) return
     oldMode = location.mode
     setLocationMode(mode)
-    logTrace(541,"Changed Mode from $oldMode to $mode","info",childLabel)
+    logTrace(546,"Changed Mode from $oldMode to $mode","info",childLabel)
 }
 
 // Send SMS text message to $phone with $message
@@ -554,7 +557,7 @@ def sendText(phone, message,childLabel){
     phone = phone.replaceAll("\\.","");
     phone = phone.replaceAll("\\+","");
     if(!phone.isNumber()) {
-        logTrace(555,"Phone number $phone is not valid (message \"$message\" not sent)","error",childLabel)
+        logTrace(560,"Phone number $phone is not valid (message \"$message\" not sent)","error",childLabel)
         return false
     }
     if(phone.length() == 10) {
@@ -562,7 +565,7 @@ def sendText(phone, message,childLabel){
     } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
         phone = "+" + phone
     }
-    logTrace(563,"Sent \"$message\" to $phone","info",childLabel)
+    logTrace(568,"Sent \"$message\" to $phone","info",childLabel)
     sendSms(phone,message)
     return true
 }
@@ -574,7 +577,7 @@ def isOnMulti(multiDevice,childLabel="Master"){
     multiDevice.each{
         if(isOn(it,childLabel)) value = true
     }
-    logTrace(575,"Function isOnMulti returning $value","debug",childLabel)
+    logTrace(580,"Function isOnMulti returning $value","debug",childLabel)
     return value
 }
 
@@ -613,7 +616,7 @@ def validateHueSat(hue,sat, childLabel="Master"){
 def validateMultiplier(value, childLabel="Master"){
     if(value){
         if(value < 1 || value > 100){
-            logTrace(614,"Multiplier $value is not valid","error",childLabel)
+            logTrace(619,"Multiplier $value is not valid","error",childLabel)
             return
         }
     }
@@ -677,7 +680,7 @@ def roundFanLevel(level, childLabel="Master"){
     } else if (level > 0 && level < 33){
         value = 25
     }
-    logTrace(678,"Setting level for fan to $value from $level","info",childLabel)
+    logTrace(683,"Setting level for fan to $value from $level","info",childLabel)
     return value
 }
 
@@ -700,7 +703,7 @@ def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
                 }
             }
             if(match == true) {
-                logTrace(701,"Rescheduling incremental $singleDevice with $Child.label","trace",childLabel)
+                logTrace(706,"Rescheduling incremental $singleDevice with $Child.label","trace",childLabel)
                 Child.setIncrementalSchedule()
                 match = null
             }
@@ -753,11 +756,11 @@ def todayInDayList(days,childLabel="Master"){
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel="Master"){
     if(!timeStart) {
-        logTrace(754,"Function timeBetween returning false (no start time)","error",childLabel)
+        logTrace(759,"Function timeBetween returning false (no start time)","error",childLabel)
         return
     }
     if(!timeStop) {
-        logTrace(758,"Function timeBetween returning false (no stop time)","trace",childLabel)
+        logTrace(763,"Function timeBetween returning false (no stop time)","trace",childLabel)
         return
     }
 
@@ -767,23 +770,23 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
     varNow = now()
     if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
         if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-            logTrace(768,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
+            logTrace(773,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
             return true
         }
     }
     if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-        logTrace(773,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
+        logTrace(778,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),"debug",childLabel)
         return true
     }
 }
 
 def speak(text,childLabel="Master"){
     if(!notificationDevice) {
-        logTrace(780,"No speech device for \"$text\"","error",childLabel)
+        logTrace(785,"No speech device for \"$text\"","error",childLabel)
         return
     }
     notificationDevice.speak(text)
-    logTrace(784,"Sending speech \"$text\"","info",childLabel)
+    logTrace(789,"Sending speech \"$text\"","info",childLabel)
     return true
 }
 
@@ -829,12 +832,10 @@ def test(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def logTrace(lineNumber,message = null, type = "trace",childLabel = "Master"){
-    // Uncomment return for no logging at all
-    // return
-
     // logLevel sets number of log messages
-    // 1 for least (errors only)
-    // 5 for most (all)
+    // 0 for none
+    // 1 for errors only
+    // 5 for all
     logLevel = 5
 
     message = (message ? " -- $message" : "")
@@ -843,7 +844,7 @@ def logTrace(lineNumber,message = null, type = "trace",childLabel = "Master"){
     message = "Master $message"
     switch(type) {
         case "error":
-        log.error message
+        if(logLevel > 0) log.error message
         break
         case "warn":
         if(logLevel > 1) log.warn message
