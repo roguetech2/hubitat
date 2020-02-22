@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.18
+*  Version: 0.4.19
 * 
 ***********************************************************************************************************************/
 
@@ -36,11 +36,6 @@ definition(
 /* TO-DO: Finish error messages.                                            */
 /* ************************************************************************ */
 
-preferences {
-    page(name: "mainPage")
-
-}
-
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
@@ -49,11 +44,12 @@ def getLogLevel(){
     return 5
 }
 
-def mainPage() {
+preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
 
+    // Check for errors, and if so prevent saving
     if((!app.label) ||
        (!contactDevice) ||
       (!openSwitch && !openLock && !alertEnable && !modeEnable) ||
@@ -84,14 +80,18 @@ def mainPage() {
                 }
                 if(!noInstall) input "disable", "bool", title: "<b><font color=\"#000099\">This contact sensor is disabled.</font></b> Reenable it?", submitOnChange:true
             }
-
             //if not disabled, then show everything
             if(!state.disable && !disable ){
+                putLog(6)
                 displayNameOption()
+                putLog(7)
                 //if no label, stop
                 if(app.label){
+                    putLog(8)
                     displayDevicesOption()
+                    putLog(9)
                     if(contactDevice){
+                        putLog(10)
                         //if no devices, stop
                         input "disable", "bool", title: "This contact sensor is enabled. Disable it?", submitOnChange:true
                         displayOpenDevices()
@@ -998,40 +998,37 @@ def setStartStopTime(type = "Start"){
 
 // If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
 // Used to track if app turned on device when schedule captures a device state changing to on
-def addStateDeviceChange(singleDeviceId){
+def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange = "$atomicState.deviceChange:$singleDeviceId:"
+        atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
+    return
 }
 
 // Gets levels as set for the app
 // Function must be included in all apps that use MultiOn
 def getOverrideLevels(defaults,appAction = null){
-    if(!defaults) defaults = [:]
-    if(appAction == "open"){
-        if(openLevel) defaults.level = openLevel
-        if(openTemp)  defaults.temp = openTemp
-        if(openHue) defaults.hue = openHue
-        if(openSat) defaults.sat = openSat
-        return defaults
-    } else if(appAction == "close"){
-        if(closeLevel) defaults.level = closeLevel
-        if(closeTemp)  defaults.temp = closeTemp
-        if(closeHue) defaults.hue = closeHue
-        if(closeSat) defaults.sat = closeSat
-        return defaults
-    }
-    return false        
+    if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
+    if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
+    if(settings[appAction + "Temp"]) defaults.put("level",settings[appAction + "Temp"])
+    if(settings[appAction + "Hue"]) defaults.put("level",settings[appAction + "Hue"])
+    if(settings[appAction + "Sat"]) defaults.put("level",settings[appAction + "Sat"])
+    return defaults       
 }
 
 // Returns the value of deviceChange
 // Used by schedule when a device state changes to on, to check if an app did it
+// It should only persist as long as it takes for the scheduler to capture and
+// process both state change request and state change subscription
 // Function must be in every app
 def getStateDeviceChange(singleDeviceId){
     if(atomicState.deviceChange){
-        return atomicState.deviceChange.indexOf(":$singleDeviceId:")
+        value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
+	// Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
+        resetStateDeviceChange()
+        return value
     } else {
         return false
     }
