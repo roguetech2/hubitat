@@ -13,7 +13,7 @@
 *
 *  Name: Master - Presence
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Presence.groovy
-*  Version: 0.1.38
+*  Version: 0.1.39
 *
 ***********************************************************************************************************************/
 
@@ -410,30 +410,41 @@ def convertRgbToHsl(color){
 	
 }
 
-// Gets levels as set for the app
-// Function must be included in all apps that use MultiOn
-def getOverrideLevels(defaults,appAction = null){
-    // Need to add levels
-    return defaults       
-}
-
 // If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Delineate values with colons on each side - must match getStateDeviceChange
 // Used to track if app turned on device when schedule captures a device state changing to on
 // Must be included in all apps using MultiOn
-def addStateDeviceChange(singleDeviceId){
+def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange = "$atomicState.deviceChange:$singleDeviceId:"
+        atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
+    return
+}
+
+// Gets levels as set for the app
+// Function must be included in all apps that use MultiOn
+def getOverrideLevels(defaults,appAction = null){
+    if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
+    if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
+    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
+    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
+    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
+    return defaults       
 }
 
 // Returns the value of deviceChange
 // Used by schedule when a device state changes to on, to check if an app did it
+// It should only persist as long as it takes for the scheduler to capture and
+// process both state change request and state change subscription
 // Function must be in every app
 def getStateDeviceChange(singleDeviceId){
     if(atomicState.deviceChange){
-        return atomicState.deviceChange.indexOf(":$singleDeviceId:")
+        value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
+        // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
+        resetStateDeviceChange()
+        return value
     } else {
         return false
     }
@@ -446,11 +457,11 @@ def resetStateDeviceChange(){
     return
 }
 
-// Presense does not use "resume" or "none" (at least, not yet)
+// Presence doesn't use resume or none
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle")) {
-        if(checkLog(a="error")) putLog(453,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
+        if(checkLog(a="error")) putLog(464,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -461,8 +472,8 @@ def setStateMulti(deviceAction,device,appAction = null){
     stateDeviceChangeResetMillis = 500
 
     if(deviceAction == "off"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         // Turn off devices
         parent.setStateMulti("off",device,app.label)
         return true
@@ -479,7 +490,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             getAndSetSingleLevels(it,appAction)
         }
-        if(checkLog(a="debug")) putLog(482,"Device id's turned on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(493,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
         return true
@@ -501,14 +512,14 @@ def setStateMulti(deviceAction,device,appAction = null){
                 // When turning on, add device ids to deviceChange, so schedule knows it was turned on by an app
                 // Needs to be done before turning the device on.
                 addDeviceStateChange(it.id)
-		// Turn the device on
+                // Turn the device on
                 parent.setStateSingle("on",it,app.label)
                 // Add device to toggleOnDevice list so when we loop again to set levels, we know whether we
-		// just turned it on or not (without knowing how long the device may take to respond)
+                // just turned it on or not (without knowing how long the device may take to respond)
                 toggleOnDevice.add(count)
             }
         }
-        if(checkLog(a="debug")) putLog(511,"Device id's toggled on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(522,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -527,27 +538,27 @@ def setStateMulti(deviceAction,device,appAction = null){
     }
 
     if(deviceAction == "resume"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         device.each{
             // If turning on, set default levels and over-ride with any contact levels
             if(deviceAction == "resume"){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                if(checkLog(a="debug")) putLog(538,"Scheduled defaults are $defaults",a)
+                if(checkLog(a="debug")) putLog(549,"Scheduled defaults are $defaults",a)
 
                 defaults = getOverrideLevels(defaults,appAction)
-                if(checkLog(a="debug")) putLog(541,"With " + app.label + " overrides, using $defaults",a)
+                if(checkLog(a="debug")) putLog(552,"With " + app.label + " overrides, using $defaults",a)
 
                 // Skipping getting overall defaults, since we're resuming a schedule or exiting;
                 // rather keep things the same level rather than an arbitrary default, and
                 // if we got default, we'd not turn it off
 
-                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
                 if(!defaults){
-                    if(checkLog(a="trace")) putLog(550,"No schedule to resume for $it; turning off",a)
+                    if(checkLog(a="trace")) putLog(561,"No schedule to resume for $it; turning off",a)
                     parent.setStateSingle("off",it,app.label)
                 } else {
                     parent.rescheduleIncrementalSingle(it,app.label)
@@ -558,8 +569,8 @@ def setStateMulti(deviceAction,device,appAction = null){
     }
 
     if(deviceAction == "none"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
         // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
@@ -592,8 +603,9 @@ def getAndSetSingleLevels(singleDevice,appAction = null){
     defaults = parent.getDefaultSingle(defaults,app.label)
     logMessage += ", so with generic defaults $defaults"
 
-    if(checkLog(a="debug")) putLog(595,logMessage,a)
-    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
+    if(checkLog(a="debug")) putLog(606,logMessage,a)
+    parent.setLevelSingle(defaults,singleDevice,app.label)
+    return
 }
 
 def checkLog(type = null){
@@ -621,26 +633,28 @@ def checkLog(type = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,message = null,type = "trace"){
-    message = (message ? " -- $message" : "")
-    if(lineNumber) message = "(line $lineNumber)$message"
-    message = "$app.label $message"
-    if(type == "error") message = "<font color=\"red\">$message</font>"
-    if(type == "warn") message = "<font color=\"yellow\">$message</font>"
+    logMessage = ""
+    if(type == "error") logMessage += "<font color=\"red\">"
+    if(type == "warn") logMessage += "<font color=\"brown\">"
+    logMessage += "$app.label "
+    if(lineNumber) logMessage += "(line $lineNumber) "
+    if(message) logMessage += "-- $message"
+    if(type == "error" || type == "warn") logMessage += "</font>"
     switch(type) {
         case "error":
-        log.error(message)
+        log.error(logMessage)
         return true
         case "warn":
-        log.warn(message)
+        log.warn(logMessage)
         return true
         case "info":
-        log.info(message)
+        log.info(logMessage)
         return true
         case "trace":
-        log.trace(message)
+        log.trace(logMessage)
         return true
         case "debug":
-        log.debug(message)
+        log.debug(logMessage)
         return true
     }
     return
