@@ -300,14 +300,21 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
         return
     }
 
+    // If no changes, exit
+    if(!defaults){
+        // Shouldn't happen, since there are system level defaults
+        if(checkLog(a="error")) putLog(325,"No valid changes sent to setLevelSingle",a,childLabel)
+        return
+    }
+
     // If invalid error, throw error
-    if(level && !validateLevel(defaults.level,childLabel)){
+    if(defaults.level && !validateLevel(defaults.level,childLabel)){
         if(checkLog(a="error")) putLog(305,"Invalid value for level \"$defaults.level\" sent to setLevelSingle function",a,childLabel)
         defaults.level = null
     }
 
     // If invalid temp, throw error
-    if(temp && !validateTemp(defaults.temp,childLabel)){
+    if(defaults.temp && !validateTemp(defaults.temp,childLabel)){
         if(checkLog(a="error")) putLog(311,"Invalid value for temp \"$defaults.temp\" sent to setLevelSingle funuction",a,childLabel)
         defaults.temp = null
     }
@@ -317,13 +324,6 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
         if(checkLog(a="error")) putLog(317,"Invalid value for hue \"$defaults.hue\" or sat \"$defaults.sat\" sent to setLevelSingle function",a,childLabel)
         defaults.hue = null
         defaults.sat = null
-    }
-
-    // If no changes, exit
-    if(!defaults.level && !defaults.temp && !defaults.hue && !defaults.sat){
-        // Shouldn't happen, since there are system level defaults
-        if(checkLog(a="error")) putLog(325,"No valid changes sent to setLevelSingle",a,childLabel)
-        return
     }
 
     // If not on, wait for it to turn on
@@ -377,7 +377,7 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
         if(defaults.sat && (!defaults.hue || defaults.hue == singleDevice.currentHue) && defaults.sat != singleDevice.currentSaturation) {
             // Defaults to existing sat - should we default to 100%?
             singleDevice.setColor([saturation: defaults.sat])
-            message += "here sat: " + defaults.sat + "; "
+            message += "sat: " + defaults.sat + "; "
         } else if((!defaults.sat || defaults.sat == singleDevice.currentSaturation) && defaults.hue != singleDevice.currentHue){
             singleDevice.setColor([hue: defaults.hue])
             message += "hue: $defaults.hue; "
