@@ -13,7 +13,7 @@
 *
 *  Name: Master - Washer-Dryer
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Washer-Dryer.groovy
-*  Version: 0.0.14
+*  Version: 0.0.15
 *
 ***********************************************************************************************************************/
 
@@ -328,11 +328,44 @@ def washerSchedule(){
 	}
 }
 
+// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Delineate values with colons on each side - must match getStateDeviceChange
+// Used to track if app turned on device when schedule captures a device state changing to on
+// Must be included in all apps using MultiOn
+def addDeviceStateChange(singleDeviceId){
+    if(atomicState.deviceChange) {
+        atomicState.deviceChange += ":$singleDeviceId:"
+    } else {
+        atomicState.deviceChange = ":$singleDeviceId:"
+    }
+    return
+}
+
+// Gets levels as set for the app
+// Function must be included in all apps that use MultiOn
+def getOverrideLevels(defaults,appAction = null){
+    if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
+    if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
+    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
+    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
+    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
+    return defaults       
+}
+
 // Returns the value of deviceChange
 // Used by schedule when a device state changes to on, to check if an app did it
+// It should only persist as long as it takes for the scheduler to capture and
+// process both state change request and state change subscription
 // Function must be in every app
 def getStateDeviceChange(singleDeviceId){
-    return false
+    if(atomicState.deviceChange){
+        value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
+        // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
+        resetStateDeviceChange()
+        return value
+    } else {
+        return false
+    }
 }
 
 def checkLog(type = null){
@@ -360,26 +393,28 @@ def checkLog(type = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,message = null,type = "trace"){
-    message = (message ? " -- $message" : "")
-    if(lineNumber) message = "(line $lineNumber)$message"
-    message = "$app.label $message"
-    if(type == "error") message = "<font color=\"red\">$message</font>"
-    if(type == "warn") message = "<font color=\"yellow\">$message</font>"
+    logMessage = ""
+    if(type == "error") logMessage += "<font color=\"red\">"
+    if(type == "warn") logMessage += "<font color=\"brown\">"
+    logMessage += "$app.label "
+    if(lineNumber) logMessage += "(line $lineNumber) "
+    if(message) logMessage += "-- $message"
+    if(type == "error" || type == "warn") logMessage += "</font>"
     switch(type) {
         case "error":
-        log.error(message)
+        log.error(logMessage)
         return true
         case "warn":
-        log.warn(message)
+        log.warn(logMessage)
         return true
         case "info":
-        log.info(message)
+        log.info(logMessage)
         return true
         case "trace":
-        log.trace(message)
+        log.trace(logMessage)
         return true
         case "debug":
-        log.debug(message)
+        log.debug(logMessage)
         return true
     }
     return
