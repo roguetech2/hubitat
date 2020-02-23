@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.4.30
+*  Version: 0.4.31
 *
 ***********************************************************************************************************************/
 
@@ -996,26 +996,26 @@ def handleStateChange(event){
 }
 
 def setTime(){
-    if(!setStartStopTime("Start")) return
-    setStartStopTime("Stop") 
+    if(!setStartStopTime("start")) return
+    setStartStopTime("stop") 
     if(!atomicState.totalSeconds || (inputStartType == "sunrise" || inputStartType == "sunset" || inputStopType == "sunrise" || inputStopType == "sunset"))
     setTotalSeconds()
     return true
 }
 
 // Sets atomicState.start and atomicState.stop variables
-// Requires type value of "Start" or "Stop" (must be capitalized to match setting variables)
+// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    if(type != "Start" && type != "Stop") {
+    if(type != "start" && type != "stop") {
         if(checkLog(a="error")) putLog(1010,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
         return
     }
 
-    if(type == "Start") atomicState.start = null
-    if(type == "Stop") atomicState.stop = null
+    if(type == "start") atomicState.start = null
+    if(type == "stop") atomicState.stop = null
 
     // If no stop time, exit
-    if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
+    if(type == "stop" && (!inputStopType || inputStopType == "none")) return true
 
     if(settings["input${type}Type"] == "time"){
         value = settings["input${type}Time"]
@@ -1028,13 +1028,13 @@ def setStartStopTime(type){
         return
     }
 
-    if(type == "Stop"){
+    if(type == "stop"){
         if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
 
     if(checkLog(a="trace")) putLog(1035,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-    if(type == "Start") atomicState.start = value
-    if(type == "Stop") atomicState.stop = value
+    if(type == "start") atomicState.start = value
+    if(type == "stop") atomicState.stop = value
     return true
 }
 
@@ -1153,7 +1153,9 @@ def getScheduleActive(){
 }
 
 // If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Delineate values with colons on each side - must match getStateDeviceChange
 // Used to track if app turned on device when schedule captures a device state changing to on
+// Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
         atomicState.deviceChange += ":$singleDeviceId:"
@@ -1163,15 +1165,14 @@ def addDeviceStateChange(singleDeviceId){
     return
 }
 
-
 // Gets levels as set for the app
 // Function must be included in all apps that use MultiOn
 def getOverrideLevels(defaults,appAction = null){
     if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
     if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
-    if(settings[appAction + "Temp"]) defaults.put("level",settings[appAction + "Temp"])
-    if(settings[appAction + "Hue"]) defaults.put("level",settings[appAction + "Hue"])
-    if(settings[appAction + "Sat"]) defaults.put("level",settings[appAction + "Sat"])
+    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
+    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
+    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
     return defaults       
 }
 
@@ -1192,6 +1193,7 @@ def getStateDeviceChange(singleDeviceId){
 }
 
 // Scheduled funtion to reset the value of deviceChange
+// Must be in every app using MultiOn
 def resetStateDeviceChange(){
     atomicState.deviceChange = null
     return
@@ -1327,7 +1329,6 @@ def getAndSetSingleLevels(singleDevice,appAction = null){
     // So use it for if overriding/reenabling
     // In scheduler app, this gets defaults for any *other* schedule
     defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
-
     logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
 
     // If there are defaults, then there's an active schedule so reschedule it (the results are corrupted below).
