@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.4.19
+*  Version: 0.4.20
 * 
 ***********************************************************************************************************************/
 
@@ -127,9 +127,7 @@ preferences {
                         if(checkStartTimeEntered()){
 
                             varStartTime = getStartTimeVariables()
-                            
-                            input "timeOn", "enum", title: "Turn devices on or off ($varStartTime)?", multiple: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
-                            if(timeOn){
+
 
 /* ************************************************************************ */
 /* TO-DO: Add holidays.                                                     */
@@ -146,12 +144,6 @@ preferences {
                                     inputStopSunriseType = null
                                     inputStopBefore = null
                                 }
-
-                                if(checkStopTimeEntered() && inputStopType != "None"){
-                                    varStopTime = getStopTimeVariables()
-                                    input "timeOff", "enum", title: "Turn devices on or off ($varStopTime)?", multiple: false, width: 12, options: ["None": "Don't turn on or off (leave as is)","On": "Turn On", "Off": "Turn Off", "Toggle": "Toggle (if on, turn off, and if off, turn on)"], submitOnChange:true
-                                }
-                            }
                         }
                         if(!openSwitch || (openSwitch && openSwitchAction)){
                             displayWaitOptions()
@@ -431,12 +423,12 @@ def displayStartTimeTypeOption(){
     input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
     if(!inputStartType){
         width = 12
-    } else if(inputStartType == "Time" || !inputStartSunriseType || inputStartSunriseType == "At"){
+    } else if(inputStartType == "time" || !inputStartSunriseType || inputStartSunriseType == "at"){
         width = 6
     } else if(inputStartSunriseType){
         width = 4
     }
-    input "inputStartType", "enum", title: "Start Time:", multiple: false, width: width, options: ["Time":"Start at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStartType", "enum", title: "Start Time:", multiple: false, width: width, options: ["time":"Start at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
 }
 
 def displayStartTimeOption(){
@@ -446,17 +438,14 @@ def displayStartTimeOption(){
 
 def displayStartSunriseOption(){
         if(!scheduleEnable) return
-    if(!inputStartSunriseType || inputStartSunriseType == "At") {
+    if(!inputStartSunriseType || inputStartSunriseType == "at") {
         width = 6 
     } else {
         width = 4
     }
-    input "inputStartSunriseType", "enum", title: "At, before or after sunrise:", multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
-    if(inputStartSunriseType == "Before"){
-        input "inputStartBefore", "number", title: "Minutes before sunrise:", width: 4, submitOnChange:true
-    } else if(inputStartSunriseType == "After"){
-        input "inputStartBefore", "number", title: "Minutes after sunrise:", width: 4, submitOnChange:true
-    }
+    input "inputStartSunriseType", "enum", title: "at, before or after sunrise:", multiple: false, width: width, options: ["at":"At sunrise", "before":"Before sunrise", "after":"After sunrise"], submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes $inputStartSunriseType sunrise:", width: 4, submitOnChange:true
+
 }
 
 def displayStartSunsetOption(){
@@ -466,23 +455,19 @@ def displayStartSunsetOption(){
     } else {
         width = 4
     }
-    input "inputStartSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
-    if(inputStartSunriseType == "Before"){
-        input "inputStartBefore", "number", title: "Minutes before sunset:", width: 4, submitOnChange:true
-    } else if(inputStartSunriseType == "After"){
-        input "inputStartBefore", "number", title: "Minutes after sunset:", width: 4, submitOnChange:true
-    }
+    input "inputStartSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["at":"At sunset", "before":"Before sunset", "after":"After sunset"], submitOnChange:true
+        input "inputStartBefore", "number", title: "Minutes $inputStartSunriseType sunset:", width: 4, submitOnChange:true
 }
 
 def checkStartTimeEntered(){
         if(!scheduleEnable) return
     //check if proper start time has been entered
     if(inputStartType){
-        if(inputStartType == "Time" && inputStartTime) return true
-        if(inputStartType == "Sunrise" && inputStartSunriseType == "At") return true
-        if(inputStartType == "Sunrise" && (inputStartSunriseType == "Before" || inputStartSunriseType == "After") && inputStartBefore) return true
-        if(inputStartType == "Sunset" && inputStartSunriseType == "At") return true
-        if(inputStartType == "Sunset" && (inputStartSunriseType == "Before" || inputStartSunriseType == "After") && inputStartBefore) return true
+        if(inputStartType == "time" && inputStartTime) return true
+        if(inputStartType == "sunrise" && inputStartSunriseType == "at") return true
+        if(inputStartType == "sunrise" && (inputStartSunriseType == "before" || inputStartSunriseType == "after") && inputStartBefore) return true
+        if(inputStartType == "sunset" && inputStartSunriseType == "at") return true
+        if(inputStartType == "sunset" && (inputStartSunriseType == "before" || inputStartSunriseType == "after") && inputStartBefore) return true
     }
 }
 
@@ -490,24 +475,24 @@ def checkStopTimeEntered(){
         if(!scheduleEnable) return
     //check if proper start time has been entered
     if(inputStopType){
-        if(inputStopType == "None") return true
-        if(inputStopType == "Time" && inputStopTime) return true
-        if((inputStopType == "Sunrise" || inputStopType == "Sunset") && inputStopSunriseType == "At") return true
-        if((inputStopType == "Sunrise" || inputStopType == "Sunset") && (inputStopSunriseType == "Before" || inputStopSunriseType == "After") && inputStopBefore) return true
+        if(inputStopType == "none") return true
+        if(inputStopType == "time" && inputStopTime) return true
+        if((inputStopType == "sunrise" || inputStopType == "sunset") && inputStopSunriseType == "at") return true
+        if((inputStopType == "sunrise" || inputStopType == "sunset") && (inputStopSunriseType == "before" || inputStopSunriseType == "after") && inputStopBefore) return true
     }
 }
 
 def displayStopTimeTypeOption(){
         if(!scheduleEnable) return
     displayLabel("Stop time")
-    if(!inputStopType || inputStopType == "None"){
+    if(!inputStopType || inputStopType == "none"){
         width = 12
-    } else if(inputStopType == "Time" || !inputStopSunriseType || inputStopSunriseType == "At"){
+    } else if(inputStopType == "time" || !inputStopSunriseType || inputStopSunriseType == "at"){
         width = 6
     } else if(inputStopSunriseType){
         width = 4
     }
-    input "inputStopType", "enum", title: "Stop Time:", multiple: false, width: width, options: ["Time":"Stop at specific time", "Sunrise":"Sunrise (at, before or after)","Sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    input "inputStopType", "enum", title: "Stop Time:", multiple: false, width: width, options: ["time":"Stop at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
 //Must have a stop time - can't have open ended schedule. "None" is not allowed
 }
 
@@ -518,31 +503,23 @@ def displayStopTimeOption(){
 
 def displayStopSunriseOption(){
         if(!scheduleEnable) return
-    if(!inputStopSunriseType || inputStopSunriseType == "At"){
+    if(!inputStopSunriseType || inputStopSunriseType == "at"){
         width = 6
     } else {
         width = 4
     }
-    input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", multiple: false, width: width, options: ["At":"At sunrise", "Before":"Before sunrise", "After":"After sunrise"], submitOnChange:true
-    if(inputStopSunriseType == "Before"){
-        input "inputStopBefore", "number", title: "Minutes before sunrise:", width: 4, submitOnChange:true
-    } else if(inputStopSunriseType == "After"){
-        input "inputStopBefore", "number", title: "Minutes after sunrise:", width: 4, submitOnChange:true
-    }
+    input "inputStopSunriseType", "enum", title: "At, before or after sunrise:", multiple: false, width: width, options: ["at":"At sunrise", "before":"Before sunrise", "after":"After sunrise"], submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes $inputStopSunriseType sunrise:", width: 4, submitOnChange:true
+        
     if(inputStopBefore){
         if(inputStopBefore > 1441){
-            message = "Minutes "
-            if(inputStopSunriseType == "Before"){
-                message = message + "before sunrise is "
-            } else if (inputStopSunriseType == "After"){
-                message = message + "after sunrise is "
-            }
+            message = "Minutes $inputStopSunriseType sunrise is "
             if(inputStopBefore > 2881){
-                message = message + Math.floor(inputStartBefore / 60 / 24) + " days"
+                message += Math.floor(inputStartBefore / 60 / 24) + " days"
             } else {
-                message = message + "a day"
+                message += "a day"
             }
-            message = message + ". That may not work right."
+            message += ". That may not work right."
             errorMessage(message)
         }
     }
@@ -550,60 +527,32 @@ def displayStopSunriseOption(){
 
 def displayStopSunsetOption(){
         if(!scheduleEnable) return
-    if(!inputStopSunriseType || inputStopSunriseType == "At"){
+    if(!inputStopSunriseType || inputStopSunriseType == "at"){
         width = 6
     } else {
         width = 4
     }
-    input "inputStopSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["At":"At sunset", "Before":"Before sunset", "After":"After sunset"], submitOnChange:true
-    if(inputStopSunriseType == "Before"){
-        input "inputStopBefore", "number", title: "Minutes before sunset:", width: 4, submitOnChange:true
-    } else if(inputStopSunriseType == "After"){
-        input "inputStopBefore", "number", title: "Minutes after sunset:", width: 4, submitOnChange:true
-    }
+    input "inputStopSunriseType", "enum", title: "At, before or after sunset:", multiple: false, width: width, options: ["at":"At sunset", "before":"Before sunset", "after":"After sunset"], submitOnChange:true
+        input "inputStopBefore", "number", title: "Minutes $inputStopSunriseType sunset:", width: 4, submitOnChange:true
 }
 
 def getStartTimeVariables(){
         if(!scheduleEnable) return
-    if(inputStartType == "Time" && inputStartTime){
+    if(inputStartType == "time" && inputStartTime){
         return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", inputStartTime).format("h:mm a", location.timeZone)
-    } else if(inputStartType == "Sunrise"){
-            if(inputStartSunriseType == "At"){
-                return "at sunrise"
-            } else if(inputStartSunriseType == "Before" && inputStartBefore){
-                if(inputStartBefore) return "$inputStartBefore minutes before sunrise"
-            } else if(inputStartSunriseType == "After" && inputStartBefore){
-                if(inputStartBefore) return "$inputStartBefore minutes after sunrise"
+    } else if(inputStopType == "sunrise" || inputStopType == "sunset" && inputStartSunriseType){
+            if(inputStartSunriseType == "at"){
+                return "at $inputStartType"
             } else {
-                return
-            }
-    } else if(inputStartType == "Sunset" && inputStartSunriseType){
-            if(inputStartSunriseType == "At"){
-                return "at sunset"
-            } else if(inputStartSunriseType == "Before" && inputStartBefore){
-                return "$inputStartBefore minutes before sunset"
-            } else if(inputStartSunriseType == "After" && inputStartBefore){
-                return "$inputStartBefore minutes after sunset"
-            } else {
-                return
+                return "$inputStartBefore minutes $inputStartSunriseType $inputStartType"
             }
     }
     if(inputStartBefore && inputStartBefore > 1441){
-            message = "Minutes "
-            if(inputStartSunriseType == "Before"){
-                message = message + "before "
-            } else if (inputStartSunriseType == "After"){
-                message = message + "after "
-            }
-            if(inputStartType == "Sunrise"){
-                message = message + "sunrise"
-            } else if(inputStartType == "Sunset"){
-                message = message + "sunset"
-            }
+            message = "Minutes $inputStartSunriseType $inputStartType"
             if(inputStartBefore > 2881){
-                message = message + Math.floor(inputStartBefore / 60 / 24) + " days."
+                message += Math.floor(inputStartBefore / 60 / 24) + " days."
             } else {
-                message = message + "a day."
+                message += "a day."
             }
             parent.errorMessage(message)
     }
@@ -611,27 +560,13 @@ def getStartTimeVariables(){
 
 def getStopTimeVariables(){
         if(!scheduleEnable) return
-    if(inputStopType == "Time" && inputStopTime){
+    if(inputStopType == "time" && inputStopTime){
         return "at " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", inputStopTime).format("h:mm a", location.timeZone)
-    } else if(inputStopType == "Sunrise"){
-            if(inputStopSunriseType == "At"){
+    } else if(inputStopType == "sunrise" || inputStopType == "sunset"){
+            if(inputStopSunriseType == "at"){
                 return "at sunrise"
-            } else if(inputStopSunriseType == "Before" && inputStopBefore){
-                return "$inputStopBefore minutes before sunrise"
-            } else if(inputStopSunriseType == "After" && inputStopBefore){
-                return "$inputStopBefore minutes after sunrise"
             } else {
-                return
-            }
-    } else if(inputStopType == "Sunset"){
-            if(inputStopSunriseType == "At"){
-                return "at sunset"
-            } else if(inputStopSunriseType == "Before" && inputStopBefore){
-                return "$inputStopBefore minutes before sunset"
-            } else if(inputStopSunriseType == "After" && inputStopBefore){
-                return "$inputStopBefore minutes after sunset"
-            } else {
-                return
+                return "$inputStopBefore minutes $inputStopSunriseType $inputStopType"
             }
     }
 }
@@ -735,12 +670,12 @@ closeTemp - number (1800-5400) - Temperature to set closeSwitch when closed
 openHue - number (1-100) - Hue to set openSwitch when opened
 closeHue - number (1-100) - Hue to set closeSwitch when closed
 timeDays - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Days on which contact will run. Only displays if scheduleEnable = true
-inputStartType - enum (Time, Sunrise, Sunset) - Sets whether start time is a specific time, or based on sunrise or sunset. Only displays if scheduleEnable = true
-inputStartTime - time - Start Time (only displays when scheduleEnable = true and inputStartType = "Time")
+inputStartType - enum (time, sunrise, sunset) - Sets whether start time is a specific time, or based on sunrise or sunset. Only displays if scheduleEnable = true
+inputStartTime - time - Start Time (only displays when scheduleEnable = true and inputStartType = "time")
 inputStartSunriseType - enum (At, Before, After) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "Sunrise" or "Sunset")
 inputStartBefore - number - Number of minutes before/after sunrise/sunset for start time (only displays if scheduleEnable = true, inputStartType = "Sunrise" or "Sunset", and inputStartSunriseType = "Before" or "After")
-inputStopType - enum (Time, Sunrise, Sunset) - Sets whether stop time is a specific time, or based on sunrise or sunset. (Only displays if scheduleEnable = true)
-inputStopTime - time - Stop Time (only displays when scheduleEnable = true and inputStopType = "Time")
+inputStopType - enum (time, sunrise, sunset) - Sets whether stop time is a specific time, or based on sunrise or sunset. (Only displays if scheduleEnable = true)
+inputStopTime - time - Stop Time (only displays when scheduleEnable = true and inputStopType = "time")
 inputStopSunriseType - enum (At, Before, After) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "Sunrise" or "Sunset")
 inputStopBefore - number - Number of minutes before/after sunrise/sunset for stop time (only displays if scheduleEnable = true, inputStartType = "Sunrise" or "Sunset", and inputStartSunriseType = "Before" or "After")
 openWait - number - Minutes to delay open action(s). Only displays if delayEnable = true
@@ -762,14 +697,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-	if(checkLog(a="trace")) putLog(765,"Installed",a)
+	if(checkLog(a="trace")) putLog(700,"Installed",a)
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 	initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-	if(checkLog(a="trace")) putLog(772,"Updated",a)
+	if(checkLog(a="trace")) putLog(707,"Updated",a)
 	unsubscribe()
 	initialize()
 }
@@ -796,18 +731,18 @@ def initialize() {
 		subscribe(contactDevice, "contact.closed", contactChange)            
 	}
 
-	if(checkLog(a="trace")) putLog(799,"Initialized",a)
+	if(checkLog(a="trace")) putLog(734,"Initialized",a)
 }
 
 def contactChange(evt){
 	if(disable || state.disable) return
 
-	if(checkLog(a="debug")) putLog(805,"Contact sensor $evt.displayName $evt.value",a)
+	if(checkLog(a="debug")) putLog(740,"Contact sensor $evt.displayName $evt.value",a)
 	
 	// If mode set and node doesn't match, return nulls
 	if(ifMode){
 		if(location.mode != ifMode) {
-			if(checkLog(a="trace")) putLog(810,"Contact disabled, mode $ifMode",a)
+			if(checkLog(a="trace")) putLog(745,"Contact disabled, mode $ifMode",a)
 			return defaults
 		}
 	}
@@ -891,7 +826,7 @@ def contactChange(evt){
 	if(evt.value == "open"){
 		// Schedule delay
 		if(openWait) {
-			if(checkLog(a="trace")) putLog(894,"Scheduling runScheduleOpen in $openWait seconds",a)
+			if(checkLog(a="trace")) putLog(829,"Scheduling runScheduleOpen in $openWait seconds",a)
 			runIn(openWait,runScheduleOpen)
 		// Otherwise perform immediately
 		} else {
@@ -906,7 +841,7 @@ def contactChange(evt){
 	} else {
 		// Schedule delay
 		if(closeWait) {
-			if(checkLog(a="trace")) putLog(909,"Scheduling runScheduleClose in $closeWait seconds",a)
+			if(checkLog(a="trace")) putLog(844,"Scheduling runScheduleClose in $closeWait seconds",a)
 			runIn(closeWait,runScheduleClose)
 		// Otherwise perform immediately
 		} else {
@@ -965,16 +900,16 @@ def validatePhone(phone){
 }
 
 def setTime (){
-    if(!setStartStopTime("Start")) return
-    if(!setStartStopTime("Stop")) return 
+    if(!setStartStopTime("start")) return
+    if(!setStartStopTime("stop")) return 
 }
 
-def setStartStopTime(type = "Start"){
-    if(type == "Start") state.start = null
-	if(type == "Stop") state.stop = null
+def setStartStopTime(type = "start"){
+    if(type == "start") state.start = null
+	if(type == "stop") state.stop = null
 
 	// If no stop time, exit
-	if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
+	if(type == "stop" && (!inputStopType || inputStopType == "none")) return true
 
     if(settings["input${type}Type"] == "time"){
 		value = settings["input${type}Time"]
@@ -983,21 +918,23 @@ def setStartStopTime(type = "Start"){
 	} else if(settings["input${type}Type"] == "sunset"){
 		value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
 	} else {
-		if(checkLog(a="error")) putLog(986,"input" + type + "Type set to " + settings["input${type}Type"],a)
+		if(checkLog(a="error")) putLog(921,"input" + type + "Type set to " + settings["input${type}Type"],a)
 		return
 	}
 
-	if(type == "Stop"){
+	if(type == "stop"){
 		if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
 	}
-	if(checkLog(a="trace")) putLog(993,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-	if(type == "Start") state.start = value
-	if(type == "Stop") state.stop = value
+	if(checkLog(a="trace")) putLog(928,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
+	if(type == "start") state.start = value
+	if(type == "stop") state.stop = value
 	return true
 }
 
 // If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
+// Delineate values with colons on each side - must match getStateDeviceChange
 // Used to track if app turned on device when schedule captures a device state changing to on
+// Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
         atomicState.deviceChange += ":$singleDeviceId:"
@@ -1012,9 +949,9 @@ def addDeviceStateChange(singleDeviceId){
 def getOverrideLevels(defaults,appAction = null){
     if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
     if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
-    if(settings[appAction + "Temp"]) defaults.put("level",settings[appAction + "Temp"])
-    if(settings[appAction + "Hue"]) defaults.put("level",settings[appAction + "Hue"])
-    if(settings[appAction + "Sat"]) defaults.put("level",settings[appAction + "Sat"])
+    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
+    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
+    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
     return defaults       
 }
 
@@ -1026,7 +963,7 @@ def getOverrideLevels(defaults,appAction = null){
 def getStateDeviceChange(singleDeviceId){
     if(atomicState.deviceChange){
         value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
-	// Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
+        // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
         resetStateDeviceChange()
         return value
     } else {
@@ -1035,16 +972,16 @@ def getStateDeviceChange(singleDeviceId){
 }
 
 // Scheduled funtion to reset the value of deviceChange
+// Must be in every app using MultiOn
 def resetStateDeviceChange(){
     atomicState.deviceChange = null
     return
 }
 
-// Contact does not use dim or brighten
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1050,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
+        if(checkLog(a="error")) putLog(984,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -1055,8 +992,8 @@ def setStateMulti(deviceAction,device,appAction = null){
     stateDeviceChangeResetMillis = 500
 
     if(deviceAction == "off"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         // Turn off devices
         parent.setStateMulti("off",device,app.label)
         return true
@@ -1073,7 +1010,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             getAndSetSingleLevels(it,appAction)
         }
-        if(checkLog(a="debug")) putLog(1079,"Device id's turned on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1013,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
         return true
@@ -1095,14 +1032,14 @@ def setStateMulti(deviceAction,device,appAction = null){
                 // When turning on, add device ids to deviceChange, so schedule knows it was turned on by an app
                 // Needs to be done before turning the device on.
                 addDeviceStateChange(it.id)
-		// Turn the device on
+                // Turn the device on
                 parent.setStateSingle("on",it,app.label)
                 // Add device to toggleOnDevice list so when we loop again to set levels, we know whether we
-		// just turned it on or not (without knowing how long the device may take to respond)
+                // just turned it on or not (without knowing how long the device may take to respond)
                 toggleOnDevice.add(count)
             }
         }
-        if(checkLog(a="trace")) putLog(1108,"Device id's toggled on are $atomicState.deviceChange","debug")
+        if(checkLog(a="debug")) putLog(1042,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -1121,27 +1058,27 @@ def setStateMulti(deviceAction,device,appAction = null){
     }
 
     if(deviceAction == "resume"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         device.each{
             // If turning on, set default levels and over-ride with any contact levels
             if(deviceAction == "resume"){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                if(checkLog(a="debug")) putLog(1135,"Scheduled defaults are $defaults",a)
+                if(checkLog(a="debug")) putLog(1069,"Scheduled defaults are $defaults",a)
 
                 defaults = getOverrideLevels(defaults,appAction)
-                if(checkLog(a="debug")) putLog(1138,"With " + app.label + " overrides, using $defaults",a)
+                if(checkLog(a="debug")) putLog(1072,"With " + app.label + " overrides, using $defaults",a)
 
                 // Skipping getting overall defaults, since we're resuming a schedule or exiting;
                 // rather keep things the same level rather than an arbitrary default, and
                 // if we got default, we'd not turn it off
 
-                parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,app.label)
+                parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
                 if(!defaults){
-                    if(checkLog(a="trace")) putLog(1147,"No schedule to resume for $it; turning off",a)
+                    if(checkLog(a="trace")) putLog(1081,"No schedule to resume for $it; turning off",a)
                     parent.setStateSingle("off",it,app.label)
                 } else {
                     parent.rescheduleIncrementalSingle(it,app.label)
@@ -1152,8 +1089,8 @@ def setStateMulti(deviceAction,device,appAction = null){
     }
 
     if(deviceAction == "none"){
-	// Reset device change, since we know the last event from this device didn't turn anything on
-	resetStateDeviceChange()
+        // Reset device change, since we know the last event from this device didn't turn anything on
+        resetStateDeviceChange()
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
         // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
@@ -1186,8 +1123,9 @@ def getAndSetSingleLevels(singleDevice,appAction = null){
     defaults = parent.getDefaultSingle(defaults,app.label)
     logMessage += ", so with generic defaults $defaults"
 
-    if(checkLog(a="debug")) putLog(1192,logMessage,a)
-    parent.setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,singleDevice,app.label)
+    if(checkLog(a="debug")) putLog(1126,logMessage,a)
+    parent.setLevelSingle(defaults,singleDevice,app.label)
+    return
 }
 
 def checkLog(type = null){
@@ -1215,26 +1153,28 @@ def checkLog(type = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,message = null,type = "trace"){
-    message = (message ? " -- $message" : "")
-    if(lineNumber) message = "(line $lineNumber)$message"
-    message = "$app.label $message"
-    if(type == "error") message = "<font color=\"red\">$message</font>"
-    if(type == "warn") message = "<font color=\"yellow\">$message</font>"
+    logMessage = ""
+    if(type == "error") logMessage += "<font color=\"red\">"
+    if(type == "warn") logMessage += "<font color=\"brown\">"
+    logMessage += "$app.label "
+    if(lineNumber) logMessage += "(line $lineNumber) "
+    if(message) logMessage += "-- $message"
+    if(type == "error" || type == "warn") logMessage += "</font>"
     switch(type) {
         case "error":
-        log.error(message)
+        log.error(logMessage)
         return true
         case "warn":
-        log.warn(message)
+        log.warn(logMessage)
         return true
         case "info":
-        log.info(message)
+        log.info(logMessage)
         return true
         case "trace":
-        log.trace(message)
+        log.trace(logMessage)
         return true
         case "debug":
-        log.debug(message)
+        log.debug(logMessage)
         return true
     }
     return
