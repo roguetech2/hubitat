@@ -746,7 +746,7 @@ def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
     if(checkLog(a="debug")) putLog(747,"Scheduling runDailyStartSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
 }
-              
+
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
     if(checkLog(a="debug")) putLog(752,"Scheduling runDailyStopSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
@@ -810,7 +810,7 @@ def runDailyStartSchedule(){
     //if(modeChangeOn && data.action == "start") setLocationMode(modeChangeOn)
     if(modeChangeOn) setLocationMode(modeChangeOn)
 
-        setStateMulti(timeOn,timeDevice)
+    setStateMulti(timeOn,timeDevice)
     return true
 }
 
@@ -821,8 +821,8 @@ def runDailyStopSchedule(){
 
     // Set time state variables
     if(!setTime()) return
-        setDailySchedules("stop")
-    
+    setDailySchedules("stop")
+
     // If not correct day, exit
     if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
@@ -1011,12 +1011,17 @@ def setStartStopTime(type){
         return
     }
 
-    if(type == "start") atomicState.start = null
-    if(type == "stop") atomicState.stop = null
+    if(type == "start") {
+        atomicState.start = null
+        type = "Start"
+    } else if(type == "stop") {
+        atomicState.stop = null
+        type = "Stop"
+    }
 
     // If no stop time, exit
-    if(type == "stop" && (!inputStopType || inputStopType == "none")) return true
-
+    if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
+    
     if(settings["input${type}Type"] == "time"){
         value = settings["input${type}Time"]
     } else if(settings["input${type}Type"] == "sunrise"){
@@ -1028,13 +1033,13 @@ def setStartStopTime(type){
         return
     }
 
-    if(type == "stop"){
+    if(type == "Stop"){
         if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
 
     if(checkLog(a="trace")) putLog(1035,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-    if(type == "start") atomicState.start = value
-    if(type == "stop") atomicState.stop = value
+    if(type == "Start") atomicState.start = value
+    if(type == "Stop") atomicState.stop = value
     return true
 }
 
