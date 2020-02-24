@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.26
+*  Version: 0.4.27
 *
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
@@ -662,7 +662,17 @@ def displayNameOption(){
 
 def displayPicoOption(){
     displayLabel("Select Pico device(s) to setup")
+/* ************************************************************************ */
+/* TO-DO: Hypothetically, we could limit list to 2, 4 and 5 button devices  */
+/* Could we use something from the driver? device.type = "Pico" or some     */
+/* crap like that?                                                          */
+/* ************************************************************************ */
     input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, submitOnChange:true
+/* ************************************************************************ */
+/* TO-DO: Change it so different number of buttons can be used in one setup */
+/* but add warnings when selecting to assign button number not on device,   */
+/* as well as a general warning.                                            */
+/* ************************************************************************ */
     if(!buttonDevice) displayInfo("Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.")
 }
 
