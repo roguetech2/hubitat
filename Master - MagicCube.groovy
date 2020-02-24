@@ -501,20 +501,20 @@ def buttonEvent(evt){
 
     // Set device if using simple setup
     if(!multiDevice){
-	def switchButtonsInput[:]
-	def switchButtonsOutput[:]
-	switchButtonInput.put("input":"shake")
-	switchButtonInput.put("input":"flip90")
-	switchButtonInput.put("input":"flip180")
-	switchButtonInput.put("input":"slide")
-	switchButtonInput.put("input":"knock")
-	switchButtonInput.put("input":"clockwise")
-	switchButtonInput.put("input":"counterClockwise")
-	switchButtonOutput.put("output":"on")
-	switchButtonOutput.put("output":"off")
-	switchButtonOutput.put("output":"dim")
-	switchButtonOutput.put("output":"brighten")
-	switchButtonOutput.put("output":"toggle")
+	def switchButtonsInput = [:]
+	def switchButtonsOutput = [:]
+	switchButtonInput.put("input","shake")
+	switchButtonInput.put("input","flip90")
+	switchButtonInput.put("input","flip180")
+	switchButtonInput.put("input","slide")
+	switchButtonInput.put("input","knock")
+	switchButtonInput.put("input","clockwise")
+	switchButtonInput.put("input","counterClockwise")
+	switchButtonOutput.put("output","on")
+	switchButtonOutput.put("output","off")
+	switchButtonOutput.put("output","dim")
+	switchButtonOutput.put("output","brighten")
+	switchButtonOutput.put("output","toggle")
 
 // Loop through button types ("shake", "flip90", etc)
 switchButtonInput.each{input->
@@ -524,7 +524,7 @@ switchButtonInput.each{input->
 		if(settings[input.input] && settings[input.input] == output.output){
 			// on, off, and toggle use multiOn(); dim and brighten use dim()
 			if(output.output == "on" || output.output == "off" || output.output == "toggle") setStateMulti(output.output,controlDevice)
-			if(output.output == "dim" || output.output == "brighten) parent.dim(output.output,controlDevice,app.label)
+			if(output.output == "dim" || output.output == "brighten") parent.dim(output.output,controlDevice,app.label)
 			result = true
 		}
 	}
