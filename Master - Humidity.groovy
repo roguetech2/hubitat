@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.28
+*  Version: 0.1.29
 *
 ***********************************************************************************************************************/
 
@@ -125,7 +125,7 @@ preferences {
 								input "humidityControlDevice", "capability.relativeHumidityMeasurement", title: "Control humidity sensor(s)?", multiple: true, required: true, submitOnChange:true
 								if(humidityControlDevice){
 									// Check if control device is a primary device
-									error = parent.compareDeviceLists(humidityDevice,humidityControlDevice,app.label)
+									error = compareDeviceLists(humidityDevice,humidityControlDevice)
 									if(error)
 										paragraph "<div style=\"background-color:Bisque\">$errorIcon Control sensors can't be include a primary sensor.</div>"
 								} else {
@@ -370,6 +370,33 @@ preferences {
 	}
 }
 
+
+def compareDeviceLists(values,compare){
+    // Be sure we have original button and comparison button values (odds are, we don't)
+    // eg if(!button_1_push_on)
+    if(!settings["button_" + values[0] + "_" + values[2] + "_" + values[1]]) return
+    if(!settings["button_" + values[0] + "_" + values[2] + "_" + compare]) return
+    if(error) return
+
+    settings["button_" + values[0] + "_" + values[2] + "_" + values[1]].each{first->
+        settings["button_" + values[0] + "_" + values[2] + "_" + compare].each{second->
+            if(first.id == second.id) {
+                if(compare == "on" || compare == "off"){
+                    text1 = "turn $compare"
+                } else {
+                    text1 = compare
+                }
+                if(values[1] == "on" || values[1] == "off"){
+                    text2 = "turn " + values[1]
+                } else {
+                    text2 = values[1]
+                }
+                returnText = "Can't set same button to $text1 and $text2 the same device."
+            }
+        }
+    }
+    return returnText
+}
 /*
 Input fields:
 
