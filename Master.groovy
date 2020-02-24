@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.17
+*  Version: 0.2.18
 *
 ***********************************************************************************************************************/
 
@@ -281,7 +281,7 @@ def setLevelsMulti(multiDevice, childLabel = "Master"){
         // If individual device is on, then...
         if(isOn(it)){
             defaults = getScheduleDefaultSingle(it,childLabel)
-            if(defaults) setLevelSingle(defaults.level,defaults.temp,defaults.hue,defaults.sat,it,childLabel)
+            if(defaults) setLevelSingle(defaults,it,childLabel)
         }
     }
 }
@@ -837,19 +837,19 @@ def checkLog(type = null){
     if(!state.logLevel) getLogLevel()
     switch(type) {
         case "error":
-        if(state.logLevel > 0) return true
+        if(state.logLevel > 0) return "error"
         break
         case "warn":
-        if(state.logLevel > 1) return true
+        if(state.logLevel > 1) return "warn"
         break
         case "info":
-        if(state.logLevel > 2) return true
+        if(state.logLevel > 2) return "info"
         break
         case "trace":
-        if(state.logLevel > 3) return true
+        if(state.logLevel > 3) return "trace"
         break
         case "debug":
-        if(state.logLevel == 5) return true
+        if(state.logLevel == 5) return "debug"
     }
     return false
 }
