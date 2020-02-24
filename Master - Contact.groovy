@@ -82,16 +82,11 @@ preferences {
             }
             //if not disabled, then show everything
             if(!state.disable && !disable ){
-                putLog(6)
                 displayNameOption()
-                putLog(7)
                 //if no label, stop
                 if(app.label){
-                    putLog(8)
                     displayDevicesOption()
-                    putLog(9)
                     if(contactDevice){
-                        putLog(10)
                         //if no devices, stop
                         input "disable", "bool", title: "This contact sensor is enabled. Disable it?", submitOnChange:true
                         displayOpenDevices()
@@ -111,36 +106,39 @@ preferences {
                             displayBinaryOptions()
                         }
 
-                        displayStartTimeTypeOption()
-                        if(inputStartType == "time"){
-                            displayStartTimeOption()
-                        } else if(inputStartType == "sunrise" || inputStartType == "sunset"){
-                            displayStartSunriseSunsetOption()
-                        } else {
-                            inputStartTime = null
-                            inputStartSunriseType = null
-                            inputStartBefore = null
-                        }
-                        // if not start time entered, stop
-                        if(checkStartTimeEntered()){
-
-                            varStartTime = getStartTimeVariables()
-
-
-                            /* ************************************************************************ */
-                            /* TO-DO: Add holidays.                                                     */
-                            /* ************************************************************************ */
-                            displayStopTimeTypeOption()
-                            if(inputStopType == "time"){
-                                displayStopTimeOption()
-                            } else if(inputStopType == "sunrise" || inputStopType == "sunset"){
-                                displayStopSunriseSunsetOption()
+                        if(scheduleEnable){
+                            displayStartTimeTypeOption()
+                            if(inputStartType == "time"){
+                                displayStartTimeOption()
+                            } else if(inputStartType == "sunrise" || inputStartType == "sunset"){
+                                displayStartSunriseSunsetOption()
                             } else {
-                                inputStopTime = null
-                                inputStopSunriseType = null
-                                inputStopBefore = null
+                                inputStartTime = null
+                                inputStartSunriseType = null
+                                inputStartBefore = null
+                            }
+                            // if not start time entered, stop
+                            if(checkStartTimeEntered()){
+
+                                varStartTime = getStartTimeVariables()
+
+
+                                /* ************************************************************************ */
+                                /* TO-DO: Add holidays.                                                     */
+                                /* ************************************************************************ */
+                                displayStopTimeTypeOption()
+                                if(inputStopType == "time"){
+                                    displayStopTimeOption()
+                                } else if(inputStopType == "sunrise" || inputStopType == "sunset"){
+                                    displayStopSunriseSunsetOption()
+                                } else {
+                                    inputStopTime = null
+                                    inputStopSunriseType = null
+                                    inputStopBefore = null
+                                }
                             }
                         }
+                        if(checkStartTimeEntered() && checkStopTimeEntered()){
                         if(!openSwitch || (openSwitch && openSwitchAction)){
                             displayWaitOptions()
                             /* ************************************************************************ */
@@ -148,6 +146,7 @@ preferences {
                             /* ************************************************************************ */
                             displayAlertOptions()
                             displayModeOptions()
+                        }
                         }
                     }
                     paragraph error
@@ -417,9 +416,9 @@ def displayStartTimeTypeOption(){
 
     input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
     if(!timeDays && !inputStartType) {
-        displayInfo("Select which day(s) on which to schedule. Applies only to starting the schedule; schedules can always end on any day. Optional field; if none are selected, schedule will default to every day.")
+        displayInfo("Select which day(s) the contact sensor(s) will be active. Applies only to starting time. Optional field; if none are selected, contact sensor(s) will default to every day.")
     } else if(!timeDays){
-        displayInfo("Select which day(s) on which to schedule. Optional field; if none are selected, schedule will default to every day.")
+        displayInfo("Select which day(s) the contact sensor(s) will be active. Optional field; if none are selected, contact(s) will default to every day.")
     }
     if(!inputStartType){
         width = 12
@@ -435,7 +434,7 @@ def displayStartTimeTypeOption(){
 def displayStartTimeOption(){
     if(inputStartType != "time") return
     input "inputStartTime", "time", title: "Start time", width: 6, submitOnChange:true
-    if(!inputStartTime) displayInfo("Enter the time to start the schedule in \"hh:mm AM/PM\" format. Required field.")
+    if(!inputStartTime) displayInfo("Enter the time to start the contact sensor in \"hh:mm AM/PM\" format. Required field.")
 }
 
 def displayStartSunriseSunsetOption(){
@@ -908,13 +907,25 @@ def setTime (){
     if(!setStartStopTime("stop")) return 
 }
 
-def setStartStopTime(type = "start"){
-    if(type == "start") state.start = null
-    if(type == "stop") state.stop = null
-
+// Sets atomicState.start and atomicState.stop variables
+// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
+def setStartStopTime(type){
+    if(type != "start" && type != "stop") {
+        if(checkLog(a="error")) putLog(914,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
+        return
+    }
+    
+    if(type == "start") {
+        atomicState.start = null
+        type = "Start"
+    } else if(type == "stop") {
+        atomicState.stop = null
+        type = "Stop"
+    }
+    
     // If no stop time, exit
-    if(type == "stop" && (!inputStopType || inputStopType == "none")) return true
-
+    if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
+    
     if(settings["input${type}Type"] == "time"){
         value = settings["input${type}Time"]
     } else if(settings["input${type}Type"] == "sunrise"){
@@ -922,16 +933,16 @@ def setStartStopTime(type = "start"){
     } else if(settings["input${type}Type"] == "sunset"){
         value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     } else {
-        if(checkLog(a="error")) putLog(925,"input" + type + "Type set to " + settings["input${type}Type"],a)
+        if(checkLog(a="error")) putLog(931,"input" + type + "Type set to " + settings["input${type}Type"],a)
         return
     }
 
-    if(type == "stop"){
+    if(type == "Stop"){
         if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
-    if(checkLog(a="trace")) putLog(932,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-    if(type == "start") state.start = value
-    if(type == "stop") state.stop = value
+    if(checkLog(a="trace")) putLog(938,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
+    if(type == "Start") state.start = value
+    if(type == "Stop") state.stop = value
     return true
 }
 
