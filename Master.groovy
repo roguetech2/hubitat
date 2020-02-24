@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.18
+*  Version: 0.2.19
 *
 ***********************************************************************************************************************/
 
@@ -394,9 +394,9 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
 // This should only be called after all devices have been set on
 def waitStateChange(action,singleDevice,childLabel = "Master"){
     for (loopCount = 0; loopCount < 200; loopCount++) {
-        deviceState = it.currentValue("switch",true)
+        deviceState = singleDevice.currentValue("switch",true)
         // Retry turning on/off? What's the performance hit??
-        setStateSingle(action,it,childLabel)
+        setStateSingle(action,singleDevice,childLabel)
         // Don't use isOn, because it uses cached state
         if((action == "on" && deviceState == "off") || (action == "off" && deviceState == "on")) {
             pause(10)
@@ -698,8 +698,8 @@ def rescheduleIncrementalMulti(multiDevice,childLabel="Master"){
 def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
     childApps.each {Child->
         if(Child.label.substring(0,7) == "Time - " && Child.label != childLabel) {
-            Child.timeDevice.each {
-                if(singleDevice.id == it.id){
+            Child.timeDevice.each {ChildDevice->
+                if(singleDevice.id == ChildDevice.id){
                     // Check if it's between schedule start and stop time
                     // This would be done by setIncrementalSchedule. The only major advantage of
                     // doing it here, with getTimeVariable function, is to prevent extra log messages
