@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.23
+*  Version: 0.2.24
 * 
 ***********************************************************************************************************************/
 
@@ -559,28 +559,31 @@ def setStateMulti(deviceAction,device,appAction = null){
         // Reset device change, since we know the last event from this device didn't turn anything on
         resetStateDeviceChange()
         device.each{
-            // If turning on, set default levels and over-ride with any contact levels
-            if(deviceAction == "resume"){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-                if(checkLog(a="debug")) putLog(567,"Scheduled defaults are $defaults",a)
+            // If defaults, then there's an active schedule
+            // So use it for if overriding/reenabling
+            defaults = parent.getScheduleDefaultSingle(it,app.label)
+            logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
 
-                defaults = getOverrideLevels(defaults,appAction)
-                if(checkLog(a="debug")) putLog(570,"With " + app.label + " overrides, using $defaults",a)
+            // If there are defaults, then there's an active schedule so reschedule it (the results are corrupted below).
+            // We could do this for the matching schedules within its own getDefaultLevel(), but that would
+            // probably result in incremental schedules rescheduling themselves over and over again. And if we
+            // excluded schedules from rescheduling, then daily schedules wouldn't do this.
+            if(defaults) parent.rescheduleIncrementalSingle(it,app.label)
 
-                // Skipping getting overall defaults, since we're resuming a schedule or exiting;
-                // rather keep things the same level rather than an arbitrary default, and
-                // if we got default, we'd not turn it off
+            defaults = getOverrideLevels(defaults,appAction)
+            logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
 
+            // Skipping getting overall defaults, since we're resuming a schedule or exiting;
+            // rather keep things the same level rather than an arbitrary default, and
+            // if we got default, we'd not turn it off
+
+            if(defaults){
+                if(checkLog(a="debug")) putLog(1345,logMessage,a)
                 parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
-                if(!defaults){
-                    if(checkLog(a="trace")) putLog(579,"No schedule to resume for $it; turning off",a)
-                    parent.setStateSingle("off",it,app.label)
-                } else {
-                    parent.rescheduleIncrementalSingle(it,app.label)
-                }
+            } else {
+                if(checkLog(a="trace")) putLog(1349,"No schedule to resume for $it; turning off",a)
+                parent.setStateSingle("off",it,app.label)
             }
         }
         return true
