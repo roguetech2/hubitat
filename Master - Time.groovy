@@ -1193,7 +1193,8 @@ def getStateDeviceChange(singleDeviceId){
         value = atomicState.deviceChange.contains(":$singleDeviceId:") 
         // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
         resetStateDeviceChange()
-        if(value != -1) return value
+        // Allows for using either .contains or .indexof; if .contains works, remove != -1
+        if(! value || value != -1) return value
     } else {
         return false
     }
