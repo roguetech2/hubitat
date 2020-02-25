@@ -324,7 +324,8 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
     /* ************************************************************************ */
     message = "Set "
     if(defaults.level){
-        if(singleDevice.currentLevel != defaults.level && isDimmable(singleDevice,childLabel)){
+        //if(singleDevice.currentLevel != defaults.level && isDimmable(singleDevice,childLabel)){
+        if(isDimmable(singleDevice,childLabel)){
             if(isFan(singleDevice,childLabel)) defaults.level = roundFanLevel(defaults.level,childLabel)
 
             singleDevice.setLevel(defaults.level as int)
@@ -339,27 +340,33 @@ def setLevelSingle(defaults,singleDevice,childLabel = "Master"){
     } else if(defaults.sat && defaults.temp){
         defaults.sat = null
     }
+    //if(isTemp(singleDevice,childLabel)){
     if(defaults.temp && defaults.temp != singleDevice.currentColorTemperature && isTemp(singleDevice,childLabel)){
         singleDevice.setColorTemperature(defaults.temp as int)
         message += "temp: $defaults.temp; "
     }
     // Need to compare to current temp, hue and/or sat
     if((defaults.hue || defaults.sat) && isColor(singleDevice,childLabel)){
+        
         // Only update what's needed
         // treat it like a null if current hue/sat being equal to change value 
-        if(defaults.sat && (!defaults.hue || defaults.hue == singleDevice.currentHue) && defaults.sat != singleDevice.currentSaturation) {
+        if(defaults.sat && !defaults.hue) {
+        //if(defaults.sat && (!defaults.hue || defaults.hue == singleDevice.currentHue) && defaults.sat != singleDevice.currentSaturation) {
             // Defaults to existing sat - should we default to 100%?
             singleDevice.setColor([saturation: defaults.sat])
             message += "sat: " + defaults.sat + "; "
-        } else if((!defaults.sat || defaults.sat == singleDevice.currentSaturation) && defaults.hue != singleDevice.currentHue){
+      //  } else if((!defaults.sat || defaults.sat == singleDevice.currentSaturation) && defaults.hue != singleDevice.currentHue){
+        } else if(!defaults.sat &&  defaults.hue){
             singleDevice.setColor([hue: defaults.hue])
             message += "hue: $defaults.hue; "
-        } else if(defaults.hue && defaults.sat && defaults.sat != singleDevice.currentSaturation && defaults.hue != singleDevice.currentHue){
+        } else if(defaults.hue && defaults.sat){
+          //  } else if(defaults.hue && defaults.sat && defaults.sat != singleDevice.currentSaturation && defaults.hue != singleDevice.currentHue){
             singleDevice.setColor([hue: defaults.hue, saturation: defaults.sat])
             message += "hue: $defaults.hue; sat: $defaults.sat; "
         }
     }
-    if(message != "Set " && checkLog(a="trace")) putLog(362,"$message of $singleDevice",a,childLabel)
+
+    if(message != "Set " && checkLog(a="trace")) putLog(369,"$message of $singleDevice",a,childLabel)
     return true
 }
 
@@ -398,7 +405,7 @@ def getAndSetSingleLevels(singleDevice,appAction = null,childLabel = "Master"){
     defaults = getDefaultSingle(defaults,childLabel)
     logMessage += ", so with generic defaults $defaults"
 
-    if(checkLog(a="debug")) putLog(401,logMessage,a,childLabel)
+    if(checkLog(a="debug")) putLog(408,logMessage,a,childLabel)
     setLevelSingle(defaults,singleDevice,childLabel)
     return
 }
@@ -418,10 +425,10 @@ def waitStateChange(action,singleDevice,childLabel = "Master"){
         }
     }
     if((action == "on" && deviceState == "on") || (action == "off" && deviceState == "off")) {
-        if(checkLog(a="debug")) putLog(421,"Waited " + (i * 10) + " milliseconds for $singleDevice to turn on",a,childLabel)
+        if(checkLog(a="debug")) putLog(428,"Waited " + (i * 10) + " milliseconds for $singleDevice to turn on",a,childLabel)
         return true
     } else {
-        if(checkLog(a="error")) putLog(424,"$singleDevice refused to turn $action in " + (i * 10) + " milliseconds",a,childLabel)
+        if(checkLog(a="error")) putLog(431,"$singleDevice refused to turn $action in " + (i * 10) + " milliseconds",a,childLabel)
         return
     }
 }
@@ -444,7 +451,7 @@ def getScheduleDefaultSingle(singleDevice, childLabel = "Master"){
                     if(defaults.hue) defaultHue = defaults.hue
                     if(defaults.sat) defaultSat = defaults.sat
                     if(defaults.level || defaults.temp || defaults.hue || defaults.sat)
-                    if(checkLog(a="debug")) putLog(447,"Default levels of $defaults found for $singleDevice with $Child.label",a,childLabel)
+                    if(checkLog(a="debug")) putLog(454,"Default levels of $defaults found for $singleDevice with $Child.label",a,childLabel)
                 }
             }
         }
@@ -485,7 +492,7 @@ def getStateRequest(singleDevice,childLabel){
 
 def dim(action,device,childLabel="Master"){
     if(action != "dim" && action != "brighten"){
-        if(checkLog(a="error")) putLog(488,"Invalid value for action \"$action\" sent to dim function",a,childLabel)
+        if(checkLog(a="error")) putLog(495,"Invalid value for action \"$action\" sent to dim function",a,childLabel)
         return
     }
 
@@ -508,7 +515,7 @@ def dim(action,device,childLabel="Master"){
             if(levelValue) {
                 if(isFan(it,childLabel)) roundFanLevel(levelValue,childLabel)
                 setLevelSingle(levelValue,"","","",it,childLabel)
-                if(checkLog(a="info")) putLog(511,"Set level of $it to $levelValue",a,childLabel)
+                if(checkLog(a="info")) putLog(518,"Set level of $it to $levelValue",a,childLabel)
             }
         }
     }
@@ -524,11 +531,11 @@ def nextLevel(level, action, childLabel="Master"){
         }
         if(!dimSpeed){
             dimSpeed = 1.2
-            if(checkLog(a="error")) putLog(527,"Failed to find dimSpeed in function nextLevel",a,childLabel)
+            if(checkLog(a="error")) putLog(534,"Failed to find dimSpeed in function nextLevel",a,childLabel)
         }
     }
     if (action != "dim" && action != "brighten"){
-        if(checkLog(a="error")) putLog(531,"Invalid value for action \"$action\" sent to nextLevel function",a,childLabel)
+        if(checkLog(a="error")) putLog(538,"Invalid value for action \"$action\" sent to nextLevel function",a,childLabel)
         return false
     }
     def newLevel = level as int
@@ -561,7 +568,7 @@ def changeMode(mode, childLabel = "Master", device = "") {
     if(location.mode == mode) return
     oldMode = location.mode
     setLocationMode(mode)
-    if(checkLog(a="info")) putLog(564,"Changed Mode from $oldMode to $mode",a,childLabel)
+    if(checkLog(a="info")) putLog(571,"Changed Mode from $oldMode to $mode",a,childLabel)
 }
 
 // Send SMS text message to $phone with $message
@@ -575,7 +582,7 @@ def sendText(phone, message,childLabel){
     phone = phone.replaceAll("\\.","");
     phone = phone.replaceAll("\\+","");
     if(!phone.isNumber()) {
-        if(checkLog(a="error")) putLog(578,"Phone number $phone is not valid (message \"$message\" not sent)",a,childLabel)
+        if(checkLog(a="error")) putLog(585,"Phone number $phone is not valid (message \"$message\" not sent)",a,childLabel)
         return false
     }
     if(phone.length() == 10) {
@@ -583,7 +590,7 @@ def sendText(phone, message,childLabel){
     } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
         phone = "+" + phone
     }
-    if(checkLog(a="info")) putLog(586,"Sent \"$message\" to $phone",a,childLabel)
+    if(checkLog(a="info")) putLog(593,"Sent \"$message\" to $phone",a,childLabel)
     sendSms(phone,message)
     return true
 }
@@ -595,7 +602,7 @@ def isOnMulti(multiDevice,childLabel="Master"){
     multiDevice.each{
         if(!value && isOn(it,childLabel)) value = true
     }
-    if(checkLog(a="debug")) putLog(598,"Function isOnMulti returning $value",a,childLabel)
+    if(checkLog(a="debug")) putLog(605,"Function isOnMulti returning $value",a,childLabel)
     return value
 }
 
@@ -634,7 +641,7 @@ def validateHueSat(hue,sat, childLabel="Master"){
 def validateMultiplier(value, childLabel="Master"){
     if(value){
         if(value < 1 || value > 100){
-            if(checkLog(a="error")) putLog(637,"Multiplier $value is not valid",a,childLabel)
+            if(checkLog(a="error")) putLog(644,"Multiplier $value is not valid",a,childLabel)
             return
         }
     }
@@ -719,7 +726,7 @@ def roundFanLevel(level, childLabel="Master"){
     } else if (level > 0 && level < 33){
         value = 25
     }
-    if(checkLog(a="info")) putLog(722,"Setting level for fan to $value from $level",a,childLabel)
+    if(checkLog(a="info")) putLog(729,"Setting level for fan to $value from $level",a,childLabel)
     return value
 }
 
@@ -742,8 +749,8 @@ def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
                 }
             }
             if(match == true) {
-                if(checkLog(a="trace")) putLog(745,"Rescheduling incremental $singleDevice with $Child.label",a,childLabel)
-                Child.setIncrementalSchedule()
+                if(checkLog(a="trace")) putLog(752,"Rescheduling incremental $singleDevice with $Child.label",a,childLabel)
+                Child.setIncrementalSchedule
                 match = null
             }
         }
@@ -795,11 +802,11 @@ def todayInDayList(days,childLabel="Master"){
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel="Master"){
     if(!timeStart) {
-        if(checkLog(a="error")) putLog(798,"Function timeBetween returning false (no start time)",a,childLabel)
+        if(checkLog(a="error")) putLog(805,"Function timeBetween returning false (no start time)",a,childLabel)
         return
     }
     if(!timeStop) {
-        if(checkLog(a="trace")) putLog(802,"Function timeBetween returning false (no stop time)",a,childLabel)
+        if(checkLog(a="trace")) putLog(809,"Function timeBetween returning false (no stop time)",a,childLabel)
         return
     }
 
@@ -809,23 +816,23 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
     varNow = now()
     if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
         if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-            if(checkLog(a="debug")) putLog(812,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),a,childLabel)
+            if(checkLog(a="debug")) putLog(819,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),a,childLabel)
             return true
         }
     }
     if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-        if(checkLog(a="debug")) putLog(817,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),a,childLabel)
+        if(checkLog(a="debug")) putLog(824,"Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),a,childLabel)
         return true
     }
 }
 
 def speak(text,childLabel="Master"){
     if(!notificationDevice) {
-        if(checkLog(a="warn")) putLog(824,"No speech device for \"$text\"",a,childLabel)
+        if(checkLog(a="warn")) putLog(831,"No speech device for \"$text\"",a,childLabel)
         return
     }
     notificationDevice.speak(text)
-    if(checkLog(a="info")) putLog(828,"Sending speech \"$text\"",a,childLabel)
+    if(checkLog(a="info")) putLog(835,"Sending speech \"$text\"",a,childLabel)
     return true
 }
 
