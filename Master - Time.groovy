@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.5.01
+*  Version: 0.5.02
 *
 ***********************************************************************************************************************/
 
@@ -34,7 +34,7 @@ definition(
 // 1 for errors only
 // 5 for all
 def getLogLevel(){
-    return 5
+    return 3
 }
 
 preferences {
@@ -44,14 +44,16 @@ preferences {
 
     // If we're missing a value, don't allow save
     if((!app.label) ||
-       (!timeDevice) ||
-       (!timeOn || !settings["inputStartType"]) ||
+       (!settings["timeDevice"]) ||
+       !settings["timeOn"] ||
+       !settings["inputStartType"] ||
+       !settings["inputStopType"] || 
        (settings["inputStartType"] == "time" && !settings["inputStartTime"]) ||
-       (settings["inputStopType"] == "time" && !inputStopTime) ||
-       ((settings["inputStartType"] == "sunrise" || settings["inputStartType"] == "sunset") && !inputStartSunriseType) ||
-       ((settings["inputStopType"] == "sunrise" || settings["inputStopType"] == "sunset") && !inputStopSunriseType) ||
-       ((inputStartSunriseType == "before" || inputStartSunriseType == "after") && !inputStartBefore) ||
-       ((inputStopSunriseType == "before" || inputStopSunriseType == "after") && !inputStopBefore) ||
+       (settings["inputStopType"] == "time" && !settings["inputStopTime"]) ||
+       ((settings["inputStartType"] == "sunrise" || settings["inputStartType"] == "sunset") && !settings["inputStartSunriseType"]) ||
+       ((settings["inputStopType"] == "sunrise" || settings["inputStopType"] == "sunset") && !settings["inputStopSunriseType"]) ||
+       ((settings["inputStartSunriseType"] == "before" || settings["inputStartSunriseType"] == "after") && !settings["inputStartBefore"]) ||
+       ((settings["inputStopSunriseType"] == "before" || settings["inputStopSunriseType"] == "after") && !settings["inputStopBefore"]) ||
        (hueOn && hueOff && !hueDirection) ||
        (settings["levelOn"] > 100 || settings["levelOff"] >100 || (settings["tempOn"] && settings["tempOn"] < 1800) || settings["tempOn"] > 5400 || (tempOff && tempOff < 1800) || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
 
@@ -62,12 +64,17 @@ preferences {
     }
 
     page(name: "setup", install: install, uninstall: true) {
-
         // display Name
-        displayNameOption()
-        // if Name entered, display Devices
-        if(app.label) {
+        if(!app.label){
+            section(){
+                displayNameOption()
+            }
+        } else {
+            section(){
+                displayNameOption()
             displayDevicesOption()
+                if(install) displayDisableOption()
+            }
             if(timeDevice){
                 if(!settings["inputStartType"]){
                     settings["inputStartTime"] = null
@@ -78,11 +85,13 @@ preferences {
                 if(settings["inputStartType"] != "sunrise" && settings["inputStartType"] != "sunset") {
                     settings["inputStartSunriseType"] = null
                     settings["inputStartBefore"] = null
-                } 
+                }  
+                
                 displayStartTimeSection()
 
                 if(checkTimeComplete("start") && timeOn){
                     if(!settings["inputStopType"] || settings["inputStopType"] == "none"){
+                        log.debug("true")
                         settings["inputStopTime"] = null
                         settings["inputStopSunriseType"] = null
                         settings["inputStopBefore"] = null
@@ -97,14 +106,15 @@ preferences {
                         settings["inputStopSunriseType"] = null
                         settings["inputStopBefore"] = null
                     }
-
+                     
                     displayStopTimeSection()
                 }
+
                 if(checkTimeComplete("start") && checkTimeComplete("stop")){
                     displayBrightnessOption()
                     displayTemperatureOption()
                     displayColorOption()
-                    displayChangeModeOption()
+                displayChangeModeOption()
                 }
             }
         }
@@ -147,8 +157,8 @@ def warningMessage(text){
     }
 }
 
-def displayLabel(text = "Null"){
-    paragraph "<div style=\"background-color:#DCDCDC\"><b> $text:</b></div>"
+def displayLabel(text = "Null", width = 12){
+    paragraph("<div style=\"background-color:#DCDCDC\"><b> $text:</b></div>",width:width)
 }
 
 def displayInfo(text = "Null",noDisplayIcon = null){
@@ -165,16 +175,14 @@ def displayInfo(text = "Null",noDisplayIcon = null){
 
 def displayNameOption(){
     if(app.label){
-        section(hideable: true, hidden: true, "App name: $app.label"){
-            displayLabel("Name of this schedule")
-            label title: "", required: true, submitOnChange:true
-        }
+            displayLabel("Schedule name",2)
+
+       // paragraph("Name of this schedule",width:2)
+            label title: "", required: true, width: 10,submitOnChange:true
     } else {
-        section(){
             displayLabel("Set name for this schedule")
             label title: "", required: true, submitOnChange:true
             displayInfo("Name this schedule. Each schedule must have a unique name.")
-        }
     }
 }
 
@@ -185,23 +193,23 @@ def displayDevicesOption(){
             count = 1
         }
         if(multipleDevices){
-            pluralSection = "Scheduled devices:"
             pluralInput = "Devices"
         } else {
-            pluralSection = "Scheduled device:"
             pluralInput = "Device"
         }
-
-        section(hideable: true, hidden: true, "$pluralSection $timeDevice"){
-            displayLabel("$pluralInput being scheduled")
-            input "timeDevice", "capability.switch", title: "$pluralInput:", multiple: true, required: true, submitOnChange:true
-        }
+        input "timeDevice", "capability.switch", title: "$pluralInput:", multiple: true, submitOnChange:true
     } else {
-        section(){
-            displayLabel("Select which device(s) to schedule")
-            input "timeDevice", "capability.switch", title: "Device(s)?", multiple: true, required: true, submitOnChange:true
-            displayInfo("Select which device(s) to schedule, either for controlling the device or setting default levels.")
-        }
+        //displayLabel("Select which device(s) to schedule")
+        input "timeDevice", "capability.switch", title: "Select device(s) to schedule:", multiple: true, submitOnChange:true
+        displayInfo("Select which device(s) to schedule, either for controlling the device or setting default levels.")
+    }
+}
+
+def displayDisableOption(){
+    if(disable){
+        input "disable", "bool", title: "<b><font color=\"#000099\">This schedule is disabled.</font></b> Reenable it?", submitOnChange:true
+    } else {
+        input "disable", "bool", title: "This schedule is enabled. Disable it?", submitOnChange:true
     }
 }
 
@@ -209,7 +217,7 @@ def displayStartTimeSection(){
     // If all options entered
     if(checkTimeComplete("start") && settings["timeOn"]){
         varStartTime = getTimeVariables("start")
-
+        
         if(settings["timeOn"] == "on"){
             title = "Starting: Turning on"
         } else if(settings["timeOn"] == "off"){
@@ -221,6 +229,7 @@ def displayStartTimeSection(){
         }
         section(hideable: true, hidden: true, "$title $varStartTime"){
             displayStartTypeOption()
+
             // Display exact time option
             if(settings["inputStartType"] == "time"){
                 displayTimeOption("start")
@@ -238,12 +247,14 @@ def displayStartTimeSection(){
     } else {
         section(){
             displayStartTypeOption()
+
             // Display exact time option
             if(settings["inputStartType"] == "time"){
                 displayTimeOption("start")
                 // Display sunrise/sunset type option (at/before/after)
             } else if(settings["inputStartType"] == "sunrise" || settings["inputStartType"] == "sunset"){
-                displayStartSunriseTypeOption("start")
+                displaySunriseTypeOption("start")
+                
                 // Display sunrise/sunset offset
                 if(inputStartSunriseType == "before" || inputStartSunriseType == "after"){
                     displaySunriseOffsetOption("start")
@@ -262,7 +273,6 @@ def displayStartTimeSection(){
     }
 }
 
-
 def displayStopTimeSection(){
     // If all options entered
     if(checkTimeComplete("stop")){
@@ -278,7 +288,7 @@ def displayStopTimeSection(){
         } else {
             title = "Stopping $varStopTime"
         }
-
+        
         section(hideable: true, hidden: true, "$title"){
             displayStopTypeOption()
             // Display exact time option
@@ -301,19 +311,19 @@ def displayStopTimeSection(){
 
             // Display exact time option
             if(settings["inputStopType"] == "time"){
-                displayTimeOption("stop")
+               displayTimeOption("stop")
                 // Display sunrise/sunset type option (at/before/after)
             } else if(settings["inputStopType"] == "sunrise" || settings["inputStopType"] == "sunset"){
                 displaySunriseTypeOption("stop")
                 // Display sunrise/sunset offset
                 if(inputStopSunriseType == "before" || inputStopSunriseType == "after"){
-                    displaySunriseOffsetOption("stop")
+                   displaySunriseOffsetOption("stop")
                 }
             }
             if(checkTimeComplete("stop") && settings["inputStopType"] != "none") displayActionOption("stop")
         }
     }
-    if(checkTimeComplete("stop") && settings["inputStopType"] != "none"){
+        if(checkTimeComplete("stop") && settings["inputStopType"] != "none"){
         displayTimeDaysOption()
     }
     if(checkTimeComplete("stop") && settings["inputStopType"] != "none"){
@@ -390,21 +400,21 @@ def displayActionOption(lcType){
     } else {
         varName = "timeOff"
     }
-
+    
     varStartTime = getTimeVariables(lcType)
     if(!checkTimeComplete(lcType)) return
-    timeDevice.each{
-        if(count == 1) multipleDevices = true
-        count = 1
-    }
-    if(multipleDevices){
-        plural = "devices"
-    } else {
-        plural = "device"
-    }
+            timeDevice.each{
+            if(count == 1) multipleDevices = true
+            count = 1
+        }
+        if(multipleDevices){
+            plural = "devices"
+        } else {
+            plural = "device"
+        }
     if(settings["timeOn"]){
-
-        input varName, "enum", title: "Turn devices on or off?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on": "Turn On", "off": "Turn Off", "toggle": "Toggle"], submitOnChange:true
+        
+    input varName, "enum", title: "Turn devices on or off?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on": "Turn On", "off": "Turn Off", "toggle": "Toggle"], submitOnChange:true
     } else {
         input varName, "enum", title: "Turn devices on or off?", multiple: false, width: 12, options: ["none": "Don't turn on or off (leave as is)","on": "Turn On", "off": "Turn Off", "toggle": "Toggle"], submitOnChange:true
     }
@@ -441,7 +451,7 @@ def displayIfModeOption(){
         displayInfo(helpTip)
     }
 }
-
+  
 def getTimeVariables(lcType){
     ucType = lcType.capitalize()
     // If time, then set string to "at [time]"
@@ -509,18 +519,18 @@ def displayBrightnessOption(){
     hidden = true
     // If just start or stop level, then don't hide
     if((settings["levelOn"] && !settings["levelOff"] && settings["inputStopType"] != "none") || (settings["levelOff"] && !settings["levelOn"])) hidden = false
-
+ 
     if(!settings["levelOn"] && (!settings["levelOff"] || settings["inputStopType"] == "none")){
         sectionTitle = "<b>Click to schedule brightness</b> (optional)"
     } else {
         // If just start level
-        if(settings["levelOn"] && (!settings["levelOff"] && settings["inputStopType"] != "none")) {
+        if(settings["levelOn"] && !settings["levelOff"]) {
             sectionTitle = "Start brightness $settings.levelOn%"
-            // Both start and stop levels
+        // Both start and stop levels
         } else if(settings["levelOn"] && settings["levelOff"]) {
             sectionTitle = "Transitioning brightness from $settings.levelOn% to $settings.levelOff%"
-            // Just stop level
-        } else if(settings["levelOff"]){
+        // Just stop level
+        } else if(!settings["levelOn"] && settings["levelOff"]){
             sectionTitle = "Stop brightness $settings.levelOff%"
         }
     }
@@ -528,7 +538,6 @@ def displayBrightnessOption(){
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["inputStopType"] == "none"){
             //Should allow setting level, temp and color when schedule ends, even if not turning the device on or off
-            displayLabel("Enter default brightness")
             input "levelOn", "number", title: "Set brightness ($varStartTime)?", width: 12, submitOnChange:true
             if(!settings["levelOn"]) {
                 displayInfo("Enter the percentage of brightness when turning on, from 1 to 100. Required field (or unselect \"Change brightness\").")
@@ -559,22 +568,22 @@ def displayTemperatureOption(){
     hidden = true
     // If just start or stop level, then don't hide
     if((settings["tempOn"] && !settings["tempOff"] && settings["inputStopType"] != "none") || (settings["tempOff"] && !settings["tempOn"])) hidden = false
-
+ 
     if(!settings["tempOn"] && (!settings["tempOff"] || settings["inputStopType"] == "none")){
         sectionTitle = "<b>Click to schedule temperature color</b> (optional)"
     } else {
         // If just start level
-        if(settings["tempOn"] && (!settings["tempOff"] && settings["inputStopType"] != "none")) {
+        if(settings["tempOn"] && !settings["tempOff"]) {
             sectionTitle = "Start temperature color " + settings["tempOn"] + "K"
-            // Both start and stop levels
+        // Both start and stop levels
         } else if(settings["tempOn"] && settings["tempOff"]) {
             sectionTitle = "Transitioning temperature color from " + settings["tempOn"] + "K to " + settings["tempOff"] + "K"
-            // Just stop level
+        // Just stop level
         } else if(settings["tempOff"]){
             sectionTitle = "Stop temperature color " + settings["tempOff"] + "K"
         }
     }
-
+   
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["inputStopType"] == "none"){
             //Should allow setting level, temp and color when schedule ends, even if not turning the device on or off
@@ -611,12 +620,12 @@ def displayColorOption(){
     if(!settings["hueOn"] && !settings["hueOff"]  && !settings["satOn"] && !settings["satOff"]) hidden = true
     // If everything enetered, hide
     if(settings["hueOn"] && ((settings["hueOff"] && settings["hueDirection"]) || settings["inputStopType"] == "none") && settings["satOn"] && (settings["satOff"] || settings["inputStopType"] == "none")) hidden = true
-
+    
     if(!settings["hueOn"] && !settings["satOn"] && ((!settings["hueOff"] && !settings["satOff"]) || settings["inputStopType"] == "none")){
         hueTitle = "<b>Click to schedule color (hue and/or saturation)</b> (optional)"
     } else {
         // If just start level
-        if(settings["hueOn"] && (!settings["hueOff"] && settings["inputStopType"] != "none")) {
+        if(settings["hueOn"] && !settings["hueOff"]) {
             hueTitle = "Start hue " + settings["hueOn"]
             // Both start and stop levels
         } else if(settings["hueOn"] && settings["hueOff"]) {
@@ -644,7 +653,7 @@ def displayColorOption(){
     } else if(satTitle){
         sectionTitle = satTitle
     }
-
+    
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["inputStopType"] == "none"){
             //Should allow setting level, temp and color when schedule ends, even if not turning the device on or off
@@ -670,25 +679,25 @@ def displayColorOption(){
                 input "hueOn", "number", title: "Beginning hue?", width: 6, submitOnChange:true
                 input "hueOff", "number", title: "and ending hue?", width: 6, submitOnChange:true
             }
-            if(hueOn && hueOff && hueDirection){
-                displayInfo("Hue is the shade of color, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
-            } else if(hueOn && hueOff && !hueDirection){
-                displayInfo("Hue is the shade of color. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. It will transition from beginning to ending temperature for the duration of the schedule. For \"direction\", if for instances, a start value of 1 and end value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green.")
-            } else if(!hueOn || !hueOff){
-                displayInfo("Hue is the shade of color. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. If entering both starting and ending hue, it will transition from beginning to ending temperature for the duration of the schedule.")
-            } else if(!hueOn && !hueOff){
-                displayInfo("Hue is the shade of color, from 1 to 100, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. If entering both starting and ending hue, it will transition from beginning to ending temperature for the duration of the schedule. Optional field.")
-            }
+        if(hueOn && hueOff && hueDirection){
+            displayInfo("Hue is the shade of color, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73.")
+        } else if(hueOn && hueOff && !hueDirection){
+            displayInfo("Hue is the shade of color. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. It will transition from beginning to ending temperature for the duration of the schedule. For \"direction\", if for instances, a start value of 1 and end value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green.")
+        } else if(!hueOn || !hueOff){
+            displayInfo("Hue is the shade of color. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. If entering both starting and ending hue, it will transition from beginning to ending temperature for the duration of the schedule.")
+        } else if(!hueOn && !hueOff){
+            displayInfo("Hue is the shade of color, from 1 to 100, when starting and/or ending the schedule. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. If entering both starting and ending hue, it will transition from beginning to ending temperature for the duration of the schedule. Optional field.")
+        }
             displayLabel("Enter beginning and/or color saturation")
             input "satOn", "number", title: "Beginning color saturation?", width: 6, submitOnChange:true
             input "satOff", "number", title: "and ending color saturation?", width: 6, submitOnChange:true
-            if(!satOn && !satOff){
-                displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, when starting and/or ending the schedule. 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from beginning to ending saturation for the duration of the schedule. Optional field.")
-            } else if(!satOn || !satOff){
-                displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from beginning to ending saturation for the duration of the schedule. Optional field.")
-            } else {
-                displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.")
-            }
+        if(!satOn && !satOff){
+            displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, when starting and/or ending the schedule. 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from beginning to ending saturation for the duration of the schedule. Optional field.")
+        } else if(!satOn || !satOff){
+            displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from beginning to ending saturation for the duration of the schedule. Optional field.")
+        } else {
+            displayInfo("Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.")
+        }
         }
 
     }
@@ -715,25 +724,25 @@ def displayModeOption(){
 }
 
 def displayChangeModeOption(){
-    hidden = true
+        hidden = true
     // If just start or stop level, then don't hide
     if((settings["modeChangeOn"] && !settings["modeChangeOff"] && settings["inputStopType"] != "none") || (settings["modeChangeOn"] && !settings["modeChangeOff"])) hidden = false
-
+ 
     if(!settings["modeChangeOn"] && (!settings["modeChangeOff"] || settings["inputStopType"] == "none")){
-        sectionTitle = "<b>Click to schedule Mode change</b> (optional)"
+        sectionTitle = "<b>Click to change Modes</b> (optional)"
     } else {
         // If just start level
         if(settings["modeChangeOn"] && (!settings["modeChangeOff"] && settings["inputStopType"] != "none")) {
             sectionTitle = "Start Mode " + settings["modeChangeOn"]
-            // Both start and stop levels
+        // Both start and stop levels
         } else if(settings["modeChangeOn"] && settings["modeChangeOff"]) {
             sectionTitle = "Start Mode " + settings["modeChangeOn"] + "; stop Mode " + settings["modeChangeOff"]
-            // Just stop level
+        // Just stop level
         } else if(settings["modeChangeOff"]){
             sectionTitle = "Stop Mode " + settings["modeChangeOff"]
         }
     }
-
+   
     section(hideable: true, hidden: hidden, sectionTitle){
 
         if(inputStopType == "none"){
@@ -746,6 +755,7 @@ def displayChangeModeOption(){
         }
     }
 }
+
 
 /*
 disableAll - bool - Flag to disable all schedules
@@ -762,10 +772,6 @@ inputStopType - emum (none, time, sunrise, sunset) - Sets whether there is a sto
 inputStopTime - time - Stop Time (only displays when inputStopType = "time")
 inputStopSunriseType - enum (at, before, after) - Sets whether stop time is sunrise/sunset time, or uses positive or negative offset (only displays if inputStartType = "sunrise" or "sunset")
 inputStopBefore - number (1-) - Number of minutes before/after sunrise/sunset (only displays if inputStartType = "sunrise" or "sunset" and inputStartSunriseType = "before" or "after")
-levelEnable - bool - Flag to display level options
-tempEnable - bool - Flag to display temp options
-colorEnable - bool - Flag to display color options
-modeEnable - bool - Flag to display mode options
 levelOn - number (1-100) - Level to set at start time
 levelOff - number (1-100) - Level to set at stop time
 tempOn - number (1800-5400) - Temperature to set at start time
@@ -787,13 +793,11 @@ ifMode - mode - Mode system must have for schedule to run
 /* ************************************************************************ */
 
 def installed() {
-    if(checkLog(a="trace")) putLog(790, "Installed",a)
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    if(checkLog(a="trace")) putLog(796,"Updated",a)
     initialize()
 }
 
@@ -831,13 +835,6 @@ def initialize() {
         settings.hueOff = null
         settings.satOff = null
     }
-    if(!levelEnable) settings.levelOn = null
-    if(!tempEnable) settings.tempOn = null
-    if(!colorEnable){
-        settings.hueOn = null
-        settings.satOn = null
-    }
-    if(!modeEnable) settings.modeChangeOn = null
     if(!levelOn || levelOn == levelOff) settings.levelOff = null
     if(!tempOn || tempOn == tempOff) settings.tempOff = null
     if(!hueOn || hueOn == hueOff) settings.hueOff = null
@@ -850,7 +847,6 @@ def initialize() {
     setDailySchedules()
     setIncrementalSchedule()
 
-    if(checkLog(a="trace")) putLog(853,"Initialized",a)
     return true
 }
 
@@ -891,12 +887,12 @@ def setDailySchedules(type = null){
 
 def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
-    if(checkLog(a="debug")) putLog(894,"Scheduling runDailyStartSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
+    if(checkLog(a="debug")) putLog(889,"Scheduling runDailyStartSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
 }
 
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
-    if(checkLog(a="debug")) putLog(899,"Scheduling runDailyStopSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
+    if(checkLog(a="debug")) putLog(894,"Scheduling runDailyStopSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)",a)
 }
 
 // Performs actual changes for incremental schedule
@@ -909,7 +905,7 @@ def runIncrementalSchedule(){
 
     // If device(s) not on, exit
     if(!parent.isOnMulti(timeDevice)){
-        if(checkLog(a="debug")) putLog(912,"Since $timeDevice is off, stopping recurring schedules",a)
+        if(checkLog(a="debug")) putLog(907,"Since $timeDevice is off, stopping recurring schedules",a)
         return
     }
 
@@ -930,10 +926,10 @@ def runIncrementalSchedule(){
 def setIncrementalSchedule(){
     unschedule(runIncrementalSchedule)
     if(!getScheduleActive()) {
-        if(checkLog(a="trace")) putLog(933,"Schedule doesn't require active updates, exiting runIncrementalSchedule",a)
         return
     } else {
-        if(checkLog(a="debug")) putLog(936,"Scheduling incremental for 20 seconds",a)
+        if(checkLog(a="debug")) putLog(930,"Scheduling incremental for 20 seconds",a)
+        runIn(20,runIncrementalSchedule)
     }
 }
 
@@ -1003,7 +999,7 @@ def runDailyStopSchedule(){
 // Returns array for level, temp, hue and sat
 // Should NOT return true or false; always return defaults array
 // Array should return text "Null" for null values
-def getDefaultLevel(singleDevice,appLabel){
+def getDefaultLevel(singleDevice, appLabel){
     // If no device match, exit
     def result = timeDevice.id.find { it == singleDevice.id}
     if(!result) return
@@ -1012,14 +1008,14 @@ def getDefaultLevel(singleDevice,appLabel){
 
     // If schedule isn't active, return null
     if(!getScheduleNotInactive()) {
-        if(checkLog(a="debug")) putLog(1015,"$message but isn't active",a)
+        if(checkLog(a="debug")) putLog(1009,"$message but isn't active",a)
         return
     }
 
     // If schedule doesn't establish a "defualt", exit
     // Don't exit for no stop levels, unless it's not called from daily schedule
     if(!levelOn && !tempOn && !hueOn && !satOn) {
-        if(checkLog(a="debug")) putLog(1022,"$message but has no levels",a)
+        if(checkLog(a="debug")) putLog(1016,"$message but has no levels",a)
         return
     }
 
@@ -1029,11 +1025,11 @@ def getDefaultLevel(singleDevice,appLabel){
         elapsedFraction = getElapsedFraction()
 
         if(!elapsedFraction) {
-            if(checkLog(a="error")) putLog(1032,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
+            if(checkLog(a="error")) putLog(1026,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
             return
         }
     }
-    if(checkLog(a="debug")) putLog(1036,message,a)
+    if(checkLog(a="debug")) putLog(1030,message,a)
     // Initialize defaults map
     defaults = [:]
 
@@ -1108,7 +1104,7 @@ def getDefaultLevel(singleDevice,appLabel){
 
     // Avoid returning an empty set
     if(!defaults.level && !defaults.temp && !defaults.sat && !defaults.hue) {
-        if(checkLog(a="error")) putLog(1111,"getDefaultLevel failed to capture default levels",a)
+        if(checkLog(a="error")) putLog(1105,"getDefaultLevel failed to capture default levels",a)
         return
     }
 
@@ -1122,10 +1118,10 @@ def handleStateChange(event){
     // no override levels, and not turning off if no level
     // If an app requested the state change, then exit
     if(parent.getStateRequest(event.device,app.label)) {
-        if(checkLog(a="debug")) putLog(1125,"Device state $event.device changed by an app; exiting handleStateChange",a)
+        if(checkLog(a="debug")) putLog(1119,"Device state $event.device changed by an app; exiting handleStateChange",a)
         return
     } else {
-        if(checkLog(a="debug")) putLog(1128,"Device $event.device turned on outside of app; caught by handleStateChange",a)
+        if(checkLog(a="debug")) putLog(1122,"Device $event.device turned on outside of app; caught by handleStateChange",a)
     }
 
     // If defaults, then there's an active schedule
@@ -1137,26 +1133,29 @@ def handleStateChange(event){
 
     // Set default level
     parent.setLevelSingle(defaults,event.device,app.label)
-    if(checkLog(a="debug")) putLog(1140,"Set levels $defaults for $event.device, which was turned on outside of the app",a)
+    if(checkLog(a="debug")) putLog(1134,"Set levels $defaults for $event.device, which was turned on outside of the app",a)
 
     // if toggling on, reschedule incremental
     parent.rescheduleIncrementalSingle(event.device,app.label)
+    
     return
 }
 
 def setTime(){
-    if(!setStartStopTime("start")) return
+    if(setStartStopTime("start")) {
     setStartStopTime("stop") 
     if(!atomicState.totalSeconds || (inputStartType == "sunrise" || inputStartType == "sunset" || inputStopType == "sunrise" || inputStopType == "sunset"))
     setTotalSeconds()
-    return true
+    returnValue = true
+    }
+    return returnValue
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
     if(type != "start" && type != "stop") {
-        if(checkLog(a="error")) putLog(1159,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
+        if(checkLog(a="error")) putLog(1156,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
         return
     }
 
@@ -1182,7 +1181,7 @@ type = "Stop"
     } else if(settings["input${type}Type"] == "sunset"){
         value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     } else {
-        if(checkLog(a="error")) putLog(1185,"input" + type + "Type set to " + settings["input${type}Type"],a)
+        if(checkLog(a="error")) putLog(1182,"input" + type + "Type set to " + settings["input${type}Type"],a)
         return
     }
 
@@ -1190,9 +1189,9 @@ type = "Stop"
         if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
 
-    if(checkLog(a="trace")) putLog(1193,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
     if(type == "Start") atomicState.start = value
     if(type == "Stop") atomicState.stop = value
+    
     return true
 }
 
@@ -1229,7 +1228,6 @@ def setWeekDays(){
             dayString += "SUN"
         }
     }
-    if(checkLog(a="debug")) putLog(1232,"weekDaysToNum returning $dayString",a)
     state.weekDays = dayString
     return true
 }
@@ -1244,7 +1242,6 @@ def setTotalSeconds(){
 
     // Calculate duration of schedule
     atomicState.totalSeconds = Math.floor((Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
-    if(checkLog(a="trace")) putLog(1247,"Schedule total seconds is $atomicState.totalSeconds",a)
     return true
 }
 
@@ -1255,7 +1252,7 @@ def getElapsedFraction(){
     if(!atomicState.stop || !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return false
 
     elapsedSeconds = Math.floor((new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
-    if(checkLog(a="debug")) putLog(1258,"$elapsedSeconds seconds of the schedule has elpased.",a)
+    if(checkLog(a="debug")) putLog(1253,"$elapsedSeconds seconds of the schedule has elpased.",a)
     //Divide for percentage of time expired (avoid div/0 error)
     if(elapsedSeconds < 1){
         elapsedFraction = 1 / atomicState.totalSeconds * 1000 / 1000
@@ -1264,11 +1261,10 @@ def getElapsedFraction(){
     }
 
     if(elapsedFraction > 1) {
-        if(checkLog(a="error")) putLog(1267,"Over 100% of the schedule has elapsed, so start or stop time hasn't updated correctly.",a)
+        if(checkLog(a="error")) putLog(1262,"Over 100% of the schedule has elapsed, so start or stop time hasn't updated correctly.",a)
         return
     }
 
-    if(checkLog(a="debug")) putLog(1271,Math.floor(elapsedFraction * 100) + "% has elapsed in the schedule",a)
     return elapsedFraction
 }
 
@@ -1341,9 +1337,6 @@ def getStateDeviceChange(singleDeviceId){
         // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
         resetStateDeviceChange()
         // Allows for using either .contains or .indexof; if .contains works, remove != -1
-        if(! value || value != -1) return value
-    } else {
-        return false
     }
 }
 
@@ -1358,7 +1351,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1361,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
+        if(checkLog(a="error")) putLog(1352,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -1368,17 +1361,15 @@ def setStateMulti(deviceAction,device,appAction = null){
     // level changes and the schedule not see a state change was from child-app.
     // What's a realistic number to use if someone has a lot of devices attached to a lot 
     // of Picos with a lot of schedules? Probably could be as low as 100 or 250.
-    stateDeviceChangeResetMillis = 500
+    stateDeviceChangeResetMillis = 1000
 
     if(deviceAction == "off"){
         // Reset device change, since we know the last event from this device didn't turn anything on
         resetStateDeviceChange()
         // Turn off devices
         parent.setStateMulti("off",device,app.label)
-        return true
-    }
-
-    if(deviceAction == "on"){
+        returnValue = true
+    } else if(deviceAction == "on"){
         // Get list of all devices to be turned on (for schedule overriding)
         device.each{
             // Add device ids to deviceChange, so schedule knows it was turned on by an app
@@ -1394,13 +1385,11 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             parent.getAndSetSingleLevels(it,appAction,app.label)
         }
-        if(checkLog(a="debug")) putLog(1397,"Device id's turned on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1386,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "toggle"){
+        returnValue = true
+    } else if(deviceAction == "toggle"){
         // Create toggleOnDevice list, used to track which devices are being toggled on
         toggleOnDevice = []
         // Set count variable, used for toggleOnDevice
@@ -1423,7 +1412,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        if(checkLog(a="debug")) putLog(1426,"Device id's toggled on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1413,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -1438,10 +1427,8 @@ def setStateMulti(deviceAction,device,appAction = null){
         }
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "resume"){
+        returnValue = true
+    } else if(deviceAction == "resume"){
         // Reset device change, since we know the last event from this device didn't turn anything on
         resetStateDeviceChange()
         device.each{
@@ -1464,25 +1451,23 @@ def setStateMulti(deviceAction,device,appAction = null){
             // if we got default, we'd not turn it off
 
             if(defaults){
-                if(checkLog(a="debug")) putLog(1467,logMessage,a)
+                if(checkLog(a="debug")) putLog(1452,logMessage,a)
                 parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
             } else {
-                if(checkLog(a="trace")) putLog(1471,"No schedule to resume for $it; turning off",a)
                 parent.setStateSingle("off",it,app.label)
             }
         }
-        return true
-    }
-
-    if(deviceAction == "none"){
+        returnValue = true
+    } else if(deviceAction == "none"){
         // Reset device change, since we know the last event from this device didn't turn anything on
         resetStateDeviceChange()
         // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
         // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
         parent.rescheduleIncrementalMulti(device,app.label)
-        return true
+        returnValue = true
     }
+    return returnValue
 }
 
 def checkLog(type = null){
@@ -1497,11 +1482,11 @@ def checkLog(type = null){
         case "info":
         if(state.logLevel > 2) return "info"
         break
-        case "trace":
-        if(state.logLevel > 3) return "trace"
-        break
         case "debug":
         if(state.logLevel == 5) return "debug"
+        break
+        case "trace":
+        if(state.logLevel > 3) return "trace"
     }
     return false
 }
@@ -1527,11 +1512,11 @@ def putLog(lineNumber,message = null,type = "trace"){
         case "info":
         log.info(logMessage)
         return true
-        case "trace":
-        log.trace(logMessage)
-        return true
         case "debug":
         log.debug(logMessage)
+        return true
+        case "trace":
+        log.trace(logMessage)
         return true
     }
     return
