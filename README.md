@@ -44,6 +44,6 @@ Master - Washer-Dryer.groovy:
 	Production state: Early alpha.
 ------------------------------------------------
 schedule.drawio:
-	Flowchart of logic for schedule app.
+	Flowchart of logic for schedule app using draw.io, available at https://www.diagrams.net/
 
 	Production state: Early.
