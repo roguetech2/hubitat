@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.5.03
+*  Version: 0.5.04
 *
 ***********************************************************************************************************************/
 
@@ -918,9 +918,13 @@ def runIncrementalSchedule(){
 def setIncrementalSchedule(){
     unschedule(runIncrementalSchedule)
     if(!getScheduleActive()) {
+        atomicState.incrementalLevel = false
+        atomicState.incrementalTemp = false
+        atomicState.incrementalSat = false
+        atomicState.incrementalHue = false
         return
     } else {
-        if(checkLog(a="debug")) putLog(923,"Scheduling incremental for 20 seconds",a)
+        if(checkLog(a="debug")) putLog(927,"Scheduling incremental for 20 seconds",a)
         runIn(20,runIncrementalSchedule)
     }
 }
@@ -1039,14 +1043,14 @@ def getDefaultLevel(singleDevice, appLabel){
 
     // If schedule isn't active, return null
     if(!getScheduleNotInactive()) {
-        if(checkLog(a="debug")) putLog(1042,"$message but isn't active",a)
+        if(checkLog(a="debug")) putLog(1046,"$message but isn't active",a)
         return
     }
 
     // If schedule doesn't establish a "defualt", exit
     // Don't exit for no stop levels, unless it's not called from daily schedule
     if(!levelOn && !tempOn && !hueOn && !satOn) {
-        if(checkLog(a="debug")) putLog(1049,"$message but has no levels",a)
+        if(checkLog(a="debug")) putLog(1053,"$message but has no levels",a)
         return
     }
 
@@ -1056,59 +1060,99 @@ def getDefaultLevel(singleDevice, appLabel){
         elapsedFraction = getElapsedFraction()
 
         if(!elapsedFraction) {
-            if(checkLog(a="error")) putLog(1059,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
+            if(checkLog(a="error")) putLog(1063,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
             return
         }
     }
-    if(checkLog(a="debug")) putLog(1063,message,a)
+    if(checkLog(a="debug")) putLog(1067,message,a)
     // Initialize defaults map
     defaults = [:]
 
     if(levelOn && levelOff){
         if(levelOff > levelOn){
-            defaults.put("level", (levelOff - levelOn) * elapsedFraction + levelOn as int)
+            newLevel = ((levelOff - levelOn) * elapsedFraction + levelOn) as int
+                if(atomicState.incrementalLevel != newLevel){
+                    atomicState.incrementalLevel = newLevel
+                    defaults.put("level", newLevel)
+                }
         } else {
-            defaults.put("level", levelOn - (levelOn - levelOff) * elapsedFraction as int)
+            newLevel = (levelOn - (levelOn - levelOff) * elapsedFraction) as int
+                if(atomicState.incrementalLevel != newLevel){
+                    atomicState.incrementalLevel = newLevel
+                    defaults.put("level", newLevel)
+                }
         }
     }
 
     if(tempOn && tempOff){
         if(tempOff > tempOn){
-            defaults.put("temp", (tempOff - tempOn) * elapsedFraction + tempOn as int)
+            newTemp = ((tempOff - tempOn) * elapsedFraction + tempOn) as int
+                if(atomicState.incrementalTemp != newTemp){
+                    atomicState.incrementalTemp = newTemp
+                    defaults.put("temp", newTemp)
+                }
         } else {
-            defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedFraction as int)
+            newTemp = (tempOn - (tempOn - tempOff) * elapsedFraction) as int
+                if(atomicState.incrementalTemp != newTemp){
+                    atomicState.incrementalTemp = newTemp
+                    defaults.put("temp", newTemp)
+                }
         }
     }
 
     if(hueOn && hueOff){
         // hueOn=25, hueOff=75, going 25, 26...74, 75
         if(hueOff > hueOn && hueDirection == "forward"){
-            defaults.put("hue", (hueOff - hueOn) * elapsedFraction + hueOn as int)
+            newHue = ((hueOff - hueOn) * elapsedFraction + hueOn) as int
+                if(atomicState.incrementalHue != newHue){
+                    atomicState.incrementalHue = newHue
+                    defaults.put("hue", newHue)
+                }
             // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
-        } else if(hueOff > hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * elapsedFraction as int)
-            if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
+        } else if(hueOff > hueOn && hueDirection == "reverse"){
+            newHue = (hueOn - (100 - hueOff + hueOn)  * elapsedFraction) as int
+                if(newHue < 1) newHue += 100
+                if(atomicState.incrementalHue != newHue){
+                    atomicState.incrementalHue = newHue
+                    defaults.put("hue", newHue)
+                }
             //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
         } else if(hueOff < hueOn && hueDirection == "forward"){
-            defaults.put("hue", (100 - hueOn + hueOff)  * elapsedFraction + hueOn as int)
-            if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
+            newHue = ((100 - hueOn + hueOff)  * elapsedFraction + hueOn) as int
+                if(newHue > 100) newHue += -100
+                if(atomicState.incrementalHue != newHue){
+                    atomicState.incrementalHue = newHue
+                    defaults.put("hue", newHue)
+                }
             //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
-        } else if(hueOff < hueOn && hueDirection == "Reverse"){
-            defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedFraction as int)
+        } else if(hueOff < hueOn && hueDirection == "reverse"){
+            newHue = (hueOn - (hueOn - hueOff) * elapsedFraction) as int
+                if(atomicState.incrementalHue != newHue){
+                    atomicState.incrementalHue = newHue
+                    defaults.put("hue", newHue)
+                }
         }
     }
 
     if(satOn && satOff){
         if(satOff > satOn){
-            defaults.put("sat", (satOff - satOn) * elapsedFraction + satOn as int)
+            newSat = ((satOff - satOn) * elapsedFraction + satOn) as int
+                if(atomicState.incrementalSat != newSat){
+                    atomicState.incrementalSat = newSat
+                    defaults.put("sat", newSat)
+                }
         } else {
-            defaults.put("sat", satOn - (satOn - satOff) * elapsedFraction as int)
+            newSat = (satOn - (satOn - satOff) * elapsedFractio) as int
+                if(atomicState.incrementalSat != newSat){
+                    atomicState.incrementalSat = newSat
+                    defaults.put("sat", newSat)
+                }
         }
     }
 
     // Avoid returning an empty set
     if(!defaults.level && !defaults.temp && !defaults.sat && !defaults.hue) {
-        if(checkLog(a="error")) putLog(1111,"getDefaultLevel failed to capture default levels",a)
+        if(checkLog(a="debug")) putLog(1155,"Levels haven't changed since last increment",a)
         return
     }
 
@@ -1122,10 +1166,10 @@ def handleStateChange(event){
     // no override levels, and not turning off if no level
     // If an app requested the state change, then exit
     if(parent.getStateRequest(event.device,app.label)) {
-        if(checkLog(a="debug")) putLog(1125,"Device state $event.device changed by an app; exiting handleStateChange",a)
+        if(checkLog(a="debug")) putLog(1169,"Device state $event.device changed by an app; exiting handleStateChange",a)
         return
     } else {
-        if(checkLog(a="debug")) putLog(1128,"Device $event.device turned on outside of app; caught by handleStateChange",a)
+        if(checkLog(a="debug")) putLog(1172,"Device $event.device turned on outside of app; caught by handleStateChange",a)
     }
 
     // If defaults, then there's an active schedule
@@ -1137,7 +1181,7 @@ def handleStateChange(event){
 
     // Set default level
     parent.setLevelSingle(defaults,event.device,app.label)
-    if(checkLog(a="debug")) putLog(1140,"Set levels $defaults for $event.device, which was turned on outside of the app",a)
+    if(checkLog(a="debug")) putLog(1184,"Set levels $defaults for $event.device, which was turned on outside of the app",a)
 
     // if toggling on, reschedule incremental
     parent.rescheduleIncrementalSingle(event.device,app.label)
@@ -1159,7 +1203,7 @@ def setTime(){
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
     if(type != "start" && type != "stop") {
-        if(checkLog(a="error")) putLog(1162,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
+        if(checkLog(a="error")) putLog(1206,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
         return
     }
 
@@ -1176,7 +1220,7 @@ def setStartStopTime(type){
     } else if(settings["input${type}Type"] == "sunset"){
         value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     } else {
-        if(checkLog(a="error")) putLog(1179,"input" + type + "Type set to " + settings["input${type}Type"],a)
+        if(checkLog(a="error")) putLog(1223,"input" + type + "Type set to " + settings["input${type}Type"],a)
         return
     }
 
@@ -1249,7 +1293,7 @@ def getElapsedFraction(){
     elapsedSeconds = Math.floor((new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
     // If elapsedSeconds is more than a day, subtract a day
     if(elapsedSeconds > 86400) elapsedSeconds += -86400
-    if(checkLog(a="debug")) putLog(1252,"$elapsedSeconds seconds of the schedule has elpased.",a)
+    if(checkLog(a="debug")) putLog(1296,"$elapsedSeconds seconds of the schedule has elpased.",a)
     //Divide for percentage of time expired (avoid div/0 error)
     if(elapsedSeconds < 1){
         elapsedFraction = 1 / atomicState.totalSeconds * 1000 / 1000
@@ -1258,7 +1302,7 @@ def getElapsedFraction(){
     }
 
     if(elapsedFraction > 1) {
-        if(checkLog(a="error")) putLog(1261,"Over 100% of the schedule has elapsed, so start or stop time hasn't updated correctly. (Elapsed seconds: $elapsedSeconds; Total seconds: $atomicState.totalSeconds; Elapsed fraction: $elapsedFraction)",a)
+        if(checkLog(a="error")) putLog(1305,"Over 100% of the schedule has elapsed, so start or stop time hasn't updated correctly. (Elapsed seconds: $elapsedSeconds; Total seconds: $atomicState.totalSeconds; Elapsed fraction: $elapsedFraction)",a)
         return
     }
 
@@ -1348,7 +1392,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1351,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
+        if(checkLog(a="error")) putLog(1395,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -1382,7 +1426,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             parent.getAndSetSingleLevels(it,appAction,app.label)
         }
-        if(checkLog(a="debug")) putLog(1385,"Device id's turned on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1429,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
         returnValue = true
@@ -1409,7 +1453,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        if(checkLog(a="debug")) putLog(1412,"Device id's toggled on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1456,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -1448,7 +1492,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // if we got default, we'd not turn it off
 
             if(defaults){
-                if(checkLog(a="debug")) putLog(1451,logMessage,a)
+                if(checkLog(a="debug")) putLog(1495,logMessage,a)
                 parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
             } else {
