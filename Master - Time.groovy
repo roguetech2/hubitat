@@ -6,14 +6,14 @@
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
 *  General Public License as published by the Free Software Foundation, either version 3 of the License, or
 *  (at your option) any later version.
-*run
+*
 *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 *  <http://www.gnu.org/licenses/> for more details.
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.5.04
+*  Version: 0.5.05
 *
 ***********************************************************************************************************************/
 
@@ -44,17 +44,17 @@ preferences {
 
     // If we're missing a value, don't allow save
     if((!app.label) ||
-       (!settings["timeDevice"]) ||
-       (!settings["timeOn"] || !settings["inputStartType"]) ||
-       !settings["inputStopType"] || 
-       (settings["inputStartType"] == "time" && !settings["inputStartTime"]) ||
-       (settings["inputStopType"] == "time" && !settings["inputStopTime"]) ||
-       ((settings["inputStartType"] == "sunrise" || settings["inputStartType"] == "sunset") && !settings["inputStartSunriseType"]) ||
-       ((settings["inputStopType"] == "sunrise" || settings["inputStopType"] == "sunset") && !settings["inputStopSunriseType"]) ||
-       ((settings["inputStartSunriseType"] == "before" || settings["inputStartSunriseType"] == "after") && !settings["inputStartBefore"]) ||
-       ((settings["inputStopSunriseType"] == "before" || settings["inputStopSunriseType"] == "after") && !settings["inputStopBefore"]) ||
+       (!timeDevice) ||
+       (!timeOn || !inputStartType) ||
+       !inputStopType || 
+       (inputStartType == "time" && !inputStartTime) ||
+       (inputStopType == "time" && !inputStopTime) ||
+       ((inputStartType == "sunrise" || inputStartType == "sunset") && !inputStartSunriseType) ||
+       ((inputStopType == "sunrise" || inputStopType == "sunset") && !inputStopSunriseType) ||
+       ((inputStartSunriseType == "before" || inputStartSunriseType == "after") && !inputStartBefore) ||
+       ((inputStopSunriseType == "before" || inputStopSunriseType == "after") && !inputStopBefore) ||
        (hueOn && hueOff && !hueDirection) ||
-       (settings["levelOn"] > 100 || settings["levelOff"] >100 || (settings["tempOn"] && settings["tempOn"] < 1800) || settings["tempOn"] > 5400 || (tempOff && tempOff < 1800) || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
+       (levelOn > 100 || levelOff >100 || (tempOn && tempOn < 1800) || tempOn > 5400 || (tempOff && tempOff < 1800) || tempOff > 5400 || hueOn > 100 || hueOff > 100 || satOn > 100 || satOff > 100)) noInstall = true
 
     if(noInstall) {
         install = false
@@ -436,10 +436,10 @@ def displayTimeDaysOption(){
 def displayIfModeOption(){
     if(settings["ifMode"]){
         sectionText = "Only with Mode: $settings.ifMode"
-        helpTip = "This will limit the schedule from running unless Hubitat's Mode is $settings.ifMode."
+        helpTip = "This will limit the schedule from running to only when Hubitat's Mode is $settings.ifMode."
     } else {
         sectionText = "<b>Click to select with what Mode</b> (optional)"
-        helpTip = "This will limit the schedule from running unless Hubitat's Mode is as selected."
+        helpTip = "This will limit the schedule from running to only when Hubitat's Mode is as selected."
     }
 
     section(hideable: true, hidden: true, sectionText){
@@ -553,11 +553,11 @@ def displayBrightnessOption(){
             }
         }
 
-    }
     if(!settings["levelOn"] && levelOff && timeOff == "off") warningMessage("With no beginning brightness while setting Device(s) to turn off, setting an ending brightness won't do anything.")
     if(settings["levelOn"] && settings["levelOn"] == settings["levelOff"]) warningMessage("Beginning and ending brightness are both set to $settings['levelOn']. This won't hurt anything, but the Stop brightness setting won't actually <i>do</i> anything.")
     if(settings["levelOn"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct beginning brightness.")
     if(settings["levelOff"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct ending brightness.")
+    }
 }
 
 def displayTemperatureOption(){
@@ -706,26 +706,13 @@ def displayColorOption(){
     if(satOff && satOff > 100) errorMessage("Ending saturation can't be more than 100. Correct before saving.")
 }
 
-def displayModeOption(){
-    section(){
-        if(inputStopType == "none"){
-            displayLabel("Change Mode $varStartTime")
-            input "modeChangeOn", "mode", title: "Set Hubitat's \"Mode\" ($varStartTime)?", width: 12, submitOnChange:true
-        } else {
-            displayLabel("Change Mode $varStartTime and/or $varStopTime")
-            input "modeChangeOn", "mode", title: "Set Hubitat's \"Mode\" ($varStartTime)?", width: 6, submitOnChange:true
-            input "modeChangeOff", "mode", title: "Set Hubitat's \"Mode\" ($varStopTime)?", width: 6, submitOnChange:true
-        }
-    }
-}
-
 def displayChangeModeOption(){
         hidden = true
     // If just start or stop level, then don't hide
     if((settings["modeChangeOn"] && !settings["modeChangeOff"] && settings["inputStopType"] != "none") || (settings["modeChangeOn"] && !settings["modeChangeOff"])) hidden = false
  
     if(!settings["modeChangeOn"] && (!settings["modeChangeOff"] || settings["inputStopType"] == "none")){
-        sectionTitle = "<b>Click to change Modes</b> (optional)"
+        sectionTitle = "<b>Click to schedule changing Modes</b> (optional)"
     } else {
         // If just start level
         if(settings["modeChangeOn"] && (!settings["modeChangeOff"] && settings["inputStopType"] != "none")) {
@@ -896,6 +883,7 @@ def setStopSchedule(data){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
+    if(checkLog(a="trace")) putLog(904,"runIncrementalSchedule starting",a)
     if(state.disable) return
 
     // If nothing to do, exit
@@ -906,12 +894,41 @@ def runIncrementalSchedule(){
         // If individual device is on, then...
         if(parent.isOn(it,app.label)){
             defaults = getDefaultLevel(it,app.label)
+            if(defaults.level){
+                if(atomicState.incrementalLevel == defaults.level){
+                    defaults.level = null
+                } else {
+                    atomicState.incrementalLevel = defaults.level
+                }
+            }
+            if(defaults.temp){
+                if(atomicState.incrementalTemp == defaults.temp){
+                    defaults.temp = null
+                } else {
+                    atomicState.incrementalTemp = defaults.temp
+                }
+            }
+            if(defaults.hue){
+                if(atomicState.incrementalHue == defaults.hue){
+                    defaults.hue = null
+                } else {
+                    atomicState.incrementalHue = defaults.hue
+                }
+            }            
+            if(defaults.sat){
+                if(atomicState.incrementalSat == defaults.sat){
+                    defaults.sat = null
+                } else {
+                    atomicState.incrementalSat = defaults.sat
+                }
+            }
             if(defaults) parent.setLevelSingle(defaults,it,app.label)
         }
     }
 
     // Reschedule itself
     setIncrementalSchedule()
+    if(checkLog(a="trace")) putLog(922,"runIncrementalSchedule exiting",a)
     return true
 }
 
@@ -929,6 +946,14 @@ def setIncrementalSchedule(){
     }
 }
 
+def deschedule(){
+    unschedule(runIncrementalSchedule)
+    atomicState.incrementalLevel = false
+    atomicState.incrementalTemp = false
+    atomicState.incrementalSat = false
+    atomicState.incrementalHue = false
+    return
+}
 
 // Performs actual changes at time set with timeOn
 // Called only by schedule set in incrementalSchedule
@@ -957,6 +982,7 @@ def runDailyStartSchedule(){
                 setStateMulti("off",singleDevice)
             } else {
                 setStateMulti("on",singleDevice)
+                // If turning on, set levels
                 parent.setLevelSingle(defaults,singleDevice,app.label)
                 parent.getScheduleDefaultSingle(singleDevice, app.label)
             }
@@ -964,6 +990,7 @@ def runDailyStartSchedule(){
         returnValue = true
     } else if(timeOn == "on" || timeOn == "off"){
         setStateMulti(timeOn,timeDevice)
+        // If turning on, set levels
         if(timeOn == "on"){
             timeDevice.each{singleDevice->
                 parent.setLevelSingle(defaults,singleDevice,app.label)
@@ -974,7 +1001,8 @@ def runDailyStartSchedule(){
     } else if(timeOn == "none"){
         timeDevice.each{singleDevice->
             if(parent.isOn(singleDevice,app.label)){
-                setStateMulti("off",singleDevice)
+                parent.setLevelSingle(defaults,singleDevice,app.label)
+                parent.getScheduleDefaultSingle(singleDevice, app.label)
             }
         }
         returnValue = true
@@ -1043,14 +1071,14 @@ def getDefaultLevel(singleDevice, appLabel){
 
     // If schedule isn't active, return null
     if(!getScheduleNotInactive()) {
-        if(checkLog(a="debug")) putLog(1046,"$message but isn't active",a)
+        if(checkLog(a="debug")) putLog(1009,"$message but isn't active",a)
         return
     }
 
     // If schedule doesn't establish a "defualt", exit
     // Don't exit for no stop levels, unless it's not called from daily schedule
     if(!levelOn && !tempOn && !hueOn && !satOn) {
-        if(checkLog(a="debug")) putLog(1053,"$message but has no levels",a)
+        if(checkLog(a="debug")) putLog(1016,"$message but has no levels",a)
         return
     }
 
@@ -1060,99 +1088,86 @@ def getDefaultLevel(singleDevice, appLabel){
         elapsedFraction = getElapsedFraction()
 
         if(!elapsedFraction) {
-            if(checkLog(a="error")) putLog(1063,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
+            if(checkLog(a="error")) putLog(1026,"Unable to calculate elapsed time with start \"$atomicState.start\" and stop \"$atomicState.stop\"",a)
             return
         }
     }
-    if(checkLog(a="debug")) putLog(1067,message,a)
+    if(checkLog(a="debug")) putLog(1030,message,a)
     // Initialize defaults map
     defaults = [:]
 
     if(levelOn && levelOff){
         if(levelOff > levelOn){
-            newLevel = ((levelOff - levelOn) * elapsedFraction + levelOn) as int
-                if(atomicState.incrementalLevel != newLevel){
-                    atomicState.incrementalLevel = newLevel
-                    defaults.put("level", newLevel)
-                }
+            defaults.put("level", (levelOff - levelOn) * elapsedFraction + levelOn as int)
         } else {
-            newLevel = (levelOn - (levelOn - levelOff) * elapsedFraction) as int
-                if(atomicState.incrementalLevel != newLevel){
-                    atomicState.incrementalLevel = newLevel
-                    defaults.put("level", newLevel)
-                }
+            defaults.put("level", levelOn - (levelOn - levelOff) * elapsedFraction as int)
         }
+        // Just start level doesn't establish a "default"
+        // However, if *this* schedule triggers through runDaily, then we need to capture start level
+        // It does not do anything with "start" levels
+    } else if(levelOn && atomicState.stop){
+        defaults.put("level",levelOn)
+    } else if(levelOn && !atomicState.stop && appLabel == app.label){
+        defaults.put("level",levelOn)
     }
 
     if(tempOn && tempOff){
         if(tempOff > tempOn){
-            newTemp = ((tempOff - tempOn) * elapsedFraction + tempOn) as int
-                if(atomicState.incrementalTemp != newTemp){
-                    atomicState.incrementalTemp = newTemp
-                    defaults.put("temp", newTemp)
-                }
+            defaults.put("temp", (tempOff - tempOn) * elapsedFraction + tempOn as int)
         } else {
-            newTemp = (tempOn - (tempOn - tempOff) * elapsedFraction) as int
-                if(atomicState.incrementalTemp != newTemp){
-                    atomicState.incrementalTemp = newTemp
-                    defaults.put("temp", newTemp)
-                }
+            defaults.put("temp", tempOn - (tempOn - tempOff) * elapsedFraction as int)
         }
+        // Just start level doesn't establish a "default"
+        // However, if *this* schedule triggers through runDaily, then we need to capture start level
+        // It does not do anything with "start" levels
+    } else if(tempOn && atomicState.stop){
+        defaults.put("temp",tempOn)
+    } else if(tempOn && !atomicState.stop && appLabel == app.label){
+        defaults.put("temp",tempOn)
     }
 
     if(hueOn && hueOff){
         // hueOn=25, hueOff=75, going 25, 26...74, 75
-        if(hueOff > hueOn && hueDirection == "forward"){
-            newHue = ((hueOff - hueOn) * elapsedFraction + hueOn) as int
-                if(atomicState.incrementalHue != newHue){
-                    atomicState.incrementalHue = newHue
-                    defaults.put("hue", newHue)
-                }
+        if(hueOff > hueOn && hueDirection == "Forward"){
+            defaults.put("hue", (hueOff - hueOn) * elapsedFraction + hueOn as int)
             // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
-        } else if(hueOff > hueOn && hueDirection == "reverse"){
-            newHue = (hueOn - (100 - hueOff + hueOn)  * elapsedFraction) as int
-                if(newHue < 1) newHue += 100
-                if(atomicState.incrementalHue != newHue){
-                    atomicState.incrementalHue = newHue
-                    defaults.put("hue", newHue)
-                }
+        } else if(hueOff > hueOn && hueDirection == "Reverse"){
+            defaults.put("hue", hueOn - (100 - hueOff + hueOn)  * elapsedFraction as int)
+            if(defaults.hue < 1) defaults.put("hue", defaults.hue + 100)
             //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
-        } else if(hueOff < hueOn && hueDirection == "forward"){
-            newHue = ((100 - hueOn + hueOff)  * elapsedFraction + hueOn) as int
-                if(newHue > 100) newHue += -100
-                if(atomicState.incrementalHue != newHue){
-                    atomicState.incrementalHue = newHue
-                    defaults.put("hue", newHue)
-                }
+        } else if(hueOff < hueOn && hueDirection == "Forward"){
+            defaults.put("hue", (100 - hueOn + hueOff)  * elapsedFraction + hueOn as int)
+            if(defaults.hue > 100) defaults = [hue: defaults.hue - 100]
             //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
-        } else if(hueOff < hueOn && hueDirection == "reverse"){
-            newHue = (hueOn - (hueOn - hueOff) * elapsedFraction) as int
-                if(atomicState.incrementalHue != newHue){
-                    atomicState.incrementalHue = newHue
-                    defaults.put("hue", newHue)
-                }
+        } else if(hueOff < hueOn && hueDirection == "Reverse"){
+            defaults.put("hue", hueOn - (hueOn - hueOff) * elapsedFraction as int)
         }
+        // Just start level doesn't establish a "default"
+        // However, if *this* schedule triggers through runDaily, then we need to capture start level
+        // It does not do anything with "start" levels
+    } else if(hueOn && atomicState.stop){
+        defaults.put("hue",hueOn)
+    } else if(hueOn && !atomicState.stop && appLabel == app.label){
+        defaults.put("hue",hueOn)
     }
 
     if(satOn && satOff){
         if(satOff > satOn){
-            newSat = ((satOff - satOn) * elapsedFraction + satOn) as int
-                if(atomicState.incrementalSat != newSat){
-                    atomicState.incrementalSat = newSat
-                    defaults.put("sat", newSat)
-                }
+            defaults.put("sat", (satOff - satOn) * elapsedFraction + satOn as int)
         } else {
-            newSat = (satOn - (satOn - satOff) * elapsedFractio) as int
-                if(atomicState.incrementalSat != newSat){
-                    atomicState.incrementalSat = newSat
-                    defaults.put("sat", newSat)
-                }
+            defaults.put("sat", satOn - (satOn - satOff) * elapsedFraction as int)
         }
+        // Just start level doesn't establish a "default"
+        // However, if *this* schedule triggers through runDaily, then we need to capture start level
+    } else if(satOn && atomicState.stop){
+        defaults.put("sat",satOn)
+    } else if(satOn && !atomicState.stop && appLabel == app.label){
+        defaults.put("sat",satOn)
     }
 
     // Avoid returning an empty set
     if(!defaults.level && !defaults.temp && !defaults.sat && !defaults.hue) {
-        if(checkLog(a="debug")) putLog(1155,"Levels haven't changed since last increment",a)
+        if(checkLog(a="error")) putLog(1105,"getDefaultLevel failed to capture default levels",a)
         return
     }
 
