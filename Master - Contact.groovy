@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.0
+*  Version: 0.5.2
 * 
 ***********************************************************************************************************************/
 
@@ -70,7 +70,9 @@ preferences {
        ((inputStopType == "sunrise" || inputStopType == "sunset") && !inputStopSunriseType) ||
        ((inputStartSunriseType == "before" || inputStartSunriseType == "after") && !inputStartBefore) ||
        ((inputStopSunriseType == "before" || inputStopSunriseType == "after") && !inputStopBefore) ||
-       (levelOpen > 100 || levelClose >100 || (tempOpen && tempOpen < 1800) || tempOpen > 5400 || (tempClose && tempClose < 1800) || tempClose > 5400 || hueOpen > 100 || hueClose > 100 || satOpen > 100 || satClose > 100)) noInstall = true
+       (openLevel > 100 || closeLevel >100 || (openTemp && openTemp < 1800) || openTemp > 6500 || (closeTemp && closeTemp < 1800) || closeTemp > 6500 || openHue > 100 || closeHue > 100 || openSat > 100 || closeSat > 100) ||
+       (speechDevice && !speech) ||
+       (pushNotificationDevice && !pushNotification)) noInstall = true
 
     if(noInstall) {
         allowInstall = false
@@ -90,13 +92,13 @@ preferences {
                 displayDevicesOption()
                 displayDevicesTypes()
                 displayOpenCloseDevicesOption()
-                if(install) displayDisableOption()
+                if(allowInstall) displayDisableOption()
             }
             displayOpenOptions()
             displayCloseOptions()
             displayBrightnessOption()
-            displayTemperatureOption()
-            displayColorOption()
+            if((!settings["openhue"] && !settings["openSat"]) || (!settings["closeHue"] && !settings["closeSat"])) displayTemperatureOption()
+            if(!settings["openTemp"] || !settings["closeTemp"]) displayColorOption()
             displayChangeModeOption()
             displayAlertOptions()
             displayScheduleSection()
@@ -147,12 +149,12 @@ def displayInfo(text = "Null",noDisplayIcon = null){
 
 def displayNameOption(){
     if(app.label){
-            displayLabel("Contact/door name",2)
-            label title: "", required: true, width: 10,submitOnChange:true
+        displayLabel("Contact/door name",2)
+        label title: "", required: true, width: 10,submitOnChange:true
     } else {
-            displayLabel("Set name for this contact/door")
-            label title: "", required: true, submitOnChange:true
-            displayInfo("Name this contact/door sensor app. Each contact/door sensor app must have a unique name.")
+        displayLabel("Set name for this contact/door")
+        label title: "", required: true, submitOnChange:true
+        displayInfo("Name this contact/door sensor app. Each contact/door sensor app must have a unique name.")
     }
 }
 
@@ -176,16 +178,16 @@ def displayDevicesOption(){
         displayInfo("Select which contact/door sensor(s) for which to set actions.")
     }
 }
- 
+
 def displayDevicesTypes(){
     if(!settings["contactDevice"]) return false
     input "deviceType", "enum", title: "Which type of device(s) to control (select one; required)", options: ["lock": "Locks","light": "Lights", "switch": "Switches"], multiple: false, required: true, submitOnChange:true
     if(!settings["deviceType"]) displayInfo("If selecting lights, only dimmable devices will be displayed, but switches include lights. To control both locks and switches/lights, create a separate rule-set for each.")
 }
-    
+
 def displayOpenCloseDevicesOption(){
     if(!settings["contactDevice"] || !settings["deviceType"]) return
-    
+
     multipleDevices = false
     count = 0
     if(settings["device"]){
@@ -194,7 +196,7 @@ def displayOpenCloseDevicesOption(){
             count = 1
         }
     }
-    
+
     if(settings["deviceType"] == "lock"){
         capability = "capability.lock"
         plural = "Locks"
@@ -221,9 +223,16 @@ def displayOpenCloseDevicesOption(){
 
 }
 
+def displayDisableOption(){
+    if(disable){
+        input "disable", "bool", title: "<b><font color=\"#000099\">This schedule is disabled.</font></b> Reenable it?", submitOnChange:true
+    } else {
+        input "disable", "bool", title: "This schedule is enabled. Disable it? (You must click \"Done\" for change to take affect.)", submitOnChange:true
+    }
+}
 
 def displayOpenOptions(){
-    if(!settings["contactDevice"] || !settings["deviceSwitch"]) return
+    if(!settings["contactDevice"] || !settings["device"]) return
 
     count = 0
     multipleDevices = false
@@ -231,7 +240,7 @@ def displayOpenOptions(){
         if(count == 1) multipleDevices = true
         count = 1
     }
-    
+
     if(settings["deviceType"] == "lock"){
         deviceString = "lock"
     } else if(settings["deviceType"] == "switch"){
@@ -246,24 +255,24 @@ def displayOpenOptions(){
             deviceString = deviceString + "es"
         }
     }
-            
-    
+
+
     multipleContacts = false
     count = 0
     settings["contactDevice"].each{
         if(count == 1) multipleContacts = true
         count = 1
     }
-    
+
     if(multipleContacts){
         contactPlural = "contact/door sensors"
     } else {
         contactPlural = "contact/door sensor"
     }
-    
+
     if(settings["openAction"]){
 
-            title = "When opened: "
+        title = "When opened: "
 
         if(settings["openAction"] == "none"){
             action = "Do nothing"
@@ -281,7 +290,7 @@ def displayOpenOptions(){
             action =  "Unlock"
         }
         title = title + action
-        
+
         if(settings["openWait"] && settings["openWait"] > 0) title = title + " after " + settings["openWait"] + " seconds"
         section(hideable: true, hidden: true, "$title"){
             if(settings["deviceType"] == "lock"){
@@ -308,7 +317,7 @@ def displayOpenOptions(){
             }
             if(settings["openAction"] != "none"){
                 input "openWait", "number", title: "Wait seconds after open to $action $deviceString. (Optional)", defaultValue: false, submitOnChange:true
-                
+
                 message = "If device is closed "
                 if(settings["openWait"]) {
                     message = message + "within " + settings["openWait"] + " seconds"
@@ -317,8 +326,8 @@ def displayOpenOptions(){
                 }
                 message = message + ", $deviceString will not $action. Instead, it will only "
                 if(settings["closeAction"]){
-                    
-                if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message = message + "turn "
+
+                    if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message = message + "turn "
                     message = message + settings["closeAction"] + " with being closed."
                 } else {
                     message = message + "perform action for being closed."
@@ -372,7 +381,7 @@ def displayOpenOptions(){
 
 
 def displayCloseOptions(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"]) return
 
     count = 0
     multipleDevices = false
@@ -380,7 +389,7 @@ def displayCloseOptions(){
         if(count == 1) multipleDevices = true
         count = 1
     }
-    
+
     if(settings["deviceType"] == "lock"){
         deviceString = "lock"
     } else if(settings["deviceType"] == "switch"){
@@ -395,21 +404,21 @@ def displayCloseOptions(){
             deviceString = deviceString + "es"
         }
     }
-            
-    
+
+
     multipleContacts = false
     count = 0
     settings["contactDevice"].each{
         if(count == 1) multipleContacts = true
         count = 1
     }
-    
+
     if(multipleContacts){
         contactPlural = "contact/door sensors"
     } else {
         contactPlural = "contact/door sensor"
     }
-    
+
     if(settings["closeAction"]){
         title = "When closed: "
         if(settings["closeAction"] == "none"){
@@ -430,7 +439,7 @@ def displayCloseOptions(){
         title = title + action
 
         if(settings["closeWait"] && settings["closeWait"] > 0) title = title + " after " + settings["closeWait"] + " seconds"
-        
+
         section(hideable: true, hidden: true, "$title"){
             if(settings["deviceType"] == "lock"){
                 input "closeAction", "enum", title: "When closed, lock or unlock?", multiple: false, width: 12, options: ["none": "Don't lock or unlock","lock": "Lock", "unlock": "Unlock"], submitOnChange:true
@@ -456,7 +465,7 @@ def displayCloseOptions(){
             }
             if(settings["closeAction"] != "none"){
                 input "closeWait", "number", title: "Wait seconds after close to $action $deviceString. (Optional)", defaultValue: false, submitOnChange:true
-                
+
                 message = "If device is opened "
                 if(settings["closeWait"]) {
                     message = message + "within " + settings["closeWait"] + " seconds"
@@ -465,8 +474,8 @@ def displayCloseOptions(){
                 }
                 message = message + ", $deviceString will not $action. Instead, it will only "
                 if(settings["openAction"]){
-                    
-                if(settings["openAction"] == "on" || settings["openAction"] == "off") message = message + "turn "
+
+                    if(settings["openAction"] == "on" || settings["openAction"] == "off") message = message + "turn "
                     message = message + settings["openAction"] + " with being opened again."
                 } else {
                     message = message + "perform action for being opened."
@@ -498,9 +507,9 @@ def displayCloseOptions(){
                 displayInfo(message)
             }
             if(settings["closeAction"] != "none"){
-            input "closeWait", "number", title: "Wait seconds after close to take action with $deviceString. (Optional)", defaultValue: false, submitOnChange:true
+                input "closeWait", "number", title: "Wait seconds after close to take action with $deviceString. (Optional)", defaultValue: false, submitOnChange:true
 
-            message = "If device is opened "
+                message = "If device is opened "
                 if(settings["closeWait"]) {
                     message = message + "within " + settings["closeWait"] + " seconds"
                 } else {
@@ -516,44 +525,44 @@ def displayCloseOptions(){
     }
 }
 
-
 def displayBrightnessOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if((settings["closeAction"] == "off" || settings["closeAction"] == "resume") && (settings["openAction"] == "off" || settings["openAction"] == "resume")) return
     if(settings["deviceType"] != "light") return
-    
+
     hidden = true
     // If error, unhide
-    if(settings["levelOpen"] > 100 || settings["levelClose"] > 100) hidden = false
-    
+    if(settings["openLevel"] > 100 || settings["closeLevel"] > 100) hidden = false
+    // If open or close settings but not both, unhide
+    if((settings["openLevel"] && !settings["closeLevel"]) || (!settings["openLevel"] && settings["closeLevel"])) hidden = false
+
+
     if(settings["closeAction"] == "off" || settings["closeAction"] == "resume" || settings["openAction"] == "off" || settings["openAction"] == "resume") {
         width = 12
     } else {
         width = 6
     }
- 
-    if(!settings["levelOpen"] && !settings["levelClose"]){
+
+    if(!settings["openLevel"] && !settings["closeLevel"]){
         sectionTitle = "<b>Click to set brightness</b> (optional)"
     } else {
-        // If just start level
-        if(settings["levelOpen"] && !settings["levelClose"]) {
-            sectionTitle = "On open, set brightness to $settings.levelOpen%"
-        // Both start and stop levels
-        } else if(settings["levelOpen"] && settings["levelClose"]) {
-            sectionTitle = "On open, set brightness to $settings.levelOpen%; on close, $settings.levelClose%"
-        // Just stop level
-        } else if(!settings["levelOn"] && settings["levelOff"]){
-            sectionTitle = "On close, set brightness to $settings.levelClose%"
+        sectionTitle = ""
+        if(settings["openLevel"]){
+            sectionTitle = "On open, set brightness to " + settings["openLevel"] + "%"
+            if(settings["closeLevel"]) sectionTitle = sectionTitle + "<br>"
+        }
+        if(settings["closeLevel"]){
+            sectionTitle = sectionTitle + "On close, set brightness to " + settings["closeLevel"] + "%"
         }
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "levelOpen", "number", title: "Set brightness on open?", width: width, submitOnChange:true
+            input "openLevel", "number", title: "Set brightness on open?", width: width, submitOnChange:true
         }
-        
+
         if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "levelClose", "number", title: "Set brightness on close?", width: width, submitOnChange:true
+            input "closeLevel", "number", title: "Set brightness on close?", width: width, submitOnChange:true
         }
         if(width == 6) {
             displayInfo("Enter the percentage of brightness of light, from 1 to 100, when opening and/or closing the contact/door. Optional.")
@@ -563,129 +572,132 @@ def displayBrightnessOption(){
             displayInfo("Enter the percentage of brightness of light, from 1 to 100, when closing the contact/door. Cannot set brightness when turning off or resuming schedule. Optional.")
         }
 
-    if(settings["levelOpen"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct open brightness.")
-    if(settings["levelClose"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct close brightness.")
+        if(settings["openLevel"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct open brightness.")
+        if(settings["closeLevel"] > 100) errorMessage("Brightness is percentage from 1 to 100. Correct close brightness.")
     }
 }
 
 
 def displayTemperatureOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if((settings["closeAction"] == "off" || settings["closeAction"] == "resume") && (settings["openAction"] == "off" || settings["openAction"] == "resume")) return
     if(settings["deviceType"] != "light") return
-    
+
     hidden = true
     // If error, unhide
-    if((settings["tempOpen"] && (settings["tempOpen"] < 1800 || settings["tempOpen"] > 5400)) || (settings["tempClose"] && (settings["tempClose"] < 1800 || settings["tempClose"] > 5400))) hidden = false
-    
+    if((settings["openTemp"] && (settings["openTemp"] < 1800 || settings["openTemp"] > 5400)) || (settings["closeTemp"] && (settings["closeTemp"] < 1800 || settings["closeTemp"] > 5400))) hidden = false
+    // if open or close settings but not both then unhide
+    if((settings["openTemp"] && !settings["closeTemp"]) || (!settings["openTemp"] && settings["closeTemp"])) hidden = false
+
     if(settings["closeAction"] == "off" || settings["closeAction"] == "resume" || settings["openAction"] == "off" || settings["openAction"] == "resume") {
         width = 12
     } else {
         width = 6
     }
- 
-    if(!settings["tempOpen"] && !settings["tempClose"]){
+
+    if(!settings["openTemp"] && !settings["closeTemp"]){
         sectionTitle = "<b>Click to set temperature color</b> (optional)"
     } else {
-        if(settings["tempOpen"]){
-            sectionTitle = "On open, set temperature color to " + settings["tempOpen"] + "K"
-            if(settings["tempClose"]) sectionTitle = "; on close, "
-        } else if(settings["tempClose"]){
-            sectionTitle = "On close, set temperature color to "
+        sectionTitle = ""
+        if(settings["openTemp"]){
+            sectionTitle = "On open, set temperature color to " + settings["openTemp"] + "K"
+            if(settings["closeTemp"]) sectionTitle = sectionTitle + "<br>"
         }
-        if(settings["tempClose"]) sectionTitle = sectionTitle + settings["tempOpen"] + "K"
+        if(settings["closeTemp"]){
+            sectionTitle = sectionTitle + "On close, set temperature color to "+ settings["closeTemp"] + "K"
+        }
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "tempOpen", "number", title: "Set temperature color on open?", width: width, submitOnChange:true
+            input "openTemp", "number", title: "Set temperature color on open?", width: width, submitOnChange:true
         }
 
         if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "tempClose", "number", title: "Set temperature color on close?", width: width, submitOnChange:true
+            input "closeTemp", "number", title: "Set temperature color on close?", width: width, submitOnChange:true
         }
 
-        if(!settings["tempOpen"] && !settings["tempClose"]) {
-            displayInfo("Temperature color is in Kelvin from 1800 to 5400. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. Optional.")
+        if(!settings["openTemp"] && !settings["closeTemp"]) {
+            displayInfo("Temperature color is in Kelvin from 1800 to 6500, but range spported by bulbs vary. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. Optional.")
         } else {
-            displayInfo("Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000. Optional.")
+            displayInfo("Temperature color is from 1800 to 6500, where daylight is 5000, cool white is 4000, and warm white is 3000. Optional.")
         }
 
-    if(settings["tempOpen"] && (settings["tempOpen"] < 1800 || settings["tempOpen"] > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct open temperature.")
-    if(settings["tempClose"] && (settings["tempClose"] < 1800 || settings["tempClose"] > 5400)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct close temperature.")
+        if(settings["openTemp"] && (settings["openTemp"] < 1800 || settings["openTemp"] > 6500)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct open temperature.")
+        if(settings["closeTemp"] && (settings["closeTemp"] < 1800 || settings["closeTemp"] > 6500)) errorMessage("Temperature color is from 1800 to 5400, where daylight is 5000, warm white is 3000, and cool white is 4000. Correct close temperature.")
 
     }
 }
 
 def displayColorOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if((settings["closeAction"] == "off" || settings["closeAction"] == "resume") && (settings["openAction"] == "off" || settings["openAction"] == "resume")) return
     if(settings["deviceType"] != "light") return
 
     hidden = true
     // If error, unhide
-    if((settings["hueOpen"] && settings["hueOpen"] > 100) || (settings["satOpen"] && settings["satOpen"] > 100) || (settings["hueClose"] && settings["hueClose"] > 100) || (settings["satClose"] && settings["satClose"] > 100)) hidden = false
-
-    // If hue but not sat set (w/ either open or close), unhide
-    if((settings["hueOpen"] && !settings["satOpen"]) || (!settings["hueOpen"] && settings["satOpen"]) || (settings["hueClose"] && !settings["satClose"]) || (!settings["hueClose"] && settings["satClose"])) hidden = false
+    if((settings["openHue"] && settings["openHue"] > 100) || (settings["openSat"] && settings["openSat"] > 100) || (settings["closeHue"] && settings["closeHue"] > 100) || (settings["closeSat"] && settings["closeSat"] > 100)) hidden = false
+    // If missing any one value, unhide
+    if((settings["openHue"] || settings["openSat"] || settings["closeHue"] || settings["closeSat"]) &&
+       (!settings["openHue"] || !settings["openSat"] || !settings["closeHue"] || !settings["closeSat"])) hidden = false
 
     if(settings["closeAction"] == "off" || settings["closeAction"] == "resume" || settings["openAction"] == "off" || settings["openAction"] == "resume") {
         width = 12
     } else {
         width = 6
     }
- 
-    if(!settings["hueOpen"] && !settings["hueClose"] && !settings["satOpen"] && !settings["satClose"]){
+
+    if(!settings["openHue"] && !settings["closeHue"] && !settings["openSat"] && !settings["closeSat"]){
         sectionTitle = "<b>Click to set color (hue and/or saturation)</b> (optional)"
     } else {
+        sectionTitle = ""
         // If just open color
-        if(settings["hueOpen"]) {
-            sectionTitle = "On open, set hue to " + settings["hueOpen"]
-            if(settings["satOpen"]) sectionTitle = setionTitle + "and sat to " + settings["satOpen"]
-        } else if(settings["satOpen"]) {
-            sectionTitle = "On open, set sat " + settings["satOpen"]
+        if(settings["openHue"]) {
+            sectionTitle = "On open, set hue to " + settings["openHue"] + "%"
+            if(settings["openSat"]) sectionTitle = sectionTitle + " and sat to " + settings["openSat"] + "%"
+        } else if(settings["openSat"]) {
+            sectionTitle = "On open, set saturation " + settings["openSat"] + "%"
         }
-        if((settings["hueOpen"] || settings["satOpen"]) && (settings["hueClose"] || settings["satClose"])) {
-            sectionTitle = sectionTitle + "; o"
-        } else if((!settings["hueOpen"] && !settings["satOpen"]) && (settings["hueClose"] || settings["satClose"])) {
-            sectionTitle = "O"
+        if((settings["openHue"] || settings["openSat"]) && (settings["closeHue"] || settings["closeSat"])) {
+            sectionTitle = sectionTitle + "<br>"
         }
-        if(settings["hueClose"]) {
-            sectionTitle = sectionTitle + "n close, set hue to " + settings["hueClose"]
-            if(settings["satClose"]) sectionTitle = sectionTitle + " and sat to " + settings["satClose"]
-        } else if(settings["satClose"]){
-            sectionTitle = sectionTitle + "n close, set sat to " + settings["satClose"]
+        if(settings["closeHue"]) {
+            sectionTitle = sectionTitle + "On close, set hue to " + settings["closeHue"] + "%"
+            if(settings["closeSat"]) sectionTitle = sectionTitle + " and sat to " + settings["closeSat"] + "%"
+        } else if(settings["closeSat"]) {
+            sectionTitle = sectionTitle + "On close, set saturation " + settings["closeSat"] + "%"
         }
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "hueOpen", "number", title: "Set hue on open?", width: width, submitOnChange:true
+            input "openHue", "number", title: "Set hue on open?", width: width, submitOnChange:true
         }
 
-        if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "hueClose", "number", title: "Set hue on close?", width: width, submitOnChange:true
-        }
         if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "satOpen", "number", title: "Set saturation on open?", width: width, submitOnChange:true
+            input "openSat", "number", title: "Set saturation on open?", width: width, submitOnChange:true
         }
 
         if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "satClose", "number", title: "Set saturation on close?", width: width, submitOnChange:true
+            input "closeHue", "number", title: "Set hue on close?", width: width, submitOnChange:true
         }
-        displayInfo("Hue is the shade of color, from 1 to 100. Red is 1 or 100, yellow is 11, green is 26, blue is 66, and purple is 73. Optional")
+
+        if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
+            input "closeSat", "number", title: "Set saturation on close?", width: width, submitOnChange:true
+        }
+        displayInfo("Hue is percent around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; 50 = turquiose; blue = 66; purple = 79. Optional")
         displayInfo("Saturation is the percentage depth of color, from 1 to 100, where 1 is hardly any color tint and 100 is full color. Optional.")
 
 
-        if(settings["hueOpen"] > 100) errorMessage("Hue can't be more then 100. Correct open hue.")
-        if(settings["satOpen"] > 100) errorMessage("Saturation can't be more then 100. Correct open saturation.")
-        if(settings["hueClose"] > 100) errorMessage("Hue can't be more then 100. Correct close hue.")
-        if(settings["satClose"] > 100) errorMessage("Saturation can't be more then 100. Correct close saturation.")
+        if(settings["openHue"] > 100) errorMessage("Hue can't be more then 100. Correct open hue.")
+        if(settings["openSat"] > 100) errorMessage("Saturation can't be more then 100. Correct open saturation.")
+        if(settings["closeHue"] > 100) errorMessage("Hue can't be more then 100. Correct close hue.")
+        if(settings["closeSat"] > 100) errorMessage("Saturation can't be more then 100. Correct close saturation.")
     }
 }
 
 def displayScheduleSection(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
 
     // If all options, display full title
     if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
@@ -723,7 +735,7 @@ def displayScheduleSection(){
             // Display sunrise/sunset offset
             if(inputStartSunriseType && inputStartSunriseType != "at") displaySunriseOffsetOption("start")
         }
-        
+
         if(checkTimeComplete("start") && settings["inputStartType"]){
             displayStopTypeOption()
 
@@ -793,7 +805,7 @@ def displaySunriseTypeOption(lcType){
     } else {
         width = 4
     }
-   // sunriseTime = getSunriseAndSunset()[settings["input${ucType}Type"]].format("hh:mm a")
+    // sunriseTime = getSunriseAndSunset()[settings["input${ucType}Type"]].format("hh:mm a")
     input "input${ucType}SunriseType", "enum", title: "At, before or after " + settings["input${ucType}Type"] + ":", multiple: false, width: width, options: ["at":"At " + settings["input${ucType}Type"], "before":"Before " + settings["input${ucType}Type"], "after":"After " + settings["input${ucType}Type"]], submitOnChange:true
     if(!settings["input${ucType}SunriseType"]) displayInfo("Select whether to start exactly at " + settings["input${ucType}Type"] + " (currently, $sunriseTime). To allow entering minutes prior to or after " + settings["input${ucType}Type"] + ", select \"Before " + settings["input${ucType}Type"] + "\" or \"After " + settings["input${ucType}Type"] + "\". Required field.")
 }
@@ -865,31 +877,33 @@ def displaySunriseOffsetOption(lcType){
 }
 
 def displayChangeModeOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
+
     hidden = true
-    if(!settings["modeChangeOpen"] && !settings["modeChangeClose"]){
+    if((settings["openMode"] || settings["closeMode"]) && (!settings["openMode"] || !settings["closeMode"])) hidden = false
+
+    if(!settings["openMode"] && !settings["closeMode"]){
         sectionTitle = "<b>Click to set Mode change</b> (optional)"
     } else {
-        // If just start level
-        if(settings["modeChangeOpen"] && !settings["modeChangeClose"]) {
-            sectionTitle = "Set Mode " + settings["modeChangeOpen"] + " when opened"
-        // Both start and stop levels
-        } else if(settings["modeChangeOpen"] && settings["modeChangeClose"]) {
-            sectionTitle = "Set Mode " + settings["modeChangeOpen"] + " when opened; set Mode " + settings["modeChangeClose"] + " when closed"
-        // Just stop level
-        } else if(settings["modeChangeClose"]){
-            sectionTitle = "Set Mode " + settings["modeChangeClose"] + " when closed"
+        sectionTitle = ""
+        if(settings["openMode"]) {
+            sectionTitle = "On open, set Mode " + settings["openMode"]
+            if(settings["closeMode"]) sectionTitle = sectionTitle + "<br>"
+        }
+
+        if(settings["closeMode"]) {
+            sectionTitle = sectionTitle + "On close, set Mode " + settings["closeMode"]
         }
     }
-   
+
     section(hideable: true, hidden: hidden, sectionTitle){
-            input "modeChangeOpen", "mode", title: "Set Hubitat's \"Mode\" (on open)?", width: 6, submitOnChange:true
-            input "modeChangeClose", "mode", title: "Set Hubitat's \"Mode\" (on close)?", width: 6, submitOnChange:true
+        input "openMode", "mode", title: "Set Hubitat's \"Mode\" (on open)?", width: 6, submitOnChange:true
+        input "closeMode", "mode", title: "Set Hubitat's \"Mode\" (on close)?", width: 6, submitOnChange:true
     }
 }
 
 def displayIfModeOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if(settings["openAction"] == "none" && settings["closeAction"] == "none") return
     multipleContacts = false
     count = 0
@@ -897,13 +911,13 @@ def displayIfModeOption(){
         if(count == 1) multipleContacts = true
         count = 1
     }
-    
+
     if(settings["ifMode"]){
-        sectionText = "Only with Mode: $settings.ifMode"
+        sectionTitle = "Only with Mode: $settings.ifMode"
     } else {
-        sectionText = "<b>Click to select with what Mode</b> (optional)"
+        sectionTitle = "<b>Click to select with what Mode</b> (optional)"
     }
-    section(hideable: true, hidden: true, sectionText){
+    section(hideable: true, hidden: true, sectionTitle){
         input "ifMode", "mode", title: "Only run if Mode is already?", width: 12, submitOnChange:true
 
         message = "This will limit the contact/door sensor"
@@ -920,7 +934,7 @@ def displayIfModeOption(){
 }
 
 def displayDaysOption(){
-        if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if(settings["openAction"] == "none" && settings["closeAction"] == "none") return
     multipleContacts = false
     count = 0
@@ -928,13 +942,13 @@ def displayDaysOption(){
         if(count == 1) multipleContacts = true
         count = 1
     }
-    
+
     if(settings["timeDays"]){
-        sectionText = "Only on: $settings.timeDays"
+        sectionTitle = "Only on: $settings.timeDays"
     } else {
-        sectionText = "<b>Click to select on which days</b> (optional)"
+        sectionTitle = "<b>Click to select on which days</b> (optional)"
     }
-    section(hideable: true, hidden: true, sectionText){
+    section(hideable: true, hidden: true, sectionTitle){
         input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
 
 
@@ -952,71 +966,93 @@ def displayDaysOption(){
 }
 
 def displayAlertOptions(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["deviceSwitch"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!parent.pushNotification && !parent.speech) return
 
     hidden = true
-    if(settings["phone"]){
-        if(phoneOpenClose) {
-            action = "closed"
-        } else {
-            action = "opened"
-        }
-        sectionText = "Text " + settings["phone"] + " when " + action
-    }
-    if(settings["speakText"]) {
-        if(speakOpenClose) {
-            action = "closed"
-        } else {
-            action = "opened"
-        }
-        sectionText = "Speak when " + action
+    if((settings["pushNotificationDevice"] && !settings["pushNotification"]) || (settings["speechDevice"] && !settings["speech"])) hidden = false
+
+    sectionTitle = ""
+    if(notificationOpenClose) {
+        action = "On close"
     } else {
-        sectionText = "<b>Click to set notifications</b> (optional)"
+        action = "On open"
     }
-    section(hideable: true, hidden: true, sectionText){
-        if(parent.notificationDevice){
-            displayLabel("Alert by voice or text")
-            width = 6
-        } else {
-            dispayLabel("Send text message")
-            width = 12
+    if((!settings["pushNotificationDevice"] && !settings["speechDevice"] || (settings["pushNotificationDevice"] && !settings["pushNotification"]) || (settings["speechDevice"] && !settings["speech"]))){
+        sectionTitle = "<b>Click to set notifications</b> (optional)"
+    } else {
+        if(settings["pushNotificationDevice"]){
+            sectionTitle = "$action, send push notification"
+            if(settings["speechDevice"]) sectionTitle = sectionTitle + "<br>" 
         }
-
-        input "phone", "phone", title: "Number to text alert?", width: width, submitOnChange:true
-
-        if(phone && !(validatePhone(phone))) errorMessage("Phone number is not valid.")
-
-        if(parent.notificationDevice) {
-            input "speakText", "text", title: "Voice message to play?", width: 6, submitOnChange:true
-            displayInfo("Voice message will be sent to \"Notification device(s)\" set in Master app.")
+        if(settings["speechDevice"]){
+            sectionTitle = "$action, text-to-speech announcement"
         }
-        if(phone){
-            if(phoneOpenClose){
-                input "phoneOpenClose", "bool", title: "SMS when <b>closed</b>. Click for opened.", submitOnChange:true, width: width
+    }
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(parent.pushNotificationDevice){
+            state.filteredList = [:]
+            count = 0
+            deviceName = ""
+            parent.pushNotificationDevice.each{
+                deviceName = "${it.label ?: it.name}"
+                deviceId = it.id
+                state.filteredList[it.id] = deviceName
+                count++
+                    }
+            if(count > 1){
+                input "pushNotificationDevice", "enum", title: "Push notification device(s)?", options: state.filteredList, multiple: true, submitOnChange: true
             } else {
-                input "phoneOpenClose", "bool", title: "SMS when <b>opened</b>. Click for closed.", submitOnChange:true, width: width
+                settings["pushNotificationDevice"] = deviceId
             }
+            input "pushNotification", "text", title: "Text notification to send?", submitOnChange:true
+            if(count == 1) displayInfo("Push notifications will use the device \"$deviceName\". To use another, add it in the Master app.")
         }
-        if(width == 6 && speakText){
-            if(speakOpenClose){
-                input "speakOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true, width: 6
-            } else {
-                input "speakOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true, width: 6
-            }
-        }
-        if(width == 12) errorMessage("To have voice message will be sent, set \"Notification device(s)\" in Master app.")
 
-        if(phone || speakText){
+        if(parent.speech){
+            state.filteredList = [:]
+            count = 0
+            deviceName = ""
+            parent.speechDevice.each{
+                deviceName = "${it.label ?: it.name}"
+                deviceId = it.id
+                state.filteredList[it.id] = deviceName
+                count++
+                    }
+            if(count > 1) {
+                input "speechDevice", "enum", title: "Text-to-speech device to use", options: state.filteredList, multiple: true, submitOnChange: true
+            } else {
+                settings["speechDevice"] = deviceId
+            }
+            input "speechDevice", "text", title: "Text-to-speech announcement?", submitOnChange:true
+            if(count == 1) displayInfo("Text-to-speech will use the device \"$deviceName\". To use another, add it in the Master app.")
+        }
+
+        if((pushNotificationDevice && pushNotification) || (speechDevice && speech)){
+            titleText = ""
+            if(pushNotificationDevice && pushNotification) {
+                titleText = "Send notification"
+                if(speechDevice && speech) titleText = titleText + " and speak"
+            } else {
+                titleText = "Speak"
+            }
+            titleText = titleText + "when "
+            if(notificationOpenClose){
+                titleText = titleText + "<b>closed</b>. Click for opened."
+            } else {
+                titleText = titleText + "<b>opened</b>. Click for closed."
+            }
+
             input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home", multiple: true, submitOnChange:true
             input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home", multiple: true, submitOnChange:true
         }
-    }
 
+    }
 }
 
 
 /*
-disableAll - bool - Flag to disable all contacts
 disable - bool - Flag to disable this single contact
 contactDevice - capability.contactSensor - Contact sensor being monitored
 deviceType - Sets whether to expect lights (switchLevel), switches, or locks
@@ -1040,13 +1076,15 @@ inputStopType - enum (time, sunrise, sunset) - Sets whether stop time is a speci
 inputStopTime - time - Stop Time (only displays when scheduleEnable = true and inputStopType = "time")
 inputStopSunriseType - enum (at, before, after) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "sunrise" or "sunset")
 inputStopBefore - number - Number of minutes before/after sunrise/sunset for stop time (only displays if scheduleEnable = true, inputStartType = "sunrise" or "sunset", and inputStartSunriseType = "before" or "bfter")
-openWait - number - Minutes to delay open action(s). Only displays if delayEnable = true
-closeWait - number - Minutes to delay close action(s). Only displays if delayEnable = true
-phone - phone - Phone number for SMS. Only displays if alertEnable = true
-speakText - text - Text to speak. Only displays if alertEnable = true
-phoneOpenClose - bool - Switch to send alert when door opened, or closed. Only displays if alertEnable = true
-speakOpenClose - bool - Switch to speak text when door opened, or closed. Only displays if alertEnable = true
-modeOpenClose - bool - Switch to change mode when door opened, or closed. Only displays if modeEnable = true
+openWait - number - Minutes to delay open action(s). 
+closeWait - number - Minutes to delay close action(s). 
+pushNotificationDevice - Device(s) for push notifications
+pushNotification - text - Text to push
+speechDevice - Device(s) for speech
+speech - text - Text to speak.
+notificationOpenClose - bool - Switch push notification and speech when door opened, or closed.
+openMode - bool - Switch to change mode when door opened, or closed.
+closeMode - bool - Switch to change mode when door opened, or closed. 
 personHome - capability.presenseSensor - Persons any of who must be home for contact to run. 
 personNotHome - capability.presenseSensor - Persons all of who must not be home for contact to run.
 */
@@ -1077,9 +1115,8 @@ def initialize() {
 
     unschedule()
 
-    // If date/time for last SMS not set, initialize it to 5 minutes ago
-    // Allows an SMS immediately
-    if(!state.contactLastSms) state.contactLastSms = new Date().getTime() - 360000
+    // If date/time for last notification not set, initialize it to 5 minutes ago
+    if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - 360000
 
     if(disable || disableAll) {
         state.disable = true
@@ -1102,9 +1139,9 @@ def contactChange(evt){
     if(checkLog(a="debug")) putLog(1102,"Contact sensor $evt.displayName $evt.value",a)
 
     // If mode set and node doesn't match, return nulls
-    if(ifMode){
-        if(location.mode != ifMode) {
-            if(checkLog(a="trace")) putLog(1107,"Contact disabled, mode $ifMode",a)
+    if(settings["ifMode"]){
+        if(location.mode != settings["ifMode"]) {
+            if(checkLog(a="trace")) putLog(1107,"Contact disabled, requires mode $ifMode",a)
             return defaults
         }
     }
@@ -1112,10 +1149,15 @@ def contactChange(evt){
     // If not correct day, return nulls
     if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
 
-    if(inputStartType) setTime()
+    if(settings["inputStartType"] && settings["inputStopType"]) {
+        setTime()
+    } else {
+        atomicState.stop = null
+        atomicState.start = null
+    }
 
     // if not between start and stop time, return nulls
-    if(state.stop && !parent.timeBetween(state.start, state.stop, app.label)) return
+    if(atomicState.stop && !parent.timeBetween(state.start, atomicState.stop, app.label)) return
 
     // Unschedule pevious events
 
@@ -1128,61 +1170,72 @@ def contactChange(evt){
     }
 
     // Check if people are home (home1 and home2 should be true)
+    // If conditions are satified, set home to true
     if(personHome){
         home1 = false
         personHome.each{
             if(it.currentPresence == "present") home1 = true
         }
+    } else {
+        home1 = true
     }
     if(personNotHome){
         home2 = true
         personNotHome.each{
             if(it.currentPresence == "present") home2 = false
         }
+    } else {
+        home2 = true
     }
+    if(home1 && home2) home = true
 
     // Text first (just in case there's an error later)
-    if(phone && ((phoneOpenClose && evt.value == "open") || (!phoneOpenClose && evt.value == "closed"))){
+    if(settings["pushNotificationDevice"] && home && ((!settings["notificationOpenClose"] && evt.value == "open") || (settings["notificationOpenClose"] && evt.value == "closed"))){
         // Only if correct people are home/not home
-        if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
-            def now = new Date()
+        def now = new Date()
 
-            //if last text was sent less than 5 minutes ago, don't send
-            /* ************************************************************************ */
-            /* TO-DO: Add option to override text cooldown period? (Maybe in Master?)   */
-            /* Same with presence app.                                                  */
-            /* ************************************************************************ */
-            // Compute seconds from last sms
-            seconds = (now.getTime()  - state.contactLastSms) / 1000
+        //if last text was sent less than 5 minutes ago, don't send
+        /* ************************************************************************ */
+        /* TO-DO: Add option to override text cooldown period? (Maybe in Master?)   */
+        /* Same with presence app.                                                  */
+        /* ************************************************************************ */
+        // Compute seconds from last notification
+        seconds = (now.getTime()  - state.contactLastNotification) / 1000
 
-            // Convert date to friendly format for log
-            now = now.format("h:mm a", location.timeZone)
-            if(seconds > 360){
-                state.contactLastSms = new Date().getTime()
+        // Convert date to friendly format for log
+        now = now.format("h:mm a", location.timeZone)
+        if(seconds > 360){
+            state.contactLastNotification = new Date().getTime()
 
-                if(evt.value == "open") {
-                    eventName = "opened"
-                } else {
-                    eventName = evt.value
-                }
-                parent.sendText(phone,"$evt.displayName was $eventName at $now.",app.label)
-                if(checkLog(a="info")) putLog(1169,"Sent SMS for $evt.displayName $eventName at $now.",a)
+            if(evt.value == "open") {
+                eventName = "opened"
             } else {
-                if(checkLog(a="info")) putLog(1171,"Did not send SMS for $evt.displayName $eventName due to SMS sent $seconds ago.",a)
+                eventName = evt.value
             }
+            parent.sendText(pushNotificationDevice,"$evt.displayName was $eventName at $now.",app.label)
+            if(checkLog(a="info")) putLog(1169,"Sent push notice for $evt.displayName $eventName at $now.",a)
+        } else {
+            if(checkLog(a="info")) putLog(1171,"Did not send push notice for $evt.displayName $eventName due to notification sent $seconds ago.",a)
         }
     }
 
     // Give voice alert
-    if(speakText && ((speakOpenClose && evt.value == "open") || (!speakOpenClose && evt.value == "closed"))) {
-        // Only if correct people are home/not home
-        if((personHome && personNotHome && home1 && home2) || (personHome && !personNotHome && home1) || (!personHome && personNotHome && home2) || (!personHome && !personNotHome)){	
-            parent.speak(speakText,app.label)
+    if(settings["speech"] && home && ((!settings["notificationOpenClose"] && evt.value == "open") || (settings["notificationOpenClose"] && evt.value == "closed"))) {
+        /* ************************************************************************ */
+        /* TO-DO: Add option to override speech cooldown period? (Maybe in Master?) */
+        /* Same with presence app.                                                  */
+        /* ************************************************************************ */
+        settings["speech"].each{
+            parent.speakSingle(settings["speech"],it,app.label)
         }
     }
 
     // Set mode
-    if(mode && ((modeOpenClose && evt.value == "open") || (!modeOpenClose && evt.value == "closed"))) parent.changeMode(mode,app.label)
+    if(settings["openMode"] && evt.value == "open"){
+        parent.changeMode(settings["openMode"],app.label)
+    } else if(settings["closeMode"] && evt.value == "closed"){
+        parent.changeMode(settings["closeMode"],app.label)
+    }
 
     // Perform open events (for switches and locks)
     if(evt.value == "open"){
@@ -1195,8 +1248,11 @@ def contactChange(evt){
             // Need to add level, temp and color!!
             // Need to add resume
             // It will get defaults, even if it's supposed to override
-            if(deviceType == "switch" || deviceType == "light") setStateMulti(openAction,device,"open")
-            if(deviceType == "lock") parent.multiLock(openAction,device,app.label)
+            if(deviceType == "switch" || deviceType == "light") {
+                setStateMulti(openAction,device,"open")
+            } else if(deviceType == "lock") {
+                parent.multiLock(openAction,device,app.label)
+            }
         }
 
         // Perform close events (for switches and locks)
@@ -1236,27 +1292,6 @@ def runScheduleClose(){
     }
 }
 
-def validatePhone(phone){
-    //Normalize phone number
-    phone = phone.replaceAll(" ","");
-    phone = phone.replaceAll("\\(","");
-    phone = phone.replaceAll("\\)","");
-    phone = phone.replaceAll("-","");
-    phone = phone.replaceAll("\\.","");
-    phone = phone.replaceAll("\\+","");
-    if(!phone.isNumber()) {
-        return false
-    }
-    if(phone.length() == 10) {
-        phone = "+1" + phone
-    } else if(phone.length() == 9 && phone.substring(0,1) == "1") {
-        phone = "+" + phone
-    } else {
-        return false
-    }
-    return phone
-}
-
 def setTime (){
     if(!setStartStopTime("start")) return
     if(!setStartStopTime("stop")) return 
@@ -1269,7 +1304,7 @@ def setStartStopTime(type){
         if(checkLog(a="error")) putLog(1269,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
         return
     }
-    
+
     if(type == "start") {
         atomicState.start = null
         type = "Start"
@@ -1277,10 +1312,10 @@ def setStartStopTime(type){
         atomicState.stop = null
         type = "Stop"
     }
-    
+
     // If no stop time, exit
     if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
-    
+
     if(settings["input${type}Type"] == "time"){
         value = settings["input${type}Time"]
     } else if(settings["input${type}Type"] == "sunrise"){
@@ -1296,8 +1331,8 @@ def setStartStopTime(type){
         if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
     if(checkLog(a="trace")) putLog(1298,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-    if(type == "Start") state.start = value
-    if(type == "Stop") state.stop = value
+    if(type == "Start") atomicState.start = value
+    if(type == "Stop") atomicState.stop = value
     return true
 }
 
