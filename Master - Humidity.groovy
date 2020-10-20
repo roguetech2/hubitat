@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.1.29
+*  Version: 0.1.30
 *
 ***********************************************************************************************************************/
 
@@ -792,7 +792,7 @@ def getRelativePercentage(base,percent){
 // Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange += ":$singleDeviceId:"
+        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
