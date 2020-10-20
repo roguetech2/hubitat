@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.27
+*  Version: 0.4.31
 *
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
@@ -66,10 +66,20 @@ preferences {
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
 
-    if(app.label && buttonDevice && numButton) install = true
+    if(app.label && buttonDevice && numberOfButtons) {
+        install = "true"
+    } else {
+        install = "false"
+    }
     if(!multiDevice) {
         if(advancedSetup && !buttonPush1 && !buttonPush2 && !buttonPush3 && !buttonPush4 && !buttonPush5) install = false
-        if(!advancedSetup && !controlDevice) install = false
+        if(!advancedSetup && !controlDevice) {
+            install = "false"
+        } else {
+            install = "true"
+        }
+    } else {
+        install = "true"
     }
     //if(advancedSetup && !buttonPush1 && !buttonPush2 && !buttonPush3 && !buttonPush4 && !buttonPush5 == "on") install = false
 
@@ -82,8 +92,8 @@ preferences {
                     if(buttonDevice){
                         displayPicoTypeOption()
 
-                        if(numButton){
-                            if(!advancedSetup) displayMultiDeviceOption()
+                        if(numberOfButtons){
+                            displayMultiDeviceOption()
                             displayAdvancedSetupOption()
 
                             if(controlDevice){
@@ -92,15 +102,15 @@ preferences {
                                 } else {
                                     if(!replicateHold){
                                         paragraph "<div style=\"background-color:GhostWhite\"> Pushing Top button (\"On\") turns on.</div>"
-                                        if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Brighten\" button brightens.</div>"
-                                        if(numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing Center button does <b>nothing</b>.</div>"
-                                        if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Dim\" dims.</div>"
+                                        if(numberOfButtons == 4 || numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Brighten\" button brightens.</div>"
+                                        if(numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing Center button does <b>nothing</b>.</div>"
+                                        if(numberOfButtons == 4 || numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing \"Dim\" dims.</div>"
                                         paragraph "<div style=\"background-color:GhostWhite\"> Pushing Bottom button (\"Off\") turns off.</div>"
                                     } else {
                                         paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Top button (\"On\") turns on.</div>"
-                                        if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Brighten\" button brightens.</div>"
-                                        if(numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Center button does <b>nothing</b>.</div>"
-                                        if(numButton == "4 button" || numButton == "5 button") paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Dim\" dims.</div>"
+                                        if(numberOfButtons == 4 || numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Brighten\" button brightens.</div>"
+                                        if(numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Center button does <b>nothing</b>.</div>"
+                                        if(numberOfButtons == 4 || numberOfButtons == 5) paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding \"Dim\" dims.</div>"
                                         paragraph "<div style=\"background-color:GhostWhite\"> Pushing or Holding Bottom button (\"Off\") turns off.</div>"
                                     }
                                 }
@@ -122,8 +132,8 @@ preferences {
                     displayNameOption()
                     if(app.label) displayPicoOption()
                     if(app.label && buttonDevice) displayPicoTypeOption()
-                    if(app.label && buttonDevice && numButton) displayAdvancedSetupOption()
-                    if(app.label && buttonDevice && numButton) displayMultiDeviceOption()
+                    if(app.label && buttonDevice && numberOfButtons) displayAdvancedSetupOption()
+                    if(app.label && buttonDevice && numberOfButtons) displayMultiDeviceOption()
 
                     paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
 
@@ -132,13 +142,13 @@ preferences {
                     /* ************************************************************************ */
                     if(!replicateHold){
                         input "button_1_push_on", "capability.switch", title: "Top \"On\" button turns on?", multiple: true, submitOnChange:true
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_2_push_brighten", "capability.switchLevel", title: "\"Brighten\" button brightens?", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "5 button"){
+                        if(numberOfButtons == 5){
                             input "button_3_push_toggle", "capability.switch", title: "Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_4_push_dim", "capability.switchLevel", title: "\"Dim\" button dims?", multiple: true, submitOnChange:true
                         }
                         input "button_5_push_off", "capability.switch", title: "Bottom (\"Off\") button turns off?", multiple: true, submitOnChange:true
@@ -151,13 +161,13 @@ preferences {
 
                     } else if(replicateHold){
                         input "button_1_push_on", "capability.switch", title: "Pushing Top \"On\" button turns on?", multiple: true, submitOnChange:true
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_2_push_brighten", "capability.switchLevel", title: "Pushing \"Brighten\" button brightens?", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "5 button"){
+                        if(numberOfButtons == 5){
                             input "button_3_push_toggle", "capability.switch", title: "Pushing Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_4_push_dim", "capability.switchLevel", title: "Pushing \"Dim\" button dims?", multiple: true, submitOnChange:true
                         }
                         input "button_5_push_off", "capability.switch", title: "Pushing Bottom (\"Off\") buttont turns off?", multiple: true, submitOnChange:true
@@ -169,13 +179,13 @@ preferences {
                         }
 
                         input "button_1_hold_on", "capability.switch", title: "Holding Top \"On\" button turns on?", multiple: true, submitOnChange:true
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_2_hold_brighten", "capability.switchLevel", title: "Holding \"Brighten\" button brightens?", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "5 button"){
+                        if(numberOfButtons == 5){
                             input "button_3_hold_toggle", "capability.switch", title: "Holding Center button toggles? (if on, turn off; if off, turn on)", multiple: true, submitOnChange:true
                         }
-                        if(numButton == "4 button" || numButton == "5 button"){
+                        if(numberOfButtons == 4 || numberOfButtons == 5){
                             input "button_4_hold_dim", "capability.switchLevel", title: "Holding \"Dim\" button dims?", multiple: true, submitOnChange:true
                         }
                         input "button_5_hold_off", "capability.switch", title: "Holding Bottom (\"Off\") button turns off?", multiple: true, submitOnChange:true
@@ -191,11 +201,11 @@ preferences {
                     displayPicoOption()
                     displayPicoTypeOption()
                     displayAdvancedSetupOption()
-                    if(app.label && buttonDevice && numButton) displayMultiDeviceOption()
+                    if(app.label && buttonDevice && numberOfButtons) displayMultiDeviceOption()
                     paragraph "<div style=\"background-color:BurlyWood\"><b> Select what to do for each Pico action:</b></div>"
                 }
 
-                if(app.label && buttonDevice && numButton){
+                if(app.label && buttonDevice && numberOfButtons){
                     if(!button_1_push_on && !button_1_push_off && !button_1_push_dim && !button_1_push_brighten && !button_1_push_toggle && !button_1_push_resume) {
                         hidden = true
                         text = "None selected - Click to expand"
@@ -240,7 +250,7 @@ preferences {
                         errorMessage(compareDeviceLists(button,"resume"))
                     }
                     //paragraph error
-                    if((numButton == "4 button" || numButton == "5 button") && !error){
+                    if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
                         if(!button_2_push_on && !button_2_push_off && !button_2_push_dim && !button_2_push_brighten && !button_2_push_toggle && !button_2_push_resume) {
                             hidden = true
                             text = "None selected - Click to expand"
@@ -281,7 +291,7 @@ preferences {
                             errorMessage(compareDeviceLists(button,"toggle"))
                         }
                     }
-                    if(numButton == "5 button" && !error){
+                    if(numberOfButtons == 5 && !error){
                         if(!button_3_push_on && !button_3_push_off && !button_3_push_dim && !button_3_push_brighten && !button_3_push_toggle && !button_3_push_resume) {
                             hidden = true
                             text = "None selected - Click to expand"
@@ -320,7 +330,7 @@ preferences {
                             errorMessage(compareDeviceLists(button,"resume"))
                         }
                     }
-                    if((numButton == "4 button" || numButton == "5 button") && !error){
+                    if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
                         if(!button_4_push_on && !button_4_push_off && !button_4_push_dim && !button_4_push_brighten && !button_4_push_toggle && !button_4_push_resume) {
                             hidden = true
                             text = "None selected - Click to expand"
@@ -446,7 +456,7 @@ preferences {
                             errorMessage(compareDeviceLists(button,"dim"))
                             errorMessage(compareDeviceLists(button,"resume"))
                         }
-                        if((numButton == "4 button" || numButton == "5 button")  && !error){
+                        if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
                             if(!button_2_hold_on && !button_2_hold_off && !button_2_hold_dim && !button_2_hold_brighten && !button_2_hold_toggle && !button_2_hold_resume) {
                                 hidden = true
                                 text = "None selected - Click to expand"
@@ -486,7 +496,7 @@ preferences {
                                 errorMessage(compareDeviceLists(button,"toggle"))
                             }
                         }
-                        if(numButton == "5 button" && !error){
+                        if(numberOfButtons == 5 && !error){
                             if(!button_3_hold_on && !button_3_hold_off && !button_3_hold_dim && !button_3_hold_brighten && !button_3_hold_toggle && !button_3_hold_resume) {
                                 hidden = true
                                 text = "None selected - Click to expand"
@@ -525,7 +535,7 @@ preferences {
                                 errorMessage(compareDeviceLists(button,"resume"))
                             }
                         }
-                        if((numButton == "4 button" || numButton == "5 button")  && !error){
+                        if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
                             if(!button_4_hold_on && !button_4_hold_off && !button_4_hold_dim && !button_4_hold_brighten && !button_4_hold_toggle && !button_4_hold_resume) {
                                 hidden = true
                                 text = "None selected - Click to expand"
@@ -632,12 +642,8 @@ def errorMessage(text){
     }
 }
 
-def displayLabel(text){
-    if(!text) {
-        paragraph "<div style=\"background-color:BurlyWood\"> </div>"
-    } else {
-        paragraph "<div style=\"background-color:BurlyWood\"><b> $text:</b></div>"
-    }
+def displayLabel(text = "Null", width = 12){
+    paragraph("<div style=\"background-color:#DCDCDC\"><b> $text:</b></div>",width:width)
 }
 
 def displayInfo(text = ""){
@@ -660,38 +666,55 @@ def displayNameOption(){
     /* ************************************************************************ */
 }
 
-def displayPicoOption(){
-    displayLabel("Select Pico device(s) to setup")
-/* ************************************************************************ */
-/* TO-DO: Hypothetically, we could limit list to 2, 4 and 5 button devices  */
-/* Could we use something from the driver? device.type = "Pico" or some     */
-/* crap like that?                                                          */
-/* ************************************************************************ */
-    input "buttonDevice", "capability.pushableButton", title: "Pico(s)?", multiple: true, submitOnChange:true
 /* ************************************************************************ */
 /* TO-DO: Change it so different number of buttons can be used in one setup */
 /* but add warnings when selecting to assign button number not on device,   */
 /* as well as a general warning.                                            */
 /* ************************************************************************ */
-    if(!buttonDevice) displayInfo("Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.")
+def displayPicoOption(){
+        if(buttonDevice){
+        buttonDevice.each{
+            if(count == 1) multipleDevices = true
+            count = 1
+        }
+        if(multipleDevices){
+            pluralInput = "Picos"
+        } else {
+            pluralInput = "Pico"
+        }
+        input "buttonDevice", "capability.pushableButton", title: "$pluralInput:", multiple: true, submitOnChange:true
+    } else {
+        input "buttonDevice", "capability.pushableButton", title: "Select Pico device(s):", multiple: true, submitOnChange:true
+        displayInfo("Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.")
+    }
 }
 
 /* ************************************************************************ */
-/* TO-DO: Use currentValue('numberOfButtons'), but check 1) If it's set -   */
-/* otherwise present numButton input option with a warning, 2) If all       */
-/* Picos have the same number of buttons - otherwise present warning.       */
+/* TO-DO: Add errors in setup for defining actions to non-existent buttons. */
 /* ************************************************************************ */
 def displayPicoTypeOption(){
-    displayLabel("Set type of Pico")
-    input "numButton", "enum", title: "<b>Type of Pico</b>", multiple: false, options: ["2 button", "4 button", "5 button"], submitOnChange:true
-    if(!numButton) displayInfo("Set how many buttons the Pico has.")
+    //Get maximum number of buttons
+/* ************************************************************************ */
+/* TO-DO: Add error trap for if no numberOfButtons is set for device.       */
+/* ************************************************************************ */
+    buttonDevice.each{
+        if(it.currentValue("numberOfButtons")) {
+            if(!numberOfButtons){
+                numberOfButtons = it.currentValue("numberOfButtons")
+            } else if(numberOfButtons < it.currentValue("numberOfButtons")) {
+                numberOfButtons = it.currentValue("numberOfButtons")
+            }
+        } else {
+            //display error
+        }
+    }
 }
 
 def displayAdvancedSetupOption(){
     displayLabel("Custom buttons and/or devices")
     if(advancedSetup){
         input "advancedSetup", "bool", title: "<b>Allowing custom button actions.</b> Click to use normal button actions.", submitOnChange:true
-        if(numButton == "2 button") {
+        if(numberOfButtons == 2) {
             displayInfo("Click to have the on button turn on and the off button to turn off.")
         } else {
             displayInfo("Click to have the buttons mapped to the normal function; on button turns on, up button brightens, etc.")
@@ -718,9 +741,9 @@ def displayMultiDeviceOption(){
 def getMultiDeviceInputOption(){
     displayLabel("Select what to do for each Pico action")
     displaySelectActionsButtonOption(1,"Top (\"On\")")
-    if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(2,"\"Brighten\"")
-    if(numButton == "5 button") displaySelectActionsButtonOption(3,"Center")
-    if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(4,"\"Dim\"")
+    if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(2,"\"Brighten\"")
+    if(numberOfButtons == 5) displaySelectActionsButtonOption(3,"Center")
+    if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(4,"\"Dim\"")
     displaySelectActionsButtonOption(5,"Bottom (\"Off\")")
     if(!replicateHold){
         input "replicateHold", "bool", title: "Replicating settings for Long Push. Click to customize Hold actions.", submitOnChange:true, defaultValue: false
@@ -728,9 +751,9 @@ def getMultiDeviceInputOption(){
         input "replicateHold", "bool", title: "Long Push options shown. Click to replicate from Push.", submitOnChange:true, defaultValue: false
 
         displaySelectActionsButtonOption(1,"Top (\"On\")","hold")
-        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(2,"\"Brighten\"","hold")
-        if(numButton == "5 button") displaySelectActionsButtonOption(3,"Center","hold")
-        if(numButton == "4 button" || numButton == "5 button") displaySelectActionsButtonOption(4,"\"Dim\"","hold")
+        if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(2,"\"Brighten\"","hold")
+        if(numberOfButtons == 5) displaySelectActionsButtonOption(3,"Center","hold")
+        if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(4,"\"Dim\"","hold")
         displaySelectActionsButtonOption(5,"Bottom (\"Off\")","hold")
     }
 }
@@ -756,16 +779,16 @@ def getAdvancedSwitchInput(values,populated = null){
         text += "Brightens"
     } else if(values[1] == "resume"){
         text += "Resume schedule(s) (if none, turn off)"
-    }	
+    }
     if(populated) {
         text += "</b>"
     } else {
         text += " <font color=\"gray\">(Select devices)</font>"
     }
     if(values[1] == "dim" || values[1] == "brighten"){
-        switchType = "switch"
-    } else {
         switchType = "switchLevel"
+    } else {
+        switchType = "switch"
     }
     input "button_" + values[0] + "_" + values[2] + "_" + values[1], "capability.$switchType", title: "$text", multiple: true, submitOnChange:true
 }
@@ -872,6 +895,8 @@ def initialize() {
 
 def buttonPushed(evt){
     buttonNumber = evt.value
+    numberOfButtons = evt.device.currentValue("numberOfButtons")
+
     // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
     if(evt.name == "pushed") {
         atomicState.action = "push"
@@ -884,8 +909,10 @@ def buttonPushed(evt){
     if(settings["${atomicState.action}Multiplier"]) settings["${atomicState.action}Multiplier"] = parent.validateMultiplier(settings["${atomicState.action}Multiplier"],app.label)
 
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(buttonNumber == "2" &&  numButton == "2 button") buttonNumber = 5
-
+    if(buttonNumber == "2" && numberOfButtons == 2) buttonNumber = 5
+    if(buttonNumber == "4" && numberOfButtons == 4) buttonNumber = 5
+    if(buttonNumber == "3" && numberOfButtons == 4) buttonNumber = 4
+    
     // There the action for either push or brighten, if we have only one variable for the Pico actions;
     // which isn't the case with "multiDevice"
     if(!multiDevice && !advancedSetup){
@@ -899,10 +926,13 @@ def buttonPushed(evt){
             case "5": switchAction = "off"
         }
     } else if(!multiDevice && (atomicState.action == "push" || (atomicState.action == "hold" && replicateHold))){
+        putLog(6,settings["buttonPush${buttonNumber}"])
         switchAction = settings["buttonPush${buttonNumber}"]
     } else if(!multiDevice && atomicState.action == "hold" && !replicateHold){
+        putLog(2)
         switchAction = settings["buttonHold${buttonNumber}"]
     } else if(!multiDevice && (atomicState.action == "push" || (atomicState.action == "hold" && replicateHold))){
+        putLog(3)
         switchAction = settings["button_" + buttonNumber + "push"]
     }
 
@@ -987,9 +1017,12 @@ def buttonPushed(evt){
 // place holder until I can redo my pico setups to not throw an error
 def buttonHeld(evt){
 }
+
 def buttonReleased(evt){
     buttonNumber = evt.value
-    if (buttonNumber == "2" || (buttonNumber == "4" && (settings.numButton == "4 button" || settings.numButton == "5 button")) || (buttonNumber == "1" && settings.numButton == "2 button")){
+    numberOfButtons = evt.device.currentValue("numberOfButtons")
+
+    if (buttonNumber == "2" || (buttonNumber == "4" && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == "1" && numberOfButtons == 2)){
         if(checkLog(a="trace")) putLog(983,"Button $buttonNumber of $buttonDevice released, unscheduling all",a)
         unschedule()
     }
@@ -1101,7 +1134,7 @@ def runSetProgressiveLevel(data){
         if(checkLog(a="trace")) putLog(1091,"Function runSetProgressiveLevel returning (no matching device)",a)
         return
     }
-    parent.setLevelSingle(data.level,null,null,null,device,app.label)
+    parent.setLevelSingle(defaults,device,app.label)
     // Why reschedule?
     //parent.reschedule(device)
 }
@@ -1209,7 +1242,7 @@ def getLevel(device){
 // Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange += ":$singleDeviceId:"
+        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
