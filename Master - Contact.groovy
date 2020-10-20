@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.2
+*  Version: 0.5.3
 * 
 ***********************************************************************************************************************/
 
@@ -57,6 +57,7 @@ preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
+    moreOptions = " <font color=\"grey\">(click for more options)</font>"
 
     // Check for errors, and if so prevent saving
     /// Can't use settings variable before page setup (or functions that use it) (?)
@@ -102,7 +103,6 @@ preferences {
             displayChangeModeOption()
             displayAlertOptions()
             displayScheduleSection()
-            displayDaysOption()
             displayIfModeOption()
             section(){
                 if(error) paragraph "$error</div>"
@@ -227,7 +227,7 @@ def displayDisableOption(){
     if(disable){
         input "disable", "bool", title: "<b><font color=\"#000099\">This schedule is disabled.</font></b> Reenable it?", submitOnChange:true
     } else {
-        input "disable", "bool", title: "This schedule is enabled. Disable it? (You must click \"Done\" for change to take affect.)", submitOnChange:true
+        input "disable", "bool", title: "This schedule is enabled. Disable it?", submitOnChange:true
     }
 }
 
@@ -272,7 +272,7 @@ def displayOpenOptions(){
 
     if(settings["openAction"]){
 
-        title = "When opened: "
+        sectionTitle = "<b>When opened: "
 
         if(settings["openAction"] == "none"){
             action = "Do nothing"
@@ -289,10 +289,15 @@ def displayOpenOptions(){
         } else if(settings["openAction"] == "unlock"){
             action =  "Unlock"
         }
-        title = title + action
+        sectionTitle = sectionTitle + action
 
-        if(settings["openWait"] && settings["openWait"] > 0) title = title + " after " + settings["openWait"] + " seconds"
-        section(hideable: true, hidden: true, "$title"){
+        if(settings["openWait"] && settings["openWait"] > 0) {
+            sectionTitle = sectionTitle + " after " + settings["openWait"] + " seconds</b>"
+        } else {
+            sectionTitle = sectionTitle + "</b>" + moreOptions
+        }
+        
+        section(hideable: true, hidden: true, sectionTitle){
             if(settings["deviceType"] == "lock"){
                 input "openAction", "enum", title: "When opened, lock or unlock?", multiple: false, width: 12, options: ["none": "Don't lock or unlock","lock": "Lock", "unlock": "Unlock"], submitOnChange:true
             } else {
@@ -420,7 +425,7 @@ def displayCloseOptions(){
     }
 
     if(settings["closeAction"]){
-        title = "When closed: "
+        sectionTitle = "<b>When closed: "
         if(settings["closeAction"] == "none"){
             action = "Do nothing"
         } else if(settings["closeAction"] == "on"){
@@ -436,11 +441,15 @@ def displayCloseOptions(){
         } else if(settings["closeAction"] == "unlock"){
             action =  "Unlock"
         }
-        title = title + action
+        sectionTitle = sectionTitle + action
 
-        if(settings["closeWait"] && settings["closeWait"] > 0) title = title + " after " + settings["closeWait"] + " seconds"
+        if(settings["closeWait"] && settings["closeWait"] > 0) {
+            sectionTitle = sectionTitle + " after " + settings["closeWait"] + " seconds</b>"
+        } else {
+            sectionTitle = sectionTitle + "</b>" + moreOptions
+        }
 
-        section(hideable: true, hidden: true, "$title"){
+        section(hideable: true, hidden: true, sectionTitle){
             if(settings["deviceType"] == "lock"){
                 input "closeAction", "enum", title: "When closed, lock or unlock?", multiple: false, width: 12, options: ["none": "Don't lock or unlock","lock": "Lock", "unlock": "Unlock"], submitOnChange:true
             } else {
@@ -544,9 +553,9 @@ def displayBrightnessOption(){
     }
 
     if(!settings["openLevel"] && !settings["closeLevel"]){
-        sectionTitle = "<b>Click to set brightness</b> (optional)"
+        sectionTitle = "Click to set brightness (optional)"
     } else {
-        sectionTitle = ""
+        sectionTitle = "<b>"
         if(settings["openLevel"]){
             sectionTitle = "On open, set brightness to " + settings["openLevel"] + "%"
             if(settings["closeLevel"]) sectionTitle = sectionTitle + "<br>"
@@ -554,6 +563,7 @@ def displayBrightnessOption(){
         if(settings["closeLevel"]){
             sectionTitle = sectionTitle + "On close, set brightness to " + settings["closeLevel"] + "%"
         }
+        sectionTitle = sectionTitle + "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -596,9 +606,9 @@ def displayTemperatureOption(){
     }
 
     if(!settings["openTemp"] && !settings["closeTemp"]){
-        sectionTitle = "<b>Click to set temperature color</b> (optional)"
+        sectionTitle = "Click to set temperature color (optional)"
     } else {
-        sectionTitle = ""
+        sectionTitle = "<b>"
         if(settings["openTemp"]){
             sectionTitle = "On open, set temperature color to " + settings["openTemp"] + "K"
             if(settings["closeTemp"]) sectionTitle = sectionTitle + "<br>"
@@ -606,6 +616,7 @@ def displayTemperatureOption(){
         if(settings["closeTemp"]){
             sectionTitle = sectionTitle + "On close, set temperature color to "+ settings["closeTemp"] + "K"
         }
+        sectionTitle = sectionTitle + "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -641,16 +652,10 @@ def displayColorOption(){
     if((settings["openHue"] || settings["openSat"] || settings["closeHue"] || settings["closeSat"]) &&
        (!settings["openHue"] || !settings["openSat"] || !settings["closeHue"] || !settings["closeSat"])) hidden = false
 
-    if(settings["closeAction"] == "off" || settings["closeAction"] == "resume" || settings["openAction"] == "off" || settings["openAction"] == "resume") {
-        width = 12
-    } else {
-        width = 6
-    }
-
     if(!settings["openHue"] && !settings["closeHue"] && !settings["openSat"] && !settings["closeSat"]){
-        sectionTitle = "<b>Click to set color (hue and/or saturation)</b> (optional)"
+        sectionTitle = "Click to set color (hue and/or saturation) (optional)"
     } else {
-        sectionTitle = ""
+        sectionTitle = "<b>"
         // If just open color
         if(settings["openHue"]) {
             sectionTitle = "On open, set hue to " + settings["openHue"] + "%"
@@ -667,25 +672,20 @@ def displayColorOption(){
         } else if(settings["closeSat"]) {
             sectionTitle = sectionTitle + "On close, set saturation " + settings["closeSat"] + "%"
         }
+        sectionTitle = sectionTitle + "<b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "openHue", "number", title: "Set hue on open?", width: width, submitOnChange:true
-        }
-
-        if(settings["openAction"] != "off" && settings["openAction"] != "resume"){
-            input "openSat", "number", title: "Set saturation on open?", width: width, submitOnChange:true
+            input "openHue", "number", title: "Set hue on open?", width: 6, submitOnChange:true
+            input "openSat", "number", title: "Set saturation on open?", width: 6, submitOnChange:true
         }
 
         if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "closeHue", "number", title: "Set hue on close?", width: width, submitOnChange:true
+            input "closeHue", "number", title: "Set hue on close?", width: 6, submitOnChange:true
+            input "closeSat", "number", title: "Set saturation on close?", width: 6, submitOnChange:true
         }
-
-        if(settings["closeAction"] != "off" && settings["closeAction"] != "resume"){
-            input "closeSat", "number", title: "Set saturation on close?", width: width, submitOnChange:true
-        }
-        displayInfo("Hue is percent around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; 50 = turquiose; blue = 66; purple = 79. Optional")
+        displayInfo("Hue is percent around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; 50 = turquiose; blue = 66; purple = 79 (may vary by device). Optional")
         displayInfo("Saturation is the percentage depth of color, from 1 to 100, where 1 is hardly any color tint and 100 is full color. Optional.")
 
 
@@ -699,31 +699,43 @@ def displayColorOption(){
 def displayScheduleSection(){
     if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
 
-    // If all options, display full title
-    if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
+    // If only days entered
+    sectionTitle="<b>"
+    if(!settings["inputStartType"] && !settings["inputStopType"] && settings["timeDays"]){
+        sectionTitle = sectionTitle + "Only on: " + settings["timeDays"] + "</b>" + moreOptions
+        hidden = true
+        // If only start time (and days) entered
+    }  else if(checkTimeComplete("start") && settings["inputStartType"] && (!checkTimeComplete("stop") || !settings["inputStopType"])){
+        sectionTitle = "Beginning at $varStartTime"
+        if(!settings["timeDays"]) sectionTitle = sectionTitle + " on: $settings.timeDays"
+        sectionTitle = sectionTitle + "</b>"
+        hidden = false
+        // If only stop time (and day) entered
+    } else if(checkTimeComplete("stop") && settings["inputStopType"] && (!checkTimeComplete("start") || !settings["inputStartType"])){
+        sectionTitle = "Ending at $varStopTime"
+        if(!settings["timeDays"]) sectionTitle = sectionTitle + " on: $settings.timeDays"
+        sectionTitle = sectionTitle + "</b>"
+        
+        hidden = false
+        // If all options entered
+    } else if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
         varStartTime = getTimeVariables("start")
         varStopTime = getTimeVariables("stop")
-        title = "Only if between $varStartTime and $varStopTime"
-        hidden = true
-        // If no options, display generic title
-    } else if(checkTimeComplete("start") && checkTimeComplete("stop") && !settings["inputStartType"] && !settings["inputStopType"]){
-        title = "<b>Click to set schedule</b> (optional)"
-        hidden = true
-        // If partial options, display partial title
-    } else if(!checkTimeComplete("start") || !checkTimeComplete("stop") || !settings["inputStartType"] || !settings["inputStopType"]){
-        if(checkTimeComplete("start") && settings["inputStartType"]){
-            varStartTime = getTimeVariables("start")
-            title = "Beginning at $varStartTime"
-        } else if(checkTimeComplete("stop") && settings["inputStopType"]){
-            varStopTime = getTimeVariables("stop")
-            title = "Ending at $varStopTime"
+        sectionTitle = "Only if between $varStartTime and $varStopTime"
+        if(!settings["timeDays"]) {
+            sectionTitle = sectionTitle + moreOptions
         } else {
-            title = "Set schedule"
+            sectionTitle = sectionTitle + " on: $settings.timeDays"
         }
-        hidden = false
+        sectionTitle = sectionTitle + "</b>"
+        hidden = true
+        // If no options are entered
+    } else {
+        sectionTitle = "Click to set schedule (optional)"
+        hidden = true
     }
 
-    section(hideable: true, hidden: hidden, title){
+    section(hideable: true, hidden: hidden, sectionTitle){
         displayStartTypeOption()
 
         // Display exact time option
@@ -749,6 +761,19 @@ def displayScheduleSection(){
                 if(inputStartSunriseType != "at") displaySunriseOffsetOption("stop")
             }
         }
+        
+        input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+
+        message = "This will limit the contact/door sensor"
+        if(multipleContacts) message = message + "s"
+        message = message + " from running only on "
+        if(settings["timeDays"]) {
+            message = message + settings["timeDays"]
+        } else {
+            message = message + "the day(s) selected."
+        }
+
+        displayInfo(message)
     }
 }
 
@@ -883,9 +908,9 @@ def displayChangeModeOption(){
     if((settings["openMode"] || settings["closeMode"]) && (!settings["openMode"] || !settings["closeMode"])) hidden = false
 
     if(!settings["openMode"] && !settings["closeMode"]){
-        sectionTitle = "<b>Click to set Mode change</b> (optional)"
+        sectionTitle = "Click to set Mode change (optional)"
     } else {
-        sectionTitle = ""
+        sectionTitle = "<b>"
         if(settings["openMode"]) {
             sectionTitle = "On open, set Mode " + settings["openMode"]
             if(settings["closeMode"]) sectionTitle = sectionTitle + "<br>"
@@ -894,6 +919,7 @@ def displayChangeModeOption(){
         if(settings["closeMode"]) {
             sectionTitle = sectionTitle + "On close, set Mode " + settings["closeMode"]
         }
+        sectionTitle = sectionTitle + "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -913,9 +939,9 @@ def displayIfModeOption(){
     }
 
     if(settings["ifMode"]){
-        sectionTitle = "Only with Mode: $settings.ifMode"
+        sectionTitle = "<b>Only with Mode: $settings.ifMode</b>"
     } else {
-        sectionTitle = "<b>Click to select with what Mode</b> (optional)"
+        sectionTitle = "Click to select with what Mode (optional)"
     }
     section(hideable: true, hidden: true, sectionTitle){
         input "ifMode", "mode", title: "Only run if Mode is already?", width: 12, submitOnChange:true
@@ -933,117 +959,101 @@ def displayIfModeOption(){
     }
 }
 
-def displayDaysOption(){
-    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
-    if(settings["openAction"] == "none" && settings["closeAction"] == "none") return
-    multipleContacts = false
-    count = 0
-    settings["contactDevice"].each{
-        if(count == 1) multipleContacts = true
-        count = 1
-    }
-
-    if(settings["timeDays"]){
-        sectionTitle = "Only on: $settings.timeDays"
-    } else {
-        sectionTitle = "<b>Click to select on which days</b> (optional)"
-    }
-    section(hideable: true, hidden: true, sectionTitle){
-        input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
-
-
-        message = "This will limit the contact/door sensor"
-        if(multipleContacts) message = message + "s"
-        message = message + " from running only on "
-        if(settings["timeDays"]) {
-            message = message + settings["timeDays"]
-        } else {
-            message = message + "the day(s) selected."
-        }
-
-        displayInfo(message)
-    }
-}
-
 def displayAlertOptions(){
     if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
-    if(!parent.pushNotification && !parent.speech) return
+    if(!parent.pushNotificationDevice && !parent.speechDevice) return
 
     hidden = true
-    if((settings["pushNotificationDevice"] && !settings["pushNotification"]) || (settings["speechDevice"] && !settings["speech"])) hidden = false
+
+    // Get push notification device(s) from parent (if applicable)
+    if(parent.pushNotificationDevice){
+        state.pushFilteredList = [:]
+        countPushDevices = 0
+        parent.pushNotificationDevice.each{
+            pushDeviceName = "${it.label ?: it.name}"
+            pushDeviceId = it.id
+            state.pushFilteredList[pushDeviceId] = pushDeviceName
+            countPushDevices++
+                }
+        if(countPushDevices == 1) {
+            settings["pushNotificationDevice"] = [:]
+            settings["pushNotificationDevice"][pushDeviceName] = pushDeviceId
+        }
+    }
+
+    // Get speech device(s) from parent (if applicable)
+    if(parent.speechDevice){
+        state.speechFilteredList = [:]
+        countSpeechDevices = 0
+        parent.speechDevice.each{
+            speechDeviceName = "${it.label ?: it.name}"
+            speechDeviceId = it.id
+            state.speechFilteredList[speechDeviceId] = speechDeviceName
+            countSpeechDevices++
+                }
+        if(countSpeechDevices == 1) {
+            settings["speechDevice"] = [:]
+            settings["speechDevice"][speechDeviceName] = speechDeviceId
+        }
+    }
 
     sectionTitle = ""
     if(notificationOpenClose) {
-        action = "On close"
+        action = "<b>On close"
     } else {
-        action = "On open"
+        action = "<b>On open"
     }
-    if((!settings["pushNotificationDevice"] && !settings["speechDevice"] || (settings["pushNotificationDevice"] && !settings["pushNotification"]) || (settings["speechDevice"] && !settings["speech"]))){
-        sectionTitle = "<b>Click to set notifications</b> (optional)"
+//log.debug pushNotificationDevice
+    // No options entered
+    if((!settings["pushNotification"] || !settings["pushNotificationDevice"]) && (!settings["speech"] || !settings["speechDevice"])){
+        sectionTitle = "Click to set notifications (optional)"
+        // Push notification entered
     } else {
-        if(settings["pushNotificationDevice"]){
-            sectionTitle = "$action, send push notification"
-            if(settings["speechDevice"]) sectionTitle = sectionTitle + "<br>" 
+        if(settings["pushNotificationDevice"] && settings["pushNotification"]){
+            sectionTitle = sectionTitle + "$action, send push notification"
+            if(settings["speechDevice"] && settings["speech"]) sectionTitle = sectionTitle + "<br>"
         }
-        if(settings["speechDevice"]){
+        log.debug settings["speechDevice"] + " - " + settings["speech"]
+        if(settings["speechDevice"] && settings["speech"]){
             sectionTitle = "$action, text-to-speech announcement"
         }
+        sectionTitle = sectionTitle + "</b>"
     }
+
+    if((settings["pushNotification"] || (settings["pushNotificationDevice"] && countPushDevices > 1)) &&  (!settings["pushNotification"] || !settings["pushNotificationDevice"])) hidden = false
+    if((settings["speech"] || (settings["speechDevice"] && countSpeechDevices > 1)) && (!settings["speech"] || !settings["speechDevice"])) hidden = false
+
+    if((!settings["pushNotification"] && (settings["pushNotificationDevice"] || countPushDevices > 1)) ||
+       (!settings["speech"] && (settings["speechDevice"] || countSpeechDevices > 1)) ||
+       (!personHome || !personNotHome))
+    sectionTitle = sectionTitle + moreOptions
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(parent.pushNotificationDevice){
-            state.filteredList = [:]
-            count = 0
-            deviceName = ""
-            parent.pushNotificationDevice.each{
-                deviceName = "${it.label ?: it.name}"
-                deviceId = it.id
-                state.filteredList[it.id] = deviceName
-                count++
-                    }
-            if(count > 1){
-                input "pushNotificationDevice", "enum", title: "Push notification device(s)?", options: state.filteredList, multiple: true, submitOnChange: true
-            } else {
-                settings["pushNotificationDevice"] = deviceId
-            }
-            input "pushNotification", "text", title: "Text notification to send?", submitOnChange:true
-            if(count == 1) displayInfo("Push notifications will use the device \"$deviceName\". To use another, add it in the Master app.")
+            if(countPushDevices > 1)
+            input "pushNotificationDevice", "enum", title: "Push notification device(s)?", options: state.pushFilteredList, multiple: true, submitOnChange: true
+
+            input "pushNotification", "text", title: "Text of push notification to send?", submitOnChange:true
+            if(countPushDevices == 1) displayInfo("Push notifications will use the device \"$pushDeviceName\". To use other(s), add it in the Master app.")
         }
 
-        if(parent.speech){
-            state.filteredList = [:]
-            count = 0
-            deviceName = ""
-            parent.speechDevice.each{
-                deviceName = "${it.label ?: it.name}"
-                deviceId = it.id
-                state.filteredList[it.id] = deviceName
-                count++
-                    }
-            if(count > 1) {
-                input "speechDevice", "enum", title: "Text-to-speech device to use", options: state.filteredList, multiple: true, submitOnChange: true
-            } else {
-                settings["speechDevice"] = deviceId
-            }
-            input "speechDevice", "text", title: "Text-to-speech announcement?", submitOnChange:true
-            if(count == 1) displayInfo("Text-to-speech will use the device \"$deviceName\". To use another, add it in the Master app.")
+        if(parent.speechDevice){
+            if(countSpeechDevices > 1) 
+            input "speechDevice", "enum", title: "Text-to-speech device to use", options: state.speechFilteredList, multiple: true, submitOnChange: true
+
+            input "speech", "text", title: "Text-to-speech announcement?", submitOnChange:true
+            if(countSpeechDevices == 1) displayInfo("Text-to-speech will use the device \"$speechDeviceName\". To use other(s), add it in the Master app.")
+        }
+        
+        if((parent.pushNotificationDevice && settings["pushNotification"]) || (parent.speechDevice && settings["speech"])){
+            if(settings["notificationOpenClose"]){
+            input "notificationOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true
+        } else {
+            input "notificationOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true
+        }
         }
 
-        if((pushNotificationDevice && pushNotification) || (speechDevice && speech)){
-            titleText = ""
-            if(pushNotificationDevice && pushNotification) {
-                titleText = "Send notification"
-                if(speechDevice && speech) titleText = titleText + " and speak"
-            } else {
-                titleText = "Speak"
-            }
-            titleText = titleText + "when "
-            if(notificationOpenClose){
-                titleText = titleText + "<b>closed</b>. Click for opened."
-            } else {
-                titleText = titleText + "<b>opened</b>. Click for closed."
-            }
-
+        if((settings["pushNotificationDevice"] && settings["pushNotification"]) || (settings["speechDevice"] && settings["speech"])){
             input "personHome", "capability.presenceSensor", title: "Only alert if any of these people are home", multiple: true, submitOnChange:true
             input "personNotHome", "capability.presenceSensor", title: "Only alert if none of these people are home", multiple: true, submitOnChange:true
         }
@@ -1212,10 +1222,13 @@ def contactChange(evt){
             } else {
                 eventName = evt.value
             }
-            parent.sendText(pushNotificationDevice,"$evt.displayName was $eventName at $now.",app.label)
+            settings["pushNotificationDevice"].each{
+                parent.sendPushNotification(it,"$evt.displayName was $eventName at $now.",app.label)
+                log.debug it
+            }
             if(checkLog(a="info")) putLog(1169,"Sent push notice for $evt.displayName $eventName at $now.",a)
         } else {
-            if(checkLog(a="info")) putLog(1171,"Did not send push notice for $evt.displayName $eventName due to notification sent $seconds ago.",a)
+            if(checkLog(a="info")) putLog(1171,"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.",a)
         }
     }
 
@@ -1342,7 +1355,7 @@ def setStartStopTime(type){
 // Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange += ":$singleDeviceId:"
+        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
@@ -1479,7 +1492,6 @@ def setStateMulti(deviceAction,device,appAction = null){
                 // Skipping getting overall defaults, since we're resuming a schedule or exiting;
                 // rather keep things the same level rather than an arbitrary default, and
                 // if we got default, we'd not turn it off
-
                 parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
                 if(!defaults){
