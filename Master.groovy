@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.2.22
+*  Version: 0.2.24
 *
 ***********************************************************************************************************************/
 
@@ -64,14 +64,13 @@ def mainPage() {
 input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
 paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
 */
-                    input "people", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
+                    input "presenceDevice", "capability.presenceSensor", title: "Select all people:", multiple: true, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
-                    input "notificationDevice", "capability.speechSynthesis", title: "Select notification device(s):", multiple: false, required: false, submitOnChange:true
+                    input "pushNotificationDevice", "capability.notification", title: "Select push notification device(s):", multiple: true, required: false, submitOnChange:true
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
-                    //input "sensors", "capability.battery", title: "Select all sensors:", multiple: true, required: false, submitOnChange:true
-                    //paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These will be periodically tested to make sure they are reporting properly. Enter phone number for text notice.</div>"
-                    input "phone", "phone", title: "Number to text alert? (Optional)", required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon Text alerts do not currently work. Will be fixed soon.</div>"
+                    input "speechDevice", "capability.speechSynthesis", title: "Select text-to-speech notification device(s):", multiple: true, required: false, submitOnChange:true
+                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
+
 
                 }
                 /* ********************************************* */
@@ -316,10 +315,14 @@ def setLevelSingle(defaults, singleDevice, childLabel = "Master"){
     /* must be on, per previous statement.)                                     */
     /* ************************************************************************ */
     message = "Set "
-    if(defaults.level && isDimmable(singleDevice,childLabel)){
-        if(isFan(singleDevice,childLabel)) defaults.level = roundFanLevel(defaults.level,childLabel)
-        runInMillis(200,scheduleSetLevelSingle, [data: [singleDeviceId: singleDevice.id,level: defaults.level, appLabel: childLabel], overwrite: false])
-        message += "level: $defaults.level; "	
+    if(defaults.level){
+        //if(singleDevice.currentLevel != defaults.level && isDimmable(singleDevice,childLabel)){
+        if(isDimmable(singleDevice,childLabel)){
+            if(isFan(singleDevice,childLabel)) defaults.level = roundFanLevel(defaults.level,childLabel)
+
+            singleDevice.setLevel(defaults.level as int)
+            message += "level: $defaults.level; "
+        }	
     }
 
     // Color hue takes precendence over temp, but...
@@ -329,57 +332,35 @@ def setLevelSingle(defaults, singleDevice, childLabel = "Master"){
     } else if(defaults.sat && defaults.temp){
         defaults.sat = null
     }
+    //if(isTemp(singleDevice,childLabel)){
     if(defaults.temp && defaults.temp != singleDevice.currentColorTemperature && isTemp(singleDevice,childLabel)){
-        runInMillis(400,scheduleSetLevelSingle, [data: [singleDeviceId: singleDevice.id,temp: defaults.temp, appLabel: childLabel], overwrite: false])
+        singleDevice.setColorTemperature(defaults.temp as int)
         message += "temp: $defaults.temp; "
     }
     // Need to compare to current temp, hue and/or sat
     if((defaults.hue || defaults.sat) && isColor(singleDevice,childLabel)){
+        
         // Only update what's needed
         // treat it like a null if current hue/sat being equal to change value 
         if(defaults.sat && !defaults.hue) {
+        //if(defaults.sat && (!defaults.hue || defaults.hue == singleDevice.currentHue) && defaults.sat != singleDevice.currentSaturation) {
             // Defaults to existing sat - should we default to 100%?
-            runInMillis(400,scheduleSetLevelSingle, [data: [singleDeviceId: singleDevice.id,sat: defaults.sat, appLabel: childLabel], overwrite: false])
+            singleDevice.setColor([saturation: defaults.sat])
             message += "sat: " + defaults.sat + "; "
+      //  } else if((!defaults.sat || defaults.sat == singleDevice.currentSaturation) && defaults.hue != singleDevice.currentHue){
         } else if(!defaults.sat &&  defaults.hue){
-            runInMillis(400,scheduleSetLevelSingle, [data: [singleDeviceId: singleDevice.id,hue: defaults.hue, appLabel: childLabel], overwrite: false])
+            singleDevice.setColor([hue: defaults.hue])
             message += "hue: $defaults.hue; "
         } else if(defaults.hue && defaults.sat){
-            runInMillis(400,scheduleSetLevelSingle, [data: [singleDeviceId: singleDevice.id,hue: defaults.hue,sat: defaults.sat, appLabel: childLabel], overwrite: false])
+          //  } else if(defaults.hue && defaults.sat && defaults.sat != singleDevice.currentSaturation && defaults.hue != singleDevice.currentHue){
+            singleDevice.setColor([hue: defaults.hue, saturation: defaults.sat])
             message += "hue: $defaults.hue; sat: $defaults.sat; "
         }
     }
 
-    if(message != "Set " && checkLog(a="info")) putLog(353,"$message of $singleDevice",a,childLabel)
+    if(message != "Set " && checkLog(a="info")) putLog(373,"$message of $singleDevice",a,childLabel)
     return true
 }
-
-def scheduleSetLevelSingle(data){
-    //Get app, and device
-    childApps.each {Child->
-        if(Child.label == data.appLabel) {
-            Child.timeDevice.each {ChildDevice->
-                if(data.singleDeviceId == ChildDevice.id){
-                    if(data.level) {
-                        ChildDevice.setLevel(data.level as int)
-                    }
-                    if(data.temp){
-                        ChildDevice.setColorTemperature(data.temp as int)
-                    }
-                    if(data.hue && data.sat){
-                        ChildDevice.setColor([hue: data.hue, saturation: data.sat])
-                    } else if(data.hue && !data.sat){
-                        ChildDevice.setColor([hue: data.hue])
-                    } else if(data.sat){
-                        ChildDevice.setColor([saturation: data.sat])
-                    }
-                }
-
-            }
-        }
-    }
-}
-
 
 // Gets levels as set for the child app
 def getOverrideLevels(defaults, appAction = null, childLabel = "Master"){
@@ -512,20 +493,30 @@ def dim(action, multiDevice, childLabel="Master"){
         if(isFan(singleDevice,childLabel)){
             // brightening a fan (cycleSpeed, and exit)
             if(action == "brighten"){
+                speed = null
+                if(!isOn(singleDevice,childLabel)){
+                    speed = "high"
+                } else if(singleDevice.currentSpeed == "medium" || singleDevice.currentSpeed == "medium-high"){
+                    speed = "high"
+                } else if(singleDevice.currentSpeed == "low" || singleDevice.currentSpeed == "medium-low"){
+                    speed = "medium"
+                }
+                  
+                if(speed){
+                    singleDevice.setSpeed(speed)
+                    if(checkLog(a="info")) putLog(532,"Set fan $singleDevice speed to $speed",a,childLabel)
+                }
                 singleDevice.cycleSpeed()
                 if(checkLog(a="info")) putLog(516,"Cycled up the speed of fan $singleDevice",a,childLabel)
             // dimming a fan that's on (decrease by 25)
             } else if(action == "dim"){
                 speed = null
                 if(!isOn(singleDevice,childLabel)){
-                    speed = "high"
+                    speed = "low"
                 } else if(singleDevice.currentSpeed == "high" || singleDevice.currentSpeed == "medium-high"){
                     speed = "medium"
-                } else if(singleDevice.currentSpeed == "medium" || singleDevice.currentSpeed == "medium-low"){
+                } else if(singleDevice.currentSpeed == "medium" || singleDevice.currentSpeed == "medium-low" || singleDevice.currentSpeed == "low"){
                     speed = "low"
-                } else if(singleDevice.currentSpeed == "low"){
-                    setStateSingle("off",singleDevice,childLabel)
-                    if(checkLog(a="debug")) putLog(528,"Turned off fan $singleDevice",a,childLabel)
                 }
                 if(speed){
                     singleDevice.setSpeed(speed)
@@ -544,6 +535,7 @@ def dim(action, multiDevice, childLabel="Master"){
             if(checkLog(a="debug")) putLog(544,"Set level of $it to $defaults.level",a,childLabel)
         }
     }
+    descheduleIncrementalMulti(multiDevice, childLabel="Master")
 }
 
 
@@ -650,7 +642,7 @@ def validateLevel(value, childLabel="Master"){
 def validateTemp(value, childLabel="Master"){
     if(value){
         value = value as int   
-            if(value < 2200 || value > 6500) return false
+            if(value < 1800 || value > 6500) return false
             }
     return true
 }
@@ -788,6 +780,25 @@ def rescheduleIncrementalSingle(singleDevice,childLabel="Master"){
     return
 }
 
+def descheduleIncrementalMulti(multiDevice,childLabel="Master"){
+    multiDevice.each{singleDevice->
+        descheduleIncrementalSingle(singleDevice,childLabel)
+    }
+    return
+}
+
+def descheduleIncrementalSingle(singleDevice,childLabel="Master"){
+    childApps.each {Child->
+        if(Child.label.substring(0,7) == "Time - ") {
+            Child.timeDevice.each {ChildDevice->
+                if(singleDevice.id == ChildDevice.id){
+                    Child.deschedule()
+                }
+            }
+        }
+    }
+    return
+}
 
 // Returns date one day ahead of $date
 // Expects and returns format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
@@ -857,14 +868,18 @@ def timeBetween(timeStart, timeStop,childLabel="Master"){
     return returnValue
 }
 
-def speak(text,childLabel="Master"){
-    if(!notificationDevice) {
+def speakSingle(text,deviceId, childLabel="Master"){
+    if(!speechDevice) {
         if(checkLog(a="warn")) putLog(862,"No speech device for \"$text\"",a,childLabel)
         return
     }
-    notificationDevice.speak(text)
-    if(checkLog(a="info")) putLog(866,"Sending speech \"$text\"",a,childLabel)
-    return true
+    speechDevice.each{
+        if(it.id == deviceId){
+            it.speak(text)
+            if(checkLog(a="info")) putLog(866,"Sending speech \"$text\"",a,childLabel)
+            return true
+        }
+    }
 }
 
 /* ************************************************************************ */
