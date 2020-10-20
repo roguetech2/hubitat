@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.3
+*  Version: 0.5.4
 * 
 ***********************************************************************************************************************/
 
@@ -354,7 +354,7 @@ def displayOpenOptions(){
                 } else {
                     message = message + "the "
                 }
-                message = message + "$contactPlural is opened. If the $deviceString should not turn on, turn off, or toggle, then select \"Don't\". Toggle will turn the $deviceString on if "
+                message = message + "$contactPlural is opened. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
                 if(multipleSwitches) {
                     message = message + "they are off, and turns them off they're on."
                 } else {
@@ -506,7 +506,7 @@ def displayCloseOptions(){
                 } else {
                     message = message + "the "
                 }
-                message = message + "$contactPlural is closed. If the $deviceString should not turn on, turn off, or toggle, then select \"Don't\". Toggle will turn the $deviceString on if "
+                message = message + "$contactPlural is closed. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
                 if(multipleSwitches) {
                     message = message + "they are off, and turns them off they're on."
                 } else {
@@ -715,19 +715,17 @@ def displayScheduleSection(){
         sectionTitle = "Ending at $varStopTime"
         if(!settings["timeDays"]) sectionTitle = sectionTitle + " on: $settings.timeDays"
         sectionTitle = sectionTitle + "</b>"
-        
         hidden = false
         // If all options entered
     } else if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
         varStartTime = getTimeVariables("start")
         varStopTime = getTimeVariables("stop")
-        sectionTitle = "Only if between $varStartTime and $varStopTime"
+        sectionTitle = "<b>Only if between $varStartTime and $varStopTime"
         if(!settings["timeDays"]) {
-            sectionTitle = sectionTitle + moreOptions
+            sectionTitle = sectionTitle + "</b>" + moreOptions
         } else {
-            sectionTitle = sectionTitle + " on: $settings.timeDays"
+            sectionTitle = sectionTitle + " on: $settings.timeDays</b>"
         }
-        sectionTitle = sectionTitle + "</b>"
         hidden = true
         // If no options are entered
     } else {
@@ -744,6 +742,7 @@ def displayScheduleSection(){
         } else if(settings["inputStartType"]){
             // Display sunrise/sunset type option (at/before/after)
             displaySunriseTypeOption("start")
+            displaySunriseOffsetOption("start")
             // Display sunrise/sunset offset
             if(inputStartSunriseType && inputStartSunriseType != "at") displaySunriseOffsetOption("start")
         }
@@ -757,6 +756,7 @@ def displayScheduleSection(){
             } else if(settings["inputStopType"]){
                 // Display sunrise/sunset type option (at/before/after)
                 displaySunriseTypeOption("stop")
+                displaySunriseOffsetOption("stop")
                 // Display sunrise/sunset offset
                 if(inputStartSunriseType != "at") displaySunriseOffsetOption("stop")
             }
@@ -886,6 +886,8 @@ def getTimeVariables(lcType){
 
 def displaySunriseOffsetOption(lcType){
     ucType = lcType.capitalize()
+    if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == "at") return
+    
     if(settings["input${ucType}Before"] && settings["input${ucType}Before"] > 1441){
         // "Minues [before/after] [sunrise/set] is equal to "
         message = "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " is equal to "
@@ -1003,30 +1005,28 @@ def displayAlertOptions(){
     } else {
         action = "<b>On open"
     }
-//log.debug pushNotificationDevice
-    // No options entered
-    if((!settings["pushNotification"] || !settings["pushNotificationDevice"]) && (!settings["speech"] || !settings["speechDevice"])){
+
+    if(!settings["speech"] && !settings["pushNotification"]){
         sectionTitle = "Click to set notifications (optional)"
-        // Push notification entered
+    } else if((settings["pushNotification"] && !settings["pushNotificationDevice"] && countPushDevices > 1) ||
+              (settings["speech"] && !settings["speechDevice"] && countSpeechDevices > 1) ||
+              (settings["pushNotificationDevice"] && countPushDevices > 1 && !settings["pushNotification"]) ||
+              (settings["speechDevice"] && countSpeechDevices > 1 && !settings["speech"])) {
+        sectionTitle = "Click to set notifications (optional)"
+        hidden = false
+        // Notification entered
     } else {
         if(settings["pushNotificationDevice"] && settings["pushNotification"]){
-            sectionTitle = sectionTitle + "$action, send push notification"
+            sectionTitle = "$action, send push notification"
             if(settings["speechDevice"] && settings["speech"]) sectionTitle = sectionTitle + "<br>"
         }
-        log.debug settings["speechDevice"] + " - " + settings["speech"]
         if(settings["speechDevice"] && settings["speech"]){
             sectionTitle = "$action, text-to-speech announcement"
         }
         sectionTitle = sectionTitle + "</b>"
+        if(!settings["speech"] || !settings["pushNotification"] || !settings["personHome"] || !settings["personNotHome"])
+        sectionTitle = sectionTitle + moreOptions
     }
-
-    if((settings["pushNotification"] || (settings["pushNotificationDevice"] && countPushDevices > 1)) &&  (!settings["pushNotification"] || !settings["pushNotificationDevice"])) hidden = false
-    if((settings["speech"] || (settings["speechDevice"] && countSpeechDevices > 1)) && (!settings["speech"] || !settings["speechDevice"])) hidden = false
-
-    if((!settings["pushNotification"] && (settings["pushNotificationDevice"] || countPushDevices > 1)) ||
-       (!settings["speech"] && (settings["speechDevice"] || countSpeechDevices > 1)) ||
-       (!personHome || !personNotHome))
-    sectionTitle = sectionTitle + moreOptions
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(parent.pushNotificationDevice){
