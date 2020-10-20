@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.5.05
+*  Version: 0.5.06
 *
 ***********************************************************************************************************************/
 
@@ -1375,7 +1375,7 @@ def getScheduleActive(){
 // Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange += ":$singleDeviceId:"
+        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
