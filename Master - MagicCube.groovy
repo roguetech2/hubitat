@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.2.25
+*  Version: 0.2.26
 * 
 ***********************************************************************************************************************/
 
@@ -600,7 +600,7 @@ if(!result && checkLog(a="trace")) putLog(418,"No action defined for $atomicStat
 // Must be included in all apps using MultiOn
 def addDeviceStateChange(singleDeviceId){
     if(atomicState.deviceChange) {
-        atomicState.deviceChange += ":$singleDeviceId:"
+        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
     } else {
         atomicState.deviceChange = ":$singleDeviceId:"
     }
