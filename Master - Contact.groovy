@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.4
+*  Version: 0.5.5
 * 
 ***********************************************************************************************************************/
 
@@ -30,10 +30,7 @@ definition(
 )
 
 /* ************************************************************************ */
-/* TO-DO: Change icon from to to something  that resembles a door I guess.  */
-/* ************************************************************************ */
-/* ************************************************************************ */
-/* TO-DO: Finish error messages.                                            */
+/* TO-DO: Change icon from lock to something  that resembles a door I guess.*/
 /* ************************************************************************ */
 
 // logLevel sets number of log messages
@@ -43,15 +40,6 @@ definition(
 def getLogLevel(){
     return 5
 }
-
-
-//
-//
-//
-// errors aren't displaying
-//
-//
-//
 
 preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
@@ -1107,14 +1095,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-    if(checkLog(a="trace")) putLog(1062,"Installed",a)
+    if(checkLog(a="trace")) putLog(1098,"Installed",a)
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    if(checkLog(a="trace")) putLog(1069,"Updated",a)
+    if(checkLog(a="trace")) putLog(1105,"Updated",a)
     unsubscribe()
     initialize()
 }
@@ -1140,18 +1128,18 @@ def initialize() {
         subscribe(contactDevice, "contact.closed", contactChange)            
     }
 
-    if(checkLog(a="trace")) putLog(1096,"Initialized",a)
+    if(checkLog(a="trace")) putLog(1131,"Initialized",a)
 }
 
 def contactChange(evt){
     if(disable || state.disable) return
 
-    if(checkLog(a="debug")) putLog(1102,"Contact sensor $evt.displayName $evt.value",a)
+    if(checkLog(a="debug")) putLog(1137,"Contact sensor $evt.displayName $evt.value",a)
 
     // If mode set and node doesn't match, return nulls
     if(settings["ifMode"]){
         if(location.mode != settings["ifMode"]) {
-            if(checkLog(a="trace")) putLog(1107,"Contact disabled, requires mode $ifMode",a)
+            if(checkLog(a="trace")) putLog(1142,"Contact disabled, requires mode $ifMode",a)
             return defaults
         }
     }
@@ -1226,9 +1214,9 @@ def contactChange(evt){
                 parent.sendPushNotification(it,"$evt.displayName was $eventName at $now.",app.label)
                 log.debug it
             }
-            if(checkLog(a="info")) putLog(1169,"Sent push notice for $evt.displayName $eventName at $now.",a)
+            if(checkLog(a="info")) putLog(1217,"Sent push notice for $evt.displayName $eventName at $now.",a)
         } else {
-            if(checkLog(a="info")) putLog(1171,"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.",a)
+            if(checkLog(a="info")) putLog(1219,"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.",a)
         }
     }
 
@@ -1254,7 +1242,7 @@ def contactChange(evt){
     if(evt.value == "open"){
         // Schedule delay
         if(openWait) {
-            if(checkLog(a="trace")) putLog(1191,"Scheduling runScheduleOpen in $openWait seconds",a)
+            if(checkLog(a="trace")) putLog(1245,"Scheduling runScheduleOpen in $openWait seconds",a)
             runIn(openWait,runScheduleOpen)
             // Otherwise perform immediately
         } else {
@@ -1272,7 +1260,7 @@ def contactChange(evt){
     } else {
         // Schedule delay
         if(closeWait) {
-            if(checkLog(a="trace")) putLog(1206,"Scheduling runScheduleClose in $closeWait seconds",a)
+            if(checkLog(a="trace")) putLog(1263,"Scheduling runScheduleClose in $closeWait seconds",a)
             runIn(closeWait,runScheduleClose)
             // Otherwise perform immediately
         } else {
@@ -1314,7 +1302,7 @@ def setTime (){
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
     if(type != "start" && type != "stop") {
-        if(checkLog(a="error")) putLog(1269,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
+        if(checkLog(a="error")) putLog(1305,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
         return
     }
 
@@ -1336,14 +1324,14 @@ def setStartStopTime(type){
     } else if(settings["input${type}Type"] == "sunset"){
         value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     } else {
-        if(checkLog(a="error")) putLog(1291,"input" + type + "Type set to " + settings["input${type}Type"],a)
+        if(checkLog(a="error")) putLog(1327,"input" + type + "Type set to " + settings["input${type}Type"],a)
         return
     }
 
     if(type == "Stop"){
         if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
     }
-    if(checkLog(a="trace")) putLog(1298,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
+    if(checkLog(a="trace")) putLog(1334,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
     if(type == "Start") atomicState.start = value
     if(type == "Stop") atomicState.stop = value
     return true
@@ -1399,7 +1387,7 @@ def resetStateDeviceChange(){
 // This is a bit of a mess, but.... 
 def setStateMulti(deviceAction,device,appAction = null){
     if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1354,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
+        if(checkLog(a="error")) putLog(1390,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
         return
     }
 
@@ -1428,7 +1416,7 @@ def setStateMulti(deviceAction,device,appAction = null){
             // Set scheduled levels, default levels, and/or [this child-app's] levels
             getAndSetSingleLevels(it,appAction)
         }
-        if(checkLog(a="debug")) putLog(1383,"Device id's turned on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1419,"Device id's turned on are $atomicState.deviceChange",a)
         // Schedule deviceChange reset
         runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
         return true
@@ -1457,7 +1445,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 toggleOnDevice.add(count)
             }
         }
-        if(checkLog(a="debug")) putLog(1412,"Device id's toggled on are $atomicState.deviceChange",a)
+        if(checkLog(a="debug")) putLog(1448,"Device id's toggled on are $atomicState.deviceChange",a)
         // Create newCount variable, which is compared to the [old]count variable
         // Used to identify which lights were turned on in the last loop
         newCount = 0
@@ -1484,10 +1472,10 @@ def setStateMulti(deviceAction,device,appAction = null){
                 // If defaults, then there's an active schedule
                 // So use it for if overriding/reenabling
                 defaults = parent.getScheduleDefaultSingle(it,app.label)
-                if(checkLog(a="debug")) putLog(1439,"Scheduled defaults are $defaults",a)
+                if(checkLog(a="debug")) putLog(1475,"Scheduled defaults are $defaults",a)
 
                 defaults = getOverrideLevels(defaults,appAction)
-                if(checkLog(a="debug")) putLog(1442,"With " + app.label + " overrides, using $defaults",a)
+                if(checkLog(a="debug")) putLog(1478,"With " + app.label + " overrides, using $defaults",a)
 
                 // Skipping getting overall defaults, since we're resuming a schedule or exiting;
                 // rather keep things the same level rather than an arbitrary default, and
@@ -1495,7 +1483,7 @@ def setStateMulti(deviceAction,device,appAction = null){
                 parent.setLevelSingle(defaults,it,app.label)
                 // Set default level
                 if(!defaults){
-                    if(checkLog(a="trace")) putLog(1451,"No schedule to resume for $it; turning off",a)
+                    if(checkLog(a="trace")) putLog(1486,"No schedule to resume for $it; turning off",a)
                     parent.setStateSingle("off",it,app.label)
                 } else {
                     parent.rescheduleIncrementalSingle(it,app.label)
@@ -1540,7 +1528,7 @@ def getAndSetSingleLevels(singleDevice,appAction = null){
     defaults = parent.getDefaultSingle(defaults,app.label)
     logMessage += ", so with generic defaults $defaults"
 
-    if(checkLog(a="debug")) putLog(1496,logMessage,a)
+    if(checkLog(a="debug")) putLog(1531,logMessage,a)
     parent.setLevelSingle(defaults,singleDevice,app.label)
     return
 }
