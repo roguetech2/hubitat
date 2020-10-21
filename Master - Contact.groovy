@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.5
+*  Version: 0.5.6
 * 
 ***********************************************************************************************************************/
 
@@ -277,12 +277,12 @@ def displayOpenOptions(){
         } else if(settings["openAction"] == "unlock"){
             action =  "Unlock"
         }
-        sectionTitle = sectionTitle + action
+        sectionTitle += action
 
         if(settings["openWait"] && settings["openWait"] > 0) {
-            sectionTitle = sectionTitle + " after " + settings["openWait"] + " seconds</b>"
+            sectionTitle += " after " + settings["openWait"] + " seconds</b>"
         } else {
-            sectionTitle = sectionTitle + "</b>" + moreOptions
+            sectionTitle += "</b>" + moreOptions
         }
         
         section(hideable: true, hidden: true, sectionTitle){
@@ -294,17 +294,17 @@ def displayOpenOptions(){
             if(settings["openAction"] == "resume") {
                 message = "If "
                 if(multipleDevices){
-                    message = message + "a $deviceString"
+                    message += "a $deviceString"
                 } else {
-                    message = message + "the $deviceString"
+                    message += "the $deviceString"
                 }
-                message = message + " has an active schedule, the schedule will be enabled when "
+                message += " has an active schedule, the schedule will be enabled when "
                 if(multipleContacts){
-                    message = message + "one of the contact/door sensors"
+                    message += "one of the contact/door sensors"
                 } else {
-                    message = message + "the contact/door sensor"
+                    message += "the contact/door sensor"
                 }
-                message = message + " opens. If there are no active schedules, the $deviceString will be turned off. To resume active schedules without turning off, select \"Don't\"."
+                message += " opens. If there are no active schedules, the $deviceString will be turned off. To resume active schedules without turning off, select \"Don't\"."
 
                 displayInfo(message)
             }
@@ -313,17 +313,17 @@ def displayOpenOptions(){
 
                 message = "If device is closed "
                 if(settings["openWait"]) {
-                    message = message + "within " + settings["openWait"] + " seconds"
+                    message += "within " + settings["openWait"] + " seconds"
                 } else {
-                    message = message + "before time expires"
+                    message += "before time expires"
                 }
-                message = message + ", $deviceString will not $action. Instead, it will only "
+                message += ", $deviceString will not $action. Instead, it will only "
                 if(settings["closeAction"]){
 
-                    if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message = message + "turn "
-                    message = message + settings["closeAction"] + " with being closed."
+                    if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message += "turn "
+                    message += settings["closeAction"] + " with being closed."
                 } else {
-                    message = message + "perform action for being closed."
+                    message += "perform action for being closed."
                 }
                 displayInfo(message)
                 if(openWait > 1800) errorMessage("Wait time has been set to " + Math.round(openWait / 60) + " <i>minutes</i>. Is that correct?")
@@ -338,33 +338,33 @@ def displayOpenOptions(){
                 message = "Set whether to turn on or off, toggle, or resume schedule when "
 
                 if(multipleContacts) {
-                    message = message + "a "
+                    message += "a "
                 } else {
-                    message = message + "the "
+                    message += "the "
                 }
-                message = message + "$contactPlural is opened. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
+                message += "$contactPlural is opened. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
                 if(multipleSwitches) {
-                    message = message + "they are off, and turns them off they're on."
+                    message += "they are off, and turns them off they're on."
                 } else {
-                    message = message + "it is off, and turns it off if it's on."
+                    message += "it is off, and turns it off if it's on."
                 }
-                message = message + " Required field."
+                message += " Required field."
                 displayInfo(message)
             }
             input "openWait", "number", title: "Wait seconds after open to take action with $deviceString. (Optional)", defaultValue: false, submitOnChange:true
 
             message = "If device is closed "
             if(settings["openWait"]) {
-                message = message + "within " + settings["openWait"] + " seconds"
+                message += "within " + settings["openWait"] + " seconds"
             } else {
-                message = message + "before time expires"
+                message += "before time expires"
             }
-            message = message + ", $deviceString will not do open action. Instead, it will only "
+            message += ", $deviceString will not do open action. Instead, it will only "
             if(settings["closeAction"]){
-                if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message = message + "turn "
-                message = message + settings["closeAction"] + " with being closed."
+                if(settings["closeAction"] == "on" || settings["closeAction"] == "off") message += "turn "
+                message += settings["closeAction"] + " with being closed."
             } else {
-                message = message + "perform action for being closed."
+                message += "perform action for being closed."
             }
             displayInfo(message)
             if(openWait > 1800) errorMessage("Wait time has been set to " + Math.round(openWait / 60) + " <i>minutes</i>. Is that correct?")
@@ -429,12 +429,12 @@ def displayCloseOptions(){
         } else if(settings["closeAction"] == "unlock"){
             action =  "Unlock"
         }
-        sectionTitle = sectionTitle + action
+        sectionTitle += action
 
         if(settings["closeWait"] && settings["closeWait"] > 0) {
-            sectionTitle = sectionTitle + " after " + settings["closeWait"] + " seconds</b>"
+            sectionTitle += " after " + settings["closeWait"] + " seconds</b>"
         } else {
-            sectionTitle = sectionTitle + "</b>" + moreOptions
+            sectionTitle += "</b>" + moreOptions
         }
 
         section(hideable: true, hidden: true, sectionTitle){
@@ -446,17 +446,17 @@ def displayCloseOptions(){
             if(settings["closeAction"] == "resume") {
                 message = "If "
                 if(multipleDevices){
-                    message = message + "a $deviceString"
+                    message += "a $deviceString"
                 } else {
-                    message = message + "the $deviceString"
+                    message += "the $deviceString"
                 }
-                message = message + " has an active schedule, the schedule will be enabled when "
+                message += " has an active schedule, the schedule will be enabled when "
                 if(multipleContacts){
-                    message = message + "one of the contact/door sensors"
+                    message += "one of the contact/door sensors"
                 } else {
-                    message = message + "the contact/door sensor"
+                    message += "the contact/door sensor"
                 }
-                message = message + " closes. If there are no active schedules, the $deviceString will be turned off. To resume active schedules without turning off, select \"Don't\"."
+                message += " closes. If there are no active schedules, the $deviceString will be turned off. To resume active schedules without turning off, select \"Don't\"."
 
                 displayInfo(message)
             }
@@ -465,17 +465,17 @@ def displayCloseOptions(){
 
                 message = "If device is opened "
                 if(settings["closeWait"]) {
-                    message = message + "within " + settings["closeWait"] + " seconds"
+                    message += "within " + settings["closeWait"] + " seconds"
                 } else {
-                    message = message + "before time expires"
+                    message += "before time expires"
                 }
-                message = message + ", $deviceString will not $action. Instead, it will only "
+                message += ", $deviceString will not $action. Instead, it will only "
                 if(settings["openAction"]){
 
-                    if(settings["openAction"] == "on" || settings["openAction"] == "off") message = message + "turn "
-                    message = message + settings["openAction"] + " with being opened again."
+                    if(settings["openAction"] == "on" || settings["openAction"] == "off") message += "turn "
+                    message += settings["openAction"] + " with being opened again."
                 } else {
-                    message = message + "perform action for being opened."
+                    message += "perform action for being opened."
                 }
                 displayInfo(message)
                 if(openWait > 1800) errorMessage("Wait time has been set to " + Math.round(openWait / 60) + " <i>minutes</i>. Is that correct?")
@@ -490,17 +490,17 @@ def displayCloseOptions(){
                 message = "Set whether to turn on or off, toggle, or resume schedule when "
 
                 if(multipleContacts) {
-                    message = message + "a "
+                    message += "a "
                 } else {
-                    message = message + "the "
+                    message += "the "
                 }
-                message = message + "$contactPlural is closed. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
+                message += "$contactPlural is closed. Select \"Don't\" to control other options, or for opening to do nothing. Toggle will turn the $deviceString on if "
                 if(multipleSwitches) {
-                    message = message + "they are off, and turns them off they're on."
+                    message += "they are off, and turns them off they're on."
                 } else {
-                    message = message + "it is off, and turns it off if it's on."
+                    message += "it is off, and turns it off if it's on."
                 }
-                message = message + " Required field."
+                message += " Required field."
                 displayInfo(message)
             }
             if(settings["closeAction"] != "none"){
@@ -508,13 +508,13 @@ def displayCloseOptions(){
 
                 message = "If device is opened "
                 if(settings["closeWait"]) {
-                    message = message + "within " + settings["closeWait"] + " seconds"
+                    message += "within " + settings["closeWait"] + " seconds"
                 } else {
-                    message = message + "before time expires"
+                    message += "before time expires"
                 }
-                message = message + ", $deviceString will not do close action. Instead, it will only "
-                if(settings["openAction"] == "on" || settings["openAction"] == "off") message = message + "turn "
-                message = message + settings["openAction"] + " with being opened again."
+                message += ", $deviceString will not do close action. Instead, it will only "
+                if(settings["openAction"] == "on" || settings["openAction"] == "off") message += "turn "
+                message += settings["openAction"] + " with being opened again."
                 displayInfo(message)
                 if(openWait > 1800) errorMessage("Wait time has been set to " + Math.round(openWait / 60) + " <i>minutes</i>. Is that correct?")
             }
@@ -546,12 +546,12 @@ def displayBrightnessOption(){
         sectionTitle = "<b>"
         if(settings["openLevel"]){
             sectionTitle = "On open, set brightness to " + settings["openLevel"] + "%"
-            if(settings["closeLevel"]) sectionTitle = sectionTitle + "<br>"
+            if(settings["closeLevel"]) sectionTitle += "<br>"
         }
         if(settings["closeLevel"]){
-            sectionTitle = sectionTitle + "On close, set brightness to " + settings["closeLevel"] + "%"
+            sectionTitle += "On close, set brightness to " + settings["closeLevel"] + "%"
         }
-        sectionTitle = sectionTitle + "</b>"
+        sectionTitle += "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -599,12 +599,12 @@ def displayTemperatureOption(){
         sectionTitle = "<b>"
         if(settings["openTemp"]){
             sectionTitle = "On open, set temperature color to " + settings["openTemp"] + "K"
-            if(settings["closeTemp"]) sectionTitle = sectionTitle + "<br>"
+            if(settings["closeTemp"]) sectionTitle += "<br>"
         }
         if(settings["closeTemp"]){
-            sectionTitle = sectionTitle + "On close, set temperature color to "+ settings["closeTemp"] + "K"
+            sectionTitle += "On close, set temperature color to "+ settings["closeTemp"] + "K"
         }
-        sectionTitle = sectionTitle + "</b>"
+        sectionTitle += "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -647,20 +647,20 @@ def displayColorOption(){
         // If just open color
         if(settings["openHue"]) {
             sectionTitle = "On open, set hue to " + settings["openHue"] + "%"
-            if(settings["openSat"]) sectionTitle = sectionTitle + " and sat to " + settings["openSat"] + "%"
+            if(settings["openSat"]) sectionTitle += " and sat to " + settings["openSat"] + "%"
         } else if(settings["openSat"]) {
             sectionTitle = "On open, set saturation " + settings["openSat"] + "%"
         }
         if((settings["openHue"] || settings["openSat"]) && (settings["closeHue"] || settings["closeSat"])) {
-            sectionTitle = sectionTitle + "<br>"
+            sectionTitle += "<br>"
         }
         if(settings["closeHue"]) {
-            sectionTitle = sectionTitle + "On close, set hue to " + settings["closeHue"] + "%"
-            if(settings["closeSat"]) sectionTitle = sectionTitle + " and sat to " + settings["closeSat"] + "%"
+            sectionTitle += "On close, set hue to " + settings["closeHue"] + "%"
+            if(settings["closeSat"]) sectionTitle += " and sat to " + settings["closeSat"] + "%"
         } else if(settings["closeSat"]) {
-            sectionTitle = sectionTitle + "On close, set saturation " + settings["closeSat"] + "%"
+            sectionTitle += "On close, set saturation " + settings["closeSat"] + "%"
         }
-        sectionTitle = sectionTitle + "<b>"
+        sectionTitle += "<b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -690,19 +690,19 @@ def displayScheduleSection(){
     // If only days entered
     sectionTitle="<b>"
     if(!settings["inputStartType"] && !settings["inputStopType"] && settings["timeDays"]){
-        sectionTitle = sectionTitle + "Only on: " + settings["timeDays"] + "</b>" + moreOptions
+        sectionTitle += "Only on: " + settings["timeDays"] + "</b>" + moreOptions
         hidden = true
         // If only start time (and days) entered
     }  else if(checkTimeComplete("start") && settings["inputStartType"] && (!checkTimeComplete("stop") || !settings["inputStopType"])){
         sectionTitle = "Beginning at $varStartTime"
-        if(!settings["timeDays"]) sectionTitle = sectionTitle + " on: $settings.timeDays"
-        sectionTitle = sectionTitle + "</b>"
+        if(!settings["timeDays"]) sectionTitle += " on: $settings.timeDays"
+        sectionTitle += "</b>"
         hidden = false
         // If only stop time (and day) entered
     } else if(checkTimeComplete("stop") && settings["inputStopType"] && (!checkTimeComplete("start") || !settings["inputStartType"])){
         sectionTitle = "Ending at $varStopTime"
-        if(!settings["timeDays"]) sectionTitle = sectionTitle + " on: $settings.timeDays"
-        sectionTitle = sectionTitle + "</b>"
+        if(!settings["timeDays"]) sectionTitle += " on: $settings.timeDays"
+        sectionTitle += "</b>"
         hidden = false
         // If all options entered
     } else if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
@@ -710,9 +710,9 @@ def displayScheduleSection(){
         varStopTime = getTimeVariables("stop")
         sectionTitle = "<b>Only if between $varStartTime and $varStopTime"
         if(!settings["timeDays"]) {
-            sectionTitle = sectionTitle + "</b>" + moreOptions
+            sectionTitle += "</b>" + moreOptions
         } else {
-            sectionTitle = sectionTitle + " on: $settings.timeDays</b>"
+            sectionTitle += " on: $settings.timeDays</b>"
         }
         hidden = true
         // If no options are entered
@@ -753,12 +753,12 @@ def displayScheduleSection(){
         input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
 
         message = "This will limit the contact/door sensor"
-        if(multipleContacts) message = message + "s"
-        message = message + " from running only on "
+        if(multipleContacts) message += "s"
+        message += " from running only on "
         if(settings["timeDays"]) {
-            message = message + settings["timeDays"]
+            message += settings["timeDays"]
         } else {
-            message = message + "the day(s) selected."
+            message += "the day(s) selected."
         }
 
         displayInfo(message)
@@ -903,13 +903,13 @@ def displayChangeModeOption(){
         sectionTitle = "<b>"
         if(settings["openMode"]) {
             sectionTitle = "On open, set Mode " + settings["openMode"]
-            if(settings["closeMode"]) sectionTitle = sectionTitle + "<br>"
+            if(settings["closeMode"]) sectionTitle += "<br>"
         }
 
         if(settings["closeMode"]) {
-            sectionTitle = sectionTitle + "On close, set Mode " + settings["closeMode"]
+            sectionTitle += "On close, set Mode " + settings["closeMode"]
         }
-        sectionTitle = sectionTitle + "</b>"
+        sectionTitle += "</b>"
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
@@ -937,12 +937,12 @@ def displayIfModeOption(){
         input "ifMode", "mode", title: "Only run if Mode is already?", width: 12, submitOnChange:true
 
         message = "This will limit the contact/door sensor"
-        if(multipleContacts) message = message + "s"
-        message = message + " from running to only when Hubitat's Mode is "
+        if(multipleContacts) message += "s"
+        message += " from running to only when Hubitat's Mode is "
         if(settings["ifMode"]) {
-            message = message + settings["ifMode"]
+            message += settings["ifMode"]
         } else {
-            message = message + "as selected."
+            message += "as selected."
         }
 
         displayInfo(message)
@@ -1006,14 +1006,14 @@ def displayAlertOptions(){
     } else {
         if(settings["pushNotificationDevice"] && settings["pushNotification"]){
             sectionTitle = "$action, send push notification"
-            if(settings["speechDevice"] && settings["speech"]) sectionTitle = sectionTitle + "<br>"
+            if(settings["speechDevice"] && settings["speech"]) sectionTitle += "<br>"
         }
         if(settings["speechDevice"] && settings["speech"]){
             sectionTitle = "$action, text-to-speech announcement"
         }
-        sectionTitle = sectionTitle + "</b>"
+        sectionTitle += "</b>"
         if(!settings["speech"] || !settings["pushNotification"] || !settings["personHome"] || !settings["personNotHome"])
-        sectionTitle = sectionTitle + moreOptions
+        sectionTitle += moreOptions
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
