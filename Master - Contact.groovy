@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.5.6
+*  Version: 0.6.04
 * 
 ***********************************************************************************************************************/
 
@@ -92,6 +92,7 @@ preferences {
             displayAlertOptions()
             displayScheduleSection()
             displayIfModeOption()
+            //displayIfPeopleOption()
             section(){
                 if(error) paragraph "$error</div>"
                 if(warning) paragraph "$warning</div>"
@@ -146,15 +147,11 @@ def displayNameOption(){
     }
 }
 
-
 def displayDevicesOption(){
     if(settings["contactDevice"]){
         multipleDevices = false
-        count = 0
-        settings["contactDevice"].each{
-            if(count == 1) multipleDevices = true
-            count = 1
-        }
+        count = settings["contactDevice"].size()
+        if(count > 1) multipleDevices = true
         if(multipleDevices){
             pluralInput = "Contact/door sensors"
         } else {
@@ -212,10 +209,10 @@ def displayOpenCloseDevicesOption(){
 }
 
 def displayDisableOption(){
-    if(disable){
-        input "disable", "bool", title: "<b><font color=\"#000099\">This schedule is disabled.</font></b> Reenable it?", submitOnChange:true
+    if(settings["disable"]){
+        input "disable", "bool", title: "<b><font color=\"#000099\">This contact/door sensor is disabled.</font></b> Reenable it?", submitOnChange:true
     } else {
-        input "disable", "bool", title: "This schedule is enabled. Disable it?", submitOnChange:true
+        input "disable", "bool", title: "This contact/door sensor is enabled. Disable it?", submitOnChange:true
     }
 }
 
@@ -284,7 +281,7 @@ def displayOpenOptions(){
         } else {
             sectionTitle += "</b>" + moreOptions
         }
-        
+
         section(hideable: true, hidden: true, sectionTitle){
             if(settings["deviceType"] == "lock"){
                 input "openAction", "enum", title: "When opened, lock or unlock?", multiple: false, width: 12, options: ["none": "Don't lock or unlock","lock": "Lock", "unlock": "Unlock"], submitOnChange:true
@@ -545,7 +542,7 @@ def displayBrightnessOption(){
     } else {
         sectionTitle = "<b>"
         if(settings["openLevel"]){
-            sectionTitle = "On open, set brightness to " + settings["openLevel"] + "%"
+            sectionTitle += "On open, set brightness to " + settings["openLevel"] + "%"
             if(settings["closeLevel"]) sectionTitle += "<br>"
         }
         if(settings["closeLevel"]){
@@ -632,6 +629,9 @@ def displayColorOption(){
     if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
     if((settings["closeAction"] == "off" || settings["closeAction"] == "resume") && (settings["openAction"] == "off" || settings["openAction"] == "resume")) return
     if(settings["deviceType"] != "light") return
+    
+    hiRezHue = parent.getHiRezHue()
+    unit = hiRezHue ? "°" : "%"
 
     hidden = true
     // If error, unhide
@@ -646,7 +646,7 @@ def displayColorOption(){
         sectionTitle = "<b>"
         // If just open color
         if(settings["openHue"]) {
-            sectionTitle = "On open, set hue to " + settings["openHue"] + "%"
+            sectionTitle = "On open, set hue to " + settings["openHue"] + "$unit"
             if(settings["openSat"]) sectionTitle += " and sat to " + settings["openSat"] + "%"
         } else if(settings["openSat"]) {
             sectionTitle = "On open, set saturation " + settings["openSat"] + "%"
@@ -655,7 +655,7 @@ def displayColorOption(){
             sectionTitle += "<br>"
         }
         if(settings["closeHue"]) {
-            sectionTitle += "On close, set hue to " + settings["closeHue"] + "%"
+            sectionTitle += "On close, set hue to " + settings["closeHue"] + "$unit"
             if(settings["closeSat"]) sectionTitle += " and sat to " + settings["closeSat"] + "%"
         } else if(settings["closeSat"]) {
             sectionTitle += "On close, set saturation " + settings["closeSat"] + "%"
@@ -673,13 +673,19 @@ def displayColorOption(){
             input "closeHue", "number", title: "Set hue on close?", width: 6, submitOnChange:true
             input "closeSat", "number", title: "Set saturation on close?", width: 6, submitOnChange:true
         }
-        displayInfo("Hue is percent around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; 50 = turquiose; blue = 66; purple = 79 (may vary by device). Optional")
+        if(hiRezHue){
+            displayInfo("Hue is degrees around a color wheel, where red is 0 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional")
+        } else {
+            displayInfo("Hue is percent around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; turquiose = 50; blue = 66; purple = 79 (may vary by device). Optional")
+        }
         displayInfo("Saturation is the percentage depth of color, from 1 to 100, where 1 is hardly any color tint and 100 is full color. Optional.")
 
 
-        if(settings["openHue"] > 100) errorMessage("Hue can't be more then 100. Correct open hue.")
+        if(settings["openHue"] > 100 && !hiRezHue) errorMessage("Hue can't be more then 100. Correct open hue.")
+        if(settings["openHue"] > 360 && hiRezHue) errorMessage("Hue can't be more then 360. Correct open hue.")
         if(settings["openSat"] > 100) errorMessage("Saturation can't be more then 100. Correct open saturation.")
-        if(settings["closeHue"] > 100) errorMessage("Hue can't be more then 100. Correct close hue.")
+        if(settings["closeHue"] > 100 && !hiRezHue) errorMessage("Hue can't be more then 100. Correct close hue.")
+        if(settings["closeHue"] > 360 && hiRezHue) errorMessage("Hue can't be more then 360. Correct close hue.")
         if(settings["closeSat"] > 100) errorMessage("Saturation can't be more then 100. Correct close saturation.")
     }
 }
@@ -687,21 +693,41 @@ def displayColorOption(){
 def displayScheduleSection(){
     if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
 
+    helpTip = "Scheduling only applies with "
+    if(multipleContacts) {
+        helpTip += "these contact sensors"
+                         } else {
+        helpTip += "this contact sensor"
+    }
+    if(multipleDevices){
+        helpTip += ". To schedule the devices or default settings for them, use the Time app."
+    } else {
+        helpTip += ". To schedule the device or default settings for it, use the Time app."
+    }
+        
+    
     // If only days entered
     sectionTitle="<b>"
-    if(!settings["inputStartType"] && !settings["inputStopType"] && settings["timeDays"]){
-        sectionTitle += "Only on: " + settings["timeDays"] + "</b>" + moreOptions
+        List dayList=[]
+        settings["days"].each{
+            dayList.add(it)
+        }
+        dayText = dayList.join(", ")
+    if(!settings["inputStartType"] && !settings["inputStopType"] && settings["days"]){
+        sectionTitle += "Only on: " + dayText + "</b>" + moreOptions
         hidden = true
         // If only start time (and days) entered
     }  else if(checkTimeComplete("start") && settings["inputStartType"] && (!checkTimeComplete("stop") || !settings["inputStopType"])){
         sectionTitle = "Beginning at $varStartTime"
-        if(!settings["timeDays"]) sectionTitle += " on: $settings.timeDays"
+        if(settings["days"]) sectionTitle += " on: " + dayText
+        if(settings["months"]) sectionTitle += "; in " + monthText
         sectionTitle += "</b>"
         hidden = false
         // If only stop time (and day) entered
     } else if(checkTimeComplete("stop") && settings["inputStopType"] && (!checkTimeComplete("start") || !settings["inputStartType"])){
         sectionTitle = "Ending at $varStopTime"
-        if(!settings["timeDays"]) sectionTitle += " on: $settings.timeDays"
+        if(settings["days"]) sectionTitle += " on: " + dayText
+        if(settings["months"]) sectionTitle += "; in " + monthText
         sectionTitle += "</b>"
         hidden = false
         // If all options entered
@@ -709,10 +735,12 @@ def displayScheduleSection(){
         varStartTime = getTimeVariables("start")
         varStopTime = getTimeVariables("stop")
         sectionTitle = "<b>Only if between $varStartTime and $varStopTime"
-        if(!settings["timeDays"]) {
-            sectionTitle += "</b>" + moreOptions
+        if(settings["days"] && settings["months"]) {
+            sectionTitle += "</b>"
         } else {
-            sectionTitle += " on: $settings.timeDays</b>"
+            sectionTitle += " on: " + dayText + "</b>"
+            if(settings["months"]) sectionTitle += "; in " + monthText
+            sectionTitle += "</b>"
         }
         hidden = true
         // If no options are entered
@@ -722,6 +750,7 @@ def displayScheduleSection(){
     }
 
     section(hideable: true, hidden: hidden, sectionTitle){
+        displayInfo(helpTip)
         displayStartTypeOption()
 
         // Display exact time option
@@ -749,20 +778,25 @@ def displayScheduleSection(){
                 if(inputStartSunriseType != "at") displaySunriseOffsetOption("stop")
             }
         }
-        
-        input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
 
-        message = "This will limit the contact/door sensor"
-        if(multipleContacts) message += "s"
-        message += " from running only on "
-        if(settings["timeDays"]) {
-            message += settings["timeDays"]
-        } else {
-            message += "the day(s) selected."
-        }
+        displayDaysOption(dayText)
+        displayMonthsOption(monthText)
+
 
         displayInfo(message)
     }
+}
+
+def displayDaysOption(dayText){
+    input "days", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+
+    return
+}
+
+def displayMonthsOption(monthText){
+    input "months", "enum", title: "In these months (defaults to all months)", multiple: true, width: 12, options: ["1": "January", "2": "February", "3": "March", "4": "April", "5": "May", "6": "June", "7": "July", "8": "August", "9": "September", "10": "October", "11": "November", "12": "December"], submitOnChange:true
+
+    return
 }
 
 def displayStartTypeOption(){
@@ -875,7 +909,7 @@ def getTimeVariables(lcType){
 def displaySunriseOffsetOption(lcType){
     ucType = lcType.capitalize()
     if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == "at") return
-    
+
     if(settings["input${ucType}Before"] && settings["input${ucType}Before"] > 1441){
         // "Minues [before/after] [sunrise/set] is equal to "
         message = "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " is equal to "
@@ -948,6 +982,43 @@ def displayIfModeOption(){
         displayInfo(message)
     }
 }
+
+/*
+// Presumably if no one is home, the contact sensor wouldn't change
+// Don't see the point of requiring everyone to be home
+def displayIfPeopleOption(){
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
+    if(!parent.getPresenceDevice(app.label)) return
+    if(settings["openAction"] == "none" && settings["closeAction"] == "none") return
+    multipleContacts = false
+    count = 0
+    settings["contactDevice"].each{
+        if(count == 1) multipleContacts = true
+        count = 1
+    }
+
+    if(settings["ifPeople"]){
+        sectionTitle = "<b>Only with people: $settings.ifPeople</b>"
+    } else {
+        sectionTitle = "Click to select with which people (optional)"
+    }
+    section(hideable: true, hidden: true, sectionTitle){
+        input "ifPeople", "enum", title: "Only run if people are present?", width: 12, options: ["everyone":"Everyone present","noone":"Noone present"],submitOnChange:true
+
+        message = "This will limit the contact/door sensor"
+        if(multipleContacts) message += "s"
+        message += " from running to only when "
+        if(settings["ifPeople"]) {
+            message += settings["ifPeople"] + " is home"
+        } else {
+            message += "everyone is home or not"
+        }
+        message += ". Presence devices are set in the Master app."
+
+        displayInfo(message)
+    }
+}
+*/
 
 def displayAlertOptions(){
     if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
@@ -1032,13 +1103,13 @@ def displayAlertOptions(){
             input "speech", "text", title: "Text-to-speech announcement?", submitOnChange:true
             if(countSpeechDevices == 1) displayInfo("Text-to-speech will use the device \"$speechDeviceName\". To use other(s), add it in the Master app.")
         }
-        
+
         if((parent.pushNotificationDevice && settings["pushNotification"]) || (parent.speechDevice && settings["speech"])){
             if(settings["notificationOpenClose"]){
-            input "notificationOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true
-        } else {
-            input "notificationOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true
-        }
+                input "notificationOpenClose", "bool", title: "Speak when <b>closed</b>. Click for opened.", submitOnChange:true
+            } else {
+                input "notificationOpenClose", "bool", title: "Speak when <b>opened</b>. Click for closed.", submitOnChange:true
+            }
         }
 
         if((settings["pushNotificationDevice"] && settings["pushNotification"]) || (settings["speechDevice"] && settings["speech"])){
@@ -1065,7 +1136,7 @@ openHue - number (1-100) - Hue to set openSwitch when opened
 closeHue - number (1-100) - Hue to set closeSwitch when closed
 openSat - number (1-100) - Hue to set openSwitch when opened
 closeSat - number (1-100) - Hue to set closeSwitch when closed
-timeDays - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Days on which contact will run. Only displays if scheduleEnable = true
+days - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Days on which contact will run. Only displays if scheduleEnable = true
 inputStartType - enum (time, sunrise, sunset) - Sets whether start time is a specific time, or based on sunrise or sunset. Only displays if scheduleEnable = true
 inputStartTime - time - Start Time (only displays when scheduleEnable = true and inputStartType = "time")
 inputStartSunriseType - enum (at, before, after) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if scheduleEnable = true, and inputStartType = "sunrise" or "sunset")
@@ -1095,14 +1166,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-    if(checkLog(a="trace")) putLog(1098,"Installed",a)
+    putLog(1141,"trace","Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    if(checkLog(a="trace")) putLog(1105,"Updated",a)
+    putLog(1148,"trace","Updated")
     unsubscribe()
     initialize()
 }
@@ -1110,42 +1181,52 @@ def updated() {
 def initialize() {
     state.logLevel = getLogLevel()
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    
+/* ************************************************************************ */
+/* TO-DO: Add routine to remove devices from table if removed as a device   */
+/* controlled by a contact sensor.                                          */
+/* ************************************************************************ */ 
 
     unschedule()
 
     // If date/time for last notification not set, initialize it to 5 minutes ago
     if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - 360000
 
-    if(disable || disableAll) {
+    if(settings["disable"] || disableAll) {
         state.disable = true
         return
     } else {
         state.disable = false
     }
 
-    if(!disable && !state.disable) {
+    if(!settings["disable"] && !state.disable) {
         subscribe(contactDevice, "contact.open", contactChange)
         subscribe(contactDevice, "contact.closed", contactChange)            
     }
 
-    if(checkLog(a="trace")) putLog(1131,"Initialized",a)
+    putLog(1179,"trace","Initialized")
 }
 
+// Temp function; can be removed from production
+def getScheduleActive(){
+    return "testing"
+}
 def contactChange(evt){
-    if(disable || state.disable) return
+    if(settings["disable"] || state.disable) return
 
-    if(checkLog(a="debug")) putLog(1137,"Contact sensor $evt.displayName $evt.value",a)
+    putLog(1189,"debug","Contact sensor $evt.displayName $evt.value")
 
     // If mode set and node doesn't match, return nulls
     if(settings["ifMode"]){
         if(location.mode != settings["ifMode"]) {
-            if(checkLog(a="trace")) putLog(1142,"Contact disabled, requires mode $ifMode",a)
+            putLog(1194,"trace","Contact disabled, requires mode $ifMode")
             return defaults
         }
     }
 
     // If not correct day, return nulls
-    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
 
     if(settings["inputStartType"] && settings["inputStopType"]) {
         setTime()
@@ -1155,7 +1236,7 @@ def contactChange(evt){
     }
 
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.timeBetween(state.start, atomicState.stop, app.label)) return
+    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
 
     // Unschedule pevious events
 
@@ -1167,19 +1248,42 @@ def contactChange(evt){
         unschedule(runScheduleClose)
     }
 
+    // Perform open events (for switches and locks)
+    if(evt.value == "open"){
+        // Schedule delay
+        if(settings["openWait"]) {
+            putLog(1226,"trace","Scheduling runScheduleOpen in "+ settings["openWait"] + " seconds")
+            runIn(settings["openWait"],runScheduleOpen)
+            // Otherwise perform immediately
+        } else {
+            runScheduleOpen()
+        }
+
+        // Perform close events (for switches and locks)
+    } else if(evt.value == "closed"){
+        // Schedule delay
+        if(settings["closeWait"]) {
+            putLog(1237,"trace","Scheduling runScheduleClose in " + settings["closeWait"] + " seconds")
+            runIn(settings["closeWait"],runScheduleClose)
+            // Otherwise perform immediately
+        } else {
+            runScheduleClose()
+        }
+    }
+
     // Check if people are home (home1 and home2 should be true)
     // If conditions are satified, set home to true
-    if(personHome){
+    if(settings["personHome"]){
         home1 = false
-        personHome.each{
+        settings["personHome"].each{
             if(it.currentPresence == "present") home1 = true
         }
     } else {
         home1 = true
     }
-    if(personNotHome){
+    if(settings["personNotHome"]){
         home2 = true
-        personNotHome.each{
+        settings["personNotHome"].each{
             if(it.currentPresence == "present") home2 = false
         }
     } else {
@@ -1190,7 +1294,7 @@ def contactChange(evt){
     // Text first (just in case there's an error later)
     if(settings["pushNotificationDevice"] && home && ((!settings["notificationOpenClose"] && evt.value == "open") || (settings["notificationOpenClose"] && evt.value == "closed"))){
         // Only if correct people are home/not home
-        def now = new Date()
+        def now = new Date()getTime()
 
         //if last text was sent less than 5 minutes ago, don't send
         /* ************************************************************************ */
@@ -1198,12 +1302,11 @@ def contactChange(evt){
         /* Same with presence app.                                                  */
         /* ************************************************************************ */
         // Compute seconds from last notification
-        seconds = (now.getTime()  - state.contactLastNotification) / 1000
+        seconds = (now - state.contactLastNotification) / 1000
 
         // Convert date to friendly format for log
-        now = now.format("h:mm a", location.timeZone)
         if(seconds > 360){
-            state.contactLastNotification = new Date().getTime()
+            state.contactLastNotification = now
 
             if(evt.value == "open") {
                 eventName = "opened"
@@ -1211,12 +1314,11 @@ def contactChange(evt){
                 eventName = evt.value
             }
             settings["pushNotificationDevice"].each{
-                parent.sendPushNotification(it,"$evt.displayName was $eventName at $now.",app.label)
-                log.debug it
+                parent.sendPushNotification(it,"$evt.displayName was $eventName at " + now.format("h:mm a", location.timeZone),app.label)
             }
-            if(checkLog(a="info")) putLog(1217,"Sent push notice for $evt.displayName $eventName at $now.",a)
+            putLog(1291,"info","Sent push notice for $evt.displayName $eventName at " + now.format("h:mm a", location.timeZone) + ".")
         } else {
-            if(checkLog(a="info")) putLog(1219,"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.",a)
+            putLog(1293,"info","Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
         }
     }
 
@@ -1238,318 +1340,121 @@ def contactChange(evt){
         parent.changeMode(settings["closeMode"],app.label)
     }
 
-    // Perform open events (for switches and locks)
-    if(evt.value == "open"){
-        // Schedule delay
-        if(openWait) {
-            if(checkLog(a="trace")) putLog(1245,"Scheduling runScheduleOpen in $openWait seconds",a)
-            runIn(openWait,runScheduleOpen)
-            // Otherwise perform immediately
-        } else {
-            // Need to add level, temp and color!!
-            // Need to add resume
-            // It will get defaults, even if it's supposed to override
-            if(deviceType == "switch" || deviceType == "light") {
-                setStateMulti(openAction,device,"open")
-            } else if(deviceType == "lock") {
-                parent.multiLock(openAction,device,app.label)
-            }
-        }
-
-        // Perform close events (for switches and locks)
-    } else {
-        // Schedule delay
-        if(closeWait) {
-            if(checkLog(a="trace")) putLog(1263,"Scheduling runScheduleClose in $closeWait seconds",a)
-            runIn(closeWait,runScheduleClose)
-            // Otherwise perform immediately
-        } else {
-            if(deviceType == "switch" || deviceType == "light") {
-                setStateMulti(closeAction,device,"close")
-            } else if(deviceType == "lock"){
-                parent.multiLock(closeLockAction,device,app.label)
-            }
-        }
-    }
 }
 
 def runScheduleOpen(){
-    if(disable || state.disable) return
+    if(settings["disable"] || state.disable) return
 
-    if(deviceType == "switch" || deviceType == "light") {
-        setStateMulti(openAction,device,"open")
-    } else if(deviceType == "lock") {
-        parent.multiLock(openAction,device,app.label)
+    if(settings["deviceType"] == "switch" || settings["deviceType"] == "light") {
+        defaults = [:]
+
+        if(settings["openAction"] == "on" || settings["openAction"] == "off" || settings["openAction"] == "toggle") parent.updateStateMulti(settings["device"],settings["openAction"],app.label)
+        if(settings["openLevel"]) defaults."level" = ["startLevel":settings["openLevel"],"appId":"contact"]
+        if(settings["openTemp"]) defaults."temp" = ["startLevel":settings["openTemp"],"appId":"contact"]
+        if(settings["openHue"]) defaults."hue" = ["startLevel":settings["openHue"],"appId":"contact"]
+        if(settings["openSat"]) defaults."sat" = ["startLevel":settings["openSat"],"appId":"contact"]
+        if(settings["openLevel"] || settings["openTemp"] || settings["openHue"] || settings["openSat"]) parent.updateLevelsMulti(settings["device"],defaults,app.label)
+        if(settings["openAction"] == "on" || settings["openAction"] == "off" || settings["openAction"] == "toggle" || settings["openLevel"] || settings["openTemp"] || settings["openHue"] || settings["openSat"]) parent.setStateMulti(settings["device"],app.label)
+        
+        // No option to schedule locks (yet); move out of if statement if feature is added
+        if(settings["openAction"] == "resume"){
+            defaults = ["level":["time":"resume","appId":"contact"],
+                "temp":["time":"resume","appId":"contact"],
+                "hue":["time":"resume","appId":"contact"],
+               "sat":["time":"resume","appId":"contact"]]
+         parent.updateLevelsMulti(settings["device"],defaults,app.label)
+        }
+    } else if(settings["deviceType"] == "lock") {
+        parent.multiLock(settings["openAction"],settings["device"],app.label)
     }
 }
 
 def runScheduleClose(){
-    if(disable || state.disable) return
+    if(settings["disable"] || state.disable) return
 
     if(deviceType == "switch" || deviceType == "light") {
-        setStateMulti(closeAction,device,"close")
-    } else if(deviceType == "lock"){
-        parent.multiLock(closeAction,device,app.label)
+        defaults = [:]
+
+        if(settings["closeAction"] == "on" || settings["closeAction"] == "off" || settings["closeAction"] == "toggle") parent.updateStateMulti(settings["device"],settings["closeAction"],app.label)
+        if(settings["closeLevel"]) defaults."level" = ["startLevel":settings["closeLevel"],"appId":"contact"]
+        if(settings["closeTemp"]) defaults."temp" = ["startLevel":settings["closeTemp"],"appId":"contact"]
+        if(settings["closeHue"]) defaults."hue" = ["startLevel":settings["closenHue"],"appId":"contact"]
+        if(settings["closeSat"]) defaults."sat" = ["startLevel":settings["closeSat"],"appId":"contact"]
+        if(settings["closeLevel"] || settings["closeTemp"] || settings["closeHue"] || settings["closeSat"]) parent.updateLevelsMulti(settings["device"],defaults,app.label)
+        if(settings["closeAction"] == "on" || settings["closeAction"] == "off" || settings["closeAction"] == "toggle" || settings["closeLevel"] || settings["closeTemp"] || settings["closeHue"] || settings["closeSat"]) parent.setStateMulti(settings["device"],app.label)
+
+        if(settings["closeAction"] == "resume") {
+                defaults = ["level":["time":"stop","appId":app.id],
+                "temp":["time":"stop","appId":app.id],
+                "hue":["time":"stop","appId":app.id],
+               "sat":["time":"stop","appId":app.id]]
+            parent.updateLevelsMulti(settings["device"],defaults,app.label)
+        }
+    } else if(settings["deviceType"] == "lock") {
+        parent.multiLock(settings["closeAction"],settings["device"],app.label)
     }
 }
 
-def setTime (){
-    if(!setStartStopTime("start")) return
-    if(!setStartStopTime("stop")) return 
+def setTime(){
+    if(setStartTime()) {
+        setStopTime()
+        return true
+    }
+    return false
+}
+
+def setStartTime(){
+    if(!settings["inputStartType"]) return
+    setTime = setStartStopTime("Start") // Capitalized because used for dynamic variable
+    if(setTime){
+        atomicState.start = setTime
+        putLog(1382,"info","Start time set to " + parent.normalPrintDateTime(setTime))
+        return true
+    }
+}
+
+def setStopTime(){
+    if(!settings["inputStartType"] || settings["inputStopType"] == "none") return
+    setTime = setStartStopTime("Stop") // Capitalized because used for dynamic variable
+    if(setTime){ 
+        if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
+        atomicState.stop = setTime
+        putLog(1393,"info","Stop time set to " + parent.normalPrintDateTime(setTime))
+    }
+    return
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    if(type != "start" && type != "stop") {
-        if(checkLog(a="error")) putLog(1305,"Invalid value for type \"$type\" sent to setStartStopTime function",a)
-        return
-    }
-
-    if(type == "start") {
-        atomicState.start = null
-        type = "Start"
-    } else if(type == "stop") {
-        atomicState.stop = null
-        type = "Stop"
-    }
-
-    // If no stop time, exit
-    if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
-
     if(settings["input${type}Type"] == "time"){
-        value = settings["input${type}Time"]
+        returnValue = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["input${type}Time"]).getTime()
     } else if(settings["input${type}Type"] == "sunrise"){
-        value = (settings["input${type}SunriseType"] == "before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
+        returnValue = (settings["input${type}SunriseType"] == "before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
     } else if(settings["input${type}Type"] == "sunset"){
-        value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
-    } else {
-        if(checkLog(a="error")) putLog(1327,"input" + type + "Type set to " + settings["input${type}Type"],a)
-        return
+        returnValue = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     }
-
-    if(type == "Stop"){
-        if(timeToday(state.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
-    }
-    if(checkLog(a="trace")) putLog(1334,"$type time set as " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", value).format("h:mma MMM dd, yyyy", location.timeZone),a)
-    if(type == "Start") atomicState.start = value
-    if(type == "Stop") atomicState.stop = value
-    return true
-}
-
-// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
-// Delineate values with colons on each side - must match getStateDeviceChange
-// Used to track if app turned on device when schedule captures a device state changing to on
-// Must be included in all apps using MultiOn
-def addDeviceStateChange(singleDeviceId){
-    if(atomicState.deviceChange) {
-        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
-    } else {
-        atomicState.deviceChange = ":$singleDeviceId:"
-    }
-    return
-}
-
-// Gets levels as set for the app
-// Function must be included in all apps that use MultiOn
-def getOverrideLevels(defaults,appAction = null){
-    if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
-    if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
-    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
-    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
-    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
-    return defaults       
-}
-
-// Returns the value of deviceChange
-// Used by schedule when a device state changes to on, to check if an app did it
-// It should only persist as long as it takes for the scheduler to capture and
-// process both state change request and state change subscription
-// Function must be in every app
-def getStateDeviceChange(singleDeviceId){
-    if(atomicState.deviceChange){
-        value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
-        // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
-        resetStateDeviceChange()
-        return value
-    } else {
-        return false
-    }
-}
-
-// Scheduled funtion to reset the value of deviceChange
-// Must be in every app using MultiOn
-def resetStateDeviceChange(){
-    atomicState.deviceChange = null
-    return
-}
-
-// This is a bit of a mess, but.... 
-def setStateMulti(deviceAction,device,appAction = null){
-    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1390,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
-        return
-    }
-
-    // Time in which to allow Hubitat to process sensor change (eg Pico, contact, etc.)
-    // as well as the scheduler to process any state change generated by the sensor
-    // What's a realistic number to use if someone has a lot of devices attached to a lot 
-    // of Picos with a lot of schedules?
-    stateDeviceChangeResetMillis = 500
-
-    if(deviceAction == "off"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        // Turn off devices
-        parent.setStateMulti("off",device,app.label)
-        return true
-    }
-
-    if(deviceAction == "on"){
-        // Turn on devices
-        parent.setStateMulti("on",device,app.label)
-        // Get and set defaults levels for each device
-        device.each{
-            // Add device ids to deviceChange, so schedule knows it was turned on by an app
-            // Needs to be done before turning the device on.
-            addDeviceStateChange(it.id)
-            // Set scheduled levels, default levels, and/or [this child-app's] levels
-            getAndSetSingleLevels(it,appAction)
-        }
-        if(checkLog(a="debug")) putLog(1419,"Device id's turned on are $atomicState.deviceChange",a)
-        // Schedule deviceChange reset
-        runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "toggle"){
-        // Create toggleOnDevice list, used to track which devices are being toggled on
-        toggleOnDevice = []
-        // Set count variable, used for toggleOnDevice
-        count = 0
-        device.each{
-            // Start count at 1; doesn't matter, so long as it matches newCount below
-            count = count + 1
-            // If toggling to off
-            if(parent.isOn(it)){
-                parent.setStateSingle("off",it,app.label)
-                // Else if toggling on
-            } else {
-                // When turning on, add device ids to deviceChange, so schedule knows it was turned on by an app
-                // Needs to be done before turning the device on.
-                addDeviceStateChange(it.id)
-                // Turn the device on
-                parent.setStateSingle("on",it,app.label)
-                // Add device to toggleOnDevice list so when we loop again to set levels, we know whether we
-                // just turned it on or not (without knowing how long the device may take to respond)
-                toggleOnDevice.add(count)
-            }
-        }
-        if(checkLog(a="debug")) putLog(1448,"Device id's toggled on are $atomicState.deviceChange",a)
-        // Create newCount variable, which is compared to the [old]count variable
-        // Used to identify which lights were turned on in the last loop
-        newCount = 0
-        device.each{
-            // Start newCount at 1 like count above
-            newCount = newCount + 1
-            // If turning on, set scheduled levels, default levels, and/or [this child-app's] levels
-            // If newCount is contained in the list of [old]count, then we toggled on
-            if(toggleOnDevice.contains(newCount)){
-                getAndSetSingleLevels(it,appAction)
-            }
-        }
-        // Schedule deviceChange reset
-        runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "resume"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        device.each{
-            // If turning on, set default levels and over-ride with any contact levels
-            if(deviceAction == "resume"){
-                // If defaults, then there's an active schedule
-                // So use it for if overriding/reenabling
-                defaults = parent.getScheduleDefaultSingle(it,app.label)
-                if(checkLog(a="debug")) putLog(1475,"Scheduled defaults are $defaults",a)
-
-                defaults = getOverrideLevels(defaults,appAction)
-                if(checkLog(a="debug")) putLog(1478,"With " + app.label + " overrides, using $defaults",a)
-
-                // Skipping getting overall defaults, since we're resuming a schedule or exiting;
-                // rather keep things the same level rather than an arbitrary default, and
-                // if we got default, we'd not turn it off
-                parent.setLevelSingle(defaults,it,app.label)
-                // Set default level
-                if(!defaults){
-                    if(checkLog(a="trace")) putLog(1486,"No schedule to resume for $it; turning off",a)
-                    parent.setStateSingle("off",it,app.label)
-                } else {
-                    parent.rescheduleIncrementalSingle(it,app.label)
-                }
-            }
-        }
-        return true
-    }
-
-    if(deviceAction == "none"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
-        // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
-        parent.rescheduleIncrementalMulti(device,app.label)
-        return true
-    }
-}
-
-// Handles turning on a single device and setting levels
-// Only called by (child app) multiOn
-// appAction is for "open/close", "push/hold", etc., so the child app knows which
-// levels to apply for which device/action
-def getAndSetSingleLevels(singleDevice,appAction = null){
-    // If defaults, then there's an active schedule
-    // So use it for if overriding/reenabling
-    // In scheduler app, this gets defaults for any *other* schedule
-    defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
-    logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
-
-    // If there are defaults, then there's an active schedule so reschedule it (the results are corrupted below).
-    // We could do this for the matching schedules within its own getDefaultLevel(), but that would
-    // probably result in incremental schedules rescheduling themselves over and over again. And if we
-    // excluded schedules from rescheduling, then daily schedules wouldn't do this.
-    if(defaults) parent.rescheduleIncrementalSingle(singleDevice,app.label)
-
-    // This does nothing in Time, or other app that has no levels, getOverrideLevels will immediately exit
-    defaults = getOverrideLevels(defaults,appAction)
-    logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
-
-    // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-    defaults = parent.getDefaultSingle(defaults,app.label)
-    logMessage += ", so with generic defaults $defaults"
-
-    if(checkLog(a="debug")) putLog(1531,logMessage,a)
-    parent.setLevelSingle(defaults,singleDevice,app.label)
-    return
+    
+    return returnValue
 }
 
 def checkLog(type = null){
     if(!state.logLevel) getLogLevel()
     switch(type) {
         case "error":
-        if(state.logLevel > 0) return "error"
+        if(state.logLevel > 0) return true
         break
         case "warn":
-        if(state.logLevel > 1) return "warn"
+        if(state.logLevel > 1) return true
         break
         case "info":
-        if(state.logLevel > 2) return "info"
+        if(state.logLevel > 2) return true
         break
         case "trace":
-        if(state.logLevel > 3) return "trace"
+        if(state.logLevel > 3) return true
         break
         case "debug":
-        if(state.logLevel == 5) return "debug"
+        if(state.logLevel == 5) return true
     }
     return false
 }
@@ -1557,7 +1462,8 @@ def checkLog(type = null){
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def putLog(lineNumber,message = null,type = "trace"){
+def putLog(lineNumber,type = "trace",message = null){
+    if(!checkLog(type)) return
     logMessage = ""
     if(type == "error") logMessage += "<font color=\"red\">"
     if(type == "warn") logMessage += "<font color=\"brown\">"
