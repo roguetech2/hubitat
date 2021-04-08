@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.02
+*  Version: 0.6.05
 *
 ***********************************************************************************************************************/
 
@@ -110,7 +110,8 @@ preferences {
                     displayStopTimeSection()
                 }
                 if(checkTimeComplete("stop")){
-                    displayTimeDaysOption()
+                    displayDaysOption()
+                    displayMonthsOption()
                     
                     displayBrightnessOption()
                     displayTemperatureOption()
@@ -244,6 +245,7 @@ def displayStartTimeSection(){
                 }
             }
             displayActionOption("start")
+            displaySkipStartOption()
         }
         // If missing option(s)
     } else {
@@ -266,6 +268,18 @@ def displayStartTimeSection(){
         }
     }
     return
+}
+
+def displaySkipStartOption(){
+    input "skipStart", "bool", defaultValue: true, title: "Run when available?", submitOnChange:true
+    if(skipStart){
+    helpTip = "If the scheduled time is missed such as due to Hubitat being offline, it will run when available"
+        if(stopTime) helpTip += " (if prior to Stop time)"
+        helpTip += ". Click to run only at Start time."
+    } else {
+        helpTip = "If the scheduled time is missed such as due to Hubitat being offline, it will NOT run when available."
+    }
+    displayInfo(helpTip)
 }
 
 def displayStopTimeSection(){
@@ -418,17 +432,46 @@ def displayActionOption(lcType){
     return
 }
 
-def displayTimeDaysOption(){
-    if(settings["timeDays"]){
-        sectionText = "<b>Only on: $settings.timeDays</b>"
-        helpTip = "This will limit the schedule from running unless it's $settings.timeDays."
+def displayDaysOption(){
+    if(settings["days"]){
+        sectionText = "<b>Only on: "
+         List dayList=[]
+        settings["days"].each{
+            dayList.add(it)
+        }
+        dayText = dayList.join(", ")
+        sectionText += dayText + "</b>"
+
+        helpTip = "This will limit the schedule from running unless it's " + dayText + "."
     } else {
         sectionText = "Click to select on which days (optional)"
         helpTip = "Select which day(s) on which to schedule. Applies to both starting and ending of the schedule. If none are selected, schedule will default to every day."
     }
 
     section(hideable: true, hidden: true, sectionText){
-        input "timeDays", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+        input "days", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+        displayInfo(helpTip)
+    }
+    return
+}
+
+def displayMonthsOption(){
+    if(settings["months"]){
+        sectionText = "<b>Only in: "
+        List monthList=[]
+        settings["months"].each{
+            monthList.add(Date.parse( 'MM', it ).format( 'MMMM' ))
+        }
+        monthText = monthList.join(", ")
+        sectionText += monthText + "</b>"
+        helpTip = "This will limit the schedule from running unless it's " + monthText + "."
+    } else {
+        sectionText = "Click to select in which months (optional)"
+        helpTip = "Select which month(s) in which to schedule. Applies to both starting and ending of the schedule. If none are selected, schedule will default to every month."
+    }
+
+    section(hideable: true, hidden: true, sectionText){
+        input "months", "enum", title: "In these months (defaults to all months)", multiple: true, width: 12, options: ["1": "January", "2": "February", "3": "March", "4": "April", "5": "May", "6": "June", "7": "July", "8": "August", "9": "September", "10": "October", "11": "November", "12": "December"], submitOnChange:true
         displayInfo(helpTip)
     }
     return
@@ -508,8 +551,8 @@ def displaySunriseOffsetOption(lcType){
         // "Minues [before/after] [sunrise/set] is equal to "
         message = "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " is equal to "
         if(settings["input${ucType}Before"]  > 2881){
-            // "X days"
-            message += Math.floor(settings["input${ucType}Before"]  / 60 / 24) + " days."
+            // "X days" - 60 / 24 = 2.5
+            message += Math.floor(settings["input${ucType}Before"]  / 2.5) + " days."
         } else {
             message += "a day."
         }
@@ -832,7 +875,8 @@ disable - bool - Flag to disable this single schedule
 timeOn - enum (none, on, off, toggle) - What to do with timeDevice at starting time
 timeOff - enum (none, on, off, toggle) - What to do with timeDevice at stopping time
 timeDevice - capability.switch - Device(s) being scheduled
-timeDays - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Day(s) of the week schedule will run
+days - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Day(s) of the week schedule will run
+months - enum (Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec) - Months(s) of the year schedule will run
 inputStartType - enum (time, sunrise, sunset) - Sets whether start time is a specific time, or based on sunrise or sunset
 inputStartTime - time - Start Time (only displays when inputStartType = "time")
 inputStartSunriseType - enum (at, before, after) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if inputStartType = "sunrise" or "sunset")
@@ -909,37 +953,41 @@ def initialize() {
     if(!tempOn || tempOn == tempOff) settings.tempOff = null
     if(!hueOn || hueOn == hueOff) settings.hueOff = null
     if(!satOn || satOn == satOff) settings.satOff = null
-
+    log.debug parent.nowInDayList(settings["days"])
+log.debug parent.nowInMonthList(settings["months"])
     // Set start time, stop time, and total seconds
     if(!setTime()) return false
-    setWeekDays()
-    subscribeDevices()
 
+    subscribeDevices()
     setDailySchedules()
-    
+
     //Initialize deviceState variable
     parent.isOnMulti(settings["timeDevice"])
-    
+
     atomicState.defaults = null
     defaults = getStartDefaults()
+
     if(defaults){
         if(defaults."level") defaults."level"."time" = "start"
         if(defaults."temp") defaults."temp"."time" = "start"
         if(defaults."sat") defaults."sat"."time" = "start"
         if(defaults."hue") defaults."hue"."time" = "start"
+
         parent.updateLevelsMulti(settings["timeDevice"],defaults,app.label)
+
         if(getScheduleActive()){
             parent.setStateMulti(settings["timeDevice"],app.label)
             runIncrementalSchedule()
         }
     }
+    
     return true
 }
 
 def handleStateChange(event){
     if(parent.isOn(event.device,app.label) && event.value == "on") return
     if(!parent.isOn(event.device,app.label) && event.value == "off") return
-    putLog(942,"trace","Captured manual state change for $event.device to turn $event.value")
+    putLog(946,"trace","Captured manual state change for $event.device to turn $event.value")
     parent.updateStateSingle(event.device,event.value,app.label)
 
     return
@@ -956,7 +1004,7 @@ def handleLevelChange(event){
         if(levelChange."currentLevel".toString() == event.value) return
         defaults = ["level":["startLevel":event.value,"appId":"manual"]]
         parent.updateLevelsSingle(event.device,defaults,app.label)
-        putLog(959,"warn","Captured manual change for $event.device level to $event.value% - last changed " + levelChange."timeDifference" + "ms")
+        putLog(963,"warn","Captured manual change for $event.device level to $event.value% - last changed " + levelChange."timeDifference" + "ms")
     }
     return
 }
@@ -973,7 +1021,7 @@ def handleTempChange(event){
         if(value + 1 > tempChange."currentLevel" && value < maxValue && event.device.colorMode == "CT") return
 
         defaults = ["temp":["startLevel":value,"appId":"manual"]]
-        putLog(976,"warn","Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange."timeDifference" + "ms")
+        putLog(980,"warn","Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange."timeDifference" + "ms")
         parent.updateLevelsSingle(event.device,defaults,app.label)
     }
     return
@@ -987,10 +1035,9 @@ def handleHueChange(event){
     hueChange = parent.getLastHueChange(event.device, app.label)
     if(hueChange){
         if(hueChange."timeDifference" < 400) return
-        //if(hueChange."currentLevel".toString().toInteger() == event.value.toString().toInteger() || (hueChange."priorLevel".toString().toInteger() == event.value.toString().toInteger() && hueChange."timeDifference" < 1500)) return
         if(hueChange."currentLevel" == value && event.device.colorMode == "RGB") return
         defaults = ["hue":["startLevel":value,"priorLevel":event.device.currentHue,"appId":"manual"]]
-        putLog(993,"warn","Captured manual change for $event.device to hue $value% - last changed " + hueChange."timeDifference" + "ms")
+        putLog(996,"warn","Captured manual change for $event.device to hue $value% - last changed " + hueChange."timeDifference" + "ms")
         parent.updateLevelsSingle(event.device,defaults,app.label)
     }
     return
@@ -1004,10 +1051,9 @@ def handleSatChange(event){
     satChange = parent.getLastSatChange(event.device, app.label)
     if(satChange){
         if(satChange."timeDifference" < 400) return
-        //if(satChange."currentLevel".toString().toInteger() == event.value.toString().toInteger() || ((satChange."priorLevel".toString().toInteger() == event.value.toString().toInteger() || satChange."priorLevel" + 1 == event.value.toString().toInteger() || satChange."priorLevel" - 1 == event.value.toString().toInteger()) && satChange."timeDifference" < 1500)) return
         if(satChange."currentLevel".toInteger() == value && event.device.colorMode == "RGB") return
         defaults = ["sat":["startLevel":value,"appId":"manual"]]
-        putLog(1010,"warn","Captured manual change for $event.device to saturation $value% - last changed " + satChange."timeDifference" + "ms")
+        putLog(1012,"warn","Captured manual change for $event.device to saturation $value% - last changed " + satChange."timeDifference" + "ms")
         parent.updateLevelsSingle(event.device,defaults,app.label)
     }
     return
@@ -1021,37 +1067,32 @@ def setDailySchedules(type = null){
     } else if(type != "start"){
         unschedule(runDailyStopSchedule)
     }
+    
     // Schedule dailyStart, either every day or with specific days
     if(type != "stop"){
-        startHours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format('HH').toInteger()
-        startMinutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format('mm').toInteger()
+        startHours = new Date(atomicState.start).format('HH').toInteger()
+        startMinutes = new Date(atomicState.start).format('mm').toInteger()
     }
     if(type != "start" && atomicState.stop){
-        stopHours = Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format('HH').toInteger()
-        stopMinutes = Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format('mm').toInteger()
+        stopHours = new Date(atomicState.stop).format('HH').toInteger()
+        stopMinutes = new Date(atomicState.stop).format('mm').toInteger()
     }
 
-    if(state.weekDays) {
-        days = "? * $state.weekDays"
-    } else {
-        days = "* * ?"
-    }
+    days = "* * ?"
 
     // Schedule start
     if(type != "stop") {
         scheduleString = "0 $startMinutes $startHours $days"
-        //schedule(scheduleString, runDailyStartSchedule)
         // Need to pause or else Hubitat may run runDailyStartSchedule immediately and cause a loop
         runIn(1,setStartSchedule, [data: ["scheduleString": scheduleString]])
-        putLog(1046,"debug","Scheduling runDailyStartSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format("h:mma MMM dd, yyyy", location.timeZone) + " ($scheduleString)")
+        putLog(1048,"debug","Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
     }
 
     if((type != "start") && atomicState.stop){
         scheduleString = "0 $stopMinutes $stopHours $days"
         // Need to pause or else Hubitat may run runDailyStopSchedule immediately and cause a loop
         runIn(1,setStopSchedule, [data: ["scheduleString": scheduleString]])
-        //schedule(scheduleString, runDailyStopSchedule)
-        putLog(1054,"debug","Scheduling runDailyStopSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " ($scheduleString)")
+        putLog(1055,"debug","Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
     }
     return true
 }
@@ -1059,12 +1100,12 @@ def setDailySchedules(type = null){
 // Required for offsetting scheduling start and stop by a second, to prevent Hubitat running runDailyStartSchedule immediately
 def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
-    putLog(1062,"debug","Scheduling runDailyStartSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)")
+    putLog(1063,"debug","Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
 }
 
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
-    putLog(1067,"debug","Scheduling runDailyStopSchedule for " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).format("h:mma MMM dd, yyyy", location.timeZone) + " ($data.scheduleString)")
+    putLog(1068,"debug","Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
 }
 
 // Performs actual changes at time set with timeOn
@@ -1080,7 +1121,11 @@ def runDailyStartSchedule(){
     setDailySchedules("start")
 
     // If not correct day, exit
-    if(settings["timeDays"] && !parent.todayInDayList(settings["timeDays"],app.label)) return
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    
+    // If not correct month, exit
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
+    
     
     if(settings["timeOn"] == "on" || settings["timeOn"] == "off" || settings["timeOn"] == "toggle") {
         parent.updateStateMulti(settings["timeDevice"],settings["timeOn"],app.label)
@@ -1113,7 +1158,7 @@ def runDailyStartSchedule(){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
-    putLog(1116,"trace","runIncrementalSchedule starting")
+    putLog(1117,"trace","runIncrementalSchedule starting")
     if(!getScheduleActive()) return
     if((settings["levelOn"] && settings["levelOff"]) || (settings["tempOn"] && settings["tempOff"]) || (settings["hueOn"] && settings["hueOff"]) || (settings["satOn"] && settings["satOff"])) {
         // If it's disabled, keep it active
@@ -1133,7 +1178,7 @@ def runIncrementalSchedule(){
 
         // Reschedule itself
         runIn(15,runIncrementalSchedule)
-        putLog(1136,"trace","runIncrementalSchedule exiting")
+        putLog(1137,"trace","runIncrementalSchedule exiting")
     }
     return true
 }
@@ -1149,8 +1194,9 @@ def runDailyStopSchedule(){
     if(!setTime()) return
     setDailySchedules("stop")
 
-    // Do not test for day when stopping
-    if(settings["timeDays"] && !parent.todayInDayList(settings["timeDays"],app.label)) return
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
     
         // Update and set state (when turning on, off, or toggling)
     if(settings["timeOff"] == "on" || settings["timeOff"] == "off" || settings["timeOff"] == "toggle") {
@@ -1206,89 +1252,107 @@ def subscribeDevices(){
     subscribe(settings["timeDevice"], "colorTemperature", handleTempChange)
     subscribe(settings["timeDevice"], "level", handleLevelChange)
     subscribe(settings["timeDevice"], "Speed", handleLevelChange)
+    subscribe(location, "systemStart", handleSystemBoot)
+    subscribe(location,"timeZone",handleTimezone)
+    return
+}
+
+def handleSystemBoot(evt){
+    log.debug "Syatem booted " + event
+     if(settings["skipStart"]) systemBootActivate()
+
+    initialize()
+}
+
+def systemBootActivate(){
+    if(state.disable) return
+    
+    // need to exit if not with 1 hour of start time
+    if((Date().getTime - atomicState.start) > parent.CONSTHourInMilli()) return
+
+    atomicState.defaults = null
+
+    // Set time state variables
+    if(!setTime()) return
+    if(atomicState.stop){
+        if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    }
+
+    // If not correct day, exit
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    
+    // If not correct month, exit
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
+
+    if(settings["timeOn"] == "on" || settings["timeOn"] == "off" || settings["timeOn"] == "toggle") {
+        parent.updateStateMulti(settings["timeDevice"],settings["timeOn"],app.label)
+    }
+    if(settings["levelOn"] || settings["tempOn"] || settings["hueOn"] || settings["satOn"]){
+        defaults = getStartDefaults()
+        if(defaults."level") defaults."level"."time" = "start"
+        if(defaults."temp") defaults."temp"."time" = "start"
+        if(defaults."sat") defaults."sat"."time" = "start"
+        if(defaults."hue") defaults."hue"."time" = "start"
+        parent.updateLevelsMulti(settings["timeDevice"],defaults,app.label)
+    }
+
+    // If not correct mode, exit
+    if(settings["ifMode"] && location.mode != settings["ifMode"]) return
+
+    if(settings["ifPeople"] && parent.getEveryonePresent(settings["ifPeople"], app.label)) return
+
+    // Update and set state (when turning on, off, or toggling)
+    parent.setStateMulti(settings["timeDevice"],app.label)
+
+    // Set start mode
+    if(settings["modeChangeOn"]) setLocationMode(settings["modeChangeOn"])
+
+    runIn(15,runIncrementalSchedule)
+
     return
 }
 
 def setTime(){
-    if(setStartStopTime("start")) {
-    setStartStopTime("stop") 
-    //if(!atomicState.totalSeconds || (inputStartType == "sunrise" || inputStartType == "sunset" || inputStopType == "sunrise" || inputStopType == "sunset"))
-    //setTotalSeconds()
-    returnValue = true
+    if(setStartTime()) {
+        setStopTime()
+        return true
     }
-    return returnValue
+    return false
+}
+
+def setStartTime(){
+    if(!settings["inputStartType"]) return
+    setTime = setStartStopTime("Start") // Capitalized because used for dynamic variable
+    if(setTime){
+        atomicState.start = setTime
+        putLog(1226,"info","Start time set to " + parent.normalPrintDateTime(setTime))
+        return true
+    }
+}
+
+def setStopTime(){
+    if(!settings["inputStartType"] || settings["inputStopType"] == "none") return
+    setTime = setStartStopTime("Stop") // Capitalized because used for dynamic variable
+    if(setTime){ 
+        if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
+        atomicState.stop = setTime
+        putLog(1237,"info","Stop time set to " + parent.normalPrintDateTime(setTime))
+    }
+    return
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    if(type != "start" && type != "stop") {
-        putLog(1226,"error","Invalid value for type \"$type\" sent to setStartStopTime function")
-        return
-    }
-
-    // Change to uppercase to match input strings (eg "inputStartTime")
-    type = type.capitalize()
-
-    // If no stop time, exit
-    if(type == "Stop" && (!inputStopType || inputStopType == "none")) return true
-    
     if(settings["input${type}Type"] == "time"){
-        value = settings["input${type}Time"]
+        returnValue = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["input${type}Time"]).getTime()
     } else if(settings["input${type}Type"] == "sunrise"){
-        value = (settings["input${type}SunriseType"] == "before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
+        returnValue = (settings["input${type}SunriseType"] == "before" ? parent.getSunrise(settings["input${type}Before"] * -1,app.label) : parent.getSunrise(settings["input${type}Before"],app.label))
     } else if(settings["input${type}Type"] == "sunset"){
-        value = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
-    } else {
-        putLog(1243,"error","ERROR: input" + type + "Type set to " + settings["input${type}Type"])
-        return
+        returnValue = (settings["input${type}SunriseType"] == "before" ? parent.getSunset(settings["input${type}Before"] * -1,app.label) : parent.getSunset(settings["input${type}Before"],app.label))
     }
-
-    if(type == "Stop"){
-        if(timeToday(atomicState.start, location.timeZone).time > timeToday(value, location.timeZone).time) value = parent.getTomorrow(value,app.label)
-    }
-
-    if(type == "Start") atomicState.start = value
-    if(type == "Stop") atomicState.stop = value
     
-    return true
-}
-
-// Converts full text weekdays as string to be used by cron schedule, and sets as state.weekDays
-// Only called from initialize
-def setWeekDays(){
-    state.weekDays = null
-    if(!timeDays) return
-    dayString = ""
-    timeDays.each{
-        if(it == "Monday") dayString += "MON"
-        if(it == "Tuesday") {
-            if(dayString) dayString += ","
-            dayString += "TUE"
-        }
-        if(it == "Wednesday") {
-            if(dayString) dayString += ","
-            dayString += "WED"
-        }
-        if(it == "Thursday") {
-            if(dayString) dayString += ","
-            dayString += "THU"
-        }
-        if(it == "Friday") {
-            if(dayString) dayString += ","
-            dayString += "FRI"
-        }
-        if(it == "Saturday") {
-            if(dayString) dayString += ","
-            dayString += "SAT"
-        }
-        if(it == "Sunday") {
-            if(dayString) dayString += ","
-            dayString += "SUN"
-        }
-    }
-    state.weekDays = dayString
-    return true
+    return returnValue
 }
 
 // Used by Master to check whether to reschedule incremental
@@ -1302,7 +1366,10 @@ def getTimeVariable(){
 // Used by getDefaultLevel
 def getScheduleActive(){
     // If not correct day, return false
-    if(timeDays && !parent.todayInDayList(timeDays,app.label)) return
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    
+    // If not correct month, return false
+    if(settings["months"] && !parent.nowInMonthList(settings["months"],app.label)) return
 
     // If no start or stop time, return false
     if(!atomicState.start || !atomicState.stop) return
@@ -1364,11 +1431,10 @@ def getStartDefaults(action = "start"){
     
     // If start and stop, compute seconds and set
     if(atomicState.start && atomicState.stop){
-        startHours = parent.convertToInteger(Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format('HH'),app.label)
-        startMinutes = parent.convertToInteger(Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format('mm'),app.label)
-        startSeconds = parent.convertToInteger(Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).format('ss'),app.label)
-        startSeconds = startHours * 60 * 60 + startMinutes * 60 + startSeconds
-        totalSeconds = Math.floor((Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.stop).time - Date.parse("yyyy-MM-dd'T'HH:mm:ss", atomicState.start).time) / 1000)
+        startHours = new Date(atomicState.start).format('HH').toInteger()
+        startMinutes = new Date(atomicState.start).format('mm').toInteger()
+        startSeconds = startHours * 3600 + startMinutes * 60
+        totalSeconds = (atomicState.stop - atomicState.start) / 1000
 
         if(settings["levelOn"] && settings["levelOff"]){
             defaults."level"."startSeconds" = startSeconds
