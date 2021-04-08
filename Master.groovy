@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.3.02
+*  Version: 0.3.06
 *
 ***********************************************************************************************************************/
 
@@ -427,10 +427,9 @@ def sendPushNotification(phone, message, childLabel = "Master"){
 def isOnMulti(multiDevice,childLabel="Master"){
     multiState = false
     multiDevice.each{singleDevice->
-        if(!value && isOn(singleDevice,childLabel)) value = true
+        if(!value && isOn(singleDevice,childLabel)) return true
     }
-    putLog(432,"debug","isOnMulti returning $value",childLabel)
-    return value
+    return false
 }
 
 // Test state of a single switch
@@ -473,7 +472,7 @@ def validateHueSat(hue,sat, childLabel="Master"){
 def validateMultiplier(value, childLabel="Master"){
     if(value){
         if(value < 1 || value > 100){
-            putLog(476,"error","ERROR: Multiplier $value is not valid",childLabel)
+            putLog(475,"error","ERROR: Multiplier $value is not valid",childLabel)
             return
         }
     }
@@ -568,80 +567,79 @@ def descheduleIncrementalSingle(singleDevice,childLabel="Master"){
 // Returns date one day ahead of $date
 // Expects and returns format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getTomorrow(date,childLabel="Master"){
-    day = date.substring(8,10).toInteger() + 1
-    day = String.format("%02d",day)
-    returnValue = date.substring(0,8) + day.toString() + date.substring(10,28)
+    returnValue = date + CONSTDayInMilli()
+    //returnValue =  Date.parse("yyyy-MM-dd'T'HH:mm:ss", date).plus(30)
     return returnValue
 }
+
 
 // Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 // negative is true of false
 def getSunrise(offset, childLabel="Master"){
+    value = getSunriseAndSunset().sunrise.getTime()
     if(offset){
-        value = getSunriseAndSunset(sunriseOffset: offset, sunsetOffset: 0).sunrise
-        returnValue = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
-    } else {
-        returnValue = getSunriseAndSunset().sunrise.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+        value = value + offset * CONSTMinuteInMilli()
     }
-    return returnValue
+    return value
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getSunset(offset = false,childLabel="Master"){
+    value = getSunriseAndSunset().sunset.getTime()
     if(offset){
-        value = getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: offset).sunset
-        returnValue = value.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
-    } else {
-        returnValue = getSunriseAndSunset().sunset.format("yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ")
+        value = value + offset * CONSTMinuteInMilli()
     }
-    return returnValue
+    return value
 }
 
 // Returns true if today is in $days map
-def todayInDayList(days,childLabel="Master"){
-    if(days) {
-        def df = new java.text.SimpleDateFormat("EEEE")
-        df.setTimeZone(location.timeZone)
-        def day = df.format(new Date())
-        if(days.contains(day)) returnValue = true
-    }
-    return returnValue
+def nowInDayList(days,childLabel="Master"){
+    if(!days)  return true
+
+    def df = new java.text.SimpleDateFormat("EEEE")
+    df.setTimeZone(location.timeZone)
+    def day = df.format(new Date())
+    if(days.contains(day)) return true
+
+    return false
+}
+
+// Returns true if today is in $months map
+def nowInMonthList(months,childLabel="Master"){
+    if(!months) return true
+
+    month = new Date().getMonth().toString()
+    if(months.contains(month)) return true
+
+    return false
 }
 
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel="Master"){
     if(!timeStart) {
-        putLog(614,"error","ERROR: Function timeBetween returning false (no start time)",childLabel)
+        putLog(609,"error","ERROR: Function timeBetween returning false (no start time)",childLabel)
         return
     } else if(!timeStop) {
         return
     }
 
-    //This might work
-    //if(timeStart.before(now()) && timeStop.after(now()))
-
     varNow = now()
-    if(timeToday(timeStart, location.timeZone).time > timeToday(timeStop, location.timeZone).time) {
-        if(varNow > timeToday(timeStart, location.timeZone).time || varNow < timeToday(timeStop, location.timeZone).time){
-            //putLog(626,"trace","Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),childLabel)
-            returnValue = true
-        }
-    } else if(varNow > timeToday(timeStart, location.timeZone).time && varNow < timeToday(timeStop, location.timeZone).time) {
-        //putLog(630,"trace","Time is between " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStart).format("h:mma MMM dd, yyyy", location.timeZone) + " and " + Date.parse("yyyy-MM-dd'T'HH:mm:ss", timeStop).format("h:mma MMM dd, yyyy", location.timeZone),childLabel)
+    if(varNow > timeStart && varNow < timeStop){
         returnValue = true
     }
+
     return returnValue
 }
 
 def speakSingle(text,deviceId, childLabel="Master"){
     if(!deviceId) {
-        putLog(638,"warn","No speech device for \"$text\"",childLabel)
+        putLog(625,"warn","No speech device for \"$text\"",childLabel)
         return
     }
     speechDevice.each{
         if(it.id == deviceId){
             it.speak(text)
-            putLog(644,"info","Sending speech \"$text\" to device $it",childLabel)
+            putLog(631,"info","Sending speech \"$text\" to device $it",childLabel)
             return true
         }
     }
@@ -905,7 +903,7 @@ def setStateSingle(singleDevice,childLabel = "Master"){
             } else {
                 singleDevice.off()
             }
-            putLog(908,"debug","Turning $singleDevice off",childLabel)
+            putLog(895,"debug","Turning $singleDevice off",childLabel)
             return
         }
 
@@ -958,12 +956,12 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                     } else {
                         singleDevice.on()
                     }
-                    putLog(961,"debug","Turning $singleDevice on",childLabel)
+                    putLog(948,"debug","Turning $singleDevice on",childLabel)
                     //this needs a fudge check
                     if(singleDevice.currentTemperatureColor != 3500){
                         pauseExecution(200)
                         singleDevice.setColorTemperature(3500)
-                        putLog(966,"debug","Set $singleDevice temperature color to 3500K",childLabel)
+                        putLog(953,"debug","Set $singleDevice temperature color to 3500K",childLabel)
                     }
                 }
             } else {
@@ -1006,7 +1004,7 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                                 levelStart = defaults."level"."startLevel"
                             }
                         }
-                        if(!levelStart) putLog(1009,"warn","$singleDevice level data = " + defaults."level" + " for schedule id " + defaults."level"."appId" + " but schedule isn't active",childLabel)
+                        if(!levelStart) putLog(996,"warn","$singleDevice level data = " + defaults."level" + " for schedule id " + defaults."level"."appId" + " but schedule isn't active",childLabel)
                         // If just start level
                     } else if(defaults."level"."startLevel"){
                         levelStart = defaults."level"."startLevel"
@@ -1075,12 +1073,12 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                                 }
                             }
                         }
-                        if(!hueStart) putLog(1078,"warn","$singleDevice hue data = " + defaults."hue" + " for schedule id " + defaults."hue"."appId" + " but schedule isn't active",childLabel)
+                        if(!hueStart) putLog(1065,"warn","$singleDevice hue data = " + defaults."hue" + " for schedule id " + defaults."hue"."appId" + " but schedule isn't active",childLabel)
                         // If just start hue
                     } else if(defaults."hue"."startLevel"){
                         hueStart = defaults."hue"."startLevel"
                     } else if(!isNumeric(defaults."hue"."appId")){
-                        putLog(1083,"error","ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
+                        putLog(1070,"error","ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
                     }
 
                     // Set currentHue
@@ -1137,12 +1135,12 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                                 }
                             }
                         }
-                        if(!satStart) putLog(1140,"warn","$singleDevice sat data = " + defaults."sat" + " for schedule id " + defaults."sat"."appId" + " but schedule isn't active",childLabel)
+                        if(!satStart) putLog(1127,"warn","$singleDevice sat data = " + defaults."sat" + " for schedule id " + defaults."sat"."appId" + " but schedule isn't active",childLabel)
                         // If just start sat
                     } else if(defaults."sat"."startLevel"){
                         satStart = defaults."sat"."startLevel"
                     } else if(!isNumeric(defaults."sat"."appId")){
-                        putLog(1145,"error","ERROR: $singleDevice sat data = " + defaults + "; Sat node without start sat",childLabel)
+                        putLog(1132,"error","ERROR: $singleDevice sat data = " + defaults + "; Sat node without start sat",childLabel)
                     }
 
                     // Set currentSat
@@ -1193,7 +1191,7 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                                     tempStart = defaults."temp"."startLevel"
                                 }
                         }
-                        if(!tempStart) putLog(1196,"warn","$singleDevice temp data = " + defaults."temp" + " for schedule id " + defaults."temp"."appId" + " but schedule isn't active",childLabel)
+                        if(!tempStart) putLog(1183,"warn","$singleDevice temp data = " + defaults."temp" + " for schedule id " + defaults."temp"."appId" + " but schedule isn't active",childLabel)
                         // If just start temp
                     } else if(defaults."temp"."startLevel"){
                         tempStart = defaults."temp"."startLevel"
@@ -1234,42 +1232,42 @@ def setStateSingle(singleDevice,childLabel = "Master"){
                     colorMap."saturation" = satStart ? satStart : singleDevice.currentSaturation
 
                     singleDevice.setColor(colorMap)
-                    putLog(1237,"info","Set $singleDevice " + message + "hue to $hueStart%, and saturation to $satStart$unit",childLabel)
+                    putLog(1224,"info","Set $singleDevice " + message + "hue to $hueStart%, and saturation to $satStart$unit",childLabel)
                     if(settings["colorStaging"]){
                         pauseExecution(200)
                         singleDevice.on()
-                        putLog(1241,"info","Set $singleDevice on",childLabel)
+                        putLog(1228,"info","Set $singleDevice on",childLabel)
                     }
-                    putLog(1243,message,"info",childLabel)
+                    putLog(1230,message,"info",childLabel)
                 } else if(levelStart && isDimmable(singleDevice,childLabel)){
                     if(tempStart){
                         singleDevice.setColorTemperature(tempStart)
-                        putLog(1247,"info","Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                        putLog(1234,"info","Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
                         pauseExecution(200)
                     }
                     if(singleDevice.currentLevel != levelStart){
                         singleDevice.setLevel(levelStart)
-                        putLog(1252,"info","Set $singleDevice brightness to " + levelStart + "%",childLabel)
+                        putLog(1239,"info","Set $singleDevice brightness to " + levelStart + "%",childLabel)
                     } else {
                         singleDevice.on()
-                        putLog(1255,"info","Turned $singleDevice on",childLabel)
+                        putLog(1242,"info","Turned $singleDevice on",childLabel)
                     }
                 } else if(tempStart && isColor(singleDevice,childLabel)){
                     singleDevice.setColorTemperature(tempStart)
-                    putLog(1259,"info","Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                    putLog(1246,"info","Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
                     if(settings["colorStaging"]){
                         pauseExecution(200)
                         singleDevice.on()
-                        putLog(1263,"info","Set $singleDevice on",childLabel)
+                        putLog(1250,"info","Set $singleDevice on",childLabel)
                     }
                 } else {
-                    if(singleDevice.currentValue("switch") != "on") putLog(1266,"info","Set $singleDevice on",childLabel)
+                    if(singleDevice.currentValue("switch") != "on") putLog(1253,"info","Set $singleDevice on",childLabel)
                     singleDevice.on()
                 }
             }
             // else not fan, dimmable, or color
         } else {
-            if(singleDevice.currentValue("switch") != "on") putLog(1272,"info","Set $singleDevice on",childLabel)
+            if(singleDevice.currentValue("switch") != "on") putLog(1259,"info","Set $singleDevice on",childLabel)
             singleDevice.on()
         }
             
@@ -1397,6 +1395,22 @@ def convertToString(value, childLabel = "Master"){
     if(!value) return
     if(value instanceof String) return value
     return value.toString()
+}
+
+def normalPrintDateTime(datetime){
+    return new Date(datetime).format("h:mma MMM dd, yyyy", location.timeZone)
+}
+
+def CONSTDayInMilli(){
+        return 86400000
+}
+
+def CONSTHourInMilli(){
+    return 3600000
+}
+
+def CONSTMinuteInMilli(){
+    return 60000
 }
 
 //lineNumber should be a number, but can be text
