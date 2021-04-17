@@ -1319,11 +1319,49 @@ def checkIncrementalUpdates(multiDevice,defaults,childLabel = 'Master'){
     return returnValue
 }
 
-def getLastStateChange(singleDevice,childLabel = 'Master'){
-    if(!atomicState."deviceState${singleDevice.id}" || atomicState."deviceState${singleDevice.id}".'state' == 'off') return
-    time = new Date().time
-    timeDifference = time - atomicState."deviceState${singleDevice.id}".'time'
-    return timeDifference
+def CONSTDayInMilli(){
+        return 86400000
+}
+
+def CONSTHourInMilli(){
+    return 3600000
+}
+
+def CONSTMinuteInMilli(){
+    return 60000
+}
+
+def convertToInteger(value, childLabel = 'Master'){
+    if(value instanceof Integer) return value
+    if(value instanceof Long) return value
+    if(value instanceof String && value.isInteger()) return value.toInteger()
+    return
+}
+
+def convertToString(value, childLabel = 'Master'){
+    if(!value) return
+    if(value instanceof String) return value
+    return value.toString()
+}
+
+def getPeopleHome(mutlidevice,childLabel = 'Master'){
+    peopleHome = true
+    if(settings['personHome']){
+        settings['personHome'].each{
+            if(it.currentPresence != 'present') peopleHome = false
+        }
+    }
+    return peopleHome
+}
+
+def getNooneHome(mutlidevice,childLabel = 'Master'){
+    nooneHome = true
+    if(settings['personHome']){
+        settings['personHome'].each{
+            if(it.currentPresence == 'present') nooneHome = false
+        }
+    }
+    return nooneHome
 }
 
 def getLastLevelChange(singleDevice,childLabel = 'Master'){
@@ -1333,20 +1371,19 @@ def getLastLevelChange(singleDevice,childLabel = 'Master'){
     if(!atomicState."deviceData${deviceId}".'level') return
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'level'.'time'
-    
-        returnValue = ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'level'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'level'.'priorLevel']
+
+    returnValue = ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'level'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'level'.'priorLevel']
 
     return returnValue
 }
-def getLastTempChange(singleDevice,childLabel = 'Master'){
-    if(!isOn(singleDevice,childLabel)) return
-    deviceId = singleDevice.id.toInteger()
-    if(!atomicState."deviceData${deviceId}") return
-    if(!atomicState."deviceData${deviceId}".'temp') return
+
+def getLastStateChange(singleDevice,childLabel = 'Master'){
+    if(!atomicState."deviceState${singleDevice.id}" || atomicState."deviceState${singleDevice.id}".'state' == 'off') return
     time = new Date().time
-    timeDifference = time - atomicState."deviceData${deviceId}".'temp'.'time'
-    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'temp'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'temp'.'priorLevel']
+    timeDifference = time - atomicState."deviceState${singleDevice.id}".'time'
+    return timeDifference
 }
+
 def getLastHueChange(singleDevice,childLabel = "Master"){
     if(!isOn(singleDevice,childLabel)) return
     deviceId = singleDevice.id.toInteger()
@@ -1356,6 +1393,7 @@ def getLastHueChange(singleDevice,childLabel = "Master"){
     timeDifference = time - atomicState."deviceData${deviceId}".'hue'.'time'
     return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'hue'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'hue'.'priorLevel']
 }
+
 def getLastSatChange(singleDevice,childLabel = 'Master'){
     if(!isOn(singleDevice,childLabel)) return
     deviceId = singleDevice.id.toInteger()
@@ -1364,6 +1402,16 @@ def getLastSatChange(singleDevice,childLabel = 'Master'){
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'sat'.'time'
     return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'sat'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'sat'.'priorLevel']
+}
+
+def getLastTempChange(singleDevice,childLabel = 'Master'){
+    if(!isOn(singleDevice,childLabel)) return
+    deviceId = singleDevice.id.toInteger()
+    if(!atomicState."deviceData${deviceId}") return
+    if(!atomicState."deviceData${deviceId}".'temp') return
+    time = new Date().time
+    timeDifference = time - atomicState."deviceData${deviceId}".'temp'.'time'
+    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'temp'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'temp'.'priorLevel']
 }
 
 def getPresenceDevice(childLabel = 'Master'){
@@ -1381,6 +1429,10 @@ def isNumeric(strNum) {
     }catch (e) {
         return false
     }
+}
+
+def normalPrintDateTime(datetime){
+    return new Date(datetime).format('h:mma MMM dd, yyyy', location.timeZone)
 }
 
 def checkLog(type = null){
@@ -1402,35 +1454,6 @@ def checkLog(type = null){
         if(state.logLevel > 3) return true
     }
     return false
-}
-
-def convertToInteger(value, childLabel = 'Master'){
-    if(value instanceof Integer) return value
-    if(value instanceof Long) return value
-    if(value instanceof String && value.isInteger()) return value.toInteger()
-    return
-}
-
-def convertToString(value, childLabel = 'Master'){
-    if(!value) return
-    if(value instanceof String) return value
-    return value.toString()
-}
-
-def normalPrintDateTime(datetime){
-    return new Date(datetime).format('h:mma MMM dd, yyyy', location.timeZone)
-}
-
-def CONSTDayInMilli(){
-        return 86400000
-}
-
-def CONSTHourInMilli(){
-    return 3600000
-}
-
-def CONSTMinuteInMilli(){
-    return 60000
 }
 
 //lineNumber should be a number, but can be text
