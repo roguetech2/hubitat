@@ -70,11 +70,7 @@ preferences {
             if(settings['inputStartType'] != 'time') settings['inputStartTime'] = false
             if(settings['inputStartSunriseType'] == 'at' || !settings['inputStartSunriseType']) settings['inputStartBefore'] = false
             if(settings['inputStopSunriseType'] == 'at' || !settings['inputStopSunriseType']) settings['inputStopBefore'] = false
-            if(!settings['pushNotification'] && !settings['speech']) {
-                settings['notificationOpenClose'] = false
-                settings['personHome'] = false
-                settings['personNotHome'] = false
-            }
+            if(!settings['pushNotification'] && !settings['speech']) settings['notificationOpenClose'] = false
             
             singleContact = "contact/door sensor"
             contactCount = getDeviceCount(contactDevice)
@@ -109,6 +105,7 @@ preferences {
             if(!settings["openTemp"] || !settings["closeTemp"]) displayColorOption()
             displayChangeModeOption()
             displayAlertOptions()
+            displayPeopleOption()
             displayScheduleSection()
             displayIfModeOption()
             //displayIfPeopleOption()
@@ -934,7 +931,6 @@ def displayAlertOptions(){
 
     hidden = true
     if((settings['pushNotification'] || settings['speech']) && !settings['notificationOpenClose']) hidden = false
-    if(peopleError) hidden = false
 
     // Get push notification device(s) from parent (if applicable)
     if(parent.pushNotificationDevice){
@@ -975,7 +971,7 @@ def displayAlertOptions(){
     if(settings['pushNotification'] && !settings['speech']) sectionTitle += "send notification</b>"
     if(!settings['pushNotification'] && settings['speech']) sectionTitle += "speak text</b>"
     if(!settings['notificationOpenClose']) sectionTitle = '<b>' + sectionTitle.capitalize()
-    if((settings['pushNotification'] || settings['speech']) && !settings['personHome'] && !settings['personNotHome']) sectionTitle += moreOptions
+    if(!settings['pushNotification'] || !settings['speech']) sectionTitle += moreOptions
     
     if(!settings['speech'] && !settings['pushNotification']) sectionTitle = 'Click to send notifications (optional)'
 
@@ -999,14 +995,43 @@ def displayAlertOptions(){
 
         sectionTitle = "$action on open or close? (Required)"
         
-        if((settings['pushNotificationDevice'] && settings['pushNotification']) || (settings['speechDevice'] && settings['speech'])){
-            input 'notificationOpenClose', 'enum', title: sectionTitle, multiple: false, width: 12, options: ['open': 'Open', 'close': 'Close','both': 'Both open and close'], submitOnChange:true
+        if((settings['pushNotificationDevice'] && settings['pushNotification']) || (settings['speechDevice'] && settings['speech'])) input 'notificationOpenClose', 'enum', title: sectionTitle, multiple: false, width: 12, options: ['open': 'Open', 'close': 'Close','both': 'Both open and close'], submitOnChange:true
+    }
+}
 
-            if(peopleError) displayError('You can\'t include and exclude the same person.')
-            input 'personHome', 'capability.presenceSensor', title: 'Only alert if any of these people are home (Optional)', multiple: true, submitOnChange:true
-            input 'personNotHome', 'capability.presenceSensor', title: 'Only alert if none of these people are home (Optional)', multiple: true, submitOnChange:true
-            // Move these options to overall?
-        }
+def displayPeopleOption(){
+    if(!settings['contactDevice']) return
+    if(!settings['deviceType']) return
+    if(!settings['device']) return
+    if(!settings['openAction']) return
+    if(!settings['closeAction']) return
+
+    List peopleList1=[]
+    log.debug 'personHome = ' + settings['personHome']
+    settings['personHome'].each{
+        peopleList1.add(it)
+    }
+    withPeople = peopleList1.join(', ')
+ 
+    List peopleList2 = []
+    settings['personNotHome'].each{
+        peopleList2.add(it)
+    }
+    withoutPeople = peopleList2.join(', ')
+    
+    hidden = true
+    if(peopleError) hidden = false
+    
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select people (optional)'
+    if(settings['personHome']) sectionTitle = "<b>With: $withPeople</b>"
+    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
+    if(settings['personNotHome']) sectionTitle += "<b>Without: $withoutPeople</b>"
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(peopleError) displayError('You can\'t include and exclude the same person.')
+
+        input 'personHome', 'capability.presenceSensor', title: 'Only alert if any of these people are home (Optional)', multiple: true, submitOnChange:true
+        input 'personNotHome', 'capability.presenceSensor', title: 'Only alert if none of these people are home (Optional)', multiple: true, submitOnChange:true
     }
 }
 
@@ -1082,14 +1107,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1085,'trace','Installed')
+    putLog(1110,'trace','Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1092,'trace','Updated')
+    putLog(1117,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1122,20 +1147,18 @@ def initialize() {
     
     setTime()
 
-    putLog(1125,'trace','Initialized')
+    putLog(1150,'trace','Initialized')
 }
 
 def contactChange(evt){
     if(settings['disable'] || state.disable) return
 
-    putLog(1129,'debug',"Contact sensor $evt.displayName $evt.value")
+    putLog(1156,'debug',"Contact sensor $evt.displayName $evt.value")
 
     // If mode set and node doesn't match, return nulls
-    if(settings['ifMode']){
-        if(location.mode != settings['ifMode']) {
-            putLog(1136,'trace',"Contact disabled, requires mode $ifMode")
-            return defaults
-        }
+    if(settings['ifMode'] && location.mode != settings['ifMode']) {
+        putLog(1160,'trace',"Contact disabled, requires mode $ifMode")
+        return
     }
 
     // If not correct day, return nulls
@@ -1144,6 +1167,9 @@ def contactChange(evt){
 
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+
+    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
 
     // Unschedule pevious events
 
@@ -1159,7 +1185,7 @@ def contactChange(evt){
     if(evt.value == 'open'){
         // Schedule delay
         if(settings['openWait']) {
-            putLog(1162,'trace','Scheduling runScheduleOpen in ' + settings['openWait'] + ' seconds')
+            putLog(1188,'trace','Scheduling runScheduleOpen in ' + settings['openWait'] + ' seconds')
             runIn(settings['openWait'],runScheduleOpen)
             // Otherwise perform immediately
         } else {
@@ -1170,7 +1196,7 @@ def contactChange(evt){
     } else if(evt.value == 'closed'){
         // Schedule delay
         if(settings['closeWait']) {
-            putLog(1173,'trace','Scheduling runScheduleClose in ' + settings['closeWait'] + ' seconds')
+            putLog(1199,'trace','Scheduling runScheduleClose in ' + settings['closeWait'] + ' seconds')
             runIn(settings['closeWait'],runScheduleClose)
             // Otherwise perform immediately
         } else {
@@ -1178,30 +1204,9 @@ def contactChange(evt){
         }
     }
 
-    // Check if people are home (home1 and home2 should be true)
-    // If conditions are satified, set home to true
-    if(settings['personHome']){
-        home1 = false
-        settings['personHome'].each{
-            if(it.currentPresence == 'present') home1 = true
-        }
-    } else {
-        home1 = true
-    }
-    if(settings['personNotHome']){
-        home2 = true
-        settings['personNotHome'].each{
-            if(it.currentPresence == 'present') home2 = false
-        }
-    } else {
-        home2 = true
-    }
-    if(home1 && home2) home = true
-
     // Text first (just in case there's an error later)
     // Need to move to a function
-    if(settings['pushNotificationDevice'] && home && (settings['notificationOpenClose'] == 'both' || (settings['notificationOpenClose'] == 'open' && evt.value == 'open') || (settings['notificationOpenClose'] == 'close' && evt.value == 'closed'))){
-        // Only if correct people are home/not home
+    if(settings['pushNotificationDevice'] && (settings['notificationOpenClose'] == 'both' || (settings['notificationOpenClose'] == 'open' && evt.value == 'open') || (settings['notificationOpenClose'] == 'close' && evt.value == 'closed'))){
         def now = new Date()getTime()
 
         //if last text was sent less than 5 minutes ago, don't send
@@ -1224,14 +1229,14 @@ def contactChange(evt){
             settings['pushNotificationDevice'].each{
                 parent.sendPushNotification(it,"$evt.displayName was $eventName at " + now.format('h:mm a', location.timeZone),app.label)
             }
-            putLog(1227,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
+            putLog(1232,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
         } else {
-            putLog(1229,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
+            putLog(1234,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
         }
     }
 
     // Give voice alert
-    if(settings['speech'] && home && ((!settings['notificationOpenClose'] && evt.value == 'open') || (settings['notificationOpenClose'] && evt.value == 'closed'))) {
+    if(settings['speech'] && ((!settings['notificationOpenClose'] && evt.value == 'open') || (settings['notificationOpenClose'] && evt.value == 'closed'))) {
         /* ************************************************************************ */
         /* TO-DO: Add option to override speech cooldown period? (Maybe in Master?) */
         /* Same with presence app.                                                  */
@@ -1252,6 +1257,14 @@ def contactChange(evt){
 
 def runScheduleOpen(){
     if(settings['disable'] || state.disable) return
+    
+    if(settings['ifMode'] && location.mode != settings['ifMode']) {
+        putLog(1262,'trace',"Contact disabled, requires mode $ifMode")
+        return
+    }
+
+    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
 
     if(settings['deviceType'] == 'switch' || settings['deviceType'] == 'light') {
         defaults = [:]
@@ -1279,6 +1292,14 @@ def runScheduleOpen(){
 
 def runScheduleClose(){
     if(settings['disable'] || state.disable) return
+    
+        if(settings['ifMode'] && location.mode != settings['ifMode']) {
+        putLog(1297,'trace',"Contact disabled, requires mode $ifMode")
+        return
+    }
+
+    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
 
     if(deviceType == 'switch' || deviceType == 'light') {
         defaults = [:]
@@ -1319,7 +1340,7 @@ def setStartTime(){
     setTime = setStartStopTime('Start') // Capitalized because used for dynamic variable
     if(setTime){
         atomicState.start = setTime
-        putLog(1322,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1343,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1333,7 +1354,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1336,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1357,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
@@ -1378,9 +1399,8 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
     if(!checkLog(type)) return
-    logMessage = ''
-    if(type == 'error') logMessage += '<font color="red">'
-    if(type == 'warn') logMessage += '<font color="brown">'
+    if(type == 'error') logMessage = '<font color="red">'
+    if(type == 'warn') logMessage = '<font color="brown">'
     logMessage += "$app.label "
     if(lineNumber) logMessage += "(line $lineNumber) "
     if(message) logMessage += "-- $message"
@@ -1400,7 +1420,5 @@ def putLog(lineNumber,type = 'trace',message = null){
         return true
         case 'debug':
         log.debug(logMessage)
-        return true
     }
-    return
 }
