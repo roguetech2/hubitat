@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.06
+*  Version: 0.6.07
 *
 ***********************************************************************************************************************/
 
@@ -91,16 +91,8 @@ preferences {
             if(settings['stop_timeType'] == 'time') settings['stop_sunType'] = null
             if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'before') settings['stop_sunOffset'] = null
             if(settings['stop_sunType'] == 'at') settings['stop_sunOffset'] = null
-            if(!settings['stop_timeType']) {
-                settings['start_action'] = null
-                settings['stop_action'] = null
-                settings['stop_time'] = null
-                settings['stop_sunType'] = null
-                settings['stop_sunOffset'] = null
-            }
-            if(settings['stop_timeType'] == 'none') settings['stop_action'] = null
             stopTimeComplete = checkTimeComplete('stop')
-            if(!stopTimeComplete) {
+            if(!settings['stop_timeType'] || !stopTimeComplete) {
                 settings['months'] = null
                 settings['days'] = null
                 settings['start_level'] = null
@@ -111,11 +103,19 @@ preferences {
                 settings['stop_hue'] = null
                 settings['start_sat'] = null
                 settings['stop_sat'] = null
+                settings['start_action'] = null
+                settings['stop_action'] = null
+                settings['stop_time'] = null
+                settings['stop_sunType'] = null
+                settings['stop_sunOffset'] = null
+                settings['personHome'] = null
+                settings['personNotHome'] = null
             }
+            if(settings['stop_timeType'] == 'none') settings['stop_action'] = null
             if(!settings['start_hue']) settings['hueDirection'] = null
             if(!settings['stop_hue']) settings['hueDirection'] = null
-// if hue or sat, erase temp
-            
+
+            peopleError = compareDeviceLists(personHome,personNotHome)
             
             
             section(){
@@ -131,6 +131,7 @@ preferences {
             displayTemperatureOption()
             displayColorOption()
             displayChangeModeOption()
+            displayPeopleOption()
             displayIfModeOption()
         }
     }
@@ -847,6 +848,37 @@ def displayChangeModeOption(){
     }
 }
 
+def displayPeopleOption(){
+    if(!settings['start_timeType'] || !settings['stop_timeType']) return
+
+    List peopleList1=[]
+    settings['personHome'].each{
+        peopleList1.add(it)
+    }
+    withPeople = peopleList1.join(', ')
+ 
+    List peopleList2 = []
+    settings['personNotHome'].each{
+        peopleList2.add(it)
+    }
+    withoutPeople = peopleList2.join(', ')
+    
+    hidden = true
+    if(peopleError) hidden = false
+    
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select people (optional)'
+    if(settings['personHome']) sectionTitle = "<b>With: $withPeople</b>"
+    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
+    if(settings['personNotHome']) sectionTitle += "<b>Without: $withoutPeople</b>"
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(peopleError) displayError('You can\'t include and exclude the same person.')
+
+        input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
+        input 'personNotHome', 'capability.presenceSensor', title: 'Only if none of these people are home (Optional)', multiple: true, submitOnChange:true
+    }
+}
+
 def displayIfModeOption(){
     if(!settings['start_timeType'] || !settings['stop_timeType']) return
     if(!startTimeComplete || !stopTimeComplete) return
@@ -1203,12 +1235,10 @@ def runIncrementalSchedule(){
             return
         }
         
-        /*
         if(!parent.getPeopleHome(settings['personHome'],app.label) || !parent.getNooneHome(settings['personNotHome'],app.label)) {
             runIn(60,runIncrementalSchedule)
             return true
         }
-*/
 
         parent.setStateMulti(settings['device'],app.label)
 
