@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.6.06
+*  Version: 0.6.07
 * 
 ***********************************************************************************************************************/
 
@@ -57,16 +57,7 @@ preferences {
             }
         } else {
             if(!settings) settings = [:]
-            /*
-            settings['start_timeType'] = settings['inputStartType']
-            settings['stop_timeType'] = settings['inputStopType']
-            settings['start_sunType'] = settings['inputStartSunType']
-            settings['stop_sunType'] = settings['inputStopSunType']
-            settings['start_time'] = settings['inputStartTime']
-            settings['stop_time'] = settings['inputStopTime']
-            settings['start_sunOffset'] = settings['inputStartBefore']
-            settings['stop_sunOffset'] = settings['inputStopBefore']
-*/
+            
             // Clear settings with pre-requisites
             if(!settings['contactDevice']) settings['deviceType'] = null
             if(!settings['deviceType']) settings['device'] = null
@@ -169,6 +160,8 @@ def formComplete(){
     if((stop_timeType == "sunrise" || stop_timeType == "sunset") && !stop_sunType) return false
     if((start_sunType == "before" || start_sunType == "after") && !start_sunOffset) return false
     if((stop_sunType == "before" || stop_sunType == "after") && !stop_sunOffset) return false
+    if(start_timeType && !stop_timeType) return false
+    if(!start_timeType && stop_timeType) return false
     if(!validateOpenLevel()) return false
     if(!validateCloseLevel()) return false
     if(!validateOpenTemp()) return false
@@ -649,9 +642,10 @@ def displayScheduleSection(){
     monthText = monthList.join(', ')
     
     //Date.parse( 'MM', "$month" ).format( 'MMMM' )
-    if(!settings['start_timeType']) hidden = false
+    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
+    if(!settings['start_timeType'] && settings['stop_timeType']) hidden = false
     if(!startTimeComplete) hidden = false
-    if(!stopTimeComplete && (settings['start_timeType'] || settings['stop_timeType'])) hidden = false
+    if(!stopTimeComplete) hidden = false
     if(!validateSunriseMinutes(settings['start_sunOffset'])) hidden = false
     if(!validateSunriseMinutes(settings['stop_sunOffset'])) hidden = false
     if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
@@ -671,8 +665,10 @@ def displayScheduleSection(){
     }
 
     if(settings['start_timeType'] && settings['days']) sectionTitle += " on: $dayText"
-    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
-    if(settings['start_timeType'] && settings['months']) sectionTitle += " in $monthText"
+    if(!settings['start_timeType'] && settings['days']) sectionTitle += "<b>On: $dayText"
+    if(settings['months'] && settings['days']) sectionTitle += ';'
+    if(settings['days'] && settings['months']) sectionTitle += " in $monthText"
+    if(!settings['days'] && settings['months']) sectionTitle += "<b>In $monthText"
     if(settings['start_timeType']) sectionTitle += '</b>'
     if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
     
@@ -729,8 +725,10 @@ def displayScheduleSection(){
 }
 
 def displayDaysOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
+    if(settings['start_timeType'] && !settings['stop_timeType']) return
+    if(!settings['start_timeType'] && settings['stop_timeType']) return
     if(!startTimeComplete || !stopTimeComplete) return
+    log.debug '3'
     inputTitle = 'On these days (optional; defaults to all days):'
     if(!settings['days']) inputTitle = 'On which days (optional; defaults to all days)?'
     input 'days', 'enum', title: inputTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
@@ -739,7 +737,8 @@ def displayDaysOption(){
 }
 
 def displayMonthsOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
+    if(settings['start_timeType'] && !settings['stop_timeType']) return
+    if(!settings['start_timeType'] && settings['stop_timeType']) return
     if(!startTimeComplete || !stopTimeComplete) return
     inputTitle = 'In these months (optional; defaults to all months):'
     if(!settings['months']) inputTitle = 'In which months (optional; defaults to all months)?'
