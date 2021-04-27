@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.07
+*  Version: 0.6.08
 *
 ***********************************************************************************************************************/
 
@@ -590,14 +590,14 @@ def displaySkipStartOption(){
 
 def displayBrightnessOption(){
     if(settings['deviceType'] != 'light') return
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     hidden = true
     if(!validateStartLevel()) hidden = false
     if(!validateStopLevel()) hidden = false
-    if(settings['start_level'] && !settings['stop_level'] && (!settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
-    if(settings['stop_level'] && !settings['start_level']) hidden = false
+    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_level'] && settings['stop_level']) hidden = false
     if(settings['start_level'] && settings['start_level'] == settings['stop_level']) hidden = false
 
     width = 12
@@ -637,14 +637,14 @@ def displayBrightnessOption(){
 
 def displayTemperatureOption(){
     if(settings['deviceType'] != 'light') return
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     hidden = true
     if(!validateStartTemp()) hidden = false
     if(!validateStopTemp()) hidden = false
-    if(settings['start_temp'] && !settings['stop_temp'] && (!settings['stop_timeType'] || settings['stop_timeType'] == 'none')) hidden = false
-    if(settings['stop_temp'] && !settings['start_temp']) hidden = false
+    if(settings['start_temp'] && (!settings['stop_temp'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_temp'] && settings['stop_temp']) hidden = false
     if(settings['start_temp'] && settings['start_temp'] == settings['stop_temp']) hidden = false
     if(settings['start_temp'] && (settings['start_hue'] || settings['start_sat'])){
         hidden = false
@@ -690,8 +690,8 @@ def displayTemperatureOption(){
 
 def displayColorOption(){
     if(settings['deviceType'] != 'light') return
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     validateStartHue = validateHue(settings['start_hue'])
     validateStopHue = validateHue(settings['stop_hue'])
@@ -706,11 +706,11 @@ def displayColorOption(){
     if(!validateStopHue) hidden = false
     if(!validateStartSat) hidden = false
     if(!validateStopSat) hidden = false
-    if(settings['start_hue'] && !settings['stop_hue'] && (!settings['stop_timeType'] || settings['stop_timeType'] == 'none')) hidden = false
-    if(settings['stop_hue'] && !settings['start_hue']) hidden = false
+    if(settings['start_hue'] && (!settings['stop_hue'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_hue'] && settings['stop_hue']) hidden = false
+    if(settings['start_sat'] && (!settings['stop_sat'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_sat'] && settings['stop_sat']) hidden = false
     if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) hidden = false
-    if(settings['start_sat'] && !settings['stop_sat'] && (!settings['stop_timeType'] || settings['stop_timeType'] == 'none')) hidden = false
-    if(settings['stop_sat'] && !settings['start_sat']) hidden = false
     if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) hidden = false
     if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) hidden = false
 
@@ -820,11 +820,12 @@ def displayColorOption(){
 }
 
 def displayChangeModeOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     hidden = true
-    if((settings['startMode'] || settings['stopMode']) && (!settings['startMode'] || !settings['stopMode'])) hidden = false
+    if(settings['startMode'] && (!settings['stopMode'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['startMode'] && settings['stopMode']) hidden = false
 
     width = 12
     if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
@@ -849,7 +850,8 @@ def displayChangeModeOption(){
 }
 
 def displayPeopleOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     List peopleList1=[]
     settings['personHome'].each{
@@ -880,8 +882,8 @@ def displayPeopleOption(){
 }
 
 def displayIfModeOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+    if(!settings['start_action']) return
+    if(settings['stop_timeType'] && !settings['stop_action']) return
 
     sectionTitle = 'Click to select with what Mode (optional)'
     if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
@@ -1034,7 +1036,7 @@ def initialize() {
 def handleStateChange(event){
     if(parent.isOn(event.device,app.label) && event.value == 'on') return
     if(!parent.isOn(event.device,app.label) && event.value == 'off') return
-    putLog(959,'trace',"Captured manual state change for $event.device to turn $event.value")
+    putLog(1039,'trace',"Captured manual state change for $event.device to turn $event.value")
     parent.updateStateSingle(event.device,event.value,app.label)
 
     return
@@ -1047,16 +1049,14 @@ def handleLevelChange(event){
     if(levelChange.'appId' != app.id) return
 
     value = parent.convertToInteger(event.value)
-    log.debug 'level -- value = ' + value
+
     if(levelChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
     if(levelChange.'priorLevel' == value && levelChange.'timeDifference' < 5000) return
 
-    log.debug 'level -- current level = ' + levelChange.'currentLevel' + ' value = ' + value
-    log.debug 'level -- prior level = ' + levelChange.'priorLevel' + ' value = ' + value
     defaults = ['level':['startLevel':value,'priorLevel':levelChange.'currentLevel','appId':'manual']]
 
     parent.updateLevelsSingle(event.device,defaults,app.label)
-    putLog(976,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
+    putLog(1059,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
 
     return
 }
@@ -1068,17 +1068,13 @@ def handleTempChange(event){
     if(hueChange.'appId' != app.id) return
 
     value = parent.convertToInteger(event.value)
-    log.debug 'temp -- value = ' + value
-    maxValue = (tempChange.'currentLevel' / 200 + tempChange.'currentLevel').toInteger()
-    if(value + 1 > tempChange.'currentLevel' && tempChange.'timeDifference' < 5000 && value < maxValue && event.device.currentColorMode == 'CT') return
-    maxValue = (tempChange.'priorLevel' / 200 + tempChange.'priorLevel').toInteger()
-    if(value + 1 > tempChange.'priorLevel' && tempChange.'timeDifference' < 5000 && value < maxValue && event.device.currentColorMode == 'CT') return
+    
+    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'currentLevel' / 255) == Math.round(value / 255)) return
+    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'priorLevel' / 255) == Math.round(value / 255) && tempChange.'timeDifference' < 5000) return
 
-    log.debug 'temp -- current level = ' + tempChange.'currentLevel' + ' value = ' + value
-    log.debug 'temp -- prior level = ' + tempChange.'priorLevel' + ' value = ' + value
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(993,'warn',"Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange.'timeDifference' + "ms")
+    putLog(1077,'warn',"Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange.'timeDifference' + "ms")
         parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1090,15 +1086,13 @@ def handleHueChange(event){
     if(hueChange.'appId' != app.id) return
 
     value = parent.convertToInteger(event.value)
-    log.debug 'hue -- value = ' + value
+    
     if(hueChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
     if(hueChange.'priorLevel' == value && hueChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
-    log.debug 'hue -- current level = ' + hueChange.'currentLevel' + ' value = ' + value
-    log.debug 'hue -- prior level = ' + hueChange.'priorLevel' + ' value = ' + value
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(1109,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
+    putLog(1095,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1107,17 +1101,16 @@ def handleHueChange(event){
 def handleSatChange(event){
     satChange = parent.getLastSatChange(event.device, app.label)
     if(!satChange) return
-        if(satChange.'appId' != app.id) return
-            value = parent.convertToInteger(event.value)
-log.debug 'sat -- value = ' + value
-            if(satChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
-            if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
+    if(satChange.'appId' != app.id) return
 
-                log.debug 'sat -- current level = ' + satChange.'currentLevel' + ' value = ' + value
-                log.debug 'sat -- prior level = ' + satChange.'priorLevel'
-        defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-        putLog(1025,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
-        parent.updateLevelsSingle(event.device,defaults,app.label)
+    value = parent.convertToInteger(event.value)
+
+    if(satChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
+    if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
+
+    defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
+    putLog(1112,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
+    parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
 }
@@ -1148,14 +1141,14 @@ def setDailySchedules(type = null){
         scheduleString = "0 $startMinutes $startHours $days"
         // Need to pause or else Hubitat may run runDailyStartSchedule immediately and cause a loop
         runIn(1,setStartSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1057,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
+        putLog(1144,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
     }
 
     if((type != 'start') && atomicState.stop){
         scheduleString = "0 $stopMinutes $stopHours $days"
         // Need to pause or else Hubitat may run runDailyStopSchedule immediately and cause a loop
         runIn(1,setStopSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1064,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
+        putLog(1151,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
     }
     return true
 }
@@ -1163,12 +1156,12 @@ def setDailySchedules(type = null){
 // Required for offsetting scheduling start and stop by a second, to prevent Hubitat running runDailyStartSchedule immediately
 def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
-    putLog(1072,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
+    putLog(1159,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
 }
 
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
-    putLog(1077,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
+    putLog(1164,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
 }
 
 // Performs actual changes at time set with start_action
@@ -1222,7 +1215,7 @@ def runDailyStartSchedule(){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
-    putLog(1131,'trace','runIncrementalSchedule starting')
+    putLog(1218,'trace','runIncrementalSchedule starting')
     if(!getScheduleActive()) return
     if((settings['start_level'] && settings['stop_level']) || (settings['start_temp'] && settings['stop_temp']) || (settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
         // If it's disabled, keep it active
@@ -1244,7 +1237,7 @@ def runIncrementalSchedule(){
 
         // Reschedule itself
         runIn(8,runIncrementalSchedule)
-        putLog(1152,'trace','runIncrementalSchedule exiting')
+        putLog(1240,'trace','runIncrementalSchedule exiting')
     }
     return true
 }
@@ -1392,7 +1385,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1300,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1388,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1403,7 +1396,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1311,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1399,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
