@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.6.07
+*  Version: 0.6.08
 * 
 ***********************************************************************************************************************/
 
@@ -85,21 +85,24 @@ preferences {
             }
             if(settings['start_timeType'] != 'time') settings['start_time'] = null
             if(settings['start_timeType'] == 'time') settings['start_sunType'] = null
-            if(!settings['start_sunType']) settings['start_sunOffset'] = null
+            if(settings['start_sunType'] != 'before' && settings['start_sunType'] != 'after') settings['start_sunOffset'] = null
             if(settings['start_sunType'] == 'at') settings['start_sunOffset'] = null
+            if(!settings['start_timeType']) {
+                settings['start_time'] = null
+                settings['start_sunType'] = null
+                settings['start_sunOffset'] = null
+            }
             startTimeComplete = checkTimeComplete('start')
             if(!startTimeComplete) settings['stop_timeType'] = null
             if(!settings['stop_timeType']) settings['stop_sunType'] = null
             if(settings['stop_timeType'] != 'time') settings['stop_time'] = null
             if(settings['stop_timeType'] == 'time') settings['stop_sunType'] = null
-            if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'before') settings['stop_sunOffset'] = null
+            if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'after') settings['stop_sunOffset'] = null
             if(settings['stop_sunType'] == 'at') settings['stop_sunOffset'] = null
             if(!settings['stop_timeType']) {
                 settings['stop_time'] = null
                 settings['stop_sunType'] = null
                 settings['stop_sunOffset'] = null
-                settings['personHome'] = null
-                settings['personNotHome'] = null
             }
             if(!settings['open_hue']) settings['hueDirection'] = null
             if(!settings['close_hue']) settings['hueDirection'] = null
@@ -261,7 +264,7 @@ def validateSat(value){
     return parent.validateSat(value)
 }
 
-def validateSunriseMinutes(time){
+def validateSunMinutes(time){
         if(!time) return true
         if(time > 719) return false
     return true
@@ -309,6 +312,7 @@ def displayDevicesOption(){
 }
 
 def displayDevicesTypes(){
+    if(!settings['contactDevice']) return
         deviceText = 'device(s)'
     if(deviceCount == 1) deviceText = 'device'
     if(deviceCount > 1) deviceText = 'devices'
@@ -642,13 +646,14 @@ def displayScheduleSection(){
     monthText = monthList.join(', ')
     
     //Date.parse( 'MM', "$month" ).format( 'MMMM' )
+    hidden = true
     if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
     if(!settings['start_timeType'] && settings['stop_timeType']) hidden = false
     if(!startTimeComplete) hidden = false
     if(!stopTimeComplete) hidden = false
-    if(!validateSunriseMinutes(settings['start_sunOffset'])) hidden = false
-    if(!validateSunriseMinutes(settings['stop_sunOffset'])) hidden = false
-    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(!validateSunMinutes(settings['start_sunOffset'])) hidden = false
+    if(!validateSunMinutes(settings['stop_sunOffset'])) hidden = false
+    if(settings['start_timeType'] == 'time' && settings['start_time'] == settings['stop_time']) hidden = false
     
     sectionTitle = ''
     if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) sectionTitle = 'Click to set schedule (optional)'
@@ -728,7 +733,7 @@ def displayDaysOption(){
     if(settings['start_timeType'] && !settings['stop_timeType']) return
     if(!settings['start_timeType'] && settings['stop_timeType']) return
     if(!startTimeComplete || !stopTimeComplete) return
-    log.debug '3'
+
     inputTitle = 'On these days (optional; defaults to all days):'
     if(!settings['days']) inputTitle = 'On which days (optional; defaults to all days)?'
     input 'days', 'enum', title: inputTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
@@ -755,8 +760,8 @@ def displayStartTypeOption(){
         displayLabel('Schedule start')
     }
     
-    if(settings['start_sunOffset'] && !validateSunriseMinutes(settings['start_sunOffset'])) displayWarning('Time ' + settings['start_sunType'] + ' ' + settings['start_timeType'] + ' is ' + (Math.round(settings['start_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
-log.debug settings['start_timeType']
+    if(settings['start_sunOffset'] && !validateSunMinutes(settings['start_sunOffset'])) displayWarning('Time ' + settings['start_sunType'] + ' ' + settings['start_timeType'] + ' is ' + (Math.round(settings['start_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+
     if(!settings['start_timeType']){
         width = 12
         inputTitle = highlightText('Start time (click to select)?')
@@ -778,7 +783,7 @@ def displayStopTypeOption(){
     } else {
         displayLabel('Schedule stop')
     }
-    if(settings['stop_sunOffset'] && !validateSunriseMinutes(settings['stop_sunOffset'])) displayWarning('Time ' + settings['stop_sunType'] + ' ' + settings['stop_timeType'] + ' is ' + (Math.round(settings['stop_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    if(settings['stop_sunOffset'] && !validateSunMinutes(settings['stop_sunOffset'])) displayWarning('Time ' + settings['stop_sunType'] + ' ' + settings['stop_timeType'] + ' is ' + (Math.round(settings['stop_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
 
     if(!settings['stop_timeType']){
         width = 12
@@ -821,7 +826,7 @@ def checkTimeComplete(type){
     if(!settings["${type}_timeType"]) return true
     if(settings["${type}_timeType"] == 'time' && !settings["${type}_time"]) return false
     if((settings["${type}_timeType"] == 'sunrise' || settings["${type}_timeType"] == 'sunset') && !settings["${type}_sunType"]) return false
-    if((settings["${type}_timeType"] == 'sunrise' || settings["${type}_timeType"] == 'sunset') && (settings["${type}_sunType"] && settings["${type}_sunType"] != 'at') && !settings["${type}_sunOffset"]) return false
+    if((settings["${type}_timeType"] == 'sunrise' || settings["${type}_timeType"] == 'sunset') && settings["${type}_sunType"] != 'at' && !settings["${type}_sunOffset"]) return false
 
     return true
 }
@@ -840,13 +845,13 @@ def displaySunriseOffsetOption(type){
     if(!settings["${type}_sunType"] || settings["${type}_sunType"] == 'at') return
 
     inputTitle = 'Minutes ' + settings["${type}_sunType"] + ' ' + settings["${type}_timeType"] + '?'
-    if(settings["${type}_sunOffset"]) 'Minutes ' + settings["${type}_sunType"] + ' ' + settings["${type}_timeType"] + ':'
+    if(settings["${type}_sunOffset"]) inputTitle = 'Minutes ' + settings["${type}_sunType"] + ' ' + settings["${type}_timeType"] + ':'
     input "${type}_sunOffset", 'number', title: inputTitle, width: 4, submitOnChange:true
     
-    if(!settings["${type}_sunOffset"] || !validateSunriseMinutes(settings["${type}_sunOffset"])) message = "Enter the number of minutes " + settings["${type}_sunType"] + " " + settings["${type}_timeType"] + " to start the schedule. Required."
+    if(!settings["${type}_sunOffset"] || !validateSunMinutes(settings["${type}_sunOffset"])) message = "Enter the number of minutes " + settings["${type}_sunType"] + " " + settings["${type}_timeType"] + " to start the schedule. Required."
     if(!settings["${type}_sunOffset"]) {
         displayInfo(message)
-    } else if(!validateSunriseMinutes(settings["${type}_sunOffset"])){
+    } else if(!validateSunMinutes(settings["${type}_sunOffset"])){
         displayWarning(message)
     }
 }
@@ -990,7 +995,7 @@ def displayPeopleOption(){
         if(peopleError) displayError('You can\'t include and exclude the same person.')
 
         input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
-        input 'personNotHome', 'capability.presenceSensor', title: 'Only if none of these people are home (Optional)', multiple: true, submitOnChange:true
+        input 'personNotHome', 'capability.presenceSensor', title: 'Only if all these people are NOT home (Optional)', multiple: true, submitOnChange:true
     }
 }
 
@@ -1066,14 +1071,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1073,'trace','Installed')
+    putLog(1074,'trace','Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1080,'trace','Updated')
+    putLog(1081,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1106,17 +1111,17 @@ def initialize() {
     
     setTime()
 
-    putLog(1113,'trace','Initialized')
+    putLog(1114,'trace','Initialized')
 }
 
 def contactChange(evt){
     if(settings['disable'] || state.disable) return
 
-    putLog(1119,'debug',"Contact sensor $evt.displayName $evt.value")
+    putLog(1115,'debug',"Contact sensor $evt.displayName $evt.value")
 
     // If mode set and node doesn't match, return nulls
     if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1123,'trace',"Contact disabled, requires mode $ifMode")
+        putLog(1124,'trace',"Contact disabled, requires mode $ifMode")
         return
     }
 
@@ -1144,7 +1149,7 @@ def contactChange(evt){
     if(evt.value == 'open'){
         // Schedule delay
         if(settings['open_wait']) {
-            putLog(1151,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
+            putLog(1152,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
             runIn(settings['open_wait'],runScheduleOpen)
             // Otherwise perform immediately
         } else {
@@ -1155,7 +1160,7 @@ def contactChange(evt){
     } else if(evt.value == 'closed'){
         // Schedule delay
         if(settings['close_wait']) {
-            putLog(1162,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
+            putLog(1163,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
             runIn(settings['close_wait'],runScheduleClose)
             // Otherwise perform immediately
         } else {
@@ -1188,9 +1193,9 @@ def contactChange(evt){
             settings['pushNotificationDevice'].each{
                 parent.sendPushNotification(it,"$evt.displayName was $eventName at " + now.format('h:mm a', location.timeZone),app.label)
             }
-            putLog(1195,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
+            putLog(1196,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
         } else {
-            putLog(1197,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
+            putLog(1198,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
         }
     }
 
@@ -1218,7 +1223,7 @@ def runScheduleOpen(){
     if(settings['disable'] || state.disable) return
     
     if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1225,'trace',"Contact disabled, requires mode $ifMode")
+        putLog(1226,'trace',"Contact disabled, requires mode $ifMode")
         return
     }
 
@@ -1253,7 +1258,7 @@ def runScheduleClose(){
     if(settings['disable'] || state.disable) return
     
         if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1260,'trace',"Contact disabled, requires mode $ifMode")
+        putLog(1261,'trace',"Contact disabled, requires mode $ifMode")
         return
     }
 
@@ -1299,7 +1304,7 @@ def setStartTime(){
     setTime = setStartStopTime('start') // Capitalized because used for dynamic variable
     if(setTime){
         atomicState.start = setTime
-        putLog(1306,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1307,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1313,7 +1318,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1320,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1321,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
