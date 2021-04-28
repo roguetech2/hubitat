@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.08
+*  Version: 0.6.09
 *
 ***********************************************************************************************************************/
 
@@ -55,8 +55,8 @@ preferences {
 
             deviceCount = getDeviceCount(device)
             peopleError = compareDeviceLists(personHome,personNotHome)
-            plainstart_action = getPlainAction(settings['start_action'])
-            plainstop_action = getPlainAction(settings['stop_action'])
+            plainStartAction = getPlainAction(settings['start_action'])
+            plainStopAction = getPlainAction(settings['stop_action'])
             pluralDevice = getDevicePlural()
 
             if(!settings['deviceType']) settings['device'] = null
@@ -64,7 +64,7 @@ preferences {
                 settings['start_timeType'] = null
                 settings['start_timeType'] = null
             }
-            if(settings['start_action'] == 'off' || settings['start_action'] == 'resume') {
+            if(settings['start_action'] == 'off') {
                 settings['start_level'] = null
                 settings['start_temp'] = null
                 settings['start_hue'] = null
@@ -311,9 +311,9 @@ def displayActionOption(){
     
     sectionTitle = ''
     if(hideable){
-        if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainstart_action.capitalize() + '</b>'
+        if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainStartAction.capitalize() + '</b>'
         if(settings['start_action'] && settings['stop_action']) sectionTitle += '<br>'
-        if(settings['stop_action']) sectionTitle += '<b>When stopping: ' + plainstop_action.capitalize() + '</b>'
+        if(settings['stop_action']) sectionTitle += '<b>When stopping: ' + plainStopAction.capitalize() + '</b>'
     }
     
     if(settings['start_action']) startInputTitle = 'When starting:'
@@ -333,7 +333,7 @@ def displayActionOption(){
             input 'start_action', 'enum', title: startInputTitle, multiple: false, width: 12, options: ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle'], submitOnChange:true
             if(!settings['start_action']) {
                 message = "Set whether to turn on, turn off, or toggle the $pluralDevice when the schedule starts. Select \"Don't\" to control other options (like setting Mode), or to do nothing when starting. Toggle will change the $pluralDevice from off to on and vice versa. Required."
-            displayInfo(message)
+                displayInfo(message)
             }
         }
         if(settings['start_action'] && settings['stop_timeType'] != 'none'){
@@ -557,8 +557,7 @@ def getSunriseTime(type,sunOffset,sunriseType){
     if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
     if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'
-    
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
 }
 
 def displaySunriseOffsetOption(type){
@@ -591,17 +590,17 @@ def displaySkipStartOption(){
 def displayBrightnessOption(){
     if(settings['deviceType'] != 'light') return
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     hidden = true
     if(!validateStartLevel()) hidden = false
     if(!validateStopLevel()) hidden = false
-    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
     if(!settings['start_level'] && settings['stop_level']) hidden = false
     if(settings['start_level'] && settings['start_level'] == settings['stop_level']) hidden = false
 
     width = 12
-    if(settings['stop_timeType'] || settings['stop_timeType'] == 'none') width = 6
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
 
     sectionTitle = ''
     if(!settings['start_level'] && !settings['stop_level']) sectionTitle = 'Click to set brightness (optional)'
@@ -623,9 +622,9 @@ def displayBrightnessOption(){
         if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stop_level', 'number', title: inputTitle, width: width, submitOnChange:true
 
         message = 'Brightness is percentage from 1 to 100.'
+        if(!settings['start_level'] && settings['stop_timeType'] == 'none') message = 'Enter the percentage of brightness when turning on, from 1 to 100.'
         if(!settings['start_level'] && !settings['stop_level']) message = 'Enter the percentage of brightness when turning on, from 1 to 100, when starting and/or ending the schedule. If entering both starting and ending brightness, it will transition from starting to ending brightness for the duration of the schedule. Either starting or ending brightness is required (or unselect "Change brightness").'
-
-        if(!settings['start_level'] || !settings['stop_level']) message = 'Enter the percentage of brightness when turning on, from 1 to 100. If entering both starting and ending brightness, it will transition from starting to ending brightness for the duration of the schedule.'
+        if((!settings['start_level'] || !settings['stop_level']) && settings['stop_timeType'] != 'none') message = 'Enter the percentage of brightness when turning on, from 1 to 100. If entering both starting and ending brightness, it will transition from starting to ending brightness for the duration of the schedule.'
 
         if(!validateStartLevel() || !validateStopLevel()) {
             displayError(message)
@@ -638,12 +637,12 @@ def displayBrightnessOption(){
 def displayTemperatureOption(){
     if(settings['deviceType'] != 'light') return
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     hidden = true
     if(!validateStartTemp()) hidden = false
     if(!validateStopTemp()) hidden = false
-    if(settings['start_temp'] && (!settings['stop_temp'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
     if(!settings['start_temp'] && settings['stop_temp']) hidden = false
     if(settings['start_temp'] && settings['start_temp'] == settings['stop_temp']) hidden = false
     if(settings['start_temp'] && (settings['start_hue'] || settings['start_sat'])){
@@ -679,7 +678,7 @@ def displayTemperatureOption(){
 
         message = 'Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000.'
         if(!settings['start_temp'] && !settings['stop_temp']) message = 'Temperature color is in Kelvin from 1800 to 5400, when starting and/or ending the schedule. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. (Optional.)'
-        if(!settings['start_temp'] || !settings['stop_temp']) message = 'Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000. If entering both starting and ending temperature, it will transition from starting to ending temperature for the duration of the schedule.'
+        if((!settings['start_temp'] || !settings['stop_temp']) && settings['stop_timeType'] != 'none') message = 'Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000. If entering both starting and ending temperature, it will transition from starting to ending temperature for the duration of the schedule.' 
         if(!validateStartTemp() || !validateStopTemp()) {
             displayError(message)
         } else {
@@ -691,7 +690,7 @@ def displayTemperatureOption(){
 def displayColorOption(){
     if(settings['deviceType'] != 'light') return
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     validateStartHue = validateHue(settings['start_hue'])
     validateStopHue = validateHue(settings['stop_hue'])
@@ -788,7 +787,7 @@ def displayColorOption(){
         if(!settings['start_hue'] || !settings['stop_hue']){
             message = 'Hue is percent from 0 to 100 around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; turquiose = 50; blue = 66; purple = 79 (may vary by device).'
             if(hiRezHue) message = 'Hue is degrees from 0 to 360 around a color wheel, where red is 0 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
-            if(settings['stop_timeType']) message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
+            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
             message += ' Optional.'
         }
         if(validateStartHue && validateStartSat && validateStopHue && validateStopSat){
@@ -807,7 +806,7 @@ def displayColorOption(){
         if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
         if(!settings['start_hue'] || !settings['stop_hue']){
             message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
-            if(settings['stop_timeType']) message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
             message += ' Optional.'
         }
 
@@ -821,7 +820,7 @@ def displayColorOption(){
 
 def displayChangeModeOption(){
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     hidden = true
     if(settings['startMode'] && (!settings['stopMode'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
@@ -851,7 +850,7 @@ def displayChangeModeOption(){
 
 def displayPeopleOption(){
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     List peopleList1=[]
     settings['personHome'].each{
@@ -877,13 +876,13 @@ def displayPeopleOption(){
         if(peopleError) displayError('You can\'t include and exclude the same person.')
 
         input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
-        input 'personNotHome', 'capability.presenceSensor', title: 'Only if none of these people are home (Optional)', multiple: true, submitOnChange:true
+        input 'personNotHome', 'capability.presenceSensor', title: 'Only if all these people are NOT home (Optional)', multiple: true, submitOnChange:true
     }
 }
 
 def displayIfModeOption(){
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && !settings['stop_action']) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     sectionTitle = 'Click to select with what Mode (optional)'
     if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
@@ -1036,7 +1035,7 @@ def initialize() {
 def handleStateChange(event){
     if(parent.isOn(event.device,app.label) && event.value == 'on') return
     if(!parent.isOn(event.device,app.label) && event.value == 'off') return
-    putLog(1039,'trace',"Captured manual state change for $event.device to turn $event.value")
+    putLog(1038,'trace',"Captured manual state change for $event.device to turn $event.value")
     parent.updateStateSingle(event.device,event.value,app.label)
 
     return
@@ -1056,7 +1055,7 @@ def handleLevelChange(event){
     defaults = ['level':['startLevel':value,'priorLevel':levelChange.'currentLevel','appId':'manual']]
 
     parent.updateLevelsSingle(event.device,defaults,app.label)
-    putLog(1059,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
+    putLog(1058,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
 
     return
 }
@@ -1074,7 +1073,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(1077,'warn',"Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange.'timeDifference' + "ms")
+    putLog(1076,'warn',"Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange.'timeDifference' + "ms")
         parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1092,7 +1091,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(1095,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
+    putLog(1094,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1109,7 +1108,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(1112,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
+    putLog(1111,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1141,14 +1140,14 @@ def setDailySchedules(type = null){
         scheduleString = "0 $startMinutes $startHours $days"
         // Need to pause or else Hubitat may run runDailyStartSchedule immediately and cause a loop
         runIn(1,setStartSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1144,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
+        putLog(1143,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
     }
 
     if((type != 'start') && atomicState.stop){
         scheduleString = "0 $stopMinutes $stopHours $days"
         // Need to pause or else Hubitat may run runDailyStopSchedule immediately and cause a loop
         runIn(1,setStopSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1151,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
+        putLog(1150,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
     }
     return true
 }
@@ -1156,12 +1155,12 @@ def setDailySchedules(type = null){
 // Required for offsetting scheduling start and stop by a second, to prevent Hubitat running runDailyStartSchedule immediately
 def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
-    putLog(1159,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
+    putLog(1158,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
 }
 
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
-    putLog(1164,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
+    putLog(1163,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
 }
 
 // Performs actual changes at time set with start_action
@@ -1215,7 +1214,7 @@ def runDailyStartSchedule(){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
-    putLog(1218,'trace','runIncrementalSchedule starting')
+    putLog(1217,'trace','runIncrementalSchedule starting')
     if(!getScheduleActive()) return
     if((settings['start_level'] && settings['stop_level']) || (settings['start_temp'] && settings['stop_temp']) || (settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
         // If it's disabled, keep it active
@@ -1237,7 +1236,7 @@ def runIncrementalSchedule(){
 
         // Reschedule itself
         runIn(8,runIncrementalSchedule)
-        putLog(1240,'trace','runIncrementalSchedule exiting')
+        putLog(1239,'trace','runIncrementalSchedule exiting')
     }
     return true
 }
@@ -1385,7 +1384,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1388,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1387,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1396,22 +1395,16 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1399,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1398,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
 
 // Sets atomicState.start and atomicState.stop variables
 def setStartStopTime(type){
-    if(settings["${type}_timeType"] == 'time'){
-        returnValue = Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["${type}_time"]).getTime()
-    } else if(settings["${type}_timeType"] == 'sunrise'){
-        returnValue = (settings["${type}_sunType"] == 'before' ? parent.getSunrise(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunrise(settings["${type}_sunOffset"],app.label))
-    } else if(settings["${type}_timeType"] == 'sunset'){
-        returnValue = (settings["${type}_sunType"] == 'before' ? parent.getSunset(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunset(settings["${type}_sunOffset"],app.label))
-    }
-    
-    return returnValue
+    if(settings["${type}_timeType"] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["${type}_time"]).getTime()
+    if(settings["${type}_timeType"] == 'sunrise') return (settings["${type}_sunType"] == 'before' ? parent.getSunrise(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunrise(settings["${type}_sunOffset"],app.label))
+    if(settings["${type}_timeType"] == 'sunset') return (settings["${type}_sunType"] == 'before' ? parent.getSunset(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunset(settings["${type}_sunOffset"],app.label))
 }
 
 // Used by Master to check whether to reschedule incremental
