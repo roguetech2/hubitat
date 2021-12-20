@@ -89,7 +89,7 @@ preferences {
             if(!settings['stop_timeType']) settings['stop_sunType'] = null
             if(settings['stop_timeType'] != 'time') settings['stop_time'] = null
             if(settings['stop_timeType'] == 'time') settings['stop_sunType'] = null
-            if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'before') settings['stop_sunOffset'] = null
+            if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'after') settings['stop_sunOffset'] = null
             if(settings['stop_sunType'] == 'at') settings['stop_sunOffset'] = null
             stopTimeComplete = checkTimeComplete('stop')
             if(!settings['stop_timeType'] || !stopTimeComplete) {
