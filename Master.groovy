@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.3.07
+*  Version: 0.3.08
 *
 ***********************************************************************************************************************/
 
@@ -427,7 +427,7 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
 def isOnMulti(multiDevice,childLabel='Master'){
     multiState = false
     multiDevice.each{singleDevice->
-        if(!value && isOn(singleDevice,childLabel)) return true
+        if(isOn(singleDevice,childLabel)) return true
     }
     return false
 }
@@ -439,8 +439,7 @@ def isOn(singleDevice,childLabel='Master'){
         time = new Date().time
         atomicState."deviceState${singleDevice.id}" = ['state':singleDevice.currentValue('switch'),'time':time]
     }
-    if(atomicState."deviceState${singleDevice.id}".'state' == 'on') returnValue = true
-    return returnValue
+    if(atomicState."deviceState${singleDevice.id}".'state' == 'on') return true
 }
 
 // Returns true if level value is either valid or null
@@ -492,7 +491,7 @@ def validateHueSat(hue,sat, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(495,'error',"ERROR: Multiplier $value is not valid",childLabel)
+            putLog(494,'error',"ERROR: Multiplier $value is not valid",childLabel)
             return
         }
     }
@@ -628,20 +627,16 @@ def nowInDayList(days,childLabel='Master'){
 def nowInMonthList(months,childLabel='Master'){
     if(!months) return true
 
-    month = new Date().getMonth().toString()
-    if(months.contains(month)) return true
+    month = new Date().getMonth() + 1
+    if(months.contains(month.toString())) return true
 
     return false
 }
 
 // Returns true if now is between two dates
 def timeBetween(timeStart, timeStop,childLabel='Master'){
-    if(!timeStart) {
-        putLog(640,'error','ERROR: Function timeBetween returning false (no start time)',childLabel)
-        return
-    } else if(!timeStop) {
-        return
-    }
+    if(!timeStart) return true
+    if(!timeStop) return true
 
     varNow = now()
     if(varNow > timeStart && varNow < timeStop){
@@ -653,13 +648,13 @@ def timeBetween(timeStart, timeStop,childLabel='Master'){
 
 def speakSingle(text,deviceId, childLabel='Master'){
     if(!deviceId) {
-        putLog(656,'warn',"No speech device for \"$text\"",childLabel)
+        putLog(651,'warn',"No speech device for \"$text\"",childLabel)
         return
     }
     speechDevice.each{
         if(it.id == deviceId){
             it.speak(text)
-            putLog(662,'info',"Sending speech \"$text\" to device $it",childLabel)
+            putLog(657,'info',"Sending speech \"$text\" to device $it",childLabel)
             return true
         }
     }
@@ -722,7 +717,6 @@ def updateStateMulti(multiDevice,action,childLabel = 'Master'){
 
 def updateStateSingle(singleDevice,action,childLabel = 'Master'){
     time = new Date().time
-    
     if(atomicState?."deviceState${singleDevice.id}" && atomicState."deviceState${singleDevice.id}".'state'){
         if(atomicState."deviceState${singleDevice.id}".'state' == action){
             return
@@ -758,12 +752,12 @@ def updateLevelsSingle(singleDevice, defaults,childLabel = 'Master'){
     time = new Date().time
 
     if(atomicState."deviceData${singleDevice.id}"){
-        newDeviceMap = atomicState."deviceData${singleDevice.id}"
+        currentDeviceDate = atomicState."deviceData${singleDevice.id}"
     } else {
-        newDeviceMap = [:]
+        currentDeviceDate = [:]
     }
     
-    if((defaults?.'hue' || defaults?.'sat') && newDeviceMap.'temp') newDeviceMap.remove('temp')
+    if((defaults?.'hue' || defaults?.'sat') && currentDeviceDate.'temp') currentDeviceDate.remove('temp')
         
         // If appId = not #, use it
         // If appId = # and time = "start, use it
@@ -798,98 +792,97 @@ def updateLevelsSingle(singleDevice, defaults,childLabel = 'Master'){
             // Clear it
 
     if(isDimmable(singleDevice)){
-        if((!newDeviceMap.'level' && defaults.'level' && !defaults.'level'?.'startLevel' && defaults.'level'?.'stopLevel') || 
-           (newDeviceMap.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'.'time' == 'stop' && defaults.'level'.'startLevel' && isNumeric(newDeviceMap.'level'.'appId') && (newDeviceMap.'level'.'appId' == defaults.'level'.'appId' || !newDeviceMap.'level'.'stopLevel')) ||
-           (newDeviceMap.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'.'time' == 'stop' && !defaults.'level'.'startLevel' && !isNumeric(newDeviceMap.'level'.'appId'))){
-            newDeviceMap.'level' = ['startLevel':defaults.'level'.'stopLevel','appId':'manual','time':time]
-        } else if((!newDeviceMap.'level' && defaults?.'level'?.'startLevel') ||
-                  (newDeviceMap.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'?.'time' == 'start') ||
-                  (newDeviceMap.'level' && defaults.'level' && !isNumeric(defaults.'level'.'appId'))){
-            if(newDeviceMap.'level'?.'currentLevel') {
-                defaults.'level'.'priorLevel' = newDeviceMap.'level'.'currentLevel'
+        if((!currentDeviceDate.'level' && defaults.'level' && !defaults.'level'?.'startLevel' && defaults.'level'?.'stopLevel') || 
+           (currentDeviceDate.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'.'time' == 'stop' && defaults.'level'.'startLevel' && isNumeric(currentDeviceDate.'level'.'appId') && (currentDeviceDate.'level'.'appId' == defaults.'level'.'appId' || !currentDeviceDate.'level'.'stopLevel')) ||
+           (currentDeviceDate.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'.'time' == 'stop' && !defaults.'level'.'startLevel' && !isNumeric(currentDeviceDate.'level'.'appId'))){
+            currentDeviceDate.'level' = ['startLevel':defaults.'level'.'stopLevel','appId':'manual','time':time]
+        } else if((!currentDeviceDate.'level' && defaults?.'level'?.'startLevel') ||
+                  (currentDeviceDate.'level' && defaults.'level' && isNumeric(defaults.'level'.'appId') && defaults.'level'?.'time' == 'start') ||
+                  (currentDeviceDate.'level' && defaults.'level' && !isNumeric(defaults.'level'.'appId'))){
+            if(currentDeviceDate.'level'?.'currentLevel') {
+                defaults.'level'.'priorLevel' = currentDeviceDate.'level'.'currentLevel'
                 // setting both "prior" and "current" level the same, because we haven't actually updated the level yet
-                defaults.'level'.'currentLevel' = newDeviceMap.'level'.'currentLevel'
+                defaults.'level'.'currentLevel' = currentDeviceDate.'level'.'currentLevel'
             } else {
                 if(isFan(singleDevice)){
                     defaults.'level'.'priorLevel' = singleDevice.currentSpeed
                 } else {
                     defaults.'level'.'priorLevel' = convertToInteger(singleDevice.currentLevel,childLabel)
                 }
-                if(newDeviceMap?.'level'?.'startLevel') defaults.'level'.'currentLevel' = newDeviceMap.'level'.'startLevel'
+                if(currentDeviceDate?.'level'?.'startLevel') defaults.'level'.'currentLevel' = currentDeviceDate.'level'.'startLevel'
             }
-            newDeviceMap.'level' = defaults.'level'
-            newDeviceMap.'level'.'time' = time
-        } else if(newDeviceMap.'level' && defaults.'level' && (defaults.'level'.'time' == 'resume' || (defaults.'level'.'time' == 'stop' && !defaults.'level'.'stopLevel' && newDeviceMap.'level'.'appId' == defaults.'level'.'appId'))){
-            newDeviceMap.remove('level')
+            currentDeviceDate.'level' = defaults.'level'
+            currentDeviceDate.'level'.'time' = time
+        } else if(currentDeviceDate.'level' && defaults.'level' && (defaults.'level'.'time' == 'resume' || (defaults.'level'.'time' == 'stop' && !defaults.'level'.'stopLevel' && currentDeviceDate.'level'.'appId' == defaults.'level'.'appId'))){
+            currentDeviceDate.remove('level')
         }
     }
     
     if(isColor(singleDevice)){
-        if((!newDeviceMap.'temp' && defaults.'temp' && !defaults.'temp'?.'startLevel' && defaults.'temp'?.'stopLevel') || 
-           (newDeviceMap.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'.'time' == 'stop' && defaults.'temp'.'startLevel' && isNumeric(newDeviceMap.'temp'.'appId') && (newDeviceMap.'temp'.'appId' == defaults.'temp'.'appId' || !newDeviceMap.'temp'.'stopLevel')) ||
-           (newDeviceMap.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'.'time' == 'stop' && !defaults.'temp'.'startLevel' && !isNumeric(newDeviceMap.'temp'.'appId'))){
-            newDeviceMap.'temp' = ['startLevel':defaults.'temp'.'stopLevel','appId':'manual','time':time]
-        } else if((!newDeviceMap.'temp' && defaults?.'temp'?.'startLevel') ||
-                  (newDeviceMap.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'?.'time' == 'start') ||
-                  (newDeviceMap.'temp' && defaults.'temp' && !isNumeric(defaults.'temp'.'appId'))){
-            if(newDeviceMap.'temp'?.'currentLevel') {
-                defaults.'temp'.'priorLevel' = newDeviceMap.'temp'.'currentLevel'
+        if((!currentDeviceDate.'temp' && defaults.'temp' && !defaults.'temp'?.'startLevel' && defaults.'temp'?.'stopLevel') || 
+           (currentDeviceDate.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'.'time' == 'stop' && defaults.'temp'.'startLevel' && isNumeric(currentDeviceDate.'temp'.'appId') && (currentDeviceDate.'temp'.'appId' == defaults.'temp'.'appId' || !currentDeviceDate.'temp'.'stopLevel')) ||
+           (currentDeviceDate.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'.'time' == 'stop' && !defaults.'temp'.'startLevel' && !isNumeric(currentDeviceDate.'temp'.'appId'))){
+            currentDeviceDate.'temp' = ['startLevel':defaults.'temp'.'stopLevel','appId':'manual','time':time]
+        } else if((!currentDeviceDate.'temp' && defaults?.'temp'?.'startLevel') ||
+                  (currentDeviceDate.'temp' && defaults.'temp' && isNumeric(defaults.'temp'.'appId') && defaults.'temp'?.'time' == 'start') ||
+                  (currentDeviceDate.'temp' && defaults.'temp' && !isNumeric(defaults.'temp'.'appId'))){
+            if(currentDeviceDate.'temp'?.'currentLevel') {
+                defaults.'temp'.'priorLevel' = currentDeviceDate.'temp'.'currentLevel'
                 // setting both "prior" and "current" level the same, because we haven't actually updated the level yet
-                defaults.'temp'.'currentLevel' = newDeviceMap.'temp'.'currentLevel'
+                defaults.'temp'.'currentLevel' = currentDeviceDate.'temp'.'currentLevel'
             } else {
                 defaults.'temp'.'priorLevel' = convertToInteger(singleDevice.currentTemperatureColor)
-                if(newDeviceMap?.'temp'?.'startLevel') defaults.'temp'.'currentLevel' = newDeviceMap.'temp'.'startLevel'
+                if(currentDeviceDate?.'temp'?.'startLevel') defaults.'temp'.'currentLevel' = currentDeviceDate.'temp'.'startLevel'
             }
-            newDeviceMap.'temp' = defaults.'temp'
-            newDeviceMap.'temp'.'time' = time
-        } else if(newDeviceMap.'temp' && defaults.'temp' && (defaults.'temp'.'time' == 'resume' || (defaults.'temp'.'time' == 'stop' && !defaults.'temp'.'stopLevel' && newDeviceMap.'temp'.'appId' == defaults.'temp'.'appId'))){
-            newDeviceMap.remove('temp')
+            currentDeviceDate.'temp' = defaults.'temp'
+            currentDeviceDate.'temp'.'time' = time
+        } else if(currentDeviceDate.'temp' && defaults.'temp' && (defaults.'temp'.'time' == 'resume' || (defaults.'temp'.'time' == 'stop' && !defaults.'temp'.'stopLevel' && currentDeviceDate.'temp'.'appId' == defaults.'temp'.'appId'))){
+            currentDeviceDate.remove('temp')
         }
     
-        if((!newDeviceMap.'hue' && defaults.'hue' && !defaults.'hue'?.'startLevel' && defaults.'hue'?.'stopLevel') || 
-           (newDeviceMap.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'.'time' == 'stop' && defaults.'hue'.'startLevel' && isNumeric(newDeviceMap.'hue'.'appId') && (newDeviceMap.'hue'.'appId' == defaults.'hue'.'appId' || !newDeviceMap.'hue'.'stopLevel')) ||
-           (newDeviceMap.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'.'time' == 'stop' && !defaults.'hue'.'startLevel' && !isNumeric(newDeviceMap.'hue'.'appId'))){
-            newDeviceMap.'hue' = ['startLevel':defaults.'hue'.'stopLevel','appId':'manual','time':time]
-        } else if((!newDeviceMap.'hue' && defaults?.'hue'?.'startLevel') ||
-                  (newDeviceMap.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'?.'time' == 'start') ||
-                  (newDeviceMap.'hue' && defaults.'hue' && !isNumeric(defaults.'hue'.'appId'))){
-            if(newDeviceMap.'hue'?.'currentLevel') {
-                defaults.'hue'.'priorLevel' = newDeviceMap.'hue'.'currentLevel'
+        if((!currentDeviceDate.'hue' && defaults.'hue' && !defaults.'hue'?.'startLevel' && defaults.'hue'?.'stopLevel') || 
+           (currentDeviceDate.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'.'time' == 'stop' && defaults.'hue'.'startLevel' && isNumeric(currentDeviceDate.'hue'.'appId') && (currentDeviceDate.'hue'.'appId' == defaults.'hue'.'appId' || !currentDeviceDate.'hue'.'stopLevel')) ||
+           (currentDeviceDate.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'.'time' == 'stop' && !defaults.'hue'.'startLevel' && !isNumeric(currentDeviceDate.'hue'.'appId'))){
+            currentDeviceDate.'hue' = ['startLevel':defaults.'hue'.'stopLevel','appId':'manual','time':time]
+        } else if((!currentDeviceDate.'hue' && defaults?.'hue'?.'startLevel') ||
+                  (currentDeviceDate.'hue' && defaults.'hue' && isNumeric(defaults.'hue'.'appId') && defaults.'hue'?.'time' == 'start') ||
+                  (currentDeviceDate.'hue' && defaults.'hue' && !isNumeric(defaults.'hue'.'appId'))){
+            if(currentDeviceDate.'hue'?.'currentLevel') {
+                defaults.'hue'.'priorLevel' = currentDeviceDate.'hue'.'currentLevel'
                 // setting both "prior" and "current" level the same, because we haven't actually updated the level yet
-                defaults.'hue'.'currentLevel' = newDeviceMap.'hue'.'currentLevel'
+                defaults.'hue'.'currentLevel' = currentDeviceDate.'hue'.'currentLevel'
             } else {
                 defaults.'hue'.'priorLevel' = convertToInteger(singleDevice.currentHue)
-                if(newDeviceMap?.'hue'?.'startLevel') defaults.'hue'.'currentLevel' = newDeviceMap.'hue'.'startLevel'
+                if(currentDeviceDate?.'hue'?.'startLevel') defaults.'hue'.'currentLevel' = currentDeviceDate.'hue'.'startLevel'
             }
-            newDeviceMap.'hue' = defaults.'hue'
-            newDeviceMap.'hue'.'time' = time
-        } else if(newDeviceMap.'hue' && defaults.'hue' && (defaults.'hue'.'time' == 'resume' || (defaults.'hue'.'time' == 'stop' && !defaults.'hue'.'stopLevel' && newDeviceMap.'hue'.'appId' == defaults.'hue'.'appId'))){
-            newDeviceMap.remove('hue')
+            currentDeviceDate.'hue' = defaults.'hue'
+            currentDeviceDate.'hue'.'time' = time
+        } else if(currentDeviceDate.'hue' && defaults.'hue' && (defaults.'hue'.'time' == 'resume' || (defaults.'hue'.'time' == 'stop' && !defaults.'hue'.'stopLevel' && currentDeviceDate.'hue'.'appId' == defaults.'hue'.'appId'))){
+            currentDeviceDate.remove('hue')
         }
-
-        if((!newDeviceMap.'sat' && defaults.'sat' && !defaults.'sat'?.'startLevel' && defaults.'sat'?.'stopLevel') || 
-           (newDeviceMap.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'.'time' == 'stop' && defaults.'sat'.'startLevel' && isNumeric(newDeviceMap.'sat'.'appId') && (newDeviceMap.'sat'.'appId' == defaults.'sat'.'appId' || !newDeviceMap.'sat'.'stopLevel')) ||
-           (newDeviceMap.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'.'time' == 'stop' && !defaults.'sat'.'startLevel' && !isNumeric(newDeviceMap.'sat'.'appId'))){
-            newDeviceMap.'sat' = ['startLevel':defaults.'sat'.'stopLevel','appId':'manual','time':time]
-        } else if((!newDeviceMap.'sat' && defaults?.'sat'?.'startLevel') ||
-                  (newDeviceMap.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'?.'time' == 'start') ||
-                  (newDeviceMap.'sat' && defaults.'sat' && !isNumeric(defaults.'sat'.'appId'))){
-            if(newDeviceMap.'sat'?.'currentLevel') {
-                defaults.'sat'.'priorLevel' = newDeviceMap.'sat'.'currentLevel'
+        if((!currentDeviceDate.'sat' && defaults.'sat' && !defaults.'sat'?.'startLevel' && defaults.'sat'?.'stopLevel') || 
+           (currentDeviceDate.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'.'time' == 'stop' && defaults.'sat'.'startLevel' && isNumeric(currentDeviceDate.'sat'.'appId') && (currentDeviceDate.'sat'.'appId' == defaults.'sat'.'appId' || !currentDeviceDate.'sat'.'stopLevel')) ||
+           (currentDeviceDate.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'.'time' == 'stop' && !defaults.'sat'.'startLevel' && !isNumeric(currentDeviceDate.'sat'.'appId'))){
+            currentDeviceDate.'sat' = ['startLevel':defaults.'sat'.'stopLevel','appId':'manual','time':time]
+        } else if((!currentDeviceDate.'sat' && defaults?.'sat'?.'startLevel') ||
+                  (currentDeviceDate.'sat' && defaults.'sat' && isNumeric(defaults.'sat'.'appId') && defaults.'sat'?.'time' == 'start') ||
+                  (currentDeviceDate.'sat' && defaults.'sat' && !isNumeric(defaults.'sat'.'appId'))){
+            if(currentDeviceDate.'sat'?.'currentLevel') {
+                defaults.'sat'.'priorLevel' = currentDeviceDate.'sat'.'currentLevel'
                 // setting both "prior" and "current" level the same, because we haven't actually updated the level yet
-                defaults.'sat'.'currentLevel' = newDeviceMap.'sat'.'currentLevel'
+                defaults.'sat'.'currentLevel' = currentDeviceDate.'sat'.'currentLevel'
             } else {
                 defaults.'sat'.'priorLevel' = convertToInteger(singleDevice.currentSaturation)
-                if(newDeviceMap?.'sat'?.'startLevel') defaults.'sat'.'currentLevel' = newDeviceMap.'sat'.'startLevel'
+                if(currentDeviceDate?.'sat'?.'startLevel') defaults.'sat'.'currentLevel' = currentDeviceDate.'sat'.'startLevel'
             }
-            newDeviceMap.'sat' = defaults.'sat'
-            newDeviceMap.'sat'.'time' = time
-        } else if(newDeviceMap.'sat' && defaults.'sat' && (defaults.'sat'.'time' == 'resume' || (defaults.'sat'.'time' == 'stop' && !defaults.'sat'.'stopLevel' && newDeviceMap.'sat'.'appId' == defaults.'sat'.'appId'))){
-            newDeviceMap.remove('sat')
+            currentDeviceDate.'sat' = defaults.'sat'
+            currentDeviceDate.'sat'.'time' = time
+        } else if(currentDeviceDate.'sat' && defaults.'sat' && (defaults.'sat'.'time' == 'resume' || (defaults.'sat'.'time' == 'stop' && !defaults.'sat'.'stopLevel' && currentDeviceDate.'sat'.'appId' == defaults.'sat'.'appId'))){
+            currentDeviceDate.remove('sat')
         }
     }
 
-    atomicState."deviceData${singleDevice.id}" = newDeviceMap
+    atomicState."deviceData${singleDevice.id}" = currentDeviceDate
     return
 }
 
@@ -910,20 +903,22 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
         // If turning off device, do it, and exit
         if(atomicState."deviceState${singleDevice.id}".'state' == 'off'){
             if(atomicState."deviceData${singleDevice.id}"){
-                newDeviceMap = atomicState."deviceData${singleDevice.id}"
-                if(newDeviceMap?.'level'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'level'.'appId')) newDeviceMap.remove('level')
-                if(newDeviceMap?.'temp'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'temp'.'appId')) newDeviceMap.remove('temp')
-                if(newDeviceMap?.'hue'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'hue'.'appId')) newDeviceMap.remove('hue')
-                if(newDeviceMap?.'sat'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'sat'.'appId')) newDeviceMap.remove('sat')
-                atomicState."deviceData${singleDevice.id}" = newDeviceMap
+                currentDeviceDate = atomicState."deviceData${singleDevice.id}"
+                if(currentDeviceDate?.'level'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'level'.'appId')) currentDeviceDate.remove('level')
+                if(currentDeviceDate?.'temp'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'temp'.'appId')) currentDeviceDate.remove('temp')
+                if(currentDeviceDate?.'hue'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'hue'.'appId')) currentDeviceDate.remove('hue')
+                if(currentDeviceDate?.'sat'?.'appId' && !isNumeric(atomicState."deviceData${singleDevice.id}".'sat'.'appId')) currentDeviceDate.remove('sat')
+                atomicState."deviceData${singleDevice.id}" = currentDeviceDate
             }
 
+            // this turns off during an incremental schedule
             if(isFan(singleDevice,childLabel)){
                 singleDevice.setSpeed('off')
+                return
             } else {
                 singleDevice.off()
             }
-            putLog(926,'debug',"Turning $singleDevice off",childLabel)
+            putLog(921,'debug',"Turning $singleDevice off",childLabel)
             return
         }
 
@@ -976,12 +971,16 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                     } else {
                         singleDevice.on()
                     }
-                    putLog(979,'debug',"Turning $singleDevice on",childLabel)
+                    if(singleDevice.currentColorMode == 'RGB'){
+                        pauseExecution(200)
+                        singleDevice.currentColorMode == 'CT'
+                    }
+                    putLog(978,'debug',"Turning $singleDevice on",childLabel)
                     //this needs a fudge check
                     if(singleDevice.currentTemperatureColor != 3500){
                         pauseExecution(200)
                         singleDevice.setColorTemperature(3500)
-                        putLog(984,'debug',"Set $singleDevice temperature color to 3500K",childLabel)
+                        putLog(983,'debug',"Set $singleDevice temperature color to 3500K",childLabel)
                     }
                 }
             } else {
@@ -1024,7 +1023,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                                 levelStart = defaults.'level'.'startLevel'
                             }
                         }
-                        if(!levelStart) putLog(1027,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
+                        if(!levelStart) putLog(1026,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
                         // If just start level
                     } else if(defaults.'level'.'startLevel'){
                         levelStart = defaults.'level'.'startLevel'
@@ -1082,7 +1081,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                                         if(hueStart <1) hueStart += 100
                                         //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
                                     } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'forward'){
-                                        hueStart = defaults.'hue'.'startLevel' + Math.round((100 - defaults.'hue'.'startLevel' + defaults.'hue'.'stopLevel') * huePercent)
+                                        hueStart = defaults.'hue'.'startLevel' + Math.round((defaults.'hue'.'stopLevel' + 100 - defaults.'hue'.'startLevel') * huePercent)
                                         if(hueStart > 100) hueStart = hueStart - 100
                                         //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
                                     } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'reverse'){
@@ -1093,12 +1092,12 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                                 hueStart = defaults.'hue'.'startLevel'
                             }
                         }
-                        if(!hueStart) putLog(1096,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
+                        if(!hueStart) putLog(1095,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
                         // If just start hue
                     } else if(defaults.'hue'.'startLevel'){
                         hueStart = defaults.'hue'.'startLevel'
                     } else if(!isNumeric(defaults.'hue'.'appId')){
-                        putLog(1101,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
+                        putLog(1100,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
                     }
 
                     // Set currentHue
@@ -1119,12 +1118,8 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                 if(defaults.'sat'){
                     // If start and stop level, and level set by a schedule
                     if(defaults.'sat'.'startLevel' && isNumeric(defaults.'sat'.'appId')){
-                        // If same progressive schedule as level, we know it's active and elapsed percent
-                        if(defaults.'sat'.'appId' == defaults?.'level'?.'appId'){
-                            satScheduleActive = levelScheduleActive
-                            satPercent = levelPercent
                         // If same progressive schedule as hue, we know it's active and elapsed percent
-                        } else if(defaults.'sat'.'appId' == defaults?.'hue'?.'appId'){
+                        if(defaults.'sat'.'appId' == defaults?.'hue'?.'appId'){
                             satScheduleActive = hueScheduleActive
                             satPercent = huePercent
                         } else {
@@ -1155,12 +1150,12 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                                 satStart = defaults.'sat'.'startLevel'
                             }
                         }
-                        if(!satStart) putLog(1158,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
+                        if(!satStart) putLog(1153,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
                         // If just start sat
                     } else if(defaults.'sat'.'startLevel'){
                         satStart = defaults.'sat'.'startLevel'
                     } else if(!isNumeric(defaults.'sat'.'appId')){
-                        putLog(1163,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
+                        putLog(1158,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
                     }
 
                     // Set currentSat
@@ -1170,7 +1165,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                         if(satStart == singleDevice.currentSaturation && singleDevice.currentColorMode == 'RGB') {
                             satStart = null
                         } else {
-                            defaults.'sat'.'currentLevel' = levelStart
+                            defaults.'sat'.'currentLevel' = satStart
                             defaults.'sat'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'sat'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'sat'.'currentLevel' : singleDevice.currentSaturation
                             defaults.'sat'.'time' = time
                         }
@@ -1211,7 +1206,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                                 tempStart = defaults.'temp'.'startLevel'
                             }
                         }
-                        if(!tempStart) putLog(1214,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
+                        if(!tempStart) putLog(1209,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
                         // If just start temp
                     } else if(defaults.'temp'.'startLevel'){
                         tempStart = defaults.'temp'.'startLevel'
@@ -1243,51 +1238,55 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
                 //Turn it on in fewest possible steps
                 if(hueStart || satStart){
                     colorMap = [:]
-                    unit = hiRezHue ? '°' : '%'
+                    unit = hiRezHue ? 'Â°' : '%'
+                    message = ''
                     if(levelStart) {
-                        message = "brightness to $levelStart%,"
+                        message = "brightness to $levelStart% - "
                         colorMap.'level' = levelStart
                     }
+                    if(hueStart) message += "hue to $hueStart% - "
+                    if(satStart) message += "sat to $satStart$unit"
+                    
                     colorMap.'hue' = hueStart ? hueStart : singleDevice.currentHue
                     colorMap.'saturation' = satStart ? satStart : singleDevice.currentSaturation
 
                     singleDevice.setColor(colorMap)
-                    putLog(1255,'info',"Set $singleDevice $message hue to $hueStart%, and saturation to $satStart$unit",childLabel)
+                    putLog(1254,'info',"Set $singleDevice $message",childLabel)
                     if(settings['colorStaging']){
                         pauseExecution(200)
                         singleDevice.on()
-                        putLog(1259,'info',"Set $singleDevice on",childLabel)
+                        putLog(1258,'info',"Set $singleDevice on",childLabel)
                     }
-                    putLog(1261,message,'info',childLabel)
+                    putLog(1260,message,'info',childLabel)
                 } else if(levelStart && isDimmable(singleDevice,childLabel)){
                     if(tempStart){
                         singleDevice.setColorTemperature(tempStart)
-                        putLog(1265,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                        putLog(1264,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
                         pauseExecution(200)
                     }
                     if(singleDevice.currentLevel != levelStart){
                         singleDevice.setLevel(levelStart)
-                        putLog(1270,'info',"Set $singleDevice brightness to $levelStart%",childLabel)
+                        putLog(1269,'info',"Set $singleDevice brightness to $levelStart%",childLabel)
                     } else {
                         singleDevice.on()
-                        putLog(1273,'info','Turned $singleDevice on',childLabel)
+                        putLog(1272,'info',"Turned $singleDevice on",childLabel)
                     }
                 } else if(tempStart && isColor(singleDevice,childLabel)){
                     singleDevice.setColorTemperature(tempStart)
-                    putLog(1277,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                    putLog(1276,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
                     if(settings['colorStaging']){
                         pauseExecution(200)
                         singleDevice.on()
-                        putLog(1281,'info',"Set $singleDevice on",childLabel)
+                        putLog(1280,'info',"Set $singleDevice on",childLabel)
                     }
                 } else {
-                    if(singleDevice.currentValue('switch') != 'on') putLog(1284,'info',"Set $singleDevice on",childLabel)
+                    if(singleDevice.currentValue('switch') != 'on') putLog(1283,'info',"Set $singleDevice on",childLabel)
                     singleDevice.on()
                 }
             }
             // else not fan, dimmable, or color
         } else {
-            if(singleDevice.currentValue('switch') != 'on') putLog(1290,'info',"Set $singleDevice on",childLabel)
+            if(singleDevice.currentValue('switch') != 'on') putLog(1289,'info',"Set $singleDevice on",childLabel)
             singleDevice.on()
         }
             
@@ -1372,7 +1371,7 @@ def getLastLevelChange(singleDevice,childLabel = 'Master'){
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'level'.'time'
 
-    returnValue = ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'level'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'level'.'priorLevel']
+    returnValue = ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'level'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'level'.'priorLevel','appId':atomicState."deviceData${deviceId}".'level'.'appId']
 
     return returnValue
 }
@@ -1391,7 +1390,7 @@ def getLastHueChange(singleDevice,childLabel = "Master"){
     if(!atomicState."deviceData${deviceId}".'hue') return
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'hue'.'time'
-    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'hue'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'hue'.'priorLevel']
+    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'hue'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'hue'.'priorLevel','appId':atomicState."deviceData${deviceId}".'hue'.'appId']
 }
 
 def getLastSatChange(singleDevice,childLabel = 'Master'){
@@ -1401,7 +1400,7 @@ def getLastSatChange(singleDevice,childLabel = 'Master'){
     if(!atomicState."deviceData${deviceId}".'sat') return
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'sat'.'time'
-    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'sat'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'sat'.'priorLevel']
+    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'sat'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'sat'.'priorLevel','appId':atomicState."deviceData${deviceId}".'sat'.'appId']
 }
 
 def getLastTempChange(singleDevice,childLabel = 'Master'){
@@ -1411,7 +1410,7 @@ def getLastTempChange(singleDevice,childLabel = 'Master'){
     if(!atomicState."deviceData${deviceId}".'temp') return
     time = new Date().time
     timeDifference = time - atomicState."deviceData${deviceId}".'temp'.'time'
-    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'temp'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'temp'.'priorLevel']
+    return ['timeDifference':timeDifference,'currentLevel':atomicState."deviceData${deviceId}".'temp'.'currentLevel','priorLevel': atomicState."deviceData${deviceId}".'temp'.'priorLevel','appId':atomicState."deviceData${deviceId}".'temp'.'appId']
 }
 
 def getPresenceDevice(childLabel = 'Master'){
@@ -1461,12 +1460,13 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber, type = 'trace', message = null, childLabel = 'Master'){
     if(!checkLog(type)) return
-    if(type == 'error') logMessage = '<font color="red">'
-    if(type == 'warn') logMessage = '<font color="brown">'
-    logMessage += 'Master '
-    if(lineNumber) logMessage += "(line $lineNumber) "
-    if(childLabel != 'Master') logMessage += "[$childLabel] "
-    if(message) logMessage += "-- $message"
+    errorText = ''
+    if(type == 'error') errorText = '<font color="red">'
+    if(type == 'warn') errorText = '<font color="brown">'
+    if(lineNumber) lineText = "(line $lineNumber) "
+    if(childLabel != 'Master') appText = "[$childLabel] "
+    if(message) messageText = "-- $message"
+    logMessage = errorText + "Master $app.label $lineText $appText $messageText"
     if(type == 'error' || type == 'warn') logMessage += '</font>'
 
     switch(type) {
