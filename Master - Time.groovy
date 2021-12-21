@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.10
+*  Version: 0.6.11
 *
 ***********************************************************************************************************************/
 
@@ -92,7 +92,7 @@ preferences {
             if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'after') settings['stop_sunOffset'] = null
             if(settings['stop_sunType'] == 'at') settings['stop_sunOffset'] = null
             stopTimeComplete = checkTimeComplete('stop')
-            if(!settings['stop_timeType'] || !stopTimeComplete) {
+            if((!settings['stop_timeType'] || !stopTimeComplete) && (!settings['start_timeType'] || !startTimeComplete)){
                 settings['months'] = null
                 settings['days'] = null
                 settings['start_level'] = null
