@@ -1,7 +1,7 @@
 Master.groovy:
 	Parent app, containing shared functions and basic settings such as presense device selection.
 
-	Production status: Alpha but required.
+	Production status: Beta but required.
 ------------------------------------------------
 Master - Alert:
 	Child app for sending alerts.
@@ -11,7 +11,7 @@ Master - Alert:
 Master - Contact.groovy:
 	Child app for door and window sensors.
 
-	Production status: Alpha.
+	Production status: Beta.
 ------------------------------------------------
 Master - Humidity.groovy:
 	Child app for bathroom humidity sensors.
@@ -26,7 +26,7 @@ Master - MagicCube.groovy:
 Master - Pico.groovy:
 	Child app for Caseta Picos and smart switches.
 
-	Production status: Late alpha.
+	Production status: Beta.
 ------------------------------------------------
 Master - Presense.groovy:
 	Child app for home presense.
@@ -36,7 +36,7 @@ Master - Presense.groovy:
 Master - Time.groovy:
 	Child app for scheduling.
 
-	Production state: Late alpha.
+	Production state: Beta.
 ------------------------------------------------
 Master - Washer-Dryer.groovy:
 	Child app for washer/dryer alerts
