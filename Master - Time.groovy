@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.11
+*  Version: 0.6.12
 *
 ***********************************************************************************************************************/
 
@@ -1066,7 +1066,7 @@ def handleTempChange(event){
     tempChange = parent.getLastTempChange(event.device, app.label)
     if(!tempChange) return
     // Temp can be different by + .5% (25 at 5000); always plus, never minus
-    if(hueChange.'appId' != app.id) return
+    if(tempChange.'appId' != app.id) return
 
     value = parent.convertToInteger(event.value)
     
@@ -1169,11 +1169,10 @@ def setStopSchedule(data){
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
     if(state.disable) return
-    
     atomicState.defaults = null
     
     // Set time state variables
-    if(!setTime()) return
+    //if(!setTime()) return 'this is done in setDailySchedules
     
     setDailySchedules('start')
 
@@ -1182,7 +1181,6 @@ def runDailyStartSchedule(){
     
     // If not correct month, exit
     if(!parent.nowInMonthList(settings['months'],app.label)) return
-    
     
     if(settings['start_action'] == 'on' || settings['start_action'] == 'off' || settings['start_action'] == 'toggle') {
         parent.updateStateMulti(settings["device"],settings["start_action"],app.label)
@@ -1216,7 +1214,7 @@ def runDailyStartSchedule(){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
-    putLog(1219,'trace','runIncrementalSchedule starting')
+    putLog(1217,'trace','runIncrementalSchedule starting')
     if(!getScheduleActive()) return
     if((settings['start_level'] && settings['stop_level']) || (settings['start_temp'] && settings['stop_temp']) || (settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
         // If it's disabled, keep it active
@@ -1240,7 +1238,7 @@ def runIncrementalSchedule(){
 
         // Reschedule itself
         runIn(8,runIncrementalSchedule)
-        putLog(1243,'trace','runIncrementalSchedule exiting')
+        putLog(1241,'trace','runIncrementalSchedule exiting')
     }
     return true
 }
@@ -1388,7 +1386,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1391,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1389,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1399,7 +1397,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1402,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1400,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
@@ -1407,7 +1405,6 @@ def setStopTime(){
 // Sets atomicState.start and atomicState.stop variables
 def setStartStopTime(type){
     if(settings["${type}_timeType"] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["${type}_time"]).getTime()
-    if(settings["${type}_timeType"] == 'sunrise') return (settings["${type}_sunType"] == 'before' ? parent.getSunrise(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunrise(settings["${type}_sunOffset"],app.label))
     if(settings["${type}_timeType"] == 'sunset') return (settings["${type}_sunType"] == 'before' ? parent.getSunset(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunset(settings["${type}_sunOffset"],app.label))
 }
 
