@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.6.09
+*  Version: 0.6.11
 * 
 ***********************************************************************************************************************/
 
@@ -45,7 +45,7 @@ preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
-    moreOptions = " <font color=\"grey\">(click for more options)</font>"
+    moreOptions = " <font color='grey'>(click for more options)</font>"
 
     install = formComplete()
 
@@ -59,7 +59,7 @@ preferences {
             if(!settings) settings = [:]
             
             // Clear settings with pre-requisites
-            if(!settings['contactDevice']) settings['deviceType'] = null
+            if(!settings['sensor']) settings['deviceType'] = null
             if(!settings['deviceType']) settings['device'] = null
             if(!settings['device']) settings['open_action'] = null
             if(!settings['open_action']) {
@@ -112,7 +112,7 @@ preferences {
             
             // Set variables
             singleContact = "contact/door sensor"
-            contactCount = getDeviceCount(contactDevice)
+            contactCount = getDeviceCount(sensor)
             deviceCount = getDeviceCount(device)
             pluralContact = getContactSensorPlural()
             contactIndefiniteArticle = getPluralIndefiniteArticle(contactCount)
@@ -152,7 +152,7 @@ preferences {
 
 def formComplete(){
     if(!app.label) return false
-    if(!contactDevice) return false
+    if(!sensor) return false
     if(!deviceType) return false
     if(!device) return false
     if(!open_action) return false
@@ -302,17 +302,17 @@ def displayNameOption(){
 }
 
 def displayDevicesOption(){
-    if(settings['contactDevice']){
+    if(settings['sensor']){
         text = pluralContact.capitalize()
-        input 'contactDevice', 'capability.contactSensor', title: "$text:", multiple: true, submitOnChange:true
+        input 'sensor', 'capability.contactSensor', title: "$text:", multiple: true, submitOnChange:true
         return
     }
-    input 'contactDevice', 'capability.contactSensor', title: "Select $pluralContact:", multiple: true, submitOnChange:true
+    input 'sensor', 'capability.contactSensor', title: "Select $pluralContact:", multiple: true, submitOnChange:true
     displayInfo("Select which $pluralContact for which to set actions.")
 }
 
 def displayDevicesTypes(){
-    if(!settings['contactDevice']) return
+    if(!settings['sensor']) return
         deviceText = 'device(s)'
     if(deviceCount == 1) deviceText = 'device'
     if(deviceCount > 1) deviceText = 'devices'
@@ -323,7 +323,7 @@ def displayDevicesTypes(){
 }
 
 def displayOpenCloseDevicesOption(){
-    if(!settings['contactDevice']) return
+    if(!settings['sensor']) return
     if(!settings['deviceType']) return
 
     if(settings['deviceType'] == 'lock'){
@@ -664,7 +664,7 @@ def displayScheduleSection(){
     if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
         if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
         if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
-        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunOffset']) sectionTitle += settings['start_sunOffset'] + ' minutes '
         if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
         if(startTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
     }
@@ -675,7 +675,6 @@ def displayScheduleSection(){
     if(settings['days'] && settings['months']) sectionTitle += " in $monthText"
     if(!settings['days'] && settings['months']) sectionTitle += "<b>In $monthText"
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
     
     if(settings['start_timeType'] && settings['stop_timeType']) sectionTitle += '</br>'
     if(settings['stop_timeType']) sectionTitle += '<b>Stopping: '
@@ -684,12 +683,14 @@ def displayScheduleSection(){
     if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
         if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
         if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
-        if(settings['stop_sunOffset']) sectionTitle += ' ' + settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
         if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
         if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
     }
     
     if(settings['start_timeType']) sectionTitle += '</b>'
+    
+    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
@@ -1028,7 +1029,7 @@ def compareDeviceLists(list1,list2){
 
 /*
 disable - bool - Flag to disable this single contact
-contactDevice - capability.contactSensor - Contact sensor being monitored
+sensor - capability.contactSensor - Contact sensor being monitored
 deviceType - Sets whether to expect lights (switchLevel), switches, or locks
 device - Device(s) being controlled (opened or closed); may be switch, switchLevel, or lock
 open_action - enum (none, on, off, resume, toggle, lock, or unlock) - Action to perform on device when opened
@@ -1103,9 +1104,9 @@ def initialize() {
     }
     state.disable = false
 
-    if(!settings['disable'] && !state.disable) {
-        subscribe(contactDevice, 'contact.open', contactChange)
-        subscribe(contactDevice, 'contact.closed', contactChange)            
+    if(!state.disable) {
+        subscribe(sensor, 'contact.open', contactChange)
+        subscribe(sensor, 'contact.closed', contactChange)            
     }
     
     setTime()
@@ -1296,30 +1297,22 @@ def setTime(){
 }
 
 def setStartTime(){
-    if(!settings['start_timeType']) {
-        atomicState.start = null
-        return
-    }
-
+    if(!settings['start_timeType']) return
     setTime = setStartStopTime('start')
-
     if(setTime){
         atomicState.start = setTime
-        putLog(1308,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1303,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
 
 def setStopTime(){
-    if(!settings['start_timeType'] || settings['stop_timeType'] == 'none') {
-        atomicState.stop = null
-        return
-    }
+    if(!settings['start_timeType'] || settings['stop_timeType'] == 'none') return
     setTime = setStartStopTime('stop')
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1322,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1314,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
