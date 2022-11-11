@@ -13,8 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.4.31
-*
+*  Version: 0.5.06
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
 definition(
@@ -65,7 +64,11 @@ preferences {
     infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
     warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
     errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    moreOptions = ' <font color="gray">(more options)</font>'
+    if(!settings) settings = [:]
 
+    install = testNoErrors()
+    
     if(app.label && buttonDevice && numberOfButtons) {
         install = "true"
     } else {
@@ -628,7 +631,9 @@ preferences {
                 }
             }
         }
+            displayScheduleSection()
     }
+    
 }
 
 // Display functions
@@ -654,6 +659,32 @@ def displayInfo(text = ""){
     }
 }
 
+def testNoErrors(){
+        if((!app.label) ||
+       (!buttonDevice) ||
+       (advancedSetup && !buttonPush1 && !buttonPush2 && !buttonPush3 && !buttonPush4 && !buttonPush5) ||
+           (!advancedSetup && !controlDevice) ||
+       (inputStartType == "time" && !inputStartTime) ||
+       (inputStopType == "time" && !inputStopTime) ||
+       ((inputStartType == "sunrise" || inputStartType == "sunset") && !inputStartSunriseType) ||
+       ((inputStopType == "sunrise" || inputStopType == "sunset") && !inputStopSunriseType) ||
+       ((inputStartSunriseType == "before" || inputStartSunriseType == "after") && !inputStartBefore) ||
+       ((inputStopSunriseType == "before" || inputStopSunriseType == "after") && !inputStopBefore)) return false
+    return true
+}
+
+// Display functions
+def getDeviceCount(device){
+    if(!settings[buttonDevice]) return false
+    return settings[buttonDevice].size()
+}
+
+def getPicoPlural(){
+    if(!contactSensorCount) return "Pico(s)"
+    if(contactSensorCount > 1) return "Picos"
+    return "Pico"
+}
+
 def displayNameOption(){
     displayLabel("Set name for this Pico setup")
     label title: "", required: true, submitOnChange:true
@@ -672,7 +703,7 @@ def displayNameOption(){
 /* as well as a general warning.                                            */
 /* ************************************************************************ */
 def displayPicoOption(){
-        if(buttonDevice){
+    if(buttonDevice){
         buttonDevice.each{
             if(count == 1) multipleDevices = true
             count = 1
@@ -684,7 +715,7 @@ def displayPicoOption(){
         }
         input "buttonDevice", "capability.pushableButton", title: "$pluralInput:", multiple: true, submitOnChange:true
     } else {
-        input "buttonDevice", "capability.pushableButton", title: "Select Pico device(s):", multiple: true, submitOnChange:true
+        input "buttonDevice", "capability.pushableButton", title: "Select Pico device(s) :", defaultValue: 328, multiple: true, submitOnChange:true
         displayInfo("Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.")
     }
 }
@@ -694,9 +725,9 @@ def displayPicoOption(){
 /* ************************************************************************ */
 def displayPicoTypeOption(){
     //Get maximum number of buttons
-/* ************************************************************************ */
-/* TO-DO: Add error trap for if no numberOfButtons is set for device.       */
-/* ************************************************************************ */
+    /* ************************************************************************ */
+    /* TO-DO: Add error trap for if no numberOfButtons is set for device.       */
+    /* ************************************************************************ */
     buttonDevice.each{
         if(it.currentValue("numberOfButtons")) {
             if(!numberOfButtons){
@@ -865,6 +896,255 @@ def compareDeviceLists(values,compare){
     return returnText
 }
 
+def displayScheduleSection(){
+    if(!settings["buttonDevice"]) return
+
+    helpTip = "Scheduling only applies with " + getPicoPlural() + ". To schedule the devices or default settings for them, use the Time app."  
+    
+    // If only days entered
+    sectionTitle="<b>"
+        List dayList=[]
+        settings["days"].each{
+            dayList.add(it)
+        }
+        dayText = dayList.join(", ")
+    if(!settings["inputStartType"] && !settings["inputStopType"] && settings["days"]){
+        sectionTitle += "Only on: " + dayText + "</b>" + moreOptions
+        hidden = true
+        // If only start time (and days) entered
+    }  else if(checkTimeComplete("start") && settings["inputStartType"] && (!checkTimeComplete("stop") || !settings["inputStopType"])){
+        sectionTitle = "Beginning at $varStartTime"
+        if(settings["days"]) sectionTitle += " on: " + dayText
+        if(settings["months"]) sectionTitle += "; in " + monthText
+        sectionTitle += "</b>"
+        hidden = false
+        // If only stop time (and day) entered
+    } else if(checkTimeComplete("stop") && settings["inputStopType"] && (!checkTimeComplete("start") || !settings["inputStartType"])){
+        sectionTitle = "Ending at $varStopTime"
+        if(settings["days"]) sectionTitle += " on: " + dayText
+        if(settings["months"]) sectionTitle += "; in " + monthText
+        sectionTitle += "</b>"
+        hidden = false
+        // If all options entered
+    } else if(checkTimeComplete("start") && checkTimeComplete("stop") && settings["inputStartType"] && settings["inputStopType"]){
+        varStartTime = getTimeVariables("start")
+        varStopTime = getTimeVariables("stop")
+        sectionTitle = "<b>Only if between $varStartTime and $varStopTime"
+        if(settings["days"] && settings["months"]) {
+            sectionTitle += "</b>"
+        } else {
+            sectionTitle += " on: " + dayText + "</b>"
+            if(settings["months"]) sectionTitle += "; in " + monthText
+            sectionTitle += "</b>"
+        }
+        hidden = true
+        // If no options are entered
+    } else {
+        sectionTitle = "Click to set schedule (optional)"
+        hidden = true
+    }
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(!settings["inputStartType"]) displayInfo(helpTip)
+        displayStartTypeOption()
+
+        // Display exact time option
+        if(settings["inputStartType"] == "time"){
+            displayTimeOption("start")
+        } else if(settings["inputStartType"]){
+            // Display sunrise/sunset type option (at/before/after)
+            displaySunriseTypeOption("start")
+            // Display sunrise/sunset offset
+            if(inputStartSunriseType && inputStartSunriseType != "at") displaySunriseOffsetOption("start")
+        }
+
+        if(checkTimeComplete("start") && settings["inputStartType"]){
+            displayStopTypeOption()
+
+            // Display exact time option
+            if(settings["inputStopType"] == "time"){
+                displayTimeOption("stop")
+            } else if(settings["inputStopType"]){
+                // Display sunrise/sunset type option (at/before/after)
+                displaySunriseTypeOption("stop")
+                // Display sunrise/sunset offset
+                if(inputStopSunriseType && inputStopSunriseType != "at") displaySunriseOffsetOption("stop")
+            }
+        }
+
+        displayDaysOption(dayText)
+        displayMonthsOption(monthText)
+
+
+        displayInfo(message)
+    }
+}
+
+def displayDaysOption(dayText){
+    input "days", "enum", title: "On these days (defaults to all days)", multiple: true, width: 12, options: ["Monday": "Monday", "Tuesday": "Tuesday", "Wednesday": "Wednesday", "Thursday": "Thursday", "Friday": "Friday", "Saturday": "Saturday", "Sunday": "Sunday"], submitOnChange:true
+
+    return
+}
+
+def displayMonthsOption(monthText){
+    input "months", "enum", title: "In these months (defaults to all months)", multiple: true, width: 12, options: ["1": "January", "2": "February", "3": "March", "4": "April", "5": "May", "6": "June", "7": "July", "8": "August", "9": "September", "10": "October", "11": "November", "12": "December"], submitOnChange:true
+
+    return
+}
+
+def displayStartTypeOption(){
+    if(!checkTimeComplete("start")  || !settings["inputStartType"]){
+        displayLabel("Schedule starting time")
+    } else {
+        displayLabel("Schedule start")
+    }
+    if(!settings["inputStartType"]){
+        width = 12
+        input "inputStartType", "enum", title: "Start time (click to choose option):", multiple: false, width: width, options: ["time":"Start at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
+        displayInfo("Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required field for a schedule.")
+    } else {
+        if(settings["inputStartType"] == "time" || !settings["inputStartSunriseType"] || settings["inputStartSunriseType"] == "at"){
+            width = 6
+        } else if(settings["inputStartSunriseType"]){
+            width = 4
+        }
+        input "inputStartType", "enum", title: "Start time option:", multiple: false, width: width, options: ["time":"Start at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    }
+}
+
+def displayStopTypeOption(){
+    if(!checkTimeComplete("stop")){
+        displayLabel("Schedule stopping time")
+    } else {
+        displayLabel("Schedule stop")
+    }
+    if(!settings["inputStopType"]){
+        width = 12
+        input "inputStopType", "enum", title: "Stop time (click to choose option):", multiple: false, width: width, options: ["time":"Stop at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    } else {
+        if(!settings["inputStopType"] || settings["inputStopType"] == "none"){
+            width = 12
+        } else if(settings["inputStopType"] == "time" || !settings["inputStopSunriseType"] || settings["inputStopSunriseType"] == "at"){
+            width = 6
+        } else if(inputStopSunriseType){
+            width = 4
+        }
+        input "inputStopType", "enum", title: "Stop time option:", multiple: false, width: width, options: ["time":"Stop at specific time", "sunrise":"Sunrise (at, before or after)","sunset":"Sunset (at, before or after)" ], submitOnChange:true
+    }
+}
+
+def displayTimeOption(lcType){
+    ucType = lcType.capitalize()
+    input "input${ucType}Time", "time", title: "$ucType time:", width: width, submitOnChange:true
+    if(!settings["input${ucType}Time"]) displayInfo("Enter the time to $lcType the schedule in \"hh:mm AM/PM\" format. Required field.")
+}
+
+def displaySunriseTypeOption(lcType){
+    if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == "at") {
+        width = 6 
+    } else {
+        width = 4
+    }
+    // sunriseTime = getSunriseAndSunset()[settings["input${ucType}Type"]].format("hh:mm a")
+    input "input${ucType}SunriseType", "enum", title: "At, before or after " + settings["input${ucType}Type"] + ":", multiple: false, width: width, options: ["at":"At " + settings["input${ucType}Type"], "before":"Before " + settings["input${ucType}Type"], "after":"After " + settings["input${ucType}Type"]], submitOnChange:true
+    if(!settings["input${ucType}SunriseType"]) displayInfo("Select whether to start exactly at " + settings["input${ucType}Type"] + " (currently, $sunriseTime). To allow entering minutes prior to or after " + settings["input${ucType}Type"] + ", select \"Before " + settings["input${ucType}Type"] + "\" or \"After " + settings["input${ucType}Type"] + "\". Required field.")
+}
+
+def checkTimeComplete(lcType){
+    ucType = lcType.capitalize()
+
+    // If everything entered
+    if((settings["input${ucType}Type"] == "time" && settings["input${ucType}Time"]) || 
+       ((settings["input${ucType}Type"] == "sunrise" || settings["input${ucType}Type"] == "sunset") && settings["input${ucType}SunriseType"] == "at") || 
+       ((settings["input${ucType}Type"] == "sunrise" || settings["input${ucType}Type"] == "sunset") && (settings["input${ucType}SunriseType"] == "before" || settings["input${ucType}SunriseType"] == "after") && (settings["input${ucType}Before"]))){
+        return true
+    } else if(!settings["input${ucType}Type"] && !settings["input${ucType}SunriseType"] && !settings["input${ucType}Before"]){
+        return true
+    } else {
+        return false
+    }
+}
+
+def getTimeVariables(lcType){
+    ucType = lcType.capitalize()
+    // If time, then set string to "[time]"
+    if(settings["input${ucType}Type"] == "time"){
+        return Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings["input${ucType}Time"]).format("h:mm a", location.timeZone)
+        // If sunrise or sunset
+    } else if((settings["input${ucType}Type"] == "sunrise" || settings["input${ucType}Type"] == "sunset")  && settings["input${ucType}SunriseType"]){
+        if(settings["input${ucType}SunriseType"] == "at"){
+            // Set string to "sun[rise/set] ([sunrise/set time])"
+            return settings["input${ucType}Type"] + " (" + getSunriseAndSunset()[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            // If before sunrise
+        } else if(settings["input${ucType}Type"] == "sunrise" && settings["input${ucType}SunriseType"] == "before" && settings["input${ucType}Before"]){
+            // Set string to "[number] minutes before sunrise ([time])
+            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: (settings["input${ucType}Before"] * -1), sunsetOffset: 0)[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            // If after sunrise
+        } else if(settings["input${ucType}Type"] == "sunrise" && settings["input${ucType}SunriseType"] == "after" && settings["input${ucType}Before"]){
+            // Set string to "[number] minutes after sunrise ([time])
+            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: settings["input${ucType}Before"], sunsetOffset: 0)[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            // If before sunset
+        } else if(settings["input${ucType}Type"] == "sunset" && settings["input${ucType}SunriseType"] == "before" && settings["input${ucType}Before"]){
+            // Set string to "[number] minutes before sunset ([time])
+            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: (settings["input${ucType}Before"] * -1))[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            // If after sunrise
+        } else if(settings["input${ucType}Type"] == "sunset" && settings["input${ucType}SunriseType"] == "after" && settings["input${ucType}Before"]){
+            // Set string to "[number] minutes after sunset ([time])
+            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: settings["input${ucType}Before"])[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+        } else {
+            return
+        }
+    } else {
+        return
+    }
+}
+
+def displaySunriseOffsetOption(lcType){
+    ucType = lcType.capitalize()
+    if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == "at") return
+
+    if(settings["input${ucType}Before"] && settings["input${ucType}Before"] > 1441){
+        // "Minues [before/after] [sunrise/set] is equal to "
+        message = "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " is equal to "
+        if(settings["input${ucType}Before"]  > 2881){
+            // "X days"
+            message += Math.floor(settings["input${ucType}Before"]  / 60 / 24) + " days."
+        } else {
+            message += "a day."
+        }
+        warningMessage(message)
+    }
+    input "input${ucType}Before", "number", title: "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + ":", width: 4, submitOnChange:true
+    if(!settings["input${ucType}Before"]) displayInfo("Enter the number of minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " to start the schedule. Required field.")
+}
+
+def displayChangeModeOption(){
+    if(!settings["contactDevice"] || !settings["deviceType"] || !settings["device"] || !settings["openAction"] || !settings["closeAction"]) return
+
+    hidden = true
+    if((settings["openMode"] || settings["closeMode"]) && (!settings["openMode"] || !settings["closeMode"])) hidden = false
+
+    if(!settings["openMode"] && !settings["closeMode"]){
+        sectionTitle = "Click to set Mode change (optional)"
+    } else {
+        sectionTitle = "<b>"
+        if(settings["openMode"]) {
+            sectionTitle = "On open, set Mode " + settings["openMode"]
+            if(settings["closeMode"]) sectionTitle += "<br>"
+        }
+
+        if(settings["closeMode"]) {
+            sectionTitle += "On close, set Mode " + settings["closeMode"]
+        }
+        sectionTitle += "</b>"
+    }
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        input "openMode", "mode", title: "Set Hubitat's \"Mode\" (on open)?", width: 6, submitOnChange:true
+        input "closeMode", "mode", title: "Set Hubitat's \"Mode\" (on close)?", width: 6, submitOnChange:true
+    }
+}
+
 /* ************************************************************************ */
 /*                                                                          */
 /*                      End display functions.                              */
@@ -872,13 +1152,13 @@ def compareDeviceLists(values,compare){
 /* ************************************************************************ */
 
 def installed() {
-    if(checkLog(a="trace")) putLog(842, "Installed",a)
+    putLog(874,"trace", "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    if(checkLog(a="trace")) putLog(848,"Updated",a)
+    putLog(880,"trace","Updated")
     unsubscribe()
     initialize()
 }
@@ -888,12 +1168,22 @@ def initialize() {
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
     subscribe(buttonDevice, "pushed", buttonPushed)
-    subscribe(buttonDevice, "held", buttonPushed)
+    subscribe(buttonDevice, "hold", buttonPushed)
     subscribe(buttonDevice, "released", buttonReleased)
-    if(checkLog(a="trace")) putLog(860,"Initialized",a)
+    
+    setTime()
+    
+    putLog(892,"trace","Initialized")
 }
 
 def buttonPushed(evt){
+    // If not correct day, return nulls
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
+
+    // if not between start and stop time, return nulls
+    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    
     buttonNumber = evt.value
     numberOfButtons = evt.device.currentValue("numberOfButtons")
 
@@ -903,8 +1193,6 @@ def buttonPushed(evt){
     } else {
         atomicState.action = "hold"
     }
-    def colorSwitch
-    def whiteSwitch
 
     if(settings["${atomicState.action}Multiplier"]) settings["${atomicState.action}Multiplier"] = parent.validateMultiplier(settings["${atomicState.action}Multiplier"],app.label)
 
@@ -912,7 +1200,7 @@ def buttonPushed(evt){
     if(buttonNumber == "2" && numberOfButtons == 2) buttonNumber = 5
     if(buttonNumber == "4" && numberOfButtons == 4) buttonNumber = 5
     if(buttonNumber == "3" && numberOfButtons == 4) buttonNumber = 4
-    
+
     // There the action for either push or brighten, if we have only one variable for the Pico actions;
     // which isn't the case with "multiDevice"
     if(!multiDevice && !advancedSetup){
@@ -926,104 +1214,160 @@ def buttonPushed(evt){
             case "5": switchAction = "off"
         }
     } else if(!multiDevice && (atomicState.action == "push" || (atomicState.action == "hold" && replicateHold))){
-        putLog(6,settings["buttonPush${buttonNumber}"])
         switchAction = settings["buttonPush${buttonNumber}"]
     } else if(!multiDevice && atomicState.action == "hold" && !replicateHold){
-        putLog(2)
         switchAction = settings["buttonHold${buttonNumber}"]
     } else if(!multiDevice && (atomicState.action == "push" || (atomicState.action == "hold" && replicateHold))){
-        putLog(3)
         switchAction = settings["button_" + buttonNumber + "push"]
     }
 
     if(switchAction){
         switch(switchAction){
-            case "on": setStateMulti(switchAction,controlDevice)
-            message = "turning $switchAction"
+            case "on":
+            parent.updateStateMulti(settings["controlDevice"],"on",app.label)
+
+            parent.setStateMulti(settings["controlDevice"],app.label)
+            message = "turn $switchAction"
             break
-            case "brighten": 
+
+            case "brighten":
             if(atomicState.action == "push"){
-                parent.dim(switchAction,controlDevice,app.label)
+                parent.updateStateMulti(settings["controlDevice"],"on",app.label)
+                settings["controlDevice"].each{singleDevice->
+                    setLevel = parent.nextLevel(singleDevice,"brighten",app.label)
+                    if(setLevel){
+                        defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                        parent.updateLevelsSingle(singleDevice,defaults,app.label)
+                    }
+                }
+                parent.setStateMulti(settings["controlDevice"],app.label)
             } else {
-                holdBrighten(controlDevice,app.label)
+                holdBrighten(settings["controlDevice"],app.label)
             }
-            message = "brightening"
+
+            message = "brighten"
             break
-            case "toggle": setStateMulti(switchAction,controlDevice)
-            message = "toggling"
+
+            case "toggle": 
+            parent.updateStateMulti(controlDevice,switchAction,app.label)
+            parent.setStateMulti(settings["controlDevice"],app.label)
+            message = "toggle"
             break
-            case "dim": 
+
+            case "dim":
             if(atomicState.action == "push"){
-                parent.dim(switchAction,controlDevice,app.label)
+                parent.updateStateMulti(settings["controlDevice"],"on",app.label)
+                settings["controlDevice"].each{singleDevice->
+                    setLevel = parent.nextLevel(singleDevice,"dim",app.label)
+                    if(setLevel){
+                        defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                        parent.updateLevelsSingle(singleDevice,defaults,app.label)
+                    }
+                }
+                parent.setStateMulti(settings["controlDevice"],app.label)
             } else {
-                holdDim(controlDevice,app.label)
+                holdDim(settings["controlDevice"],app.label)
             }
-            message = "dimming"
+            message = "dim"
             break
-            case "off": setStateMulti(switchAction,controlDevice)
-            message = "turning $switchAction"
+
+            case "off": 
+            parent.updateStateMulti(settings["controlDevice"],switchAction,app.label)
+            parent.setStateMulti(settings["controlDevice"],app.label)
+            message = "turn $switchAction"
             break
-            case "resume": setStateMulti(switchAction,controlDevice)
-            message = "resuming (or turning off)"
+
+            case "resume": 
+            parent.updateLevelsMulti(settings["controlDevice"],["level":["time":"resume"],"temp":["time":"resume"],"hue":["time":"resume"],"sat":["time":"resume"]],app.label)
+            message = "resume"
         }
-        if(checkLog(a="trace")) putLog(929,"Button $buttonNumber of $buttonDevice pushed for $controlDevice; default setup; $atomicState.action",a)
+        putLog(996,"trace","Button $buttonNumber of $buttonDevice $atomicState.action for $controlDevice to $message; default setup; ")
         // if(multiDevice && (!advancedSetup || advancedSetup))
     } else {
         if(atomicState.action == "push"){
             actionText = "pushed"
         } else {
-            actionText = "held"
+            actionText = "hold"
         }
 
         if(settings["button_${buttonNumber}_${atomicState.action}_toggle"]) {
-            if(checkLog(a="trace")) putLog(939,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_toggle"] + "; remapped and advanced setup; toggling",a)
-            if (settings.color == "Separate"){
-                toggleSeparate(settings["button_${buttonNumber}_${atomicState.action}_toggle"])
-            } else {
-                setStateMulti("toggle",settings["button_${buttonNumber}_${atomicState.action}_toggle"])
-            }
+            putLog(1006,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_toggle"] + "; remapped and advanced setup; toggling")
+            parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_toggle"],"toggle",app.label)
+            parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_toggle"],app.label)
+
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_on"]) {
-            if(checkLog(a="trace")) putLog(947,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_on"] +"; remapped and advanced setup; turning on",a)
-            setStateMulti("on",settings["button_${buttonNumber}_${atomicState.action}_on"])
+            putLog(1012,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_on"] +"; remapped and advanced setup; turning on")
+            parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_on"],"on",app.label)
+            parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_on"],app.label)
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_off"]){
-            if(checkLog(a="trace")) putLog(951,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_off"] + "; remapped and advanced setup; turning off",a)
-            setStateMulti("off",settings["button_${buttonNumber}_${atomicState.action}_off"])
+            putLog(1017,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_off"] + "; remapped and advanced setup; turning off")
+            parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_off"],"off",app.label)
+            parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_off"],app.label)
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_dim"]) {
-            if(checkLog(a="trace")) putLog(955,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_dim"] + "; remapped and advanced setup; dimming",a)
+            putLog(1022,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_dim"] + "; remapped and advanced setup; dimming")
             if(atomicState.action == "push"){
-                parent.dim("dim",settings["button_${buttonNumber}_push_dim"],app.label)
+                parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_dim"],"on",app.label)
+                settings["button_${buttonNumber}_${atomicState.action}_dim"].each{singleDevice->
+                    setLevel = parent.nextLevel(singleDevice,"dim",app.label)
+                    if(setLevel){
+                        defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                        parent.updateLevelsSingle(singleDevice,defaults,app.label)
+                    }
+                }
+                parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_dim"],app.label)
             } else {
-                holdDim(settings["button_${buttonNumber}_hold_dim"])
+                holdDim(settings["button_${buttonNumber}_${atomicState.action}_dim"])
             }
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_brighten"]) {
-            if(checkLog(a="trace")) putLog(963,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_brighten"] + "; remapped and advanced setup; brightening",a)
+            putLog(1038,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_brighten"] + "; remapped and advanced setup; brightening")
             if(atomicState.action == "push"){
-                parent.dim("brighten",settings["button_${buttonNumber}_${atomicState.action}_brighten"],app.label)
+                parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_brighten"],"on",app.label)
+                settings["button_${buttonNumber}_${atomicState.action}_brighten"].each{singleDevice->
+                    setLevel = parent.nextLevel(singleDevice,"brighten",app.label)
+                    if(setLevel){
+                        defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                        parent.updateLevelsSingle(singleDevice,defaults,app.label)
+                    }
+                }
+                parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_brighten"],app.label)
             } else {
-                holdBrighten(settings["button_${buttonNumber}_hold_brighten"])
+                holdBrighten(settings["button_${buttonNumber}_${atomicState.action}_brighten"])
             }
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_resume"]) {
-            if(checkLog(a="trace")) putLog(971,"Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_resume"] + "; remapped and advanced setup; brightening",a)
-            setStateMulti("resume",settings["button_${buttonNumber}_${atomicState.action}_resume"])
+            putLog(1054,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_resume"] + "; remapped and advanced setup; brightening")
+            settings["button_${buttonNumber}_${atomicState.action}_resume"].each{singleDevice->
+                // fix this
+                if(!rescheduleIncrementalSingle(singleDevice,app.label)) parent.updateStateSingle(singleDevice,action,app.label)
+            }
         }
+
     }
 }
+
+
 
 // place holder until I can redo my pico setups to not throw an error
 def buttonHeld(evt){
 }
 
 def buttonReleased(evt){
+    // If not correct day, return nulls
+    if(!parent.nowInDayList(settings["days"],app.label)) return
+    if(!parent.nowInMonthList(settings["months"],app.label)) return
+
+    // if not between start and stop time, return nulls
+    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    
     buttonNumber = evt.value
     numberOfButtons = evt.device.currentValue("numberOfButtons")
 
     if (buttonNumber == "2" || (buttonNumber == "4" && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == "1" && numberOfButtons == 2)){
-        if(checkLog(a="trace")) putLog(983,"Button $buttonNumber of $buttonDevice released, unscheduling all",a)
+        putLog(1073,"trace","Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1037,9 +1381,9 @@ def buttonReleased(evt){
 def getDimSpeed(){
     if(atomicState.action == "push" &&  pushMultiplier){
         return pushMultiplier
-    } else if(atomicState.action == "held" &&  holdMultiplier){
+    } else if(atomicState.action == "hold" &&  holdMultiplier){
         return holdMultiplier
-    } else if(atomicState.action == "held" &&  !pushMultiplier){
+    } else if(atomicState.action == "hold" &&  !pushMultiplier){
         return pushMultiplier
     } else {
         return 1.2
@@ -1050,7 +1394,7 @@ def getDimSpeed(){
 // action = "dim" or "brighten"
 def getSteps(level, action){
     if (action != "dim" && action != "brighten"){
-        if(checkLog(a="error")) putLog(1010,"Invalid value for action \"$action\" sent to getSteps function",a)
+        putLog(1100,"error","Invalid value for action \"$action\" sent to getSteps function")
         return false
     }
 
@@ -1063,17 +1407,21 @@ def getSteps(level, action){
 
     //Just step through nextLevel until hit 1 or 100, and tally total times
     if (action == "dim"){
-        while (level  > 1) {
-            steps = steps + 1
-            level = parent.nextLevel(level, action,app.getId())
+        if(parent.isNumeric(level)){
+            while (level  > 1) {
+                steps = steps + 1
+                level = parent.nextLevel(level, action,app.getId())
+            }
         }
     } else if(action == "brighten"){
-        while (level  < 100) {
-            steps = steps + 1
-            level = parent.nextLevel(level, action,app.getId())
+        if(parent.isNumeric(level)){
+            while (level  < 100) {
+                steps = steps + 1
+                level = parent.nextLevel(level, action,app.getId())
+            }
         }
     }
-    if(checkLog(a="debug")) putLog(1033,"Function getSteps returning $steps",a)
+    putLog(1127,"debug","Function getSteps returning $steps")
     return steps
 }
 
@@ -1131,7 +1479,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        if(checkLog(a="trace")) putLog(1091,"Function runSetProgressiveLevel returning (no matching device)",a)
+        putLog(1185,"trace","Function runSetProgressiveLevel returning (no matching device)")
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1139,86 +1487,65 @@ def runSetProgressiveLevel(data){
     //parent.reschedule(device)
 }
 
-def toggleSeparate(device){
-    device.each{
-        if(it.currentValue("hue") && parent.isOn(it)) {
-            colorSwitch = "on"
-        } else if(!it.currentValue("hue") && parent.isOn(it)) {
-            whiteSwitch = "on"
-        }
-    }
-    // color on, white on, turn off color
-    if(colorSwitch == "on" && whiteSwitch == "on"){
-        setStateMulti("off",device)
-        // color on, white off; turn white on
-    } else if(colorSwitch == "on" && whiteSwitch != "on"){
-        setStateMulti("on",device)
-        //color off, white on; turn off white and turn on color
-    } else if(colorSwitch != "on" && whiteSwitch == "on"){
-        setStateMulti("off",device,"white")
-        setStateMulti("on",device)
-        // both off; turn color on
-    } else if(colorSwitch != "on" && whiteSwitch != "on"){
-        setStateMulti("on",device)
-    }
-}
-
 def holdDim(device){
+    // This needs to use the table data
     def level = getLevel(device)
 
-    device.each{
-        if(parent.isFan(it,app.label) == true){
-            parent.dim(it,app.label)
+    device.each{singleDevice->
+        if(parent.isFan(singleDevice,app.label) == true){
+            parent.dim("dim",singleDevice,app.id,app.label)
             // If dimming a light that's off, turn it on
             // setStateSingle does that by setting to 1% level, which is what we want
-        } else if(!parent.isOn(it,app.label)){
+        } else if(!parent.isOn(singleDevice,app.label)){
             //parent.setLevelSingle(1,null,null,null,device,app.label)
-            parent.setStateSingle("on",it,childLabel)
-            // Since we're turning it on, reschedule it
-            parent.reschedule(it,app.label)
+            parent.updateStateSingle(singleDevice,"on",app.label)
         } else {
             if(level < 2){
-                if(checkLog(a="info")) putLog(1138,"Can't dim $it; already 1%.",a)
+                putLog(1207,"info","Can't dim $singleDevice; already 1%.")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
-                    newLevel = parent.nextLevel(level, "dim",app.getId())
-                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
-                    level = newLevel
+                    setLevel = parent.nextLevel(level, "dim",app.getId())
+                    defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                    parent.updateLevelsSingle(device,app.label)
+                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: setLevel]])
+                    level = setLevel
                 }
             }
         }
     }
+    parent.setStateMulti(device,app.label)
 }
 
 def holdBrighten(device){
     def level = getLevel(device)
 
-    device.each{
-        if(parent.isFan(it,app.label)){
-            parent.dim("brighten",it,app.label)
+    device.each{singleDevice->
+        if(parent.isFan(singleDevice,app.label)){
+            parent.dim("brighten",singleDevice,"pico",app.label)
             // If brightening a light that's off, turn it on at 1%
         } else if(!parent.isOn(it,app.label)){
-            //parent.setLevelSingle(1,null,null,null,device,app.label)
-            parent.setStateSingle("on",it,childLabel)
+            parent.updateStateSingle(singleDevice,"on",app.label)\
             reschedule(it)
         } else {
             if(level > 99){
-                if(checkLog(a="info")) putLog(1166,"Can't brighten $it; already 100%.",a)
+                putLog(1237,"info","Can't brighten $it; already 100%.")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
 
                 for(def i = 1; i <= steps; i++) {
-                    newLevel = parent.nextLevel(level, "brighten",app.getId())
-                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: newLevel]])
-                    level = newLevel
+                    setLevel = parent.nextLevel(level, "brighten",app.getId())
+                    defaults = ["level": ["startLevel": setLevel, "appId":"pico"]]
+                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: setLevel]])
+                    level = setLevel
                 }
             }
         }
     }
+    parent.setStateMulti(device,app.label)
 }
 
 // calculate average level of a group
@@ -1236,223 +1563,29 @@ def getLevel(device){
     return level
 }
 
-// If deviceChange exists, adds deviceId to it; otherwise, creates deviceChange with deviceId
-// Delineate values with colons on each side - must match getStateDeviceChange
-// Used to track if app turned on device when schedule captures a device state changing to on
-// Must be included in all apps using MultiOn
-def addDeviceStateChange(singleDeviceId){
-    if(atomicState.deviceChange) {
-        if(!atomicState.deviceChange.contains(":$singleDeviceId:")) atomicState.deviceChange += ":$singleDeviceId:"
-    } else {
-        atomicState.deviceChange = ":$singleDeviceId:"
-    }
-    return
-}
-
-// Gets levels as set for the app
-// Function must be included in all apps that use MultiOn
-def getOverrideLevels(defaults,appAction = null){
-    if(!defaults && (settings[appAction + "Level"] || settings[appAction + "Temp"] || settings[appAction + "Hue"] || settings[appAction + "Sat"])) defaults = [:]
-    if(settings[appAction + "Level"]) defaults.put("level",settings[appAction + "Level"])
-    if(settings[appAction + "Temp"]) defaults.put("temp",settings[appAction + "Temp"])
-    if(settings[appAction + "Hue"]) defaults.put("hue",settings[appAction + "Hue"])
-    if(settings[appAction + "Sat"]) defaults.put("sat",settings[appAction + "Sat"])
-    return defaults       
-}
-
-// Returns the value of deviceChange
-// Used by schedule when a device state changes to on, to check if an app did it
-// It should only persist as long as it takes for the scheduler to capture and
-// process both state change request and state change subscription
-// Function must be in every app
-def getStateDeviceChange(singleDeviceId){
-    if(atomicState.deviceChange){
-        value = atomicState.deviceChange.indexOf(":$singleDeviceId:")
-        // Reset it when it's used, to try and avoid race conditions with multiple fast button clicks
-        resetStateDeviceChange()
-        return value
-    } else {
-        return false
-    }
-}
-
 // Scheduled funtion to reset the value of deviceChange
 // Must be in every app using MultiOn
 def resetStateDeviceChange(){
     atomicState.deviceChange = null
     return
 }
-
-// This is a bit of a mess, but.... 
-def setStateMulti(deviceAction,device,appAction = null){
-    if(!deviceAction || (deviceAction != "on" && deviceAction != "off" && deviceAction != "toggle" && deviceAction != "resume" && deviceAction != "none")) {
-        if(checkLog(a="error")) putLog(1246,"Invalid deviceAction \"$deviceAction\" sent to setStateMulti",a)
-        return
-    }
-
-    // Time in which to allow Hubitat to process sensor change (eg Pico, contact, etc.)
-    // as well as the scheduler to process any state change generated by the sensor
-    // What's a realistic number to use if someone has a lot of devices attached to a lot 
-    // of Picos with a lot of schedules?
-    stateDeviceChangeResetMillis = 500
-
-    if(deviceAction == "off"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        // Turn off devices
-        parent.setStateMulti("off",device,app.label)
-        return true
-    }
-
-    if(deviceAction == "on"){
-        // Turn on devices
-        parent.setStateMulti("on",device,app.label)
-        // Get and set defaults levels for each device
-        device.each{
-            // Add device ids to deviceChange, so schedule knows it was turned on by an app
-            // Needs to be done before turning the device on.
-            addDeviceStateChange(it.id)
-            // Set scheduled levels, default levels, and/or [this child-app's] levels
-            getAndSetSingleLevels(it,appAction)
-        }
-        if(checkLog(a="debug")) putLog(1275,"Device id's turned on are $atomicState.deviceChange",a)
-        // Schedule deviceChange reset
-        runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "toggle"){
-        // Create toggleOnDevice list, used to track which devices are being toggled on
-        toggleOnDevice = []
-        // Set count variable, used for toggleOnDevice
-        count = 0
-        device.each{
-            // Start count at 1; doesn't matter, so long as it matches newCount below
-            count = count + 1
-            // If toggling to off
-            if(parent.isOn(it)){
-                parent.setStateSingle("off",it,app.label)
-                // Else if toggling on
-            } else {
-                // When turning on, add device ids to deviceChange, so schedule knows it was turned on by an app
-                // Needs to be done before turning the device on.
-                addDeviceStateChange(it.id)
-                // Turn the device on
-                parent.setStateSingle("on",it,app.label)
-                // Add device to toggleOnDevice list so when we loop again to set levels, we know whether we
-                // just turned it on or not (without knowing how long the device may take to respond)
-                toggleOnDevice.add(count)
-            }
-        }
-        if(checkLog(a="debug")) putLog(1304,"Device id's toggled on are $atomicState.deviceChange",a)
-        // Create newCount variable, which is compared to the [old]count variable
-        // Used to identify which lights were turned on in the last loop
-        newCount = 0
-        device.each{
-            // Start newCount at 1 like count above
-            newCount = newCount + 1
-            // If turning on, set scheduled levels, default levels, and/or [this child-app's] levels
-            // If newCount is contained in the list of [old]count, then we toggled on
-            if(toggleOnDevice.contains(newCount)){
-                getAndSetSingleLevels(it,appAction)
-            }
-        }
-        // Schedule deviceChange reset
-        runInMillis(stateDeviceChangeResetMillis,resetStateDeviceChange)
-        return true
-    }
-
-    if(deviceAction == "resume"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        device.each{
-            // If defaults, then there's an active schedule
-            // So use it for if overriding/reenabling
-            defaults = parent.getScheduleDefaultSingle(it,app.label)
-            logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
-
-            // If there are defaults, then there's an active schedule so reschedule it (the results are corrupted below).
-            // We could do this for the matching schedules within its own getDefaultLevel(), but that would
-            // probably result in incremental schedules rescheduling themselves over and over again. And if we
-            // excluded schedules from rescheduling, then daily schedules wouldn't do this.
-            if(defaults) parent.rescheduleIncrementalSingle(it,app.label)
-
-            defaults = getOverrideLevels(defaults,appAction)
-            logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
-
-            // Skipping getting overall defaults, since we're resuming a schedule or exiting;
-            // rather keep things the same level rather than an arbitrary default, and
-            // if we got default, we'd not turn it off
-
-            if(defaults){
-                if(checkLog(a="debug")) putLog(1345,logMessage,a)
-                parent.setLevelSingle(defaults,it,app.label)
-                // Set default level
-            } else {
-                if(checkLog(a="trace")) putLog(1349,"No schedule to resume for $it; turning off",a)
-                parent.setStateSingle("off",it,app.label)
-            }
-        }
-        return true
-    }
-
-    if(deviceAction == "none"){
-        // Reset device change, since we know the last event from this device didn't turn anything on
-        resetStateDeviceChange()
-        // If doing nothing, reschedule incremental changes (to reset any overriding of schedules)
-        // I think this is the only place we use ...Multi, prolly not enough to justify a separate function
-        parent.rescheduleIncrementalMulti(device,app.label)
-        return true
-    }
-}
-
-// Handles turning on a single device and setting levels
-// Only called by (child app) multiOn
-// appAction is for "open/close", "push/hold", etc., so the child app knows which
-// levels to apply for which device/action
-def getAndSetSingleLevels(singleDevice,appAction = null){
-    // If defaults, then there's an active schedule
-    // So use it for if overriding/reenabling
-    // In scheduler app, this gets defaults for any *other* schedule
-    defaults = parent.getScheduleDefaultSingle(singleDevice,app.label)
-    logMessage = defaults ? "$singleDevice scheduled for $defaults" : "$singleDevice has no scheduled default levels"
-
-    // If there are defaults, then there's an active schedule so reschedule it (the results are corrupted below).
-    // We could do this for the matching schedules within its own getDefaultLevel(), but that would
-    // probably result in incremental schedules rescheduling themselves over and over again. And if we
-    // excluded schedules from rescheduling, then daily schedules wouldn't do this.
-    if(defaults) parent.rescheduleIncrementalSingle(singleDevice,app.label)
-
-    // This does nothing in Time, or other app that has no levels, getOverrideLevels will immediately exit
-    defaults = getOverrideLevels(defaults,appAction)
-    logMessage += defaults ? ", controller overrides of $defaults": ", no controller overrides"
-
-    // Set default levels, for level and temp, if no scheduled defaults (don't need to do for "resume")
-    defaults = parent.getDefaultSingle(defaults,app.label)
-    logMessage += ", so with generic defaults $defaults"
-
-    if(checkLog(a="debug")) putLog(1391,logMessage,a)
-    parent.setLevelSingle(defaults,singleDevice,app.label)
-    return
-}
-
 def checkLog(type = null){
     if(!state.logLevel) getLogLevel()
     switch(type) {
         case "error":
-        if(state.logLevel > 0) return "error"
+        if(state.logLevel > 0) return true
         break
         case "warn":
-        if(state.logLevel > 1) return "warn"
+        if(state.logLevel > 1) return true
         break
         case "info":
-        if(state.logLevel > 2) return "info"
+        if(state.logLevel > 2) return true
         break
         case "trace":
-        if(state.logLevel > 3) return "trace"
+        if(state.logLevel > 3) return true
         break
         case "debug":
-        if(state.logLevel == 5) return "debug"
+        if(state.logLevel == 5) return true
     }
     return false
 }
@@ -1460,7 +1593,8 @@ def checkLog(type = null){
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def putLog(lineNumber,message = null,type = "trace"){
+def putLog(lineNumber,type = "trace",message = null){
+    if(!checkLog(type)) return
     logMessage = ""
     if(type == "error") logMessage += "<font color=\"red\">"
     if(type == "warn") logMessage += "<font color=\"brown\">"
