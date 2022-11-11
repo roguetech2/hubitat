@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2021 roguetech
+*  Copyright (C) 2022 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.12
+*  Version: 0.6.13
 *
 ***********************************************************************************************************************/
 
@@ -41,7 +41,7 @@ preferences {
     infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
     errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
     warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-    moreOptions = ' <font color="gray">(more options)</font>'
+    moreOptions = " <font color='gray'>(more options)</font>"
 
     install = formComplete()
     page(name: 'setup', install: install, uninstall: true) {
@@ -968,7 +968,6 @@ def initialize() {
     state.logLevel = getLogLevel()
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     // Need to deal with dim and brighten too (and even hue/sat)
-
     unschedule()
 
     if(disable) {
@@ -1183,6 +1182,7 @@ def runDailyStartSchedule(){
     if(!parent.nowInMonthList(settings['months'],app.label)) return
     
     if(settings['start_action'] == 'on' || settings['start_action'] == 'off' || settings['start_action'] == 'toggle') {
+        log.debug 'updating state of ' + settings["device"] + ' to ' + settings['start_action']
         parent.updateStateMulti(settings["device"],settings["start_action"],app.label)
     }
     if(settings['start_level'] || settings['start_temp'] || settings['start_hue'] || settings['start_sat']){
