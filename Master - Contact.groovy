@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.6.11
+*  Version: 0.6.12
 * 
 ***********************************************************************************************************************/
 
@@ -1072,14 +1072,14 @@ personNotHome - capability.presenseSensor - Persons all of who must not be home 
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1074,'trace','Installed')
+    putLog(1075,'trace','Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1081,'trace','Updated')
+    putLog(1082,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1098,44 +1098,30 @@ def initialize() {
     // If date/time for last notification not set, initialize it to 5 minutes ago
     if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - 360000
 
-    if(settings['disable']) {
-        state.disable = true
-        return
-    }
-    state.disable = false
-
-    if(!state.disable) {
-        subscribe(sensor, 'contact.open', contactChange)
-        subscribe(sensor, 'contact.closed', contactChange)            
-    }
+    subscribe(sensor, 'contact.open', contactChange)
+    subscribe(sensor, 'contact.closed', contactChange)            
     
-    setTime()
-
-    putLog(1113,'trace','Initialized')
+    putLog(1104,'trace','Initialized')
 }
 
 def contactChange(evt){
-    if(state.disable) return
-
-    putLog(1115,'debug',"Contact sensor $evt.displayName $evt.value")
-
-    // If mode set and node doesn't match, return nulls
-    if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1123,'trace',"Contact disabled, requires mode $ifMode")
-        return
-    }
-
+    if(getDisabled) return
+    
+    putLog(1110,'debug',"Contact sensor $evt.displayName $evt.value")
+    
     // If not correct day, return nulls
     if(!parent.nowInDayList(settings['days'],app.label)) return
     if(!parent.nowInMonthList(settings['months'],app.label)) return
 
+    setTime()
+
     // if not between start and stop time, return nulls
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
 
     if(!parent.getPeopleHome(settings['personHome'],app.label)) return
     if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
 
-    // Unschedule pevious events
+    // Unschedule previous events
 
     // If opened a second time, it will reset delayed action
     // If closed a second time, it won't override open
@@ -1149,7 +1135,7 @@ def contactChange(evt){
     if(evt.value == 'open'){
         // Schedule delay
         if(settings['open_wait']) {
-            putLog(1151,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
+            putLog(1138,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
             runIn(settings['open_wait'],runScheduleOpen)
             // Otherwise perform immediately
         } else {
@@ -1160,7 +1146,7 @@ def contactChange(evt){
     } else if(evt.value == 'closed'){
         // Schedule delay
         if(settings['close_wait']) {
-            putLog(1162,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
+            putLog(1149,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
             runIn(settings['close_wait'],runScheduleClose)
             // Otherwise perform immediately
         } else {
@@ -1193,9 +1179,9 @@ def contactChange(evt){
             settings['pushNotificationDevice'].each{
                 parent.sendPushNotification(it,"$evt.displayName was $eventName at " + now.format('h:mm a', location.timeZone),app.label)
             }
-            putLog(1195,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
+            putLog(1182,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
         } else {
-            putLog(1197,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
+            putLog(1184,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
         }
     }
 
@@ -1220,16 +1206,6 @@ def contactChange(evt){
 }
 
 def runScheduleOpen(){
-    if(settings['disable'] || state.disable) return
-    
-    if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1225,'trace',"Contact disabled, requires mode $ifMode")
-        return
-    }
-
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
-
     if(settings['deviceType'] == 'switch' || settings['deviceType'] == 'light') {
         defaults = [:]
 
@@ -1255,16 +1231,6 @@ def runScheduleOpen(){
 }
 
 def runScheduleClose(){
-    if(settings['disable'] || state.disable) return
-    
-        if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1260,'trace',"Contact disabled, requires mode $ifMode")
-        return
-    }
-
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
-
     if(deviceType == 'switch' || deviceType == 'light') {
         defaults = [:]
 
@@ -1301,7 +1267,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1303,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1270,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1312,7 +1278,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1314,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1281,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
@@ -1323,6 +1289,19 @@ def setStartStopTime(type){
     if(settings["${type}_timeType"] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["${type}_time"]).getTime()
     if(settings["${type}_timeType"] == 'sunrise') return (settings["${type}_sunType"] == 'before' ? parent.getSunrise(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunrise(settings["${type}_sunOffset"],app.label))
     if(settings["${type}_timeType"] == 'sunset') return (settings["${type}_sunType"] == 'before' ? parent.getSunset(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunset(settings["${type}_sunOffset"],app.label))
+}
+
+def getDisabled(){
+    // If disabled, return true
+    if(state.disable) return true
+
+    // If mode isn't correct, return false
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
+    
+    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
+
+    return false
 }
 
 def checkLog(type = null){
