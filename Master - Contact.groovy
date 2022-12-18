@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2021 roguetech
+*  Copyright (C) 2022 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -1095,19 +1095,26 @@ def initialize() {
 
     unschedule()
 
+    if(disable) {
+        state.disable = true
+        return
+    } else {
+        state.disable = false
+    }
+    
     // If date/time for last notification not set, initialize it to 5 minutes ago
     if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - 360000
 
     subscribe(sensor, 'contact.open', contactChange)
     subscribe(sensor, 'contact.closed', contactChange)            
     
-    putLog(1104,'trace','Initialized')
+    putLog(1111,'trace','Initialized')
 }
 
 def contactChange(evt){
-    if(getDisabled) return
+    if(getDisabled()) return
     
-    putLog(1110,'debug',"Contact sensor $evt.displayName $evt.value")
+    putLog(1117,'debug',"Contact sensor $evt.displayName $evt.value")
     
     // If not correct day, return nulls
     if(!parent.nowInDayList(settings['days'],app.label)) return
@@ -1117,9 +1124,6 @@ def contactChange(evt){
 
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
 
     // Unschedule previous events
 
@@ -1135,7 +1139,7 @@ def contactChange(evt){
     if(evt.value == 'open'){
         // Schedule delay
         if(settings['open_wait']) {
-            putLog(1138,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
+            putLog(1142,'trace','Scheduling runScheduleOpen in ' + settings['open_wait'] + ' seconds')
             runIn(settings['open_wait'],runScheduleOpen)
             // Otherwise perform immediately
         } else {
@@ -1146,7 +1150,7 @@ def contactChange(evt){
     } else if(evt.value == 'closed'){
         // Schedule delay
         if(settings['close_wait']) {
-            putLog(1149,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
+            putLog(1153,'trace','Scheduling runScheduleClose in ' + settings['close_wait'] + ' seconds')
             runIn(settings['close_wait'],runScheduleClose)
             // Otherwise perform immediately
         } else {
@@ -1179,9 +1183,9 @@ def contactChange(evt){
             settings['pushNotificationDevice'].each{
                 parent.sendPushNotification(it,"$evt.displayName was $eventName at " + now.format('h:mm a', location.timeZone),app.label)
             }
-            putLog(1182,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
+            putLog(1186,'info',"Sent push notice for $evt.displayName $eventName at " + now.format('h:mm a', location.timeZone) + ".")
         } else {
-            putLog(1184,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
+            putLog(1188,'info',"Did not send push notice for $evt.displayName $evt.value due to notification sent $seconds ago.")
         }
     }
 
@@ -1267,7 +1271,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1270,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1274,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1278,7 +1282,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1281,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1285,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
