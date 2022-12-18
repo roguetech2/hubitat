@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.06
+*  Version: 0.5.07
 ***********************************************************************************************************************/
 //Select device to control, then switch to "map buttons to other actions" = 500 error
 definition(
@@ -1152,13 +1152,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(874,"trace", "Installed")
+    putLog(1155,"trace", "Installed")
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(880,"trace","Updated")
+    putLog(1161,"trace","Updated")
     unsubscribe()
     initialize()
 }
@@ -1168,12 +1168,12 @@ def initialize() {
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
 
     subscribe(buttonDevice, "pushed", buttonPushed)
-    subscribe(buttonDevice, "hold", buttonPushed)
+    subscribe(buttonDevice, "held", buttonPushed)
     subscribe(buttonDevice, "released", buttonReleased)
     
     setTime()
     
-    putLog(892,"trace","Initialized")
+    putLog(1176,"trace","Initialized")
 }
 
 def buttonPushed(evt){
@@ -1291,23 +1291,23 @@ def buttonPushed(evt){
         }
 
         if(settings["button_${buttonNumber}_${atomicState.action}_toggle"]) {
-            putLog(1006,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_toggle"] + "; remapped and advanced setup; toggling")
+            putLog(1294,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_toggle"] + "; remapped and advanced setup; toggling")
             parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_toggle"],"toggle",app.label)
             parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_toggle"],app.label)
 
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_on"]) {
-            putLog(1012,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_on"] +"; remapped and advanced setup; turning on")
+            putLog(1300,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_on"] +"; remapped and advanced setup; turning on")
             parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_on"],"on",app.label)
             parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_on"],app.label)
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_off"]){
-            putLog(1017,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_off"] + "; remapped and advanced setup; turning off")
+            putLog(1305,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_off"] + "; remapped and advanced setup; turning off")
             parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_off"],"off",app.label)
             parent.setStateMulti(settings["button_${buttonNumber}_${atomicState.action}_off"],app.label)
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_dim"]) {
-            putLog(1022,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_dim"] + "; remapped and advanced setup; dimming")
+            putLog(1310,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_dim"] + "; remapped and advanced setup; dimming")
             if(atomicState.action == "push"){
                 parent.updateStateMulti(settings["button_${buttonNumber}_${atomicState.action}_dim"],"on",app.label)
                 settings["button_${buttonNumber}_${atomicState.action}_dim"].each{singleDevice->
@@ -1339,7 +1339,7 @@ def buttonPushed(evt){
             }
         }
         if(settings["button_${buttonNumber}_${atomicState.action}_resume"]) {
-            putLog(1054,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_resume"] + "; remapped and advanced setup; brightening")
+            putLog(1342,"trace","Button $buttonNumber of $buttonDevice $actionText for " + settings["button_${buttonNumber}_${atomicState.action}_resume"] + "; remapped and advanced setup; brightening")
             settings["button_${buttonNumber}_${atomicState.action}_resume"].each{singleDevice->
                 // fix this
                 if(!rescheduleIncrementalSingle(singleDevice,app.label)) parent.updateStateSingle(singleDevice,action,app.label)
@@ -1367,7 +1367,7 @@ def buttonReleased(evt){
     numberOfButtons = evt.device.currentValue("numberOfButtons")
 
     if (buttonNumber == "2" || (buttonNumber == "4" && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == "1" && numberOfButtons == 2)){
-        putLog(1073,"trace","Button $buttonNumber of $buttonDevice released, unscheduling all")
+        putLog(1370,"trace","Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1394,7 +1394,7 @@ def getDimSpeed(){
 // action = "dim" or "brighten"
 def getSteps(level, action){
     if (action != "dim" && action != "brighten"){
-        putLog(1100,"error","Invalid value for action \"$action\" sent to getSteps function")
+        putLog(1397,"error","Invalid value for action \"$action\" sent to getSteps function")
         return false
     }
 
@@ -1421,7 +1421,7 @@ def getSteps(level, action){
             }
         }
     }
-    putLog(1127,"debug","Function getSteps returning $steps")
+    putLog(1424,"debug","Function getSteps returning $steps")
     return steps
 }
 
@@ -1479,7 +1479,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        putLog(1185,"trace","Function runSetProgressiveLevel returning (no matching device)")
+        putLog(1482,"trace","Function runSetProgressiveLevel returning (no matching device)")
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1501,7 +1501,7 @@ def holdDim(device){
             parent.updateStateSingle(singleDevice,"on",app.label)
         } else {
             if(level < 2){
-                putLog(1207,"info","Can't dim $singleDevice; already 1%.")
+                putLog(1504,"info","Can't dim $singleDevice; already 1%.")
             } else {
                 def steps = getSteps(level, "dim")
                 def newLevel
@@ -1531,7 +1531,7 @@ def holdBrighten(device){
             reschedule(it)
         } else {
             if(level > 99){
-                putLog(1237,"info","Can't brighten $it; already 100%.")
+                putLog(1534,"info","Can't brighten $it; already 100%.")
             } else {
                 def steps = getSteps(level, "brighten")
                 def newLevel
