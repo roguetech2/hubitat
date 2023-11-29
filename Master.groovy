@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.3.09
+*  Version: 0.3.10
 *
 ***********************************************************************************************************************/
 
@@ -51,7 +51,7 @@ def getLogLevel(){
 def mainPage() {
     infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
     errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
-    moreOptions = ' <font color="gray">(more options)</font>'
+    moreOptions = " <font color='grey'>(click for more options)</font>"
     
     return dynamicPage(name: 'mainPage', title: '', install: true, uninstall: true) {
         if(!state.masterInstalled) {
@@ -126,17 +126,17 @@ input "timeStop", "time", title: "and stop time", required: true, width: 6, subm
             contactCount = 0
             humidityCount = 0
         childApps.each {Child->
-            if(Child.label.substring(0,7) == 'Time - ') {
+            if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Time - ') {
                 scheduleCount++
-                    } else if(Child.label.substring(0,11) == 'Presence - ') {
+                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Presence - ') {
                 presenceCount++
-                    } else if(Child.label.substring(0,7) == 'Pico - ') {
+                    } else if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Pico - ') {
                 picoCount++
-                    } else if(Child.label.substring(0,12) == 'MagicCube - ') {
+                    } else if(Child.label.length() > 11 && Child.label.substring(0,12) == 'MagicCube - ') {
                 magicCubeCount++
-                    } else if(Child.label.substring(0,10) == 'Contact - ') {
+                    } else if(Child.label.length() > 9 && Child.label.substring(0,10) == 'Contact - ') {
                 contactCount++
-                    } else if(Child.label.substring(0,11) == 'Humidity - ') {
+                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Humidity - ') {
                 humidityCount++
                     }
         }
@@ -718,16 +718,18 @@ def updateStateMulti(multiDevice,action,childLabel = 'Master'){
 def updateStateSingle(singleDevice,action,childLabel = 'Master'){
     time = new Date().time
     if(atomicState?."deviceState${singleDevice.id}" && atomicState."deviceState${singleDevice.id}".'state'){
-        if(atomicState."deviceState${singleDevice.id}".'state' == action){
-            return
-        } else if(action != 'toggle'){
+// Is this what is messing up toggle?
+        //if(atomicState."deviceState${singleDevice.id}".'state' == action){
+        //    return
+        //} else if(action != 'toggle'){
+        if(action != 'toggle'){
             atomicState."deviceState${singleDevice.id}" = ['state':action,'time':time]
         } else if(action == 'toggle'){
-                if(atomicState."deviceState${singleDevice.id}".'state' == 'on') {
-                    atomicState."deviceState${singleDevice.id}" = ['state':'off','time':time]
-                } else if(atomicState."deviceState${singleDevice.id}".'state' == 'off') {
-                    atomicState."deviceState${singleDevice.id}" = ['state':'on','time':time]
-                }
+            if(atomicState."deviceState${singleDevice.id}".'state' == 'on') {
+                atomicState."deviceState${singleDevice.id}" = ['state':'off','time':time]
+            } else if(atomicState."deviceState${singleDevice.id}".'state' == 'off') {
+                atomicState."deviceState${singleDevice.id}" = ['state':'on','time':time]
+            }
         }      
     } else {
         if(action!= 'toggle'){
@@ -751,11 +753,8 @@ def updateLevelsMulti(multiDevice, defaults,childLabel = 'Master'){
 def updateLevelsSingle(singleDevice, defaults,childLabel = 'Master'){
     time = new Date().time
 
-    if(atomicState."deviceData${singleDevice.id}"){
-        currentDeviceData = atomicState."deviceData${singleDevice.id}"
-    } else {
-        currentDeviceData = [:]
-    }
+    if(atomicState."deviceData${singleDevice.id}") currentDeviceData = atomicState."deviceData${singleDevice.id}"
+    if(!atomicState."deviceData${singleDevice.id}") currentDeviceData = [:]
     
     if((defaults?.'hue' || defaults?.'sat') && currentDeviceData.'temp') currentDeviceData.remove('temp')
         
@@ -909,395 +908,440 @@ def setStateSingleOff(singleDevice,childLabel = 'Master'){
     }
 
     // this turns off during an incremental schedule
-    if(isFan(singleDevice,childLabel)){
-        singleDevice.setSpeed('off')
-    } else {
-        singleDevice.off()
+    if(isFan(singleDevice,childLabel)) singleDevice.setSpeed('off')
+    if(!isFan(singleDevice,childLabel)) singleDevice.off()
+}
+
+def setStateSingleFan(singleDevice,defaults,childLabel = 'Master'){
+    if(!isFan(singleDevice,childLabel)) return
+    
+    handleFanWithStartLevel(singleDevice,defaults,childLabel)
+    handleFanWithoutStartLevel(singleDevice,defaults,childLabel)
+    return true
+}
+
+def handleFanWithStartLevel(singleDevice,defaults,childLabel = 'Master'){
+    if(!defaults?.'level'?.'startLevel') return
+    
+    time = new Date().time
+    defaults.'level'.'currentLevel' = defaults.'level'.'startLevel'
+    defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentSpeed
+    defaults.'level'.'time' = time
+    if(singleDevice.currentSpeed == atomicState."deviceData${singleDevice.id}".'level'.'startLevel'){
+        singleDevice.setSpeed('on')
+        putLog(932,'debug','Turning ' + singleDevice + ' on',childLabel)
     }
-    return
+    if(singleDevice.currentSpeed != defaults.'level'.'startLevel'){
+        singleDevice.setSpeed(atomicState."deviceData${singleDevice.id}".'level'.'startLevel')
+        putLog(936,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
+    }
+    if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
+}
+def handleFanWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
+    if(defaults?.'level'?.'startLevel') return
+    
+    if(singleDevice.currentSpeed == 'high'){
+        singleDevice.setSpeed('on')
+        putLog(945,'debug','Turning ' + singleDevice + ' on',childLabel)
+        return true
+    }
+    singleDevice.setSpeed('high')
+    putLog(949,'debug','Setting ' + singleDevice + ' to high',childLabel)
+}
+
+def setStateSingleDimmable(singleDevice,defaults,childLabel = 'Master'){
+    if(isFan(singleDevice,childLabel)) return
+    if(isColor(singleDevice,childLabel)) return
+    if(!isDimmable(singleDevice,childLabel)) return
+
+    handleDimmableWithStartLevel(singleDevice,defaults,childLabel)
+    handleDimmableWithoutStartLevel(singleDevice,defaults,childLabel)
+    return true
+}
+def handleDimmableWithStartLevel(singleDevice,defaults,childLabel = 'Master'){
+    if(!defaults?.'level'?.'startLevel') return
+
+    time = new Date().time
+    defaults.'level'.'currentLevel' = defaults.'level'.'startLevel'
+    defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentLevel
+    defaults.'level'.'time' = time
+    if(singleDevice.currentLevel == defaults.'level'.'startLevel'){
+        singleDevice.on()
+        putLog(970,'debug','Turning ' + singleDevice + ' on',childLabel)
+    }
+    if(singleDevice.currentLevel != defaults.'level'.'startLevel'){
+        singleDevice.setLevel(defaults.'level'.'startLevel')
+        putLog(974,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
+    }
+    if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
+}
+def handleDimmableWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
+    if(defaults?.'level'?.'startLevel') return
+    if(singleDevice.currentLevel == 100){
+        singleDevice.on()
+        putLog(982,'debug','Turning ' + singleDevice + ' on',childLabel)
+        return
+    }
+    singleDevice.setLevel(100)
+    putLog(986,'debug','Setting ' + singleDevice + ' to 100%',childLabel)
+}
+
+def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
+    if(!isColor(singleDevice,childLabel)) return
+
+    if(!handleColorWithoutStartLevel(singleDevice,defaults,childLabel)){
+        time = new Date().time
+        // Set current time (used for progressive changes)
+        // Set as atomicState in setStateMulti
+        if(!atomicState.currentSeconds){
+            // Set current time (used for progressive changes)
+            currentTime = new Date()
+            //currentTimeSeconds = new Date().time
+            currentSeconds = currentTime.format('HH').toInteger() * 3600 + currentTime.format('mm').toInteger() * 60 + currentTime.format('ss')
+        } else {
+            currentSeconds = atomicState.currentSeconds
+        }
+
+        // Get start level
+        // Should be dimmable, since it must be color, but check anyways
+        if(defaults.'level' && isDimmable(singleDevice,childLabel)){
+            // If start and stop level, and level set by a schedule
+            if(defaults.'level'.'startLevel' && isNumeric(defaults.'level'.'appId')){
+                // Check if the schedule is active (wrong mode or disabled)
+                childApps.each { Child ->
+                    if(convertToInteger(Child.id) == defaults.'level'.'appId') levelScheduleActive = Child.getScheduleActive()
+                }
+                // If schedule is active
+                if(levelScheduleActive){
+                    if(defaults.'level'.'stopLevel'){
+                        // If no seconds elapsed
+                        if(currentSeconds == defaults.'level'.'startSeconds'){
+                            levelStart = defaults.'level'.'startLevel'
+                        } else {
+                            // Calculate dynamic value
+                            levelPercent = (currentSeconds - defaults.'level'.'startSeconds') / defaults.'level'.'totalSeconds'
+                            if(defaults.'level'.'startLevel' < defaults.'level'.'stopLevel'){
+                                levelStart = convertToInteger((defaults.'level'.'startLevel' + Math.round((defaults.'level'.'stopLevel' - defaults.'level'.'startLevel') * levelPercent)))
+                            } else {
+                                levelStart = convertToInteger((defaults.'level'.'startLevel' - Math.round((defaults.'level'.'startLevel' - defaults.'level'.'stopLevel') * levelPercent)))
+                            }
+                        }
+                    } else {
+                        levelStart = defaults.'level'.'startLevel'
+                    }
+                }
+                if(!levelStart) putLog(1033,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
+                // If just start level
+            } else if(defaults.'level'.'startLevel'){
+                levelStart = defaults.'level'.'startLevel'
+            }
+
+            // Set currentLevel
+            if(defaults.'level'?.'time' == 'stop'){
+                defaults.remove('level')
+            } else if(levelStart) {
+                if(levelStart == singleDevice.currentLevel) {
+                    levelStart = null
+                } else {
+                    levelStart = levelStart.toFloat().toInteger()
+                    defaults.'level'.'currentLevel' = levelStart
+                    defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentLevel
+                    defaults.'level'.'time' = time
+                }
+            }
+        }
+
+        // Set hue and/or sat
+
+        // Get start hue
+        if(defaults.'hue'){
+            // If start and stop level, and hue set by a schedule
+            if(defaults.'hue'.'startLevel' && isNumeric(defaults.'hue'.'appId')){
+                // If same progressive schedule as level, we know it's active and elapsed percent
+                if(defaults.'hue'.'appId' == defaults?.'level'?.'appId'){
+                    hueScheduleActive = levelScheduleActive
+                    huePercent = levelPercent
+                } else {
+                    // Check if the schedule is active (wrong mode or disabled)
+                    childApps.each { Child ->
+                        if(Child.id == defaults.'hue'.'appId'.toInteger()) hueScheduleActive = Child.getScheduleActive()
+                    }
+                }
+                // If schedule is active
+                if(hueScheduleActive){
+                    if(defaults.'hue'.'stopLevel'){
+                        // If no seconds elapsed
+                        if(currentSeconds == defaults.'hue'.'startSeconds'){
+                            hueStart = defaults.'hue'.'startLevel'
+                        } else {
+                            // Calculate dynamic value
+                            if(!huePercent) huePercent = (currentSeconds - defaults.'hue'.'startSeconds') / defaults.'hue'.'totalSeconds'
+                            if(defaults.'hue'.'stopLevel' > defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'forward'){
+                                // hueOn=25, hueOff=75, going 25, 26...74, 75
+                                hueStart = defaults.'hue'.'startLevel' + Math.round((defaults.'hue'.'stopLevel' - defaults.'hue'.'startLevel') * huePercent)
+                                // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
+                            } else if(defaults.'hue'.'stopLevel' > defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'reverse'){
+                                hueStart = defaults.'hue'.'startLevel' - Math.round((100 - defaults.'hue'.'stopLevel' + defaults.'hue'.'startLevel') * huePercent)
+                                if(hueStart <1) hueStart += 100
+                                //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
+                            } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'forward'){
+                                hueStart = defaults.'hue'.'startLevel' + Math.round((defaults.'hue'.'stopLevel' + 100 - defaults.'hue'.'startLevel') * huePercent)
+                                if(hueStart > 100) hueStart = hueStart - 100
+                                //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
+                            } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'reverse'){
+                                hueStart = defaults.'hue'.'startLevel' -  Math.round((defaults.'hue'.'startLevel' - defaults.'hue'.'stopLevel') * huePercent)
+                            }
+                        }
+                    } else {
+                        hueStart = defaults.'hue'.'startLevel'
+                    }
+                }
+                if(!hueStart) putLog(1099,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
+                // If just start hue
+            } else if(defaults.'hue'.'startLevel'){
+                hueStart = defaults.'hue'.'startLevel'
+            } else if(!isNumeric(defaults.'hue'.'appId')){
+                putLog(1104,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
+            }
+
+            // Set currentHue
+            if(defaults.'hue'?.'time' == 'stop'){
+                defaults.remove('hue')
+            } else if(hueStart) {
+                if(hueStart == singleDevice.currentHue && singleDevice.currentColorMode == 'RGB') {
+                    hueStart = null
+                } else {
+                    defaults.'hue'.'currentLevel' = hueStart
+                    defaults.'hue'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'hue'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'hue'.'currentLevel' : singleDevice.currentHue
+                    defaults.'hue'.'time' = time
+                }
+            }
+        }
+
+        // Get start sat
+        if(defaults.'sat'){
+            // If start and stop level, and level set by a schedule
+            if(defaults.'sat'.'startLevel' && isNumeric(defaults.'sat'.'appId')){
+                // If same progressive schedule as hue, we know it's active and elapsed percent
+                if(defaults.'sat'.'appId' == defaults?.'hue'?.'appId'){
+                    satScheduleActive = hueScheduleActive
+                    satPercent = huePercent
+                } else {
+                    // Check if the schedule is active (wrong mode or disabled)
+                    childApps.each { Child ->
+                        if(Child.id == defaults.'sat'.'appId'.toInteger()) satScheduleActive = Child.getScheduleActive()
+                    }
+                }
+                // If schedule is active
+                if(satScheduleActive){
+                    if(defaults.'sat'.'stopLevel'){
+                        // If no seconds elapsed
+                        if(currentSeconds == defaults.'sat'.'startSeconds'){
+                            satStart = defaults.'sat'.'startLevel'
+                        } else {
+                            // Calculate dynamic value
+                            if(!satPercent) satPercent = (currentSeconds - defaults.'sat'.'startSeconds') / defaults.'sat'.'totalSeconds'
+                            if(defaults.'sat'.'startLevel' > defaults.'sat'.'stopLevel'){
+                                // start=75, stop=25 - 75 - (75 - 25) * .25 = 62.5
+                                satStart = convertToInteger(defaults.'sat'.'startLevel' - Math.round((defaults.'sat'.'startLevel' - defaults.'sat'.'stopLevel') * satPercent))
+                                if(satStart > 100) satStart = satStart - 100
+                            } else {
+                                // start=25,stop=75 - 25 + (75 - 25) * .25 = 37.5
+                                satStart = convertToInteger(defaults.'sat'.'startLevel' + Math.round((defaults.'sat'.'stopLevel' - defaults.'sat'.'startLevel') * satPercent))
+                            }
+                        }
+                    } else {
+                        satStart = defaults.'sat'.'startLevel'
+                    }
+                }
+                if(!satStart) putLog(1157,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
+                // If just start sat
+            } else if(defaults.'sat'.'startLevel'){
+                satStart = defaults.'sat'.'startLevel'
+            } else if(!isNumeric(defaults.'sat'.'appId')){
+                putLog(1162,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
+            }
+
+            // Set currentSat
+            if(defaults.'sat'?.'time' == 'stop'){
+                defaults.remove('sat')
+            } else if(satStart) {
+                if(satStart == singleDevice.currentSaturation && singleDevice.currentColorMode == 'RGB') {
+                    satStart = null
+                } else {
+                    defaults.'sat'.'currentLevel' = satStart
+                    defaults.'sat'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'sat'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'sat'.'currentLevel' : singleDevice.currentSaturation
+                    defaults.'sat'.'time' = time
+                }
+            }
+        }
+
+        // Get temp
+        // Hue && sat take priority over temp
+        if(!hueStart && !satStart && defaults.'temp'){
+            // If start and stop level, and level set by a schedule
+            if(defaults.'temp'.'startLevel' && isNumeric(defaults.'temp'.'appId')){
+                // If same progressive schedule as level, we know it's active and elapsed percent
+                if(defaults.'temp'.'appId' == defaults?.'level'?.'appId'){
+                    tempScheduleActive = levelScheduleActive
+                    tempPercent = levelPercent
+                } else {
+                    // Check if the schedule is active (wrong mode or disabled)
+                    childApps.each { Child ->
+                        if(Child.id == defaults.'temp'.'appId'.toInteger()) tempScheduleActive = Child.getScheduleActive()
+                    }
+                }
+                // If schedule is active
+                if(tempScheduleActive){
+                    if(defaults.'temp'.'stopLevel'){
+                        // If no seconds elapsed
+                        if(currentSeconds == defaults.'temp'.'startSeconds'){
+                            tempStart = defaults.'temp'.'startLevel'
+                        } else {
+                            // Calculate dynamic value
+                            if(!tempPercent) tempPercent = (currentSeconds - defaults.'temp'.'startSeconds') / defaults.'temp'.'totalSeconds'
+                            if(defaults.'temp'.'startLevel' < defaults.'temp'.'stopLevel'){
+                                tempStart = convertToInteger((defaults.'temp'.'startLevel' + Math.round((defaults.'temp'.'stopLevel' - defaults.'temp'.'startLevel') * tempPercent)))
+                            } else {
+                                tempStart = convertToInteger((defaults.'temp'.'startLevel' - Math.round((defaults.'temp'.'startLevel' - defaults.'temp'.'stopLevel') * tempPercent)))
+                            }
+                        }
+                    } else {
+                        tempStart = defaults.'temp'.'startLevel'
+                    }
+                }
+                if(!tempStart) putLog(1213,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
+                // If just start temp
+            } else if(defaults.'temp'.'startLevel'){
+                tempStart = defaults.'temp'.'startLevel'
+            } else if(isOn(singleDevice,childLabel) && singleDevice.currentSwitch != 'on'){
+                tempStart = 3500
+            }
+
+            // Set currentTemp
+            if(defaults.'temp'?.'time' == 'stop'){
+                defaults.remove('temp')
+            } else if(tempStart) {
+                // Allow temp to be within 5% margin
+                maxValue = tempStart / 20
+                if(tempStart > singleDevice.currentColorTemperature - maxValue && tempStart < singleDevice.currentColorTemperature + maxValue  && singleDevice.currentColorMode == 'CT') {
+                    tempStart = null
+                } else {
+                    tempStart = tempStart.toFloat().toInteger()
+                    defaults.'temp'.'currentLevel' = tempStart
+                    defaults.'temp'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'temp'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'temp'.'currentLevel' : singleDevice.currentColorTemperature
+                    defaults.'temp'.'time' = time
+                }
+            }
+        }
+
+        // Update the device table
+        atomicState."deviceData${singleDevice.id}" = defaults
+
+        //Turn it on in fewest possible steps
+        if(hueStart || satStart){
+            colorMap = [:]
+            unit = hiRezHue ? '°' : '%'
+            message = ''
+            if(levelStart) {
+                message = "brightness to $levelStart% - "
+                colorMap.'level' = levelStart
+            }
+            if(hueStart) message += "hue to $hueStart% - "
+            if(satStart) message += "sat to $satStart$unit"
+
+            colorMap.'hue' = hueStart ? hueStart : singleDevice.currentHue
+            colorMap.'saturation' = satStart ? satStart : singleDevice.currentSaturation
+
+            singleDevice.setColor(colorMap)
+            putLog(1257,'info',"Set $singleDevice $message",childLabel)
+            if(settings['colorStaging']){
+                pauseExecution(200)
+                singleDevice.on()
+                putLog(1261,'info',"Set $singleDevice on",childLabel)
+            }
+            putLog(1263,message,'info',childLabel)
+        } else if(levelStart && isDimmable(singleDevice,childLabel)){
+            if(tempStart){
+                singleDevice.setColorTemperature(tempStart)
+                putLog(1267,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                pauseExecution(200)
+            }
+            if(singleDevice.currentLevel != levelStart){
+                singleDevice.setLevel(levelStart)
+                putLog(1272,'info',"Set $singleDevice brightness to $levelStart%",childLabel)
+            } else {
+                singleDevice.on()
+                putLog(1275,'info',"Turned $singleDevice on",childLabel)
+            }
+        } else if(tempStart && isColor(singleDevice,childLabel)){
+            singleDevice.setColorTemperature(tempStart)
+            putLog(1279,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+            if(settings['colorStaging']){
+                pauseExecution(200)
+                singleDevice.on()
+                putLog(1283,'info',"Set $singleDevice on",childLabel)
+            }
+        } else {
+            if(singleDevice.currentValue('switch') != 'on') putLog(1286,'info',"Set $singleDevice on",childLabel)
+            singleDevice.on()
+        }
+    }
+    return true
+}
+
+def handleColorWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
+    if(defaults?.'level') return
+    if(defaults?.'temp') return
+    if(defaults?.'hue') return
+    if(defaults?.'sat') return
+    if(singleDevice.currentSwitch == 'on') return
+
+    if(singleDevice.currentLevel == 100){
+        singleDevice.on()
+        putLog(1302,'debug','Turning ' + singleDevice + 'on',childLabel)
+    }
+    if(singleDevice.currentLevel != 100){
+        singleDevice.setLevel(100)
+        putLog(1306,'debug','Turning ' + singleDevice + 'on by setting to 100%',childLabel)
+    }
+    if(singleDevice.currentColorMode == 'RGB'){
+        pauseExecution(200)
+        singleDevice.currentColorMode == 'CT'
+        putLog(1311,'debug','Set color mode to "CT"',childLabel)
+    }
+    //this needs a fudge check
+    if(singleDevice.currentTemperatureColor != 3500){
+        pauseExecution(200)
+        singleDevice.setColorTemperature(3500)
+        putLog(1321,'debug','Set ' + singleDevice + ' temperature color to 3500K',childLabel)
+    }
+
+    return true
 }
 
 def setStateSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState."deviceState${singleDevice.id}") return
-
-    time = new Date().time
     
     // If turning off device, do it, and exit
     if(atomicState."deviceState${singleDevice.id}".'state' == 'off'){
         setStateSingleOff(singleDevice,childLabel)
         //atomicState."deviceState${singleDevice.id}" = ['time':time] 'Not sure why we did this, but it wipes the state, only stores time
-        putLog(929,'debug',"Turning $singleDevice off",childLabel)
+        putLog(1330,'debug',"Turning $singleDevice off",childLabel)
         return
     }
 
-        if(atomicState."deviceData${singleDevice.id}") defaults = atomicState."deviceData${singleDevice.id}"
-
-        if(isFan(singleDevice,childLabel)){
-            if(defaults?.'level'?.'startLevel'){
-                defaults.'level'.'currentLevel' = defaults.'level'.'startLevel'
-                defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentSpeed
-                defaults.'level'.'time' = time
-                if(singleDevice.currentSpeed != atomicState."deviceData${singleDevice.id}".'level'.'startLevel'){
-                    singleDevice.setSpeed(atomicState."deviceData${singleDevice.id}".'level'.'startLevel')
-                } else {
-                    singleDevice.setSpeed('on')
-                }
-                if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
-            } else {
-                if(singleDevice.currentSpeed != 'high'){
-                    singleDevice.setSpeed('high')
-                } else {
-                    singleDevice.setSpeed('on')
-                }
-            }
-            atomicState."deviceData${singleDevice.id}" = defaults
-        } else if(isDimmable(singleDevice,childLabel) && !isColor(singleDevice,childLabel)){
-            if(defaults?.'level'?.'startLevel'){
-                defaults.'level'.'currentLevel' = defaults.'level'.'startLevel'
-                defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentLevel
-                defaults.'level'.'time' = time
-                if(singleDevice.currentLevel != defaults.'level'.'startLevel'){
-                    singleDevice.setLevel(defaults.'level'.'startLevel')
-                } else {
-                    singleDevice.on()
-                }
-                if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
-            } else {
-                if(singleDevice.currentLevel != 100){
-                    singleDevice.setLevel(100)
-                } else {
-                    singleDevice.on()
-                }
-            }
-            atomicState."deviceData${singleDevice.id}" = defaults
-        } else if(isColor(singleDevice,childLabel)){
-            if(!defaults?.'level' && !defaults?.'temp' && !defaults?.'hue' && !defaults?.'sat'){
-                if(singleDevice.currentSwitch != 'on') {
-                    if(singleDevice.currentLevel != 100){
-                        singleDevice.setLevel(100)
-                    } else {
-                        singleDevice.on()
-                    }
-                    if(singleDevice.currentColorMode == 'RGB'){
-                        pauseExecution(200)
-                        singleDevice.currentColorMode == 'CT'
-                    }
-                    putLog(985,'debug',"Turning $singleDevice on",childLabel)
-                    //this needs a fudge check
-                    if(singleDevice.currentTemperatureColor != 3500){
-                        pauseExecution(200)
-                        singleDevice.setColorTemperature(3500)
-                        putLog(990,'debug',"Set $singleDevice temperature color to 3500K",childLabel)
-                    }
-                }
-            } else {
-                // Set current time (used for progressive changes)
-                // Set as atomicState in setStateMulti
-                if(!atomicState.currentSeconds){
-                    // Set current time (used for progressive changes)
-                    currentTime = new Date()
-                    //currentTimeSeconds = new Date().time
-                    currentSeconds = currentTime.format('HH').toInteger() * 3600 + currentTime.format('mm').toInteger() * 60 + currentTime.format('ss')
-                } else {
-                    currentSeconds = atomicState.currentSeconds
-                }
-
-                // Get start level
-                // Should be dimmable, since it must be color, but check anyways
-                if(defaults.'level' && isDimmable(singleDevice,childLabel)){
-                    // If start and stop level, and level set by a schedule
-                    if(defaults.'level'.'startLevel' && isNumeric(defaults.'level'.'appId')){
-                        // Check if the schedule is active (wrong mode or disabled)
-                        childApps.each { Child ->
-                            if(convertToInteger(Child.id) == defaults.'level'.'appId') levelScheduleActive = Child.getScheduleActive()
-                        }
-                        // If schedule is active
-                        if(levelScheduleActive){
-                            if(defaults.'level'.'stopLevel'){
-                                // If no seconds elapsed
-                                if(currentSeconds == defaults.'level'.'startSeconds'){
-                                    levelStart = defaults.'level'.'startLevel'
-                                } else {
-                                    // Calculate dynamic value
-                                    levelPercent = (currentSeconds - defaults.'level'.'startSeconds') / defaults.'level'.'totalSeconds'
-                                    if(defaults.'level'.'startLevel' < defaults.'level'.'stopLevel'){
-                                        levelStart = convertToInteger((defaults.'level'.'startLevel' + Math.round((defaults.'level'.'stopLevel' - defaults.'level'.'startLevel') * levelPercent)))
-                                    } else {
-                                        levelStart = convertToInteger((defaults.'level'.'startLevel' - Math.round((defaults.'level'.'startLevel' - defaults.'level'.'stopLevel') * levelPercent)))
-                                    }
-                                }
-                            } else {
-                                levelStart = defaults.'level'.'startLevel'
-                            }
-                        }
-                        if(!levelStart) putLog(1026,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
-                        // If just start level
-                    } else if(defaults.'level'.'startLevel'){
-                        levelStart = defaults.'level'.'startLevel'
-                    }
-
-                    // Set currentLevel
-                    if(defaults.'level'?.'time' == 'stop'){
-                        defaults.remove('level')
-                    } else if(levelStart) {
-                        if(levelStart && levelStart == singleDevice.currentLevel) {
-                            levelStart = null
-                        } else {
-                            levelStart = levelStart.toFloat().toInteger()
-                            defaults.'level'.'currentLevel' = levelStart
-                            defaults.'level'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'level'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'currentLevel' : singleDevice.currentLevel
-                            defaults.'level'.'time' = time
-                        }
-                    }
-
-                    // Clear values if "stopping"; leave levelStart, since still setting the level to stop value
-                    if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
-                }
-
-                // Set hue and/or sat
-                
-                // Get start hue
-                if(defaults.'hue'){
-                    // If start and stop level, and hue set by a schedule
-                    if(defaults.'hue'.'startLevel' && isNumeric(defaults.'hue'.'appId')){
-                        // If same progressive schedule as level, we know it's active and elapsed percent
-                        if(defaults.'hue'.'appId' == defaults?.'level'?.'appId'){
-                            hueScheduleActive = levelScheduleActive
-                            huePercent = levelPercent
-                        } else {
-                            // Check if the schedule is active (wrong mode or disabled)
-                            childApps.each { Child ->
-                                if(Child.id == defaults.'hue'.'appId'.toInteger()) hueScheduleActive = Child.getScheduleActive()
-                            }
-                        }
-                        // If schedule is active
-                        if(hueScheduleActive){
-                            if(defaults.'hue'.'stopLevel'){
-                                // If no seconds elapsed
-                                if(currentSeconds == defaults.'hue'.'startSeconds'){
-                                    hueStart = defaults.'hue'.'startLevel'
-                                } else {
-                                    // Calculate dynamic value
-                                    if(!huePercent) huePercent = (currentSeconds - defaults.'hue'.'startSeconds') / defaults.'hue'.'totalSeconds'
-                                    if(defaults.'hue'.'stopLevel' > defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'forward'){
-                                        // hueOn=25, hueOff=75, going 25, 26...74, 75
-                                        hueStart = defaults.'hue'.'startLevel' + Math.round((defaults.'hue'.'stopLevel' - defaults.'hue'.'startLevel') * huePercent)
-                                        // hueOn=25, hueOff=75, going 25, 24 ... 2, 1, 100, 99 ... 76, 75
-                                    } else if(defaults.'hue'.'stopLevel' > defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'reverse'){
-                                        hueStart = defaults.'hue'.'startLevel' - Math.round((100 - defaults.'hue'.'stopLevel' + defaults.'hue'.'startLevel') * huePercent)
-                                        if(hueStart <1) hueStart += 100
-                                        //hueOn=75, hueOff=25, going 75, 76, 77 ... 99, 100, 1, 2 ... 24, 25
-                                    } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'forward'){
-                                        hueStart = defaults.'hue'.'startLevel' + Math.round((defaults.'hue'.'stopLevel' + 100 - defaults.'hue'.'startLevel') * huePercent)
-                                        if(hueStart > 100) hueStart = hueStart - 100
-                                        //hueOn=75, hueOff=25, going 75, 74 ... 26, 25
-                                    } else if(defaults.'hue'.'stopLevel' < defaults.'hue'.'startLevel' && defaults.'hue'.'direction' == 'reverse'){
-                                        hueStart = defaults.'hue'.'startLevel' -  Math.round((defaults.'hue'.'startLevel' - defaults.'hue'.'stopLevel') * huePercent)
-                                    }
-                                }
-                            } else {
-                                hueStart = defaults.'hue'.'startLevel'
-                            }
-                        }
-                        if(!hueStart) putLog(1102,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
-                        // If just start hue
-                    } else if(defaults.'hue'.'startLevel'){
-                        hueStart = defaults.'hue'.'startLevel'
-                    } else if(!isNumeric(defaults.'hue'.'appId')){
-                        putLog(1107,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
-                    }
-
-                    // Set currentHue
-                    if(defaults.'hue'?.'time' == 'stop'){
-                        defaults.remove('hue')
-                    } else if(hueStart) {
-                        if(hueStart == singleDevice.currentHue && singleDevice.currentColorMode == 'RGB') {
-                            hueStart = null
-                        } else {
-                            defaults.'hue'.'currentLevel' = hueStart
-                            defaults.'hue'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'hue'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'hue'.'currentLevel' : singleDevice.currentHue
-                            defaults.'hue'.'time' = time
-                        }
-                    }
-                }
-                
-                // Get start sat
-                if(defaults.'sat'){
-                    // If start and stop level, and level set by a schedule
-                    if(defaults.'sat'.'startLevel' && isNumeric(defaults.'sat'.'appId')){
-                        // If same progressive schedule as hue, we know it's active and elapsed percent
-                        if(defaults.'sat'.'appId' == defaults?.'hue'?.'appId'){
-                            satScheduleActive = hueScheduleActive
-                            satPercent = huePercent
-                        } else {
-                            // Check if the schedule is active (wrong mode or disabled)
-                            childApps.each { Child ->
-                                if(Child.id == defaults.'sat'.'appId'.toInteger()) satScheduleActive = Child.getScheduleActive()
-                            }
-                        }
-                        // If schedule is active
-                        if(satScheduleActive){
-                            if(defaults.'sat'.'stopLevel'){
-                                // If no seconds elapsed
-                                if(currentSeconds == defaults.'sat'.'startSeconds'){
-                                    satStart = defaults.'sat'.'startLevel'
-                                } else {
-                                    // Calculate dynamic value
-                                    if(!satPercent) satPercent = (currentSeconds - defaults.'sat'.'startSeconds') / defaults.'sat'.'totalSeconds'
-                                    if(defaults.'sat'.'startLevel' > defaults.'sat'.'stopLevel'){
-                                        // start=75, stop=25 - 75 - (75 - 25) * .25 = 62.5
-                                        satStart = convertToInteger(defaults.'sat'.'startLevel' - Math.round((defaults.'sat'.'startLevel' - defaults.'sat'.'stopLevel') * satPercent))
-                                        if(satStart > 100) satStart = satStart - 100
-                                    } else {
-                                        // start=25,stop=75 - 25 + (75 - 25) * .25 = 37.5
-                                        satStart = convertToInteger(defaults.'sat'.'startLevel' + Math.round((defaults.'sat'.'stopLevel' - defaults.'sat'.'startLevel') * satPercent))
-                                    }
-                                }
-                            } else {
-                                satStart = defaults.'sat'.'startLevel'
-                            }
-                        }
-                        if(!satStart) putLog(1160,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
-                        // If just start sat
-                    } else if(defaults.'sat'.'startLevel'){
-                        satStart = defaults.'sat'.'startLevel'
-                    } else if(!isNumeric(defaults.'sat'.'appId')){
-                        putLog(1165,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
-                    }
-
-                    // Set currentSat
-                    if(defaults.'sat'?.'time' == 'stop'){
-                        defaults.remove('sat')
-                    } else if(satStart) {
-                        if(satStart == singleDevice.currentSaturation && singleDevice.currentColorMode == 'RGB') {
-                            satStart = null
-                        } else {
-                            defaults.'sat'.'currentLevel' = satStart
-                            defaults.'sat'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'sat'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'sat'.'currentLevel' : singleDevice.currentSaturation
-                            defaults.'sat'.'time' = time
-                        }
-                    }
-                }
-                
-                // Get temp
-                // Hue && sat take priority over temp
-                if(!hueStart && !satStart && defaults.'temp'){
-                    // If start and stop level, and level set by a schedule
-                    if(defaults.'temp'.'startLevel' && isNumeric(defaults.'temp'.'appId')){
-                        // If same progressive schedule as level, we know it's active and elapsed percent
-                        if(defaults.'temp'.'appId' == defaults?.'level'?.'appId'){
-                            tempScheduleActive = levelScheduleActive
-                            tempPercent = levelPercent
-                        } else {
-                            // Check if the schedule is active (wrong mode or disabled)
-                            childApps.each { Child ->
-                                if(Child.id == defaults.'temp'.'appId'.toInteger()) tempScheduleActive = Child.getScheduleActive()
-                            }
-                        }
-                        // If schedule is active
-                        if(tempScheduleActive){
-                            if(defaults.'temp'.'stopLevel'){
-                                // If no seconds elapsed
-                                if(currentSeconds == defaults.'temp'.'startSeconds'){
-                                    tempStart = defaults.'temp'.'startLevel'
-                                } else {
-                                    // Calculate dynamic value
-                                    if(!tempPercent) tempPercent = (currentSeconds - defaults.'temp'.'startSeconds') / defaults.'temp'.'totalSeconds'
-                                    if(defaults.'temp'.'startLevel' < defaults.'temp'.'stopLevel'){
-                                        tempStart = convertToInteger((defaults.'temp'.'startLevel' + Math.round((defaults.'temp'.'stopLevel' - defaults.'temp'.'startLevel') * tempPercent)))
-                                    } else {
-                                        tempStart = convertToInteger((defaults.'temp'.'startLevel' - Math.round((defaults.'temp'.'startLevel' - defaults.'temp'.'stopLevel') * tempPercent)))
-                                    }
-                                }
-                            } else {
-                                tempStart = defaults.'temp'.'startLevel'
-                            }
-                        }
-                        if(!tempStart) putLog(1216,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
-                        // If just start temp
-                    } else if(defaults.'temp'.'startLevel'){
-                        tempStart = defaults.'temp'.'startLevel'
-                    } else if(isOn(singleDevice,childLabel) && singleDevice.currentSwitch != 'on'){
-                        tempStart = 3500
-                    }
-
-                    // Set currentTemp
-                    if(defaults.'level'?.'time' == 'stop'){
-                        defaults.remove('level')
-                    } else if(tempStart) {
-                        // Allow temp to be within 5% margin
-                        maxValue = tempStart / 20
-                        if(tempStart > singleDevice.currentColorTemperature - maxValue && tempStart < singleDevice.currentColorTemperature + maxValue  && singleDevice.currentColorMode == 'CT') {
-                            tempStart = null
-                        } else {
-                            tempStart = tempStart.toFloat().toInteger()
-                            defaults.'temp'.'currentLevel' = tempStart
-                            defaults.'temp'.'priorLevel' = atomicState."deviceData${singleDevice.id}"?.'temp'?.'currentLevel' ? atomicState."deviceData${singleDevice.id}".'temp'.'currentLevel' : singleDevice.currentColorTemperature
-                            defaults.'temp'.'time' = time
-                        }
-                    }
-                }
-                
-
-                // Update the device table
-                atomicState."deviceData${singleDevice.id}" = defaults
-                
-                //Turn it on in fewest possible steps
-                if(hueStart || satStart){
-                    colorMap = [:]
-                    unit = hiRezHue ? '°' : '%'
-                    message = ''
-                    if(levelStart) {
-                        message = "brightness to $levelStart% - "
-                        colorMap.'level' = levelStart
-                    }
-                    if(hueStart) message += "hue to $hueStart% - "
-                    if(satStart) message += "sat to $satStart$unit"
-                    
-                    colorMap.'hue' = hueStart ? hueStart : singleDevice.currentHue
-                    colorMap.'saturation' = satStart ? satStart : singleDevice.currentSaturation
-
-                    singleDevice.setColor(colorMap)
-                    putLog(1261,'info',"Set $singleDevice $message",childLabel)
-                    if(settings['colorStaging']){
-                        pauseExecution(200)
-                        singleDevice.on()
-                        putLog(1265,'info',"Set $singleDevice on",childLabel)
-                    }
-                    putLog(1267,message,'info',childLabel)
-                } else if(levelStart && isDimmable(singleDevice,childLabel)){
-                    if(tempStart){
-                        singleDevice.setColorTemperature(tempStart)
-                        putLog(1271,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
-                        pauseExecution(200)
-                    }
-                    if(singleDevice.currentLevel != levelStart){
-                        singleDevice.setLevel(levelStart)
-                        putLog(1276,'info',"Set $singleDevice brightness to $levelStart%",childLabel)
-                    } else {
-                        singleDevice.on()
-                        putLog(1279,'info',"Turned $singleDevice on",childLabel)
-                    }
-                } else if(tempStart && isColor(singleDevice,childLabel)){
-                    singleDevice.setColorTemperature(tempStart)
-                    putLog(1283,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
-                    if(settings['colorStaging']){
-                        pauseExecution(200)
-                        singleDevice.on()
-                        putLog(1287,'info',"Set $singleDevice on",childLabel)
-                    }
-                } else {
-                    if(singleDevice.currentValue('switch') != 'on') putLog(1290,'info',"Set $singleDevice on",childLabel)
-                    singleDevice.on()
-                }
-            }
-            // else not fan, dimmable, or color
-        } else {
-            if(singleDevice.currentValue('switch') != 'on') putLog(1296,'info',"Set $singleDevice on",childLabel)
-            singleDevice.on()
-        }
+    if(atomicState."deviceData${singleDevice.id}") defaults = atomicState."deviceData${singleDevice.id}"
+    
+    if(setStateSingleFan(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
+    if(setStateSingleDimmable(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
+    if(!setStateSingleColor(singleDevice,defaults,childLabel){
+        if(singleDevice.currentValue('switch') != 'on') putLog(1339,'info',"Set $singleDevice on",childLabel)
+        singleDevice.on()
+    }
     return
 }
+      def setColorMode
 
 // Determines whether there will be an incremental change
 // Hopefully shaves off a few milliseconds except in rare case when there is a change
@@ -1324,7 +1368,7 @@ def checkIncrementalUpdates(multiDevice,defaults,childLabel = 'Master'){
 }
 
 def CONSTDayInMilli(){
-        return 86400000
+    return 86400000
 }
 
 def CONSTHourInMilli(){
