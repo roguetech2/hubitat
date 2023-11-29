@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.3.10
+*  Version: 0.3.11
 *
 ***********************************************************************************************************************/
 
@@ -1254,36 +1254,36 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
             colorMap.'saturation' = satStart ? satStart : singleDevice.currentSaturation
 
             singleDevice.setColor(colorMap)
-            putLog(1257,'info',"Set $singleDevice $message",childLabel)
+            putLog(1257,'info','Set ' + singleDevice + ' ' + message,childLabel)
             if(settings['colorStaging']){
                 pauseExecution(200)
                 singleDevice.on()
-                putLog(1261,'info',"Set $singleDevice on",childLabel)
+                putLog(1261,'info','Set ' + singleDevice + ' on',childLabel)
             }
             putLog(1263,message,'info',childLabel)
         } else if(levelStart && isDimmable(singleDevice,childLabel)){
             if(tempStart){
                 singleDevice.setColorTemperature(tempStart)
-                putLog(1267,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+                putLog(1267,'info','Set ' + singleDevice + ' temperature color set to ' + tempStart + 'K',childLabel)
                 pauseExecution(200)
             }
             if(singleDevice.currentLevel != levelStart){
                 singleDevice.setLevel(levelStart)
-                putLog(1272,'info',"Set $singleDevice brightness to $levelStart%",childLabel)
+                putLog(1272,'info','Set ' + singleDevice + ' brightness to ' + levelStart + '%',childLabel)
             } else {
                 singleDevice.on()
-                putLog(1275,'info',"Turned $singleDevice on",childLabel)
+                putLog(1275,'info','Turned ' + singleDevice + 'on',childLabel)
             }
         } else if(tempStart && isColor(singleDevice,childLabel)){
             singleDevice.setColorTemperature(tempStart)
-            putLog(1279,'info',"Set $singleDevice temperature color set to " + tempStart + "K",childLabel)
+            putLog(1279,'info','Set ' + singleDevice + 'temperature color set to ' + tempStart + 'K',childLabel)
             if(settings['colorStaging']){
                 pauseExecution(200)
                 singleDevice.on()
                 putLog(1283,'info',"Set $singleDevice on",childLabel)
             }
         } else {
-            if(singleDevice.currentValue('switch') != 'on') putLog(1286,'info',"Set $singleDevice on",childLabel)
+            if(singleDevice.currentValue('switch') != 'on') putLog(1286,'info','Set ' + singleDevice + ' on',childLabel)
             singleDevice.on()
         }
     }
@@ -1299,22 +1299,22 @@ def handleColorWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
 
     if(singleDevice.currentLevel == 100){
         singleDevice.on()
-        putLog(1302,'debug','Turning ' + singleDevice + 'on',childLabel)
+        putLog(1302,'debug','Turning ' + singleDevice + ' on',childLabel)
     }
     if(singleDevice.currentLevel != 100){
         singleDevice.setLevel(100)
-        putLog(1306,'debug','Turning ' + singleDevice + 'on by setting to 100%',childLabel)
+        putLog(1306,'info','Turning ' + singleDevice + ' on by setting to 100%',childLabel)
     }
     if(singleDevice.currentColorMode == 'RGB'){
         pauseExecution(200)
         singleDevice.currentColorMode == 'CT'
-        putLog(1311,'debug','Set color mode to "CT"',childLabel)
+        putLog(1311,'info','Set color mode to "CT"',childLabel)
     }
     //this needs a fudge check
     if(singleDevice.currentTemperatureColor != 3500){
         pauseExecution(200)
         singleDevice.setColorTemperature(3500)
-        putLog(1321,'debug','Set ' + singleDevice + ' temperature color to 3500K',childLabel)
+        putLog(1321,'info','Set ' + singleDevice + ' temperature color to 3500K',childLabel)
     }
 
     return true
@@ -1327,7 +1327,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
     if(atomicState."deviceState${singleDevice.id}".'state' == 'off'){
         setStateSingleOff(singleDevice,childLabel)
         //atomicState."deviceState${singleDevice.id}" = ['time':time] 'Not sure why we did this, but it wipes the state, only stores time
-        putLog(1330,'debug',"Turning $singleDevice off",childLabel)
+        putLog(1330,'info','Turning ' + singleDevice + 'off',childLabel)
         return
     }
 
@@ -1335,13 +1335,13 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
     
     if(setStateSingleFan(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
     if(setStateSingleDimmable(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
-    if(!setStateSingleColor(singleDevice,defaults,childLabel){
-        if(singleDevice.currentValue('switch') != 'on') putLog(1339,'info',"Set $singleDevice on",childLabel)
+    if(!setStateSingleColor(singleDevice,defaults,childLabel)){
+        if(singleDevice.currentValue('switch') != 'on') putLog(1339,'info','Set ' + singleDevice + ' on',childLabel)
         singleDevice.on()
+        putLog(1330,'info','Turning ' + singleDevice + ' on',childLabel)
     }
     return
 }
-      def setColorMode
 
 // Determines whether there will be an incremental change
 // Hopefully shaves off a few milliseconds except in rare case when there is a change
