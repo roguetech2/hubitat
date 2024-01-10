@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.10
+*  Version: 0.5.11
 *
 ***********************************************************************************************************************/
 
@@ -255,11 +255,6 @@ def displayMultiDeviceAdvanced(){
         expandText = '(Click to expand/collapse)'
     }
 
-    /* ************************************************************************ */
-    /* TO-DO: Add warning messages for if dim/brightening and also turning on,  */
-    /* toggling or resuming the same device (remove error for dim/brighten with */
-    /* resume). Add same to MagicCube.                                          */
-    /* ************************************************************************ */
     section(hideable: true, hidden: hidden, 'Top button ("On") ' + expandText) {
         button = [1,'on','push']
         getAdvancedSwitchInput(button)
@@ -478,7 +473,7 @@ def displayMultiDeviceAdvanced(){
             displayError(compareDeviceLists(button,'on'))
             displayError(compareDeviceLists(button,'off'))
 
-            button = [1,'resume','hold']
+            button = [1,'toggle','hold']
             getAdvancedSwitchInput(button)
             displayError(compareDeviceLists(button,'on'))
             displayError(compareDeviceLists(button,'off'))
@@ -525,7 +520,7 @@ def displayMultiDeviceAdvanced(){
                 displayError(compareDeviceLists(button,'on'))
                 displayError(compareDeviceLists(button,'off'))
 
-                button = [2,'resume','hold']
+                button = [2,'toggle','hold']
                 getAdvancedSwitchInput(button)
                 displayError(compareDeviceLists(button,'brighten'))
                 displayError(compareDeviceLists(button,'dim'))
@@ -545,31 +540,35 @@ def displayMultiDeviceAdvanced(){
                 button = [3,'resume','hold']
                 getAdvancedSwitchInput(button)
 
-                button = [3,'resume','hold']
+                button = [3,'toggle','hold']
                 getAdvancedSwitchInput(button)
                 displayError(compareDeviceLists(button,'resume'))
 
                 button = [3,'on','hold']
                 getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))    //This can't be right
                 displayError(compareDeviceLists(button,'resume'))
+                displayError(compareDeviceLists(button,'toggle'))
 
                 button = [3,'off','hold']
                 getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'resume'))    //This can't be right
                 displayError(compareDeviceLists(button,'resume'))
+                displayError(compareDeviceLists(button,'toggle'))
+                displayError(compareDeviceLists(button,'on'))
 
                 button = [3,'dim','hold']
                 getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
                 displayError(compareDeviceLists(button,'resume'))
+                displayError(compareDeviceLists(button,'toggle'))
+                displayError(compareDeviceLists(button,'on'))
+                displayError(compareDeviceLists(button,'off'))
 
                 button = [3,'brighten','hold']
                 getAdvancedSwitchInput(button)
+                displayError(compareDeviceLists(button,'resume'))
+                displayError(compareDeviceLists(button,'toggle'))
+                displayError(compareDeviceLists(button,'on'))
                 displayError(compareDeviceLists(button,'off'))
                 displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'resume'))
             }
         }
         if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
@@ -602,7 +601,7 @@ def displayMultiDeviceAdvanced(){
                 displayError(compareDeviceLists(button,'on'))
                 displayError(compareDeviceLists(button,'off'))
 
-                button = [4,'resume','hold']
+                button = [4,'toggle','hold']
                 getAdvancedSwitchInput(button)
                 displayError(compareDeviceLists(button,'dim'))
                 displayError(compareDeviceLists(button,'brighten'))
@@ -632,7 +631,7 @@ def displayMultiDeviceAdvanced(){
                 displayError(compareDeviceLists(button,'off'))
                 displayError(compareDeviceLists(button,'resume'))
 
-                button = [5,'resume','hold']
+                button = [5,'toggle','hold']
                 getAdvancedSwitchInput(button)
                 displayError(compareDeviceLists(button,'off'))
                 displayError(compareDeviceLists(button,'on'))
@@ -1186,13 +1185,13 @@ def addFieldName(text,fieldName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1189,'trace', 'Installed')
+    putLog(1188,'trace', 'Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1195,'trace','Updated')
+    putLog(1194,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1207,7 +1206,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1210,'trace','Initialized')
+    putLog(1209,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1229,7 +1228,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1232,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
+    putLog(1231,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
     
     // Turn on
     switchAction = 'on'
@@ -1240,7 +1239,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1243,'trace','Turning on ' + device)
+    if(device) putLog(1242,'trace','Turning on ' + device)
     
     // Turn off
     switchAction = 'off'
@@ -1252,7 +1251,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1255,'trace','Turning off ' + device)
+    if(device) putLog(1254,'trace','Turning off ' + device)
     
     // Toggle
     switchAction = 'toggle'
@@ -1265,7 +1264,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1268,'trace','Toggling ' + device)
+    if(device) putLog(1267,'trace','Toggling ' + device)
     
     // Resume
     switchAction = 'resume'
@@ -1283,7 +1282,7 @@ def buttonPushed(evt){
     }
     if(!activeSchedule) parent.updateStateMulti(device,'off',app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1286,'trace','Resuming ' + device)
+    if(device) putLog(1285,'trace','Resuming ' + device)
     
     // Brighten
     switchAction = 'brighten'
@@ -1303,7 +1302,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1306,'trace','Brightening ' + device)
+    if(device) putLog(1305,'trace','Brightening ' + device)
     
     // Dim
     switchAction = 'dim'
@@ -1323,7 +1322,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1326,'trace','Dimming ' + device)
+    if(device) putLog(1325,'trace','Dimming ' + device)
 }
 
 
@@ -1344,7 +1343,7 @@ def buttonReleased(evt){
     numberOfButtons = evt.device.currentValue('numberOfButtons')
 
     if (buttonNumber == '2' || (buttonNumber == '4' && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == '1' && numberOfButtons == 2)){
-        putLog(1347,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
+        putLog(1346,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1371,7 +1370,7 @@ def getDimSpeed(){
 // action = 'dim' or 'brighten'
 def getSteps(level, action){
     if (action != 'dim' && action != 'brighten'){
-        putLog(1374,'error','Invalid value for action "' + action + '" sent to getSteps function')
+        putLog(1373,'error','Invalid value for action "' + action + '" sent to getSteps function')
         return false
     }
 
@@ -1398,7 +1397,7 @@ def getSteps(level, action){
             }
         }
     }
-    putLog(1401,'debug','Function getSteps returning ' + steps)
+    putLog(1400,'debug','Function getSteps returning ' + steps)
     return steps
 }
 
@@ -1456,7 +1455,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        putLog(1459,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1458,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1478,7 +1477,7 @@ def holdDim(device){
             parent.updateStateSingle(singleDevice,'on',app.label)
         } else {
             if(level < 2){
-                putLog(1481,'info','Can\'t dim ' + singleDevice + '; already 1%.')
+                putLog(1480,'info','Can\'t dim ' + singleDevice + '; already 1%.')
             } else {
                 def steps = getSteps(level, 'dim')
                 def newLevel
@@ -1508,7 +1507,7 @@ def holdBrighten(device){
             reschedule(it)
         } else {
             if(level > 99){
-                putLog(1511,'info','Can\'t brighten ' + it + '; already 100%.')
+                putLog(1510,'info','Can\'t brighten ' + it + '; already 100%.')
             } else {
                 def steps = getSteps(level, 'brighten')
                 def newLevel
