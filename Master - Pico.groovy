@@ -13,16 +13,15 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.09
+*  Version: 0.5.10
 *
 ***********************************************************************************************************************/
 
 // To-do: Change "Push" to pushed, and "Hold" to held
 // To-do: Add double-push
 // To-do: Add Held + Released ?
-// To-do: Add advanced options of time + presense
+// To-do: Add presense ?
 
-//Select device to control, then switch to "map buttons to other actions" = 500 error
 definition(
     name: 'Master - Pico',
     namespace: 'master',
@@ -97,6 +96,7 @@ preferences {
                     paragraph '<div style="background-color:BurlyWood"><b> Select what to do for each Pico action:</b></div>'
                 }
                 displayMultiDeviceAdvanced()
+                    displayScheduleSection()
             }
             if(!multiDevice || !customActionsSetup){
                 section(){
@@ -111,6 +111,7 @@ preferences {
                         displayCustomActionsOption()
                         displayMultiDeviceSimple()
                     }
+                    displayScheduleSection()
                 }
             }
         }
@@ -172,7 +173,7 @@ def displaySingleDeviceAdvanced(){
     displaySelectActionsButtonOption(5,'Bottom ("Off")')
     if(button_1_push || button_2_push || button_3_push || button_4_push || button_5_push){
         if(replicateHold){
-            input 'replicateHold', 'bool', title: 'Long Push options shown. Click to replicate from Push. [replicateHold]', submitOnChange:true, defaultValue: false
+            input 'replicateHold', 'bool', title: addFieldName('Long Push options shown. Click to replicate from Push.','replicateHold'), submitOnChange:true, defaultValue: false
 
             displaySelectActionsButtonOption(1,'Top ("On")','hold')
             if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(2,'brighten','hold')
@@ -180,7 +181,7 @@ def displaySingleDeviceAdvanced(){
             if(numberOfButtons == 4 || numberOfButtons == 5) displaySelectActionsButtonOption(4,'dim','hold')
             displaySelectActionsButtonOption(5,'Bottom ("Off")','hold')
         }
-        if(!replicateHold) input 'replicateHold', 'bool', title: 'Replicating settings for Long Push. Click to customize Hold actions. [replicateHold]', submitOnChange:true, defaultValue: false
+        if(!replicateHold) input 'replicateHold', 'bool', title: addFieldName('Replicating settings for Long Push. Click to customize Hold actions.','replicateHold'), submitOnChange:true, defaultValue: false
     }
 }
 
@@ -191,54 +192,54 @@ def displayMultiDeviceSimple(){
     /* TO-DO: Put these inputs in a function.                                   */
     /* ************************************************************************ */
     if(!replicateHold){
-        input 'button_1_push_on', 'capability.switch', title: 'Top "On" button turns on? [button_1_push_on]', multiple: true, submitOnChange:true
+        input 'button_1_push_on', 'capability.switch', title: addFieldName('Top "On" button turns on?','button_1_push_on'), multiple: true, submitOnChange:true
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_2_push_brighten', 'capability.switchLevel', title: '"Brighten" button brightens? [button_2_push_brighten]', multiple: true, submitOnChange:true
+            input 'button_2_push_brighten', 'capability.switchLevel', title: addFieldName('"Brighten" button brightens?','button_2_push_brighten'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 5){
-            input 'button_3_push_toggle', 'capability.switch', title: 'Center button toggles? (if on, turn off; if off, turn on) [button_3_push_toggle]', multiple: true, submitOnChange:true
+            input 'button_3_push_toggle', 'capability.switch', title: addFieldName('Center button toggles? (if on, turn off; if off, turn on)','button_3_push_toggle'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_4_push_dim', 'capability.switchLevel', title: '"Dim" button dims? [button_4_push_dim]', multiple: true, submitOnChange:true
+            input 'button_4_push_dim', 'capability.switchLevel', title: addFieldName('"Dim" button dims?','button_4_push_dim'), multiple: true, submitOnChange:true
         }
-        input 'button_5_push_off', 'capability.switch', title: 'Bottom ("Off") button turns off? [button_5_push_off]', multiple: true, submitOnChange:true
+        input 'button_5_push_off', 'capability.switch', title: addFieldName('Bottom ("Off") button turns off?','button_5_push_off'), multiple: true, submitOnChange:true
 
         if(!replicateHold){
-            input 'replicateHold', 'bool', title: 'Replicating settings for Long Push. Click to customize Hold actions. [replicateHold]', submitOnChange:true, defaultValue: false
+            input 'replicateHold', 'bool', title: addFieldName('Replicating settings for Long Push. Click to customize Hold actions.','replicateHold'), submitOnChange:true, defaultValue: false
         } else {
-            input 'replicateHold', 'bool', title: 'Long Push options shown. Click to replicate from Push. [replicateHold]', submitOnChange:true, defaultValue: false
+            input 'replicateHold', 'bool', title: addFieldName('Long Push options shown. Click to replicate from Push.','replicateHold'), submitOnChange:true, defaultValue: false
         }
 
     } else if(replicateHold){
-        input 'button_1_push_on', 'capability.switch', title: 'Pushing Top "On" button turns on? [button_1_push_on]', multiple: true, submitOnChange:true
+        input 'button_1_push_on', 'capability.switch', title: addFieldName('Pushing Top "On" button turns on?','button_1_push_on'), multiple: true, submitOnChange:true
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_2_push_brighten', 'capability.switchLevel', title: 'Pushing "Brighten" button brightens? [button_2_push_brighten]', multiple: true, submitOnChange:true
+            input 'button_2_push_brighten', 'capability.switchLevel', title: addFieldName('Pushing "Brighten" button brightens?','button_2_push_brighten'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 5){
-            input 'button_3_push_toggle', 'capability.switch', title: 'Pushing Center button toggles? (if on, turn off; if off, turn on) [button_3_push_toggle]', multiple: true, submitOnChange:true
+            input 'button_3_push_toggle', 'capability.switch', title: addFieldName('Pushing Center button toggles? (if on, turn off; if off, turn on)','button_3_push_toggle'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_4_push_dim', 'capability.switchLevel', title: 'Pushing "Dim" button dims? [button_4_push_dim]', multiple: true, submitOnChange:true
+            input 'button_4_push_dim', 'capability.switchLevel', title: addFieldName('Pushing "Dim" button dims?','button_4_push_dim'), multiple: true, submitOnChange:true
         }
-        input 'button_5_push_off', 'capability.switch', title: 'Pushing Bottom ("Off") buttont turns off? [button_5_push_off]', multiple: true, submitOnChange:true
+        input 'button_5_push_off', 'capability.switch', title: addFieldName('Pushing Bottom ("Off") buttont turns off?','button_5_push_off'), multiple: true, submitOnChange:true
 
         if(!replicateHold){
-            input 'replicateHold', 'bool', title: 'Replicating settings for Long Push. Click to customize Hold actions. [replicateHold]', submitOnChange:true, defaultValue: false
+            input 'replicateHold', 'bool', title: addFieldName('Replicating settings for Long Push. Click to customize Hold actions.','replicateHold'), submitOnChange:true, defaultValue: false
         } else {
-            input 'replicateHold', 'bool', title: 'Holding Long Push options shown. Click to replicate from Push. [replicateHold]', submitOnChange:true, defaultValue: false
+            input 'replicateHold', 'bool', title: addFieldName('Holding Long Push options shown. Click to replicate from Push.','replicateHold'), submitOnChange:true, defaultValue: false
         }
 
-        input 'button_1_hold_on', 'capability.switch', title: 'Holding Top "On" button turns on? [button_1_hold_on]', multiple: true, submitOnChange:true
+        input 'button_1_hold_on', 'capability.switch', title: addFieldName('Holding Top "On" button turns on?','button_1_hold_on'), multiple: true, submitOnChange:true
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_2_hold_brighten', 'capability.switchLevel', title: 'Holding "Brighten" button brightens? [button_2_hold_brighten]', multiple: true, submitOnChange:true
+            input 'button_2_hold_brighten', 'capability.switchLevel', title: addFieldName('Holding "Brighten" button brightens?','button_2_hold_brighten'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 5){
-            input 'button_3_hold_toggle', 'capability.switch', title: 'Holding Center button toggles? (if on, turn off; if off, turn on) [button_3_hold_toggle]', multiple: true, submitOnChange:true
+            input 'button_3_hold_toggle', 'capability.switch', title: addFieldName('Holding Center button toggles? (if on, turn off; if off, turn on)','button_3_hold_toggle'), multiple: true, submitOnChange:true
         }
         if(numberOfButtons == 4 || numberOfButtons == 5){
-            input 'button_4_hold_dim', 'capability.switchLevel', title: 'Holding "Dim" button dims? [button_4_hold_dim]', multiple: true, submitOnChange:true
+            input 'button_4_hold_dim', 'capability.switchLevel', title: addFieldName('Holding "Dim" button dims?','button_4_hold_dim'), multiple: true, submitOnChange:true
         }
-        input 'button_5_hold_off', 'capability.switch', title: 'Holding Bottom ("Off") button turns off? [button_5_hold_off]', multiple: true, submitOnChange:true
+        input 'button_5_hold_off', 'capability.switch', title: addFieldName('Holding Bottom ("Off") button turns off?','button_5_hold_off'), multiple: true, submitOnChange:true
     }
 
     if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
@@ -445,13 +446,16 @@ def displayMultiDeviceAdvanced(){
             displayError(compareDeviceLists(button,'resume'))
         }
     }
+    fieldName = 'replicateHold'
     if(!replicateHold && !error){
+        fieldTitle = 'Replicating settings for Long Push. Click to customize.'
         section(){
-            input 'replicateHold', 'bool', title: 'Replicating settings for Long Push. Click to customize. [replicateHold]', submitOnChange:true, defaultValue: false
+            input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true, defaultValue: false
         }
     } else if(!error) {
+        fieldTitle = 'Long Push options shown. Click to replicate from Push.'
         section(){
-            input 'replicateHold', 'bool', title: 'Long Push options shown. Click to replicate from Push. [replicateHold]', submitOnChange:true, defaultValue: false
+            input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true, defaultValue: false
         }
 
         // Advanced Hold
@@ -728,19 +732,20 @@ def displayNameOption(){
 /* as well as a general warning.                                            */
 /* ************************************************************************ */
 def displayPicoOption(){
-    if(buttonDevice){
-        buttonDevice.each{
+    fieldName = 'buttonDevice'
+    if(settings[fieldName]){
+        settings[fieldName].each{
             if(count == 1) multipleDevices = true
             count = 1
         }
-        if(multipleDevices){
-            pluralInput = 'Picos'
-        } else {
-            pluralInput = 'Pico'
-        }
-        input 'buttonDevice', 'capability.pushableButton', title: pluralInput + ': [buttonDevice]', multiple: true, submitOnChange:true
-    } else {
-        input 'buttonDevice', 'capability.pushableButton', title: 'Select Pico device(s) (click to select): [buttonDevice]', defaultValue: 328, multiple: true, submitOnChange:true
+        fieldTitle = 'Pico'
+        if(settings['multipleDevices']) fieldTitle += 's'
+        fieldTitle += ':'
+        input fieldName, 'capability.pushableButton', title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
+    }
+    if(!settings[fieldName]){
+        fieldTitle = 'Select Pico device(s) (click to select):'
+        input fieldName, 'capability.pushableButton', title: addFieldName(fieldTitle,fieldName), defaultValue: 328, multiple: true, submitOnChange:true
         displayInfo('Select which Pico(s) to control. You can select multiple Pico devices, but all should have the same number of buttons.')
     }
 }
@@ -767,26 +772,28 @@ def getButtonNumbers(){
 }
 
 def displayCustomActionsOption(){
-    //displayLabel('Custom buttons and/or devices')
-    if(customActionsSetup) inputTitle = highlightText('Allowing custom button actions.') + ' Click to auto-set buttons.'
-    if(!customActionsSetup) inputTitle = highlightText('Auto-setting buttons.') + ' Click to map buttons to other actions.'
-    input 'customActionsSetup', 'bool', title: inputTitle + '[customActionsSetup]', submitOnChange:true
+    fieldName = 'customActionsSetup'
+    if(settings[fieldName]) fieldTitle = highlightText('Allowing custom button actions.') + ' Click to auto-set buttons.'
+    if(!settings[fieldName]) fieldTitle = highlightText('Auto-setting buttons.') + ' Click to map buttons to other actions.'
+    input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true
 }
 
 def displayMultiDeviceOption(){
-    if(multiDevice){
-        inputTitle = highlightText('Buttons unique per device') + ' Click for buttons to do the same thing across all devices. (If only controlling one device, leave off.)'
-        input 'multiDevice', 'bool', title: inputTitle + '[multiDevice]', submitOnChange:true
-        //input 'multiDevice', 'bool', title: '<b>Allow different lights for different buttons.</b> Click for all buttons controlling same light(s).', submitOnChange:true
+    fieldName = 'multiDevice'
+    if(settings[fieldName]){
+        fieldTitle = highlightText('Buttons unique per device') + ' Click for buttons to do the same thing across all devices. (If only controlling one device, leave off.)'
+        input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true
+        //input fieldName, 'bool', title: '<b>Allow different lights for different buttons.</b> Click for all buttons controlling same light(s).', submitOnChange:true
         //displayInfo('Assign light(s)/switch(es) to each button. Click for the buttons to do the same thing for all devices.')
     }
-    if(!multiDevice){
-        inputTitle = highlightText('Buttons do same thing for all devices [multiDevice]')
-        input 'multiDevice', 'bool', title: inputTitle + '[multiDevice]', submitOnChange:true
-        //input 'multiDevice', 'bool', title: '<b>Same lights for all buttons.</b> Click to assign different device(s) to different buttons.', submitOnChange:true
+    if(!settings[fieldName]){
+        fieldTitle = highlightText('Buttons do same thing for all devices [multiDevice]')
+        input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true
+        //input fieldName, 'bool', title: '<b>Same lights for all buttons.</b> Click to assign different device(s) to different buttons.', submitOnChange:true
         //displayInfo('The buttons will do the same thing for all devices. Click to assign light(s)/switch(es) to each button.')
-
-        input 'controlDevice', 'capability.switch', title: 'Device(s) to control <font color="gray">(or change option above to assign different buttons and/or actions to multiple devices)</font> [controlDevice]', multiple: true, submitOnChange:true
+        fieldName = 'controlDevice'
+        fieldTitle = 'Device(s) to control <font color="gray">(or change option above to assign different buttons and/or actions to multiple devices)</font>'
+        input fieldName, 'capability.switch', title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
     }
 }
 
@@ -799,42 +806,45 @@ def displayMultiDeviceOption(){
 // populated = value of the input
 def getAdvancedSwitchInput(values,populated = null){
     if(error) return
-    text = ''
+    fieldName = 'button_' + values[0] + '_' + values[2] + '_' + values[1]
+    fieldTitle = ''
     if(populated) text += '<b>'
     if(values[1] == 'on'){
-        text += 'Turns On'
+        fieldTitle += 'Turns On'
     } else if(values[1] == 'off'){
-        text += 'Turns Off'
+        fieldTitle += 'Turns Off'
     } else if(values[1] == 'toggle'){
-        text += 'Toggles (if on, turn off; if off, turn on)'
+        fieldTitle += 'Toggles (if on, turn off; if off, turn on)'
     } else if(values[1] == 'dim'){
-        text += 'Dims'
+        fieldTitle += 'Dims'
     } else if(values[1] == 'brighten'){
-        text += 'Brightens'
+        fieldTitle += 'Brightens'
     } else if(values[1] == 'resume'){
-        text += 'Resume schedule(s) (if none, turn off)'
+        fieldTitle += 'Resume schedule(s) (if none, turn off)'
     }
     if(populated) {
-        text += '</b>'
+        fieldTitle += '</b>'
     } else {
-        text += ' <font color="gray">(Select devices)</font>'
+        fieldTitle += ' <font color="gray">(Select devices)</font>'
     }
     if(values[1] == 'dim' || values[1] == 'brighten'){
         switchType = 'switchLevel'
     } else {
         switchType = 'switch'
     }
-    input 'button_' + values[0] + '_' + values[2] + '_' + values[1], "capability.$switchType", title: text + '[button_' + values[0] + '_' + values[2] + '_' + values[1] + ']', multiple: true, submitOnChange:true
+    input fieldName, 'capability.' + switchType, title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
 }
 
 def displaySelectActionsButtonOption(number,text,action = 'push'){
     button = action
-    text = action.capitalize() + 'ing ' + text
-    if(replicateHold) {
+    fieldName = 'button_' + number + '_' + button
+    fieldTitle = action.capitalize() + 'ing ' + text
+    if(settings['replicateHold']) {
         button = 'push'
-        text = 'With '
+        fieldTitle = 'With '
     }
-    input 'button_' + number + '_' + button, 'enum', title: text + ' button? [button_' + number + '_' + button + ']', multiple: false, options: ['brighten':'brighten','dim':'dim','on':'Turn on', 'off':'Turn off', 'resume': 'Resume schedule (if none, turn off)', 'resume':'resume'], submitOnChange:true
+    fieldTitle += ' button?'
+    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, options: ['brighten':'brighten','dim':'dim','on':'Turn on', 'off':'Turn off', 'resume': 'Resume schedule (if none, turn off)', 'resume':'resume'], submitOnChange:true
 }
 
 /* ************************************************************************ */
@@ -844,22 +854,27 @@ def displaySelectActionsButtonOption(number,text,action = 'push'){
 def displayMultiplierOption(hold = false){
     displayLabel('Set dim and brighten speed')
     displayMultiplierMessage()
+    pushedFieldName = 'pushMultiplier'
+    pushedFieldTitle = '<b>Push multiplier.</b> (Optional. Default 1.2.)'
+    heldFieldName = 'holdMultiplier'
+    heldFieldTitle = '<b>Hold multiplier.</b> (Optional. Default 1.4.)'
     if(hold){
         if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
             if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-                input 'pushMultiplier', 'decimal', title: '<b>Push multiplier.</b> (Optional. Default 1.2.) [pushMultiplier]', width: 6
-                    input 'holdMultiplier', 'decimal', title: '<b>Hold multiplier.</b> (Optional. Default 1.4.) [holdMultiplier]', width: 6
+                input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
+                input heldFieldName, 'decimal', title: addFieldName(heldFieldTitle,heldFieldName), width: 6
             } else {
-                input 'pushMultiplier', 'decimal', title: '<b>Push multiplier.</b> (Optional. Default 1.2.) [pushMultiplier]', width: 12
+                input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
             }
         } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input 'holdMultiplier', 'decimal', title: '<b>Hold multiplier.</b> (Optional. Default 1.4.) [holdMultiplier]', width: 12
+            input heldFieldName, 'decimal', title: addFieldName(heldFieldTitle,heldFieldName), width: 12
         }
     } else {
+        pushedFieldTitle = 'Multiplier? (Optional. Default 1.2.)'
         if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input 'pushMultiplier', 'decimal', title: 'Multiplier? (Optional. Default 1.2.) [pushMultiplier]', width: 6
+            input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
         } else {
-            input 'pushMultiplier', 'decimal', title: 'Multiplier? (Optional. Default 1.2.) [pushMultiplier]', width: 12
+            input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
         }
     }
 }
@@ -873,7 +888,6 @@ def compareDeviceLists(values,compare){
     // eg if(!button_1_push_on)
     if(!settings['button_' + values[0] + '_' + values[2] + '_' + values[1]]) return
     if(!settings['button_' + values[0] + '_' + values[2] + '_' + compare]) return
-    if(error) return
 
     settings['button_' + values[0] + '_' + values[2] + '_' + values[1]].each{first->
         settings['button_' + values[0] + '_' + values[2] + '_' + compare].each{second->
@@ -980,34 +994,37 @@ def displayScheduleSection(){
 }
 
 def displayDaysOption(dayText){
-    input 'days', 'enum', title: 'On these days (defaults to all days)', multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+    fieldName = 'days'
+    fieldTitle = 'On these days (defaults to all days)'
+    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 
     return
 }
 
 def displayMonthsOption(monthText){
-    input 'months', 'enum', title: 'In these months (defaults to all months)', multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
-
-    return
+    fieldName = 'months'
+    fieldTitle = 'In these months (defaults to all months)'
+    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
 }
 
 def displayStartTypeOption(){
-    if(!checkTimeComplete('start')  || !settings['inputStartType']){
-        displayLabel('Schedule starting time')
-    } else {
-        displayLabel('Schedule start')
-    }
-    if(!settings['inputStartType']){
-        width = 12
-        input 'inputStartType', 'enum', title: 'Start time (click to choose option):', multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-        displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required field for a schedule.')
-    } else {
-        if(settings['inputStartType'] == 'time' || !settings['inputStartSunriseType'] || settings['inputStartSunriseType'] == 'at'){
+    if(checkTimeComplete('start') && settings['inputStartType']) displayLabel('Schedule start')
+    if(!checkTimeComplete('start')  || !settings['inputStartType']) displayLabel('Schedule starting time')
+    fieldName = 'inputStartType'
+    if(settings[fieldName]){
+        fieldTitle = 'Start time option:'
+        if(settings[fieldName] == 'time' || !settings['inputStartSunriseType'] || settings['inputStartSunriseType'] == 'at'){
             width = 6
         } else if(settings['inputStartSunriseType']){
             width = 4
         }
-        input 'inputStartType', 'enum', title: 'Start time option:', multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+    }
+    if(!settings[fieldName]){
+        fieldTitle = 'Start time (click to choose option):'
+        width = 12
+        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+        displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required field for a schedule.')
     }
 }
 
@@ -1017,10 +1034,9 @@ def displayStopTypeOption(){
     } else {
         displayLabel('Schedule stop')
     }
-    if(!settings['inputStopType']){
-        width = 12
-        input 'inputStopType', 'enum', title: 'Stop time (click to choose option):', multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    } else {
+    fieldName = 'inputStopType'
+    if(settings[fieldName]){
+        fieldTitle = 'Stop time option:'
         if(!settings['inputStopType'] || settings['inputStopType'] == 'none'){
             width = 12
         } else if(settings['inputStopType'] == 'time' || !settings['inputStopSunriseType'] || settings['inputStopSunriseType'] == 'at'){
@@ -1028,14 +1044,21 @@ def displayStopTypeOption(){
         } else if(inputStopSunriseType){
             width = 4
         }
-        input 'inputStopType', 'enum', title: 'Stop time option:', multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+    }
+    if(!settings[fieldName]){
+        width = 12
+        fieldTitle = 'Stop time (click to choose option):'
+        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
     }
 }
 
 def displayTimeOption(lcType){
+    fieldName = 'input' + ucType + 'Time'
+    fieldTitle = ucType + ' time:'
     ucType = lcType.capitalize()
-    input "input${ucType}Time", 'time', title: ucType + ' time:', width: width, submitOnChange:true
-    if(!settings["input${ucType}Time"]) displayInfo('Enter the time to ' + lcType + ' the schedule in "hh:mm AM/PM" format. Required field.')
+    input fieldName, 'time', title: addFieldName(fieldTitle,fieldName), width: width, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + lcType + ' the schedule in "hh:mm AM/PM" format. Required field.')
 }
 
 def displaySunriseTypeOption(lcType){
@@ -1045,19 +1068,21 @@ def displaySunriseTypeOption(lcType){
         width = 4
     }
     // sunriseTime = getSunriseAndSunset()[settings["input${ucType}Type"]].format('hh:mm a')
-    input "input${ucType}SunriseType", 'enum', title: "At, before or after " + settings["input${ucType}Type"] + ":", multiple: false, width: width, options: ["at":"At " + settings["input${ucType}Type"], "before":"Before " + settings["input${ucType}Type"], "after":"After " + settings["input${ucType}Type"]], submitOnChange:true
-    if(!settings["input${ucType}SunriseType"]) displayInfo("Select whether to start exactly at " + settings["input${ucType}Type"] + " (currently, $sunriseTime). To allow entering minutes prior to or after " + settings["input${ucType}Type"] + ", select \"Before " + settings["input${ucType}Type"] + "\" or \"After " + settings["input${ucType}Type"] + "\". Required field.")
+    fieldName = 'input' + ucType + 'SunriseType'
+    fieldTitle = 'At, before or after ' + settings['input' + ucType + 'Type'] + ':'
+    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['at':'At ' + settings['input' + ucType + 'Type'], 'before':'Before ' + settings['input' + ucType + 'Type'], 'after':'After ' + settings['input' + ucType + 'Type']], submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings['input' + ucType + 'Type'] + ' (currently, ' + sunriseTime + '). To allow entering minutes prior to or after ' + settings['input' + ucType + 'Type'] + ', select "Before ' + settings['input' + ucType + 'Type'] + '" or "After ' + settings['input' + ucType + 'Type'] + '". Required field.')
 }
 
 def checkTimeComplete(lcType){
     ucType = lcType.capitalize()
 
     // If everything entered
-    if((settings["input${ucType}Type"] == 'time' && settings["input${ucType}Time"]) || 
-       ((settings["input${ucType}Type"] == 'sunrise' || settings["input${ucType}Type"] == 'sunset') && settings["input${ucType}SunriseType"] == 'at') || 
-       ((settings["input${ucType}Type"] == 'sunrise' || settings["input${ucType}Type"] == 'sunset') && (settings["input${ucType}SunriseType"] == 'before' || settings["input${ucType}SunriseType"] == 'after') && (settings["input${ucType}Before"]))){
+    if((settings['input' + ucType + 'Type'] == 'time' && settings['input' + ucType + 'Type']) || 
+       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && settings['input' + ucType + 'SunriseType'] == 'at') || 
+       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && (settings['input' + ucType + 'SunriseType'] == 'before' || settings['input' + ucType + 'SunriseType'] == 'after') && (settings['input' + ucType + 'Before']))){
         return true
-    } else if(!settings["input${ucType}Type"] && !settings["input${ucType}SunriseType"] && !settings["input${ucType}Before"]){
+    } else if(!settings['input' + ucType + 'Type'] && !settings['input' + ucType + 'SunriseType'] && !settings['input' + ucType + 'Before']){
         return true
     } else {
         return false
@@ -1066,55 +1091,59 @@ def checkTimeComplete(lcType){
 
 def getTimeVariables(lcType){
     ucType = lcType.capitalize()
+    type = settings['input' + ucType + 'Type']
+    sunriseType = settings['input' + ucType + 'SunriseType']
+    before = settings['input' + ucType + 'Before']
     // If time, then set string to "[time]"
-    if(settings["input${ucType}Type"] == 'time'){
-        return Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings["input${ucType}Time"]).format("h:mm a", location.timeZone)
+    if(type == 'time'){
+        return Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['input' + ucType + 'Time']).format('h:mm a', location.timeZone)
         // If sunrise or sunset
-    } else if((settings["input${ucType}Type"] == 'sunrise' || settings["input${ucType}Type"] == 'sunset')  && settings["input${ucType}SunriseType"]){
-        if(settings["input${ucType}SunriseType"] == 'at'){
+    } else if((type == 'sunrise' || type == 'sunset')  && sunriseType){
+        if(sunriseType == 'at'){
             // Set string to "sun[rise/set] ([sunrise/set time])"
-            return settings["input${ucType}Type"] + " (" + getSunriseAndSunset()[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            return type + ' (' + getSunriseAndSunset()[type].format('hh:mm a') + ')'
             // If before sunrise
-        } else if(settings["input${ucType}Type"] == 'sunrise' && settings["input${ucType}SunriseType"] == 'before' && settings["input${ucType}Before"]){
+        } else if(type == 'sunrise' && sunriseType == 'before' && before){
             // Set string to "[number] minutes before sunrise ([time])
-            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: (settings["input${ucType}Before"] * -1), sunsetOffset: 0)[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: (before * -1), sunsetOffset: 0)[type].format('hh:mm a') + ')'
             // If after sunrise
-        } else if(settings["input${ucType}Type"] == 'sunrise' && settings["input${ucType}SunriseType"] == 'after' && settings["input${ucType}Before"]){
+        } else if(type== 'sunrise' && sunriseType == 'after' && before){
             // Set string to "[number] minutes after sunrise ([time])
-            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: settings["input${ucType}Before"], sunsetOffset: 0)[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: before, sunsetOffset: 0)[type].format('hh:mm a') + ')'
             // If before sunset
-        } else if(settings["input${ucType}Type"] == 'sunset' && settings["input${ucType}SunriseType"] == 'before' && settings["input${ucType}Before"]){
+        } else if(type == 'sunset' && sunriseType == 'before' && before){
             // Set string to "[number] minutes before sunset ([time])
-            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: (settings["input${ucType}Before"] * -1))[settings["input${ucType}Type"]].format("hh:mm a") + ")"
+            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: (before * -1))[type].format('hh:mm a') + ')'
             // If after sunrise
-        } else if(settings["input${ucType}Type"] == 'sunset' && settings["input${ucType}SunriseType"] == 'after' && settings["input${ucType}Before"]){
+        } else if(type == 'sunset' && sunriseType == 'after' && before){
             // Set string to "[number] minutes after sunset ([time])
-            if(settings["input${ucType}Before"]) return settings["input${ucType}Before"] + " minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " (" + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: settings["input${ucType}Before"])[settings["input${ucType}Type"]].format("hh:mm a") + ")"
-        } else {
-            return
+            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: before)[type].format('hh:mm a') + ')'
         }
-    } else {
-        return
     }
 }
 
 def displaySunriseOffsetOption(lcType){
     ucType = lcType.capitalize()
-    if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == 'at') return
+    type = settings['input' + ucType + 'Type']
+    sunriseType = settings['input' + ucType + 'SunriseType']
+    before = settings['input' + ucType + 'Before']
+    if(!sunriseType || sunriseType == 'at') return
 
-    if(settings["input${ucType}Before"] && settings["input${ucType}Before"] > 1441){
+    if(before && before > 1441){
         // "Minues [before/after] [sunrise/set] is equal to "
-        message = "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " is equal to "
-        if(settings["input${ucType}Before"]  > 2881){
+        message = 'Minutes ' + sunriseType + ' ' + type + ' is equal to '
+        if(before  > 2881){
             // "X days"
-            message += Math.floor(settings["input${ucType}Before"]  / 60 / 24) + " days."
+            message += Math.floor(before  / 60 / 24) + " days."
         } else {
             message += 'a day.'
         }
         warningMessage(message)
     }
-    input "input${ucType}Before", 'number', title: "Minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + ":", width: 4, submitOnChange:true
-    if(!settings["input${ucType}Before"]) displayInfo("Enter the number of minutes " + settings["input${ucType}SunriseType"] + " " + settings["input${ucType}Type"] + " to start the schedule. Required field.")
+    fieldName = 'input' + ucType + 'Before'
+    fieldTitle = 'Minutes ' + sunriseType + ' ' + type + ':'
+    input fieldName, 'number', title: addFieldName(fieldTitle,fieldName), width: 4, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the number of minutes ' + sunriseType + ' ' + type + ' to start the schedule. Required field.')
 }
 
 def displayChangeModeOption(){
@@ -1144,6 +1173,12 @@ def displayChangeModeOption(){
     }
 }
 
+def addFieldName(text,fieldName){
+    if(getLogLevel() != 5) return text
+    if(!fieldName) return
+    return text + ' [' + fieldName + ']'
+}
+
 /* ************************************************************************ */
 /*                                                                          */
 /*                      End display functions.                              */
@@ -1151,13 +1186,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1136,'trace', 'Installed')
+    putLog(1189,'trace', 'Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1142,'trace','Updated')
+    putLog(1195,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1172,7 +1207,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1157,'trace','Initialized')
+    putLog(1210,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1194,7 +1229,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1197,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
+    putLog(1232,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
     
     // Turn on
     switchAction = 'on'
@@ -1205,7 +1240,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1208,'trace','Turning on ' + device)
+    if(device) putLog(1243,'trace','Turning on ' + device)
     
     // Turn off
     switchAction = 'off'
@@ -1217,7 +1252,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1220,'trace','Turning off ' + device)
+    if(device) putLog(1255,'trace','Turning off ' + device)
     
     // Toggle
     switchAction = 'toggle'
@@ -1230,7 +1265,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1233,'trace','Toggling ' + device)
+    if(device) putLog(1268,'trace','Toggling ' + device)
     
     // Resume
     switchAction = 'resume'
@@ -1248,7 +1283,7 @@ def buttonPushed(evt){
     }
     if(!activeSchedule) parent.updateStateMulti(device,'off',app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1247,'trace','Resuming ' + device)
+    if(device) putLog(1286,'trace','Resuming ' + device)
     
     // Brighten
     switchAction = 'brighten'
@@ -1268,7 +1303,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1270,'trace','Brightening ' + device)
+    if(device) putLog(1306,'trace','Brightening ' + device)
     
     // Dim
     switchAction = 'dim'
@@ -1288,7 +1323,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1293,'trace','Dimming ' + device)
+    if(device) putLog(1326,'trace','Dimming ' + device)
 }
 
 
@@ -1309,7 +1344,7 @@ def buttonReleased(evt){
     numberOfButtons = evt.device.currentValue('numberOfButtons')
 
     if (buttonNumber == '2' || (buttonNumber == '4' && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == '1' && numberOfButtons == 2)){
-        putLog(1357,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
+        putLog(1347,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1336,7 +1371,7 @@ def getDimSpeed(){
 // action = 'dim' or 'brighten'
 def getSteps(level, action){
     if (action != 'dim' && action != 'brighten'){
-        putLog(1384,'error','Invalid value for action "' + action + '" sent to getSteps function')
+        putLog(1374,'error','Invalid value for action "' + action + '" sent to getSteps function')
         return false
     }
 
@@ -1363,7 +1398,7 @@ def getSteps(level, action){
             }
         }
     }
-    putLog(1411,'debug','Function getSteps returning ' + steps)
+    putLog(1401,'debug','Function getSteps returning ' + steps)
     return steps
 }
 
@@ -1421,7 +1456,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        putLog(1469,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1459,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1443,7 +1478,7 @@ def holdDim(device){
             parent.updateStateSingle(singleDevice,'on',app.label)
         } else {
             if(level < 2){
-                putLog(1491,'info','Can\'t dim ' + singleDevice + '; already 1%.')
+                putLog(1481,'info','Can\'t dim ' + singleDevice + '; already 1%.')
             } else {
                 def steps = getSteps(level, 'dim')
                 def newLevel
@@ -1473,7 +1508,7 @@ def holdBrighten(device){
             reschedule(it)
         } else {
             if(level > 99){
-                putLog(1521,'info','Can\'t brighten ' + it + '; already 100%.')
+                putLog(1511,'info','Can\'t brighten ' + it + '; already 100%.')
             } else {
                 def steps = getSteps(level, 'brighten')
                 def newLevel
