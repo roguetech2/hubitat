@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.11
+*  Version: 0.5.12
 *
 ***********************************************************************************************************************/
 
@@ -85,7 +85,7 @@ preferences {
         } else {
             //if(buttonDevice) numberOfButtons = getButtonNumbers()
             // Multi + advanced needs section closed
-            if(multiDevice && customActionsSetup){
+            if(multiDevice && settings['customActionsSetup']){
                 section(){
                     displayNameOption()
                     displayPicoOption()
@@ -96,9 +96,9 @@ preferences {
                     paragraph '<div style="background-color:BurlyWood"><b> Select what to do for each Pico action:</b></div>'
                 }
                 displayMultiDeviceAdvanced()
-                    displayScheduleSection()
+                displayScheduleSection()
             }
-            if(!multiDevice || !customActionsSetup){
+            if(!multiDevice || !settings['customActionsSetup']){
                 section(){
                     displayNameOption()
                     displayPicoOption()
@@ -111,8 +111,8 @@ preferences {
                         displayCustomActionsOption()
                         displayMultiDeviceSimple()
                     }
-                    displayScheduleSection()
                 }
+                displayScheduleSection()
             }
         }
     }
@@ -122,10 +122,10 @@ def displaySingleDevice(){
     if(!numberOfButtons) return
     if(!controlDevice) return
 
-    if(customActionsSetup) displaySingleDeviceAdvanced()
-    if(!customActionsSetup) displaySingleDeviceSimple()
+    if(settings['customActionsSetup']) displaySingleDeviceAdvanced()
+    if(!settings['customActionsSetup']) displaySingleDeviceSimple()
 
-    if(!customActionsSetup){
+    if(!settings['customActionsSetup']){
         displayMultiplierOption()
         return
     }
@@ -664,10 +664,12 @@ def displayMultiDeviceAdvanced(){
 
 
 def displayLabel(text, width = 12){
+    if(!text) return
     paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
 }
 
 def displayInfo(text,noDisplayIcon = null){
+    if(!text) return
     paragraph '<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>'
 }
 
@@ -677,10 +679,12 @@ def displayError(text){
 }
 
 def displayWarning(text){
+    if(!text) return
     paragraph '<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>'
 }
 
 def highlightText(text){
+    if(!text) return
     return '<div style="background-color:Wheat">' + text + '</div>'
 }
 
@@ -688,9 +692,9 @@ def formComplete(){
     if(!app.label) return false
     if(!buttonDevice) return false
     if(!numberOfButtons) return false
-    if(!multiDevice) {
-        if(customActionsSetup && !button_1_push && !button_2_push && !button_3_push && !button_4_push && !button_5_push) return false
-        if(!customActionsSetup && !controlDevice) return false
+    if(!settings['multiDevice']) {
+        if(settings['customActionsSetup'] && !button_1_push && !button_2_push && !button_3_push && !button_4_push && !button_5_push) return false
+        if(!settings['customActionsSetup'] && !controlDevice) return false
     }
     if(inputStartType == 'time' && !inputStartTime) return false
     if(inputStopType == 'time' && !inputStopTime) return false
@@ -987,7 +991,6 @@ def displayScheduleSection(){
         displayDaysOption(dayText)
         displayMonthsOption(monthText)
 
-
         displayInfo(message)
     }
 }
@@ -1173,8 +1176,8 @@ def displayChangeModeOption(){
 }
 
 def addFieldName(text,fieldName){
-    if(getLogLevel() != 5) return text
     if(!fieldName) return
+    if(getLogLevel() != 5) return text
     return text + ' [' + fieldName + ']'
 }
 
@@ -1185,13 +1188,13 @@ def addFieldName(text,fieldName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1188,'trace', 'Installed')
+    putLog(1191,'trace', 'Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1194,'trace','Updated')
+    putLog(1197,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1206,7 +1209,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1209,'trace','Initialized')
+    putLog(1212,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1217,50 +1220,47 @@ def buttonPushed(evt){
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
 
-    buttonNumber = evt.value
+    buttonNumber = evt.value.toInteger()
     numberOfButtons = evt.device.currentValue('numberOfButtons')
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(buttonNumber == '2' && numberOfButtons == 2) buttonNumber = 5
-    if(buttonNumber == '4' && numberOfButtons == 4) buttonNumber = 5
-    if(buttonNumber == '3' && numberOfButtons == 4) buttonNumber = 4
+    if(buttonNumber == 2 && numberOfButtons == 2) buttonNumber = 5
+    if(buttonNumber == 4 && numberOfButtons == 4) buttonNumber = 5
+    if(buttonNumber == 3 && numberOfButtons == 4) buttonNumber = 4
 
     // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1231,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
-    
+    putLog(1234,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
     // Turn on
     switchAction = 'on'
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!customActionsSetup && buttonNumber == 1) device = settings['controlDevice']
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
+        if(!settings['customActionsSetup'] && buttonNumber == 1) device = settings['controlDevice']
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1242,'trace','Turning on ' + device)
+    if(device) putLog(1244,'trace','Turning on ' + device)
     
     // Turn off
     switchAction = 'off'
     device = ''
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!customActionsSetup && buttonNumber == 5) device = settings['controlDevice']
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
+        if(!settings['customActionsSetup'] && buttonNumber == 5) device = settings['controlDevice']
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1254,'trace','Turning off ' + device)
+    if(device) putLog(1256,'trace','Turning off ' + device)
     
     // Toggle
     switchAction = 'toggle'
     device = ''
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction){
-            device = settings['controlDevice']
-        }
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
@@ -1269,9 +1269,9 @@ def buttonPushed(evt){
     // Resume
     switchAction = 'resume'
     device = ''
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
     }
     // checkActiveSchedule doesn't exist
     activeSchedule = parent.checkActiveScheduleMulti(device,app.label)
@@ -1287,10 +1287,10 @@ def buttonPushed(evt){
     // Brighten
     switchAction = 'brighten'
     device = ''
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!customActionsSetup && buttonNumber == 2) device = settings['controlDevice']
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
+        if(!settings['customActionsSetup'] && buttonNumber == 2) device = settings['controlDevice']
     }
     if(atomicState.action == 'push'){
         parent.updateStateMulti(device,'on',app.label)
@@ -1307,10 +1307,10 @@ def buttonPushed(evt){
     // Dim
     switchAction = 'dim'
     device = ''
-    if(multiDevice) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!multiDevice){
-        if(customActionsSetup && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!customActionsSetup && buttonNumber == 4) device = settings['controlDevice']
+    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
+    if(!settings['multiDevice']){
+        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
+        if(!settings['customActionsSetup'] && buttonNumber == 4) device = settings['controlDevice']
     }
     if(atomicState.action == 'push'){
         parent.updateStateMulti(device,'on',app.label)
