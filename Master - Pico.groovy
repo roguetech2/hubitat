@@ -85,7 +85,7 @@ preferences {
         } else {
             //if(buttonDevice) numberOfButtons = getButtonNumbers()
             // Multi + advanced needs section closed
-            if(multiDevice && settings['customActionsSetup']){
+            if(settings['multiDevice'] && settings['customActionsSetup']){
                 section(){
                     displayNameOption()
                     displayPicoOption()
@@ -98,16 +98,16 @@ preferences {
                 displayMultiDeviceAdvanced()
                 displayScheduleSection()
             }
-            if(!multiDevice || !settings['customActionsSetup']){
+            if(!settings['multiDevice'] || !settings['customActionsSetup']){
                 section(){
                     displayNameOption()
                     displayPicoOption()
                     if(numberOfButtons) displayMultiDeviceOption()
-                    if(numberOfButtons && !multiDevice) {
+                    if(numberOfButtons && !settings['multiDevice']) {
                         if(controlDevice) displayCustomActionsOption()
                         displaySingleDevice()
                     }
-                    if(numberOfButtons && multiDevice) {
+                    if(numberOfButtons && settings['multiDevice']) {
                         displayCustomActionsOption()
                         displayMultiDeviceSimple()
                     }
@@ -1325,8 +1325,6 @@ def buttonPushed(evt){
     if(device) putLog(1325,'trace','Dimming ' + device)
 }
 
-
-
 // place holder until I can redo my pico setups to not throw an error
 def buttonHeld(evt){
 }
@@ -1339,11 +1337,11 @@ def buttonReleased(evt){
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
 
-    buttonNumber = evt.value
+    buttonNumber = evt.value.toInteger()
     numberOfButtons = evt.device.currentValue('numberOfButtons')
 
-    if (buttonNumber == '2' || (buttonNumber == '4' && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == '1' && numberOfButtons == 2)){
-        putLog(1346,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
+    if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
+        putLog(1344,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1370,7 +1368,7 @@ def getDimSpeed(){
 // action = 'dim' or 'brighten'
 def getSteps(level, action){
     if (action != 'dim' && action != 'brighten'){
-        putLog(1373,'error','Invalid value for action "' + action + '" sent to getSteps function')
+        putLog(1371,'error','Invalid value for action "' + action + '" sent to getSteps function')
         return false
     }
 
@@ -1397,7 +1395,7 @@ def getSteps(level, action){
             }
         }
     }
-    putLog(1400,'debug','Function getSteps returning ' + steps)
+    putLog(1398,'debug','Function getSteps returning ' + steps)
     return steps
 }
 
@@ -1455,7 +1453,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        putLog(1458,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1456,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1477,7 +1475,7 @@ def holdDim(device){
             parent.updateStateSingle(singleDevice,'on',app.label)
         } else {
             if(level < 2){
-                putLog(1480,'info','Can\'t dim ' + singleDevice + '; already 1%.')
+                putLog(1478,'info','Can\'t dim ' + singleDevice + '; already 1%.')
             } else {
                 def steps = getSteps(level, 'dim')
                 def newLevel
@@ -1507,7 +1505,7 @@ def holdBrighten(device){
             reschedule(it)
         } else {
             if(level > 99){
-                putLog(1510,'info','Can\'t brighten ' + it + '; already 100%.')
+                putLog(1508,'info','Can\'t brighten ' + it + '; already 100%.')
             } else {
                 def steps = getSteps(level, 'brighten')
                 def newLevel
