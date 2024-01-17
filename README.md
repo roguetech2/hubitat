@@ -1,4 +1,8 @@
-This is an integrated set of apps, with scheduling being at the core. When devices are automated within this suite, scheduling will always apply. For instance, if a light is scheduled (from within the suite) to dim over time, and it is turned on by a Pico or contact sensor, the schedule will resume and the light turn on at the brightness set by the schedule. However, if the light is dimmed by Pico (etc.), it is considered a "manual" change, and overrides the schedule. It will also capture events from other apps, devices, etc., and maintain scheduled settings. In addition, Picos (etc.) have an option (in beta status) to "resume" a schedule, in addition to the normal "on" and "off", which allows a "manual" change to be reset back to scheduled changes.
+This is an integrated set of apps, with scheduling being at the core. This includes 7-day schedules, with progressive changes (dimming, hue, saturation and color temperature).
+
+When devices are automated within this suite, scheduling will always apply. For instance, if a light is scheduled (from within the suite) to dim over time, and it is turned on by a Pico/MagicCube or by way of a contact/humidity sensor, the schedule will resume and the light turn on at the brightness set by the schedule. However, if the light is dimmed by Pico (etc.), it is considered a "manual" change, and overrides the schedule. It will also capture events from other apps, devices, etc., and apply scheduled settings. In addition, Picos (etc.) have an option (in beta status) to "resume" a schedule, in addition to the normal "on" and "off", which allows a "manual" change to be reset back to scheduled changes.
+
+In addition, Picos (etc.) can themselves be scheduled (allowing a Pico [etc.] to do something different in the morning as at night), as well as (early beta status) what people are present/away, and/or what the Hubitat Mode is. They can be mapped to control multiple devices in different ways (within a single setup), such as turning on one light and toggling another (and the settings of the lights in turn depending on their own, potentially independant, scheduling).  
 
 Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide provide plain-language summaries of settings to more easily maintain and correct automations.
 
@@ -9,7 +13,7 @@ Master.groovy:
 
 	Production status: Beta but required.
 ------------------------------------------------
-Master - Alert:
+Master - Alert.groovy:
 	Child app for sending text messages and push alerts.
 
 	Production status: Experimental. Do not install in any production enviroment.
@@ -25,12 +29,12 @@ Master - Humidity.groovy:
 	Production status: Beta (untested).
 ------------------------------------------------
 Master - MagicCube.groovy:
-	Child app for MagicCubes.
+	Child app for (Xiaomi) MagicCubes.
 
 	Production status: Late alpha. Only works with kkossev's T1 driver.
 ------------------------------------------------
 Master - Pico.groovy:
-	Child app for Caseta Picos. (For other switches, must be mapped as 5 buttons, such that "off" = button 5.)
+	Child app for (Lutron) Caseta Picos. (Should work with any 2, 4 or 5 button devices.)
 
 	Production status: Late beta.
 ------------------------------------------------
