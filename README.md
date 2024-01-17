@@ -6,7 +6,7 @@ In addition, Picos (etc.) can themselves be scheduled (allowing a Pico [etc.] to
 
 Each child app (currently beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide plain-language summaries of settings to more easily maintain and correct automations.
 
-Basic to do: Bring all apps out of beta; complete alpha/experimental apps (alerts, presense, and [perhaps] washer-dryer); build motion detection app.
+Basic to do: Bring all apps out of beta; complete alpha/experimental apps (alerts, presense, and [perhaps] washer-dryer); add motion detection app.
 
 Included files:
 
