@@ -4,7 +4,7 @@ When devices are automated within this suite, scheduling will always apply. For 
 
 In addition, Picos (etc.) can themselves be scheduled (allowing a Pico [etc.] to do something different in the morning as at night), as well as (early beta status) what people are present/away, and/or what the Hubitat Mode is. They can be mapped to control multiple devices in different ways (within a single setup), such as turning on one light and toggling another (and the settings of the lights in turn depending on their own, potentially independant, scheduling).  
 
-Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide provide plain-language summaries of settings to more easily maintain and correct automations.
+Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide plain-language summaries of settings to more easily maintain and correct automations.
 
 File contained:
 
