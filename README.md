@@ -16,17 +16,17 @@ Master - Contact.groovy:
 Master - Humidity.groovy:
 	Child app for bathroom humidity sensors.
 
-	Production status: Alpha (currently does not work).
+	Production status: Beta (untested).
 ------------------------------------------------
 Master - MagicCube.groovy:
 	Child app for MagicCubes.
 
-	Production status: Late alpha.
+	Production status: Late alpha. Only works with kkossev's T1 driver.
 ------------------------------------------------
 Master - Pico.groovy:
 	Child app for Caseta Picos and smart switches.
 
-	Production status: Beta.
+	Production status: Late beta.
 ------------------------------------------------
 Master - Presense.groovy:
 	Child app for home presense.
