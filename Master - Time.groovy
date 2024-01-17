@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2022 roguetech
+*  Copyright (C) 2024 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.13
+*  Version: 0.6.15
 *
 ***********************************************************************************************************************/
 
@@ -1035,7 +1035,7 @@ def initialize() {
 def handleStateChange(event){
     //if(parent.isOn(event.device,app.label) && event.value == 'on') return
     //if(!parent.isOn(event.device,app.label) && event.value == 'off') return
-    putLog(1039,'trace',"Captured manual state change for $event.device to turn $event.value")
+    putLog(1038,'trace',"Captured manual state change for $event.device to turn $event.value")
     parent.updateStateSingle(event.device,event.value,app.label)
 
     return
@@ -1056,7 +1056,7 @@ def handleLevelChange(event){
     defaults = ['level':['startLevel':value,'priorLevel':levelChange.'currentLevel','appId':'manual']]
 
     parent.updateLevelsSingle(event.device,defaults,app.label)
-    putLog(1060,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
+    putLog(1059,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
 
     return
 }
@@ -1092,7 +1092,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(1096,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
+    putLog(1095,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1109,7 +1109,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(1113,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
+    putLog(1112,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1141,14 +1141,14 @@ def setDailySchedules(type = null){
         scheduleString = "0 $startMinutes $startHours $days"
         // Need to pause or else Hubitat may run runDailyStartSchedule immediately and cause a loop
         runIn(1,setStartSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1145,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
+        putLog(1144,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
     }
 
     if((type != 'start') && atomicState.stop){
         scheduleString = "0 $stopMinutes $stopHours $days"
         // Need to pause or else Hubitat may run runDailyStopSchedule immediately and cause a loop
         runIn(1,setStopSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1152,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
+        putLog(1151,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
     }
     return true
 }
@@ -1156,12 +1156,12 @@ def setDailySchedules(type = null){
 // Required for offsetting scheduling start and stop by a second, to prevent Hubitat running runDailyStartSchedule immediately
 def setStartSchedule(data){
     schedule(data.scheduleString, runDailyStartSchedule)
-    putLog(1160,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
+    putLog(1159,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
 }
 
 def setStopSchedule(data){
     schedule(data.scheduleString, runDailyStopSchedule)
-    putLog(1165,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
+    putLog(1164,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
 }
 
 // Performs actual changes at time set with start_action
@@ -1194,11 +1194,7 @@ def runDailyStartSchedule(){
         parent.updateLevelsMulti(settings['device'],defaults,app.label)
     }
     
-    // If not correct mode, exit
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return
-    
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
+    if(getDisabled()) return
     
     // Update and set state (when turning on, off, or toggling)
         parent.setStateMulti(settings['device'],app.label)
@@ -1214,7 +1210,7 @@ def runDailyStartSchedule(){
 // Performs actual changes for incremental schedule
 // Called only by schedule set in incrementalSchedule
 def runIncrementalSchedule(){
-    putLog(1217,'trace','runIncrementalSchedule starting')
+    putLog(1213,'trace','runIncrementalSchedule starting')
     if(!getScheduleActive()) return
     if((settings['start_level'] && settings['stop_level']) || (settings['start_temp'] && settings['stop_temp']) || (settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
         // If it's disabled, keep it active
@@ -1238,7 +1234,7 @@ def runIncrementalSchedule(){
 
         // Reschedule itself
         runIn(8,runIncrementalSchedule)
-        putLog(1241,'trace','runIncrementalSchedule exiting')
+        putLog(1237,'trace','runIncrementalSchedule exiting')
     }
     return true
 }
@@ -1291,11 +1287,7 @@ def runDailyStopSchedule(){
     // Clear out schedule's levels
     parent.updateLevelsMulti(settings['device'],defaults,app.label)
     
-    // If not correct mode, exit
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return
-    
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
+    if(getDisabled()) return
     
     // Update and set state (when turning on, off, or toggling)
     parent.setStateMulti(settings['device'],app.label)
@@ -1356,11 +1348,7 @@ def systemBootActivate(){
         parent.updateLevelsMulti(settings['device'],defaults,app.label)
     }
 
-    // If not correct mode, exit
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return
-    
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
+    if(getDisabled()) return
 
     // Update and set state (when turning on, off, or toggling)
     parent.setStateMulti(settings['device'],app.label)
@@ -1386,7 +1374,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1389,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1377,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1397,7 +1385,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1400,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1388,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
@@ -1432,7 +1420,7 @@ def getScheduleActive(){
     return true
 }
 
-def getScheduleDisabled(){
+def getDisabled(){
     // If disabled, return true
     if(state.disable) return true
 
@@ -1538,30 +1526,5 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
     if(!checkLog(type)) return
-    errorText = ''
-    if(type == 'error') errorText = '<font color="red">'
-    if(type == 'warn') errorText = '<font color="brown">'
-    if(lineNumber) lineText = "(line $lineNumber) "
-    if(message) messageText = "-- $message"
-    
-        logMessage = "$errorText$app.label $lineText $messageText"
-    if(errorText) logMessage += '</font>'
-    switch(type) {
-        case 'error':
-        log.error(logMessage)
-        return true
-        case 'warn':
-        log.warn(logMessage)
-        return true
-        case 'info':
-        log.info(logMessage)
-        return true
-        case 'debug':
-        log.debug(logMessage)
-        return true
-        case 'trace':
-        log.trace(logMessage)
-        return true
-    }
-    return
+    return parent.putLog(lineNumber,type,message,app.label)
 }
