@@ -2,6 +2,8 @@ This is an integrated set of apps, with scheduling being at the core. When devic
 
 Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide provide plain-language summaries of settings to more easily maintain and correct automations.
 
+File contained:
+
 Master.groovy:
 	Parent app, containing shared functions and basic settings such as presense device selection.
 
