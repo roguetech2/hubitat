@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.3.01
+*  Version: 0.3.02
 * 
 ***********************************************************************************************************************/
 
@@ -449,51 +449,6 @@ def initialize() {
 
 def buttonEvent(evt){
     convertDriver(evt)
-    
-    if(!atomicState.priorSide) putLog(453,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
-
-    //flip180
-    if(evt.name == 'pushed'){
-        if(evt.value == '1') log.debug '1'
-        if(atomicState.priorSide == '6') log.debug '2'
-        if(evt.value == '1' && atomicState.priorSide == '6') actionNumber = 3
-        if(evt.value == '2' && atomicState.priorSide == '5') actionNumber = 3
-        if(evt.value == '3' && atomicState.priorSide == '4') actionNumber = 3
-        if(evt.value == '4' && atomicState.priorSide == '3') actionNumber = 3
-        if(evt.value == '5' && atomicState.priorSide == '2') actionNumber = 3
-        if(evt.value == '6' && atomicState.priorSide == '1') actionNumber = 3
-        if(actionNumber == 3) putLog(465,'trace',buttonDevice + ' captured as flip180.')
-    }
-
-    //flip90
-    if(evt.name == 'pushed'){
-        if(actionNumber != 3) {
-            actionNumber = 2
-            putLog(472,'trace',buttonDevice + 'action captured as flip90.')
-        }
-    }
-    
-    //shake
-    if(evt.name == 'doubleTap'){
-        actionNumber = 1
-        putLog(479,'trace',buttonDevice + 'ction captured as shake.')
-    }
-    
-    //clockwise
-    if(evt.name == 'release'){
-        actionNumber = 6
-        putLog(485,'trace',buttonDevice + 'ction captured as [rotate] clockwise.')
-    }
-    
-    //clockwise
-    if(evt.name == 'hold'){
-        actionNumber = 7
-        putLog(491,'trace',buttonDevice + 'ction captured as [rotate] counter-clockwise.')
-    }
-    
-    atomicState.priorSide = evt.value 
-
-    putLog(496,'info',evt.displayName + ' ' + evt.value)
 
     // Set device if using simple setup
     if(!multiDevice){
@@ -617,36 +572,36 @@ def convertDriver(evt){
         if(evt.value == '4' && atomicState.priorSide == '3') actionNumber = 3
         if(evt.value == '5' && atomicState.priorSide == '2') actionNumber = 3
         if(evt.value == '6' && atomicState.priorSide == '1') actionNumber = 3
-        if(actionNumber == 3) putLog(620,'trace',buttonDevice + ' action captured as flip180.')
+        if(actionNumber == 3) putLog(620,'trace','' + buttonDevice + ' action captured as flip180.')
     }
     //flip90
     if(evt.name == 'pushed'){
         if(actionNumber != 3) {
             actionNumber = 2
-            putLog(626,'trace',buttonDevice + ' action captured as flip90.')
+            putLog(626,'trace','' + buttonDevice + ' action captured as flip90.')
         }
     }
     
     //shake
     if(evt.name == 'doubleTap'){
         actionNumber = 1
-        putLog(633,'trace',buttonDevice + ' action captured as shake.')
+        putLog(633,'trace','' + buttonDevice + ' action captured as shake.')
     }
     
     //clockwise
     if(evt.name == 'release'){
         actionNumber = 6
-        putLog(639,'trace',buttonDevice + ' action captured as [rotate] clockwise.')
+        putLog(639,'trace','' + buttonDevice + ' action captured as [rotate] clockwise.')
     }
     
     //clockwise
     if(evt.name == 'hold'){
         actionNumber = 7
-        putLog(645,'trace',buttonDevice + ' action captured as [rotate] counter-clockwise.')
+        putLog(645,'trace','' + buttonDevice + ' action captured as [rotate] counter-clockwise.')
     }
 
+    atomicState.priorSide = evt.value 
     atomicState.buttonNumber = actionNumber
-    
 }
 
 def checkLog(type = null){
@@ -674,29 +629,5 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
     if(!checkLog(type)) return
-    logMessage = ''
-    if(type == 'error') logMessage += '<font color="red">'
-    if(type == 'warn') logMessage += '<font color="brown">'
-    logMessage += app.label + ' '
-    if(lineNumber) logMessage += '(line ' + lineNumber + ') '
-    if(message) logMessage += '-- ' + message
-    if(type == 'error' || type == 'warn') logMessage += '</font>'
-    switch(type) {
-        case 'error':
-        log.error(logMessage)
-        return true
-        case 'warn':
-        log.warn(logMessage)
-        return true
-        case 'info':
-        log.info(logMessage)
-        return true
-        case 'trace':
-        log.trace(logMessage)
-        return true
-        case 'debug':
-        log.debug(logMessage)
-        return true
-    }
-    return
+    return parent.putLog(lineNumber,type,message,app.label)
 }
