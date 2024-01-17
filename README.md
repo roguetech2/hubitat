@@ -4,7 +4,7 @@ Master.groovy:
 	Production status: Beta but required.
 ------------------------------------------------
 Master - Alert:
-	Child app for sending alerts.
+	Child app for sending text messages and push alerts.
 
 	Production status: Experimental. Do not install in any production enviroment.
 ------------------------------------------------
