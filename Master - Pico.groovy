@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.14
+*  Version: 0.5.15
 *
 ***********************************************************************************************************************/
 
@@ -1587,29 +1587,5 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
     if(!checkLog(type)) return
-    logMessage = ''
-    if(type == 'error') logMessage += '<font color="red">'
-    if(type == 'warn') logMessage += '<font color="brown">'
-    logMessage += app.label + ' '
-    if(lineNumber) logMessage += '(line ' + lineNumber + ') '
-    if(message) logMessage += '-- ' + message
-    if(type == 'error' || type == 'warn') logMessage += '</font>'
-    switch(type) {
-        case 'error':
-        log.error(logMessage)
-        return true
-        case 'warn':
-        log.warn(logMessage)
-        return true
-        case 'info':
-        log.info(logMessage)
-        return true
-        case 'trace':
-        log.trace(logMessage)
-        return true
-        case 'debug':
-        log.debug(logMessage)
-        return true
-    }
-    return
+    return parent.putLog(lineNumber,type,message,app.label)
 }
