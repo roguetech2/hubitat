@@ -1,6 +1,6 @@
 This is an integrated set of apps, with scheduling being at the core. When devices are automated within this suite, scheduling will always apply. For instance, if a light is scheduled (from within the suite) to dim over time, and it is turned on by a Pico or contact sensor, the schedule will resume and the light turn on at the brightness set by the schedule. However, if the light is dimmed by Pico (etc.), it is considered a "manual" change, and overrides the schedule. It will also capture events from other apps, devices, etc., and maintain scheduled settings. In addition, Picos (etc.) have an option (in beta status) to "resume" a schedule, in addition to the normal "on" and "off", which allows a "manual" change to be reset back to scheduled changes.
 
-Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface.
+Each child app (as beta: schedule, Pico, contact, humidity, and MagicCube) have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide many features while maintaining a simple interface. They also provide provide plain-language summaries of settings to more easily maintain and correct automations.
 
 Master.groovy:
 	Parent app, containing shared functions and basic settings such as presense device selection.
