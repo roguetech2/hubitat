@@ -46,4 +46,4 @@ Master - Washer-Dryer.groovy:
 schedule.drawio:
 	Flowchart of logic for schedule app using draw.io, available at https://www.diagrams.net/
 
-	Production state: Early.
+	Production state: Abandoned.
