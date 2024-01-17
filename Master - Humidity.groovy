@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.3.03
+*  Version: 0.3.04
 *
 ***********************************************************************************************************************/
 
@@ -29,19 +29,63 @@ definition(
     iconX2Url: "http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png"
 )
 
+infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
+errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
+warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
+moreOptions = ' <font color="grey">(click for more options)</font>'
+
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
 // 5 for all
 def getLogLevel(){
-    return 5
+    return 4
+}
+def getMaxTemp(){
+    return 250
+}
+def getMinTemp(){
+    return -50
+}
+
+def displayLabel(text, width = 12){
+    if(!text) return
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+}
+
+def displayInfo(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    helpTip = ''
+}
+
+def displayError(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    errorMessage = ''
+}
+
+def displayWarning(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    warningMessage = ''
+}
+
+def highlightText(text, width=12){
+    if(!text) return
+    return '<div style="background-color:Wheat">' + text + '</div>'
+}
+
+def addFieldName(text,fieldName){
+    if(!fieldName) return
+    if(getLogLevel() != 5) return text
+    return text + ' [' + fieldName + ']'
 }
 
 preferences {
-    infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
-    errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
-    warningIcon = "<img src=\"http://emily-john.love/icons/warning.png\" width=20 height=20>"
-    moreOptions = " <font color='grey'>(click for more options)</font>"
 
     install = formComplete()
     
@@ -81,7 +125,6 @@ preferences {
             displayLevelOption('humidity')
             displayLevelOption('temp')
             displayHumidityRelativeChangeOption()
-            displayTempRelativeChangeOption()
             displayRunTimeOption()
             displayAlertOptions()
             displayPeopleOption()
@@ -125,17 +168,35 @@ def validatePercent(value){
     return parent.validateLevel(value,app.label)
 }
 
-def validateTemp(value){
-    if(!value) return true
-    if(value < -50) return false
-    if(value > 200) return false
-    return true
+
+def validateHumidity(value){
+    if(value == 0) return 'Minimum humidity is 1.'
+    if(!value) return
+    if(value > 100) return 'Humidity cannot be more than 100.'
 }
 
-def validateSunMinutes(time){
-        if(!time) return true
-        if(time > 719) return false
-    return true
+def validateTemp(value){
+    if(!value) return
+    if(validateMinTemp(value)) return true
+    if(validateMaxTemp(value)) return true
+}
+
+def validateMaxTemp(value){
+    if(!value) return
+    if(value > getMaxTemp()) return 'Temperature must be less than ' + getMaxTemp() + typeUnit + '.'
+}
+
+def validateMinTemp(value){
+    if(!value) return
+    if(value < getMinTemp()) return 'Temperature must be greater than ' + getMinTemp() + typeUnit + '.'
+}
+
+def validateMinutes(value){
+    if(value == 0) return 'Minimum minutes is 1.'
+    if(!value) return
+    if(value > 1440) return 'Maximum minutes is 1,440 (24 hours).'
+    log.debug 'value ' + value + ' < 1 = ' + (value < 1)
+    if(value < 1) return 'Minimum minutes is 1.'
 }
 
 def getHumiditySensorCount(){
@@ -220,7 +281,6 @@ def getCountFieldsStart(){
         if(settings['humidityStartThreshold']) count++
             if(settings['tempStartThreshold']) count++
                 if(settings['humidityStartPercent']) count++
-                    if(settings['tempStartPercent']) count++
                         return count
 }
 
@@ -292,34 +352,6 @@ def getControlSensorText(){
     if(humidityControlSensorCount > 0 && tempControlSensorCount > 0) return 'humidity/temperature'
     if(humidityControlSensorCount > 0) return 'humidity'
     if(tempControlSensorCount > 0) return 'temperature'
-}
-
-def displayLabel(text, width = 12){
-    if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
-}
-
-def displayInfo(helpTip,noDisplayIcon = null){
-    if(!text) return
-    paragraph '<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>'
-    helpTip = ''
-}
-
-def displayError(text){
-    if(!text) return
-    paragraph '<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>'
-    errorMessage = ''
-}
-
-def displayWarning(text){
-    if(!text) return
-    paragraph '<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>'
-    warningMessage = ''
-}
-
-def highlightText(text){
-    if(!text) return
-    return '<div style="background-color:Wheat">' + text + '</div>'
 }
 
 def displayNameOption(){
@@ -465,8 +497,8 @@ def displayControlDeviceOption(){
     hidden = true
     if(settings['humidityControlSensor'] && (!settings['controlStartDifference'] && !settings['controlStopDifference'])) hidden = false
     if(duplicateDevice) hidden = false
-    if(settings['controlStartDifference'] && !validatePercent(settings['controlStartDifference'])) hidden = false
-    if(settings['controlStopDifference'] && !validatePercent(settings['controlStopDifference'])) hidden = false
+    if(settings['controlStartDifference'] && validateHumidity(settings['controlStartDifference'])) hidden = false
+    if(settings['controlStopDifference'] && validateHumidity(settings['controlStopDifference'])) hidden = false
     if(settings['controlStartDifference'] < settings['controlStopDifference']) hidden = false
     if(settings['controlStartDifference'] && settings['controlStartDifference'] == settings['controlStopDifference']) hidden = false
     //if(settings['controlStopDifference']) || (!settings["humidityControlSensor"] && !settings["controlStartDifference"] && !settings["controlStopDifference"])) hidden = true
@@ -490,11 +522,10 @@ def displayControlDeviceOption(){
         displayTempControlSensor()
 
         if(!duplicateDevice && (settings['humidityControlSensor'] || settings['tempControlSensor'])){
-            if(!validatePercent(settings['controlStartDifference']) || !validatePercent(settings['controlStopDifference'])) errorMessage = 'Percent difference must be less than 100.'
-            if(settings['controlStartDifference'] < settings['controlStopDifference']) warningMessage = 'Start level is less than stop level. Unless controlling a humidifier and/or heater, this is probably wrong.'
-            if(settings['controlStartDifference'] && settings['controlStartDifference'] == settings['controlStopDifference']) errorMessage = 'The starting and stopping levels can\'t be the same, since it would turn on and off at the same time.'
-            displayWarning(warningMessage)
-            displayError(errorMessage)
+            displayError(validateHumidity(settings['controlStartDifference']))
+            displayError(validateHumidity(settings['controlStopDifference']))
+            if(settings['controlStartDifference'] < settings['controlStopDifference']) displayWarning('Start level is less than stop level. Unless controlling a humidifier and/or heater, this is probably wrong.')
+            if(settings['controlStartDifference'] && settings['controlStartDifference'] == settings['controlStopDifference']) displayError('The starting and stopping levels can\'t be the same, since it would turn on and off at the same time.')
             
             displayControlStartDifference()
             displayControlStopDifference()
@@ -596,17 +627,17 @@ def displayControlHelpTip(){
     if(humidityActive && !tempActive) helpTip = 'Control ' + pluralControl + ' is currently at ' + averageHumidityText + ' humidity, so the ' + pluralFan + ' will turn'
     if(!humidityActive && tempActive) helpTip = 'Control ' + pluralControl + ' is currently at ' + averageTempText + ', so the ' + pluralFan + ' will turn'
 
-    if(settings['controlStartDifference'] && validatePercent(settings['controlStartDifference'])){
+    if(settings['controlStartDifference'] && !validateHumidity(settings['controlStartDifference'])){
         if(humidityActive && tempActive)  helpTip += ' on with ' + humidityOn + ' humidity and ' + tempOn + getTemperatureScale()
         if(humidityActive && !tempActive)  helpTip += ' on with ' + humidityOn + ' humidity'
         if(!humidityActive && tempActive)  helpTip += ' on with ' + tempOn + getTemperatureScale()
     }
-    if(settings['controlStartDifference'] && validatePercent(settings['controlStartDifference']) && settings['controlStopDifference'] && validatePercent(settings['controlStopDifference'])){
+    if(settings['controlStartDifference'] && !validateHumidity(settings['controlStartDifference']) && settings['controlStopDifference'] && !validateHumidity(settings['controlStopDifference'])){
         if(humidityActive && tempActive) helpTip += ', and turn off with ' + humidityOff + ' humidity and ' + tempOff + getTemperatureScale()
         if(humidityActive && !tempActive) helpTip += ', and turn off with ' + humidityOff + ' humidity'
         if(humidityActive && !tempActive) helpTip += ', and turn off with ' + tempOff + ' humidity' + getTemperatureScale()
     }
-    if((!settings['controlStartDifference'] || !validatePercent(settings['controlStartDifference'])) && settings['controlStopDifference'] && validatePercent(settings['controlStopDifference'])){
+    if((!settings['controlStartDifference'] || validateHumidity(settings['controlStartDifference'])) && settings['controlStopDifference'] && !validateHumidity(settings['controlStopDifference'])){
         if(humidityActive && tempActive)  helpTip += ' off with ' + humidityOff + ' humidity and ' + tempOff + getTemperatureScale()
         if(humidityActive && !tempActive)  helpTip += ' off with ' + humidityOff + ' humidity'
         if(!humidityActive && tempActive)  helpTip += ' off with ' + tempOff + getTemperatureScale()
@@ -630,10 +661,10 @@ def displayLevelOption(type){
     hidden = true
     if(settings[type + 'StartThreshold'] && !settings[type + 'StopThreshold']) hidden = false
     if(!settings[type + 'StartThreshold'] && settings[type + 'StopThreshold']) hidden = false
-    if(type == 'humidity' && !validatePercent(settings[type + 'StartThreshold'])) hidden false
-    if(type == 'humidity' && !validatePercent(settings[type + 'StopThreshold'])) hidden false
-    if(type == 'temp' && !validateTemp(settings[type + 'StartThreshold'])) hidden false
-    if(type == 'temp' && !validateTemp(settings[type + 'StopThreshold'])) hidden false
+    if(type == 'humidity' && validateHumidity(settings[type + 'StartThreshold'])) hidden = false
+    if(type == 'humidity' && validateHumidity(settings[type + 'StopThreshold'])) hidden = false
+    if(type == 'temp' && validateTemp(settings[type + 'StartThreshold'])) hidden = false
+    if(type == 'temp' && validateTemp(settings[type + 'StopThreshold'])) hidden = false
     if(settings[type + 'StartThreshold'] && settings[type + 'StartThreshold'] == settings[type + 'StopThreshold']) hidden = false
 
     sectionTitle = ''
@@ -661,16 +692,18 @@ def displayLevelOption(type){
     if(!settings[type + 'StartThreshold'] && settings[type + 'StopThreshold']) sectionTitle += moreOptions
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(settings[type + 'StartThreshold'] && settings[type + 'StartThreshold'] == settings[type + 'StopThreshold'])  errorMessage = 'The starting and stopping levels can\'t be the same, since it would turn on and off at the same time.'
+        if(settings[type + 'StartThreshold'] && settings[type + 'StartThreshold'] == settings[type + 'StopThreshold'])  displayError('The starting and stopping levels can\'t be the same, since it would turn on and off at the same time.')
         if(type == 'humidity'){
-            if(!validatePercent(settings[type + 'StartThreshold']) || !validatePercent(settings[type + 'StopThreshold'])) errorMessage = 'Humidity must be 100 or less.'
+            displayError(validateHumidity(settings[type + 'StopThreshold']))
+            displayError(validateHumidity(settings[type + 'StartThreshold']))
         }
         if(type == 'temp'){
-            if(!validateTemp(settings[type + 'StartThreshold']) || !validateTemp(settings[type + 'StopThreshold'])) errorMessage = 'Temperature must be -50 to 250' + typeUnit + '.'
+            displayError(validateMinTemp(settings[type + 'StopThreshold']))
+            displayError(validateMaxTemp(settings[type + 'StopThreshold']))
+            displayError(validateMinTemp(settings[type + 'StartThreshold']))
+            displayError(validateMaxTemp(settings[type + 'StartThreshold']))
         }
-        if(settings[type + 'StartThreshold'] && settings[type + 'StopThreshold'] && settings[type + 'Over']) warningMessage = 'Start is lower than stop. Assuming it should start when ' + typeString + ' is less than ' + settings[type + 'StartThreshold'] + typeUnit + ' and continue to run until it increases to ' + settings[type + 'StopThreshold']  + typeUnit + '.'
-        displayWarning(warningMessage)
-        displayError(errorMessage)
+        if(settings[type + 'StartThreshold'] && settings[type + 'StopThreshold'] && settings[type + 'Over']) displayWarning('Start is lower than stop. Assuming it should start when ' + typeString + ' is less than ' + settings[type + 'StartThreshold'] + typeUnit + ' and continue to run until it increases to ' + settings[type + 'StopThreshold']  + typeUnit + '.')
         
         displayHumidityTempOver(type, typeString, typeUnit)
         displayHumidityTempStartThreshold(type, typeString, typeUnit)
@@ -684,6 +717,12 @@ def displayLevelOption(type){
 }
 
 def displayHumidityTempStartThreshold(type, typeString, typeUnit){
+    if(type == 'humidity'){
+        if(!validateHumidity(settings[type + 'StartThreshold']) && validateHumidity(settings[type + 'StopThreshold'])) return
+    }
+    if(type == 'temp'){
+        if(!validateTemp(settings[type + 'StartThreshold']) && validateTemp(settings[type + 'StopThreshold'])) return
+    }
     fieldName = type + 'StartThreshold'
     fieldTitle = ''
     fieldTitle = addFieldName(fieldTitle,fieldName)
@@ -692,6 +731,12 @@ def displayHumidityTempStartThreshold(type, typeString, typeUnit){
 }
 
 def displayHumidityTempStopThreshold(type, typeString, typeUnit){
+    if(type == 'humidity'){
+        if(validateHumidity(settings[type + 'StartThreshold']) && !validateHumidity(settings[type + 'StopThreshold'])) return
+    }
+    if(type == 'temp'){
+        if(validateTemp(settings[type + 'StartThreshold']) && !validateTemp(settings[type + 'StopThreshold'])) return
+    }
     fieldName = type + 'StopThreshold'
     fieldTitle = ''
     fieldTitle = addFieldName(fieldTitle,fieldName)
@@ -700,6 +745,14 @@ def displayHumidityTempStopThreshold(type, typeString, typeUnit){
 }
 
 def displayHumidityTempStopThresholdManual(type, typeString, typeUnit){
+    if(type == 'humidity'){
+        if(validateHumidity(settings[type + 'StartThreshold'])) return
+        if(validateHumidity(settings[type + 'StopThreshold'])) return
+    }
+    if(type == 'temp'){
+        if(validateTemp(settings[type + 'StartThreshold'])) return
+        if(validateTemp(settings[type + 'StopThreshold'])) return
+    }
     if(!settings[type + 'StopThreshold']) return
     fieldName = type + 'StopThresholdManual'
     fieldTitle = 'If manually turned on, don\'t turn off with ' + typeString + ' level.'
@@ -708,12 +761,20 @@ def displayHumidityTempStopThresholdManual(type, typeString, typeUnit){
         if(type == 'temp') fieldTitle = 'If manually turned on, turn off if ' + settings[type + 'StopThreshold'] + typeUnit + '.'
         helpTip = 'If manually turned on, the ' + pluralFan + ' will turn off if ' + typeString + ' is ' + settings[type + 'StopThreshold'] + typeUnit + ' (even if it is already under ' + settings[type + 'StopThreshold'] + typeUnit + ' when turned on). Click to not turn off based on ' + typeString + '.'
     }
-    fieldTitle = addFieldName(fieldTitle,fieldName) + 'here'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, 'bool', title: fieldTitle, submitOnChange:true
     displayInfo(helpTip)
 }
 
 def displayHumidityTempOver(type, typeString, typeUnit){
+    if(type == 'humidity'){
+        if(validateHumidity(settings[type + 'StartThreshold'])) return
+        if(validateHumidity(settings[type + 'StopThreshold'])) return
+    }
+    if(type == 'temp'){
+        if(validateTemp(settings[type + 'StartThreshold'])) return
+        if(validateTemp(settings[type + 'StopThreshold'])) return
+    }
     if((settings[type + 'StartThreshold'] && settings[type + 'StopThreshold']) || (!settings[type + 'StartThreshold'] && !settings[type + 'StopThreshold'])) return
     fieldName = type + 'Over'
     fieldTitle = '<b>Start if ' + typeString + ' is over ' + settings[type + 'StartThreshold'] + '.</b> Click to start is ' + typeString + ' is under ' + settings[type + 'StartThreshold'] + typeUnit + '.'
@@ -733,116 +794,75 @@ def displayHumidityRelativeChangeOption(){
     if(!settings['relativeMinutes']) minutes = 'the specified number of'
     
     hidden = true
-    if(!settings['humidityStartPercent'] && settings['humidityStopPercent']) hidden = false
-    if(settings['relativeMinutes'] == '5') hidden = false
-    if(!validatePercent(settings['humidityStartPercent'])) return false
-    if(!validatePercent(settings['humidityStopPercent'])) return false
-    if(settings['humidityStopPercent'] > settings['humidityStartPercent']) hidden = false
+    if(settings['relativeMinutes'] != 5 && !settings['humidityStartPercent']) hidden = false
+    if(validateMinutes(settings['relativeMinutes'])) hidden = false
+    if(settings['humidityStartPercent'] && settings['humidityStopPercent'] && settings['humidityStopPercent'] > settings['humidityStartPercent']) hidden = false
     if(settings['humidityStartPercent'] && settings['humidityStopPercent'] == settings['humidityStartPercent']) hidden = false
-    //Validate minutes
 
-    sectionTitle = ''
+    sectionTitle = 'Click to set humidity increase (optional)'
+    //if(!settings['humidityStartPercent'])
     if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) sectionTitle = 'Click to set humidity increase (optional)'
-    if(settings['humidityStartPercent'] && settings['relativeMinutes']) sectionTitle = '<b>Start: Humidity increase of ' + settings['humidityStartPercent'] + '% within ' + minutes + ' min.</b>'
-    if(settings['humidityStartPercent'] && !settings['relativeMinutes']) sectionTitle = '<b>Start: Humidity increase of ' + settings['humidityStartPercent'] + '%</b>'
+    startIncrease = 'increase'
+    startLevel = settings['humidityStartPercent']
+    if(settings['humidityStartPercent'] && settings['humidityStartPercent'] < 0) {
+        startIncrease = 'decrease'
+        startLevel = settings['humidityStartPercent'] * -1
+    }
+    stopIncrease = 'above'
+    stopLevel = settings['humidityStopPercent']
+    if(settings['humidityStopPercent'] && settings['humidityStopPercent'] < 0) {
+        stopIncrease = 'below'
+        stopLevel = settings['humidityStopPercent'] * -1
+    }
+    if(settings['humidityStartPercent'] && settings['relativeMinutes']) sectionTitle = '<b>Start: Humidity ' + startIncrease + ' of ' + startLevel + '% within ' + minutes + ' min.</b>'
+    if(settings['humidityStartPercent'] && !settings['relativeMinutes']) sectionTitle = '<b>Start: Humidity  ' + startIncrease + '  of ' + startLevel + '%</b>'
     if(settings['humidityStartPercent'] && settings['humidityStopPercent']) sectionTitle += '<br>'
-    if(settings['humidityStopPercent'] && !settings['humidityStartPercent'] && settings['relativeMinutes']) sectionTitle += '<b>Stop: Humidity ' + settings['humidityStopPercent'] + '% above start level within ' + minutes + ' min.</b>'
-    if(settings['humidityStopPercent'] && (settings['humidityStartPercent'] || settings['relativeMinutes'])) sectionTitle += '<b>Stop: Humidity ' + settings['humidityStopPercent'] + '% above start level</b>'
+    //if(settings['humidityStopPercent'] && !settings['humidityStartPercent'] && settings['relativeMinutes']) sectionTitle += '<b>Stop: Humidity ' + settings['humidityStopPercent'] + '% above start level within ' + minutes + ' min.</b>'
+    if(settings['humidityStartPercent'] && settings['humidityStopPercent']) sectionTitle += '<b>Stop: Humidity ' + stopLevel + '% ' + stopIncrease + ' start level</b>'
     
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(settings['humidityStartPercent'] && settings['humidityStopPercent'] == settings['humidityStartPercent']) errorMessage = 'The starting and stopping levels can be the same, since it would turn on and off at the same time.'
-        if(!validatePercent(settings['humidityStartPercent']) || !validatePercent(settings['humidityStopPercent'])) errorMessage = 'Humidity increase amount must be from 1 to 100.'
-        if(settings['humidityStopPercent'] > settings['humidityStartPercent']) warningMessage = 'Start humidity level is less than stop humidity. Unless controlling a humidifier, this is probably wrong.'
-        displayError(errorMessage)
-        displayWarning(warningMessage)
-        // validate minutes
+        if(settings['humidityStartPercent'] && settings['humidityStopPercent'] == settings['humidityStartPercent']) displayError('The starting and stopping levels can be the same, since it would turn on and off at the same time.')
+        //Validate humidity (as percent change)?
+        displayError(validateMinutes(settings['relativeMinutes']))
         
-        fieldName = 'relativeMinutes'
-        fieldTitle = 'Minutes between change'
-        if(settings['relativeMinutes'] != 5) fieldTitle = 'Minutes between change (default 5)'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        input 'relativeMinutes', 'number', title: fieldTitle, required: false, submitOnChange:true, defaultValue: 5
-        
-        fieldName = 'humidityStartPercent'
-        fieldTitle = 'Humidity increase'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        displayLabel('To start ' + pluralFan)
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
-        
-        fieldName = 'humidityStopPercent'
-        fieldTitle = 'Percent above starting humidity (default 0)'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        displayLabel('To stop ' + pluralFan)
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
+        displayRelativeMinutes()
+        displayStartPercent()
+        displayStopPercent()
             
-        if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) helpTip = 'Enter humidity increase within ' + minutes + ' minutes.'
-        displayInfo(helpTip)
-        if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) helpTip = 'Enter a negative value for decrease.'
-        if(settings['humidityStartPercent'] && settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it will turn the ' + pluralFan + ' on if it increases to ' + humidityOn + ' within ' + minutes + ' minutes, and off at ' + humidityOff + '.'
-        if(settings['humidityStartPercent'] && !settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it will turn turn the ' + pluralFan + ' on if it increases to ' + humidityOn + ' within ' + minutes + ' minutes.'
-        if(!settings['humidityStartPercent'] && settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it will turn off the ' + pluralFan + ' at ' + humidityOff + '.'
+        log.debug settings['humidityStartPercent'] + ' ' + settings['humidityStopPercent']
+        if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) displayInfo('Enter percentage of humidity increase within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level.')
+
+        if(settings['humidityStartPercent'] && settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + humidityOn + ', and turn off only when at ' + humidityOff + '.'
+        if(settings['humidityStartPercent'] && !settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it would turn turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + humidityOn + '.'
         displayInfo(helpTip)
     }
 }
 
-def displayTempRelativeChangeOption(){
-    if(!settings['device']) return
-    if(!tempActive) return
+def displayRelativeMinutes(){
+    fieldName = 'relativeMinutes'
+    fieldTitle = 'Minutes between change'
+    if(settings[fieldName] != 5) fieldTitle = 'Minutes between change (default 5)'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true, defaultValue: 5
+}
 
-    if(settings['tempStartPercent']) tempOn = (Math.round(averageTemp) + settings['tempStartPercent']) + '°'
-    if(settings['tempStopPercent']) tempOff = (Math.round(averageTemp) + settings['tempStopPercent']) + '°'
+def displayStartPercent(){
+    if(validateMinutes(settings['relativeMinutes'])) return
+    fieldName = 'humidityStartPercent'
+    fieldTitle = 'Humidity increase'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    displayLabel('To start ' + pluralFan)
+    input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
+}
 
-    minutes = settings['relativeMinutes']
-    if(!settings['relativeMinutes']) minutes = 'the specified number of'
-    
-    hidden = true
-    if(!settings['tempStartPercent'] && settings['tempStopPercent']) hidden = false
-    if(settings['tempStopPercent'] > settings['tempStartPercent']) hidden = false
-    if(settings['tempStartPercent'] && settings['tempStopPercent'] == settings['tempStartPercent']) hidden = false
-    //validate minutes
-
-    sectionTitle = ''
-    if(!settings['tempStartPercent'] && !settings['tempStopPercent']) sectionTitle = 'Click to temperature increase (optional)'
-    if(settings['tempStartPercent'] && settings['relativeMinutes']) sectionTitle = '<b>Start: Temperature increases ' + settings['tempStartPercent'] + '°' + getTemperatureScale() + ' within ' + minutes + ' min.</b>'
-    if(settings['tempStartPercent'] && !settings['relativeMinutes']) sectionTitle = '<b>Start: Temperature increases ' + settings['tempStartPercent'] + '°' + getTemperatureScale() + ' </b>'
-    if(settings['tempStartPercent'] && settings['tempStopPercent']) sectionTitle += '<br>'
-    if(settings['tempStopPercent'] && !settings['tempStartPercent'] && settings['relativeMinutes']) sectionTitle += '<b>Stop: Temperature ' + settings['tempStopPercent'] + '°' + getTemperatureScale() + ' above start level within ' + minutes + ' min.</b>'
-    if(settings['tempStopPercent'] && (settings['tempStartPercent'] || settings['relativeMinutes'])) sectionTitle += '<b>Stop: Temperature ' + settings['tempStopPercent'] + '°' + getTemperatureScale() + ' above start level</b>'
-    
-    section(hideable: true, hidden: hidden, sectionTitle){
-       // if(!validatePercent(settings['tempStartPercent']) || !validatePercent(settings['tempStopPercent'])) errorMessage = 'Temperature increase amount must be from -150 to 500.'
-        if(settings['tempStopPercent'] > settings['tempStartPercent']) errorMessage = 'The stopping level must be lower than the starting level. The current temperature is ' + averageTempText + ', so it will turn on at ' + tempOn + ', and yet would need to increase further to ' + tempOff + ' to turn off.'
-        if(settings['tempStartPercent'] && settings['tempStopPercent'] == settings['tempStartPercent']) errorMessage = 'The starting and stopping temperatures can\'t be the same, since it would turn on and off at the same time.'
-        displayError(errorMessage)
-        // validate minutes
-        
-        fieldName = 'relativeMinutes'
-        fieldTitle = 'Minutes between change'
-        if(settings['relativeMinutes'] != 5) fieldTitle = 'Minutes between change (default 5)'
-        fieldTitle = addFieldName(fieldTitle,fieldName) 
-        if(!humidityActive) input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true, defaultValue: 5
-        
-        fieldName = 'tempStartPercent'
-        fieldTitle = 'Temperature increase'
-        fieldTitle = addFieldName(fieldTitle,fieldName) 
-        displayLabel('To start ' + pluralFan)
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
-        
-        fieldName = 'tempStopPercent'
-        fieldTitle = 'Degrees above starting temperature (default 0)'
-        fieldTitle = addFieldName(fieldTitle,fieldName) 
-        displayLabel('To stop ' + pluralFan)
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
-
-        if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) helpTip = "Enter a negative value for decrease."
-        displayInfo(helpTip)
-        if(!settings['tempStartPercent'] && !settings['tempStopPercent']) helpTip = 'Enter temperature increase in degrees ' + getTemperatureScale() + ' increase within ' + minutes + ' minutes.'
-        if(settings['tempStartPercent'] && settings['tempStopPercent']) helpTip = 'The ' + pluralTemp + ' is currently at ' + averageTempText + ', so it will turn the ' + pluralFan + ' on if it increases to ' + tempOn + ' within ' + minutes + ' minutes, and off when it returns to ' + tempOff + '.'
-        if(settings['tempStartPercent'] && !settings['tempStopPercent']) helpTip = 'The ' + pluralTemp + ' is currently at ' + averageTempText + ', so it will turn the ' + pluralFan + ' on if it increases to ' + tempOn + ' within ' + minutes + ' minutes.'
-        if(!settings['tempStartPercent'] && settings['tempStopPercent']) helpTip = 'The ' + pluralTemp + ' is currently at ' + averageTempText + ', so it will turn off the ' + pluralFan + ' at ' + tempOff + '.'
-        if(humidityActive && settings['relativeMinutes'] == 5) helpTip += ' Set the number of minutes under humidity increase.'
-        displayInfo(helpTip)
-    }
+def displayStopPercent(){
+    if(!settings['humidityStartPercent']) return
+    if(validateMinutes(settings['relativeMinutes'])) return
+    fieldName = 'humidityStopPercent'
+    fieldTitle = 'Percent above starting humidity (where zero (0) is the initial level)'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    displayLabel('To stop ' + pluralFan)
+    input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
 }
 
 def displayRunTimeOption(){
@@ -853,6 +873,8 @@ def displayRunTimeOption(){
     if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] >= settings['runTimeMaximum']) hidden = false
     if(settings['runTimeMinimum'] && !settings['runTimeMaximum']) hidden = false
     if(!settings['runTimeMinimum'] && settings['runTimeMaximum']) hidden = false
+    if(validateMinutes(settings['runTimeMinimum'])) hidden = false
+    if(validateMinutes(settings['runTimeMaximum'])) hidden = false
 
     sectionTitle = ''
     if(!settings['runTimeMinimum'] && !settings['runTimeMaximum']) sectionTitle = 'Click to set run time (optional)'
@@ -864,37 +886,44 @@ def displayRunTimeOption(){
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] > settings['runTimeMaximum']) displayError('Minimum run time must be greater than maximum run time.')
+        displayError(validateMinutes(settings['runTimeMinimum']))
+        displayError(validateMinutes(settings['runTimeMaximum']))
         if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] == settings['runTimeMaximum']) displayWarning('If is not recommended to have equal maximum and minimum run time. It will turn off after ' + settings['runTimeMinimum'] + ' minutes regardless of any other settings, but setting maximum run time without any other start and stop settings would accomplish the same thing.')
 
-        fieldName = 'runTimeMinimum'
-        fieldTitle = ''
-        fieldTitle = addFieldName(fieldTitle,fieldName) 
-        displayLabel('Minimum run time (in minutes)')
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
-        if(!settings[fieldName]) displayInfo('Number of minimum minutes before turning off regardless of ' + infoText + ' level, to prevent "cycling".')
-
-        fieldName = 'runTimeMaximum'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        fieldTitle = addFieldName(fieldTitle,fieldName) 
-        displayLabel('Maximum run time')
-        input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
-        if(!settings[fieldName]) displayInfo('Number of maximum minutes to run after which it will turn off regardless of ' + infoText + ' level. (Will not turn on again for the same duration.)')
-
-        if(settings['runTimeMaximum'] && !settings['runTimeMinimumManual']){
-            fieldName = 'runTimeMaximumManual'
-            fieldTitle = 'If manually turned on, turn the ' + pluralFan + ' off after ' + settings['runTimeMaximum'] + ' minutes.'
-            fieldTitle = addFieldName(fieldTitle,fieldName) 
-            input fieldName, 'bool', defaultValue : true, title: fieldTitle, submitOnChange:true
-            if(helpTip) displayInfo(helpTip)
-        }
-        if(settings['runTimeMinimum'] && !settings['runTimeMaximumManual']){
-            fieldName = 'runTimeMaximumManual'
-            fieldTitle = 'If manually turned on, turn the ' + pluralFan + ' off after ' + settings['runTimeMinimum'] + ' minutes.'
-            fieldTitle = addFieldName(fieldTitle,fieldName) 
-            input fieldName, 'bool', defaultValue : true, title: fieldTitle, submitOnChange:true
-            if(helpTip) displayInfo(helpTip)
-        }
+        displayRunTimeMinimum()
+        displayRunTimeMaximum()
+        displayRunTimeMaximumManual()
     }
+}
+
+def displayRunTimeMinimum(){
+    if(!validateMinutes(settings['runTimeMinimum']) && validateMinutes(settings['runTimeMaximum'])) return
+    fieldName = 'runTimeMinimum'
+    fieldTitle = ''
+    fieldTitle = addFieldName(fieldTitle,fieldName) 
+    displayLabel('Minimum run time (in minutes)')
+    input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Number of minimum minutes before turning off regardless of ' + getSensorText() + ' level, to prevent "cycling".')
+}
+
+def displayRunTimeMaximum(){
+    if(validateMinutes(settings['runTimeMinimum']) && !validateMinutes(settings['runTimeMaximum'])) return
+    fieldName = 'runTimeMaximum'
+    fieldTitle = ''
+    fieldTitle = addFieldName(fieldTitle,fieldName) 
+    displayLabel('Maximum run time')
+    input fieldName, 'number', title: fieldTitle, required: false, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Number of maximum minutes to run after which it will turn off regardless of ' + getSensorText() + ' level. (Will not turn on again for the same duration.)')
+}
+
+def displayRunTimeMaximumManual(){
+    if(!settings['runTimeMaximum']) return
+    if(validateMinutes(settings['runTimeMinimum'])) return
+    if(validateMinutes(settings['runTimeMaximum'])) return
+    fieldName = 'runTimeMaximumManual'
+    fieldTitle = 'If manually turned on, turn the ' + pluralFan + ' off after ' + settings['runTimeMaximum'] + ' minutes.'
+    fieldTitle = addFieldName(fieldTitle,fieldName) 
+    input fieldName, 'bool', defaultValue : true, title: fieldTitle, submitOnChange:true
 }
 
 def displayScheduleSection(){
@@ -1290,12 +1319,6 @@ def compareDeviceLists(firstDevices,secondDevices){
     return returnValue
 }
 
-def addFieldName(text,fieldName){
-    if(!fieldName) return
-    if(getLogLevel() != 5) return text
-    return text + ' [' + fieldName + ']'
-}
-
 /*
 Input fields:
 
@@ -1349,14 +1372,15 @@ runTimeMaximumManual - bool
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1352,'trace','Installed')
+    
+    putLog(1376,'trace','Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1359,'trace','Updated')
+    putLog(1383,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1390,7 +1414,7 @@ def initialize() {
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
     subscribe(settings['device'], 'switch', switchHandler)
     
-    putLog(1393,'trace','Initialized')
+    putLog(1417,'trace','Initialized')
 }
 
 def humidityHandler(event) {
@@ -1464,23 +1488,6 @@ def checkHumidityStopPercent(){
     if(averageHumidity < state.startHumidity + settings['humidityStopPercent']) return true
 }
 
-def checkTempStartPercent(){
-    if(!settings['tempStartPercent']) return
-    if(!settings['relativeMinutes']) return
-    if(!state.startTemp) return
-    
-    if(averageTemp > state.startTemp + settings['tempStartPercent']) return true
-}
-
-def checkTempStopPercent(){
-    if(!state.tempActive) return
-    if(!settings['tempStopPercent']) return
-    if(!settings['relativeMinutes']) return
-    if(!state.startTemp) return
-    
-    if(averageTemp < state.startTemp + settings['tempStopPercent']) return true
-}
-
 def checkRunTimeMinimum(){
     if(!settings['runTimeMinimum']) return
     if(!state.startTime) return
@@ -1494,7 +1501,7 @@ def checkRunTimeMaximum(){
     if(!state.startTime) return true
     
     if(now - state.startTime > settings['runTimeMaximum'] * 60000){
-        putLog(1497,'trace','Maximum runtime exceeded.')
+        putLog(1504,'trace','Maximum runtime exceeded.')
         return true
     }
 }
@@ -1505,7 +1512,7 @@ def checkMinimumWaitTime(){
     if(!state.stopTime) return true
     
     if(now - state.stopTime > settings['runTimeMaximum'] * 60000){
-        putLog(1508,'trace','Minimum wait time exceeded.')
+        putLog(1515,'trace','Minimum wait time exceeded.')
         return true
     }
 }
@@ -1514,11 +1521,11 @@ def checkOnConditions(){
     if(!checkMinimumWaitTime()) return
     if(settings['multiStartTrigger']) {
         allOnConditions = checkAllOnConditions()
-        putLog(1517,'trace','All on conditions is ' + allOnConditions)
+        putLog(1524,'trace','All on conditions is ' + allOnConditions)
     }
     if(!settings['multiStartTrigger']) {
         anyOnConditions = checkAnyOnConditions()
-        putLog(1521,'trace','Any on condition is ' + anyOnConditions)
+        putLog(1528,'trace','Any on condition is ' + anyOnConditions)
             return anyOnConditions
     }
 }
@@ -1528,12 +1535,12 @@ def checkOffConditions(){
     
     if(settings['multiStopTrigger']) {
         allOffConditions = checkAllOffConditions()
-        putLog(1531,'trace','All off conditions is ' + allOffConditions)
+        putLog(1538,'trace','All off conditions is ' + allOffConditions)
         return allOffConditions
     }
     if(!settings['multiStopTrigger']) {
         anyOffConditions = checkAnyOffConditions()
-        putLog(1536,'trace','Any off conditions is ' + anyOffConditions)
+        putLog(1543,'trace','Any off conditions is ' + anyOffConditions)
         return anyOffConditions
     }
 }
@@ -1544,7 +1551,6 @@ def checkAllOnConditions(){
     if(settings['humidityStartThreshold'] && !checkHumidityStartThreshold()) return false
     if(settings['humidityStartPercent'] && !checkHumidityStartPercent()) return false
     if(settings['tempStartThreshold'] && !checkTempStartThreshold()) return false
-    if(settings['tempStartPercent'] && !checkTempStartPercent()) return false
     
     return true
 }
@@ -1556,7 +1562,6 @@ def checkAllOffConditions(){
     if(settings['humidityStopThreshold'] && !checkHumidityStopThreshold()) return false
     if(settings['humidityStopPercent'] && !checkHumidityStopPercent()) return false
     if(settings['tempStopThreshold'] && !checkTempStopThreshold()) return false
-    if(settings['tempStopPercent'] && !checkTempStopPercent()) return false
     
     if(checkRunTimeMinimum()) return true
 }
@@ -1566,7 +1571,6 @@ def checkAnyOnConditions(){
     if(checkHumidityStartThreshold()) return true
     if(checkHumidityStartPercent()) return true
     if(checkTempStartThreshold()) return true
-    if(checkTempStartPercent()) return true
     return false    // used for log
 }
 
@@ -1589,7 +1593,7 @@ def scheduleTurnOff() {
     state.stopTime = new Date().getTime()
     parent.updateStateMulti(settings['device'],'off',app.label)
     parent.setStateMulti(settings['device'],app.label)
-    putLog(1592,'debug','Turning off ' + settings['device'] + ' from schedule.')
+    putLog(1596,'debug','Turning off ' + settings['device'] + ' from schedule.')
 }
 
 def updateRelativeHumidityArray(){
@@ -1631,7 +1635,7 @@ def scheduleMaximum(){
     unschedule()
     // Need to check if already scheduled
     runIn(60 * settings['runTimeMaximum'].toInteger(), updateStatus)
-    putLog(1634,'trace', 'Scheduling turn off in ' + settings['runTimeMaximum'] + ' minutes.')
+    putLog(1638,'trace', 'Scheduling turn off in ' + settings['runTimeMaximum'] + ' minutes.')
 }
 
 def updateStatus(){
@@ -1639,7 +1643,7 @@ def updateStatus(){
 
     // If mode set and node doesn't match, return nulls
     if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1642,'trace','Humidity/temp disabled, requires mode ' + ifMode)
+        putLog(1646,'trace','Humidity/temp disabled, requires mode ' + ifMode)
         return
     }
     
@@ -1664,7 +1668,7 @@ def updateStatus(){
     turnOffStatus = checkOffConditions()
 
     if(turnOnStatus && turnOffStatus){
-        putLog(1667,'warn','Both on and off conditions met.')
+        putLog(1671,'warn','Both on and off conditions met.')
         return
     }
     if(turnOnStatus && !turnOffStatus) turnOn()
@@ -1681,7 +1685,7 @@ def turnOn(){
     scheduleMaximum()
     parent.updateStateMulti(settings['device'],'on',app.label)
     parent.setStateMulti(settings['device'],app.label)
-    putLog(1684,'debug','Turning on ' + settings['device'] + '.')
+    putLog(1688,'debug','Turning on ' + settings['device'] + '.')
     sendNotice()
 }
 
@@ -1694,7 +1698,7 @@ def turnOff(){
     unschedule()
     parent.updateStateMulti(settings['device'],'off',app.label)
     parent.setStateMulti(settings["device"],app.label)
-    putLog(1697,'debug','Turning off ' + settings['device'] + '.')
+    putLog(1701,'debug','Turning off ' + settings['device'] + '.')
 }
 
 
@@ -1721,9 +1725,9 @@ def sendPushNotice(){
         settings['pushNotificationDevice'].each{
             parent.sendPushNotification(it,evt.displayName + ' was ' + eventName + ' at ' + now.format('h:mm a', location.timeZone),app.label)
         }
-        putLog(1724,'info','Sent push notice for ' + evt.displayName + ' ' + eventName + ' at ' + now.format('h:mm a', location.timeZone) + '.')
+        putLog(1728,'info','Sent push notice for ' + evt.displayName + ' ' + eventName + ' at ' + now.format('h:mm a', location.timeZone) + '.')
     } else {
-        putLog(1726,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + ' due to notification sent ' + seconds + 's ago.')
+        putLog(1730,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + ' due to notification sent ' + seconds + 's ago.')
     }
 }
 
@@ -1831,7 +1835,7 @@ def setStartTime(){
     setTime = setStartStopTime('start')
     if(setTime){
         atomicState.start = setTime
-        putLog(1834,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1838,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
         return true
     }
 }
@@ -1845,7 +1849,7 @@ def setStopTime(){
     if(setTime){ 
         if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
         atomicState.stop = setTime
-        putLog(1848,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+        putLog(1852,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
     }
     return
 }
@@ -1859,22 +1863,21 @@ def setStartStopTime(type){
 }
 
 def checkLog(type = null){
-    if(!state.logLevel) getLogLevel()
     switch(type) {
         case 'error':
-        if(state.logLevel > 0) return true
+        if(getLogLevel() > 0) return true
         break
         case 'warn':
-        if(state.logLevel > 1) return true
+        if(getLogLevel() > 1) return true
         break
         case 'info':
-        if(state.logLevel > 2) return true
+        if(getLogLevel() > 2) return true
         break
         case 'trace':
-        if(state.logLevel > 3) return true
+        if(getLogLevel() > 3) return true
         break
         case 'debug':
-        if(state.logLevel == 5) return true
+        if(getLogLevel() == 5) return true
     }
     return false
 }
@@ -1884,29 +1887,5 @@ def checkLog(type = null){
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
     if(!checkLog(type)) return
-    logMessage = ''
-    if(type == 'error') logMessage += '<font color="red">'
-    if(type == 'warn') logMessage += '<font color="brown">'
-    logMessage += app.label + ' '
-    if(lineNumber) logMessage += '(line ' + lineNumber + ') '
-    if(message) logMessage += '-- ' + message
-    if(type == 'error' || type == 'warn') logMessage += '</font>'
-    switch(type) {
-        case 'error':
-        log.error(logMessage)
-        return true
-        case 'warn':
-        log.warn(logMessage)
-        return true
-        case 'info':
-        log.info(logMessage)
-        return true
-        case 'trace':
-        log.trace(logMessage)
-        return true
-        case 'debug':
-        log.debug(logMessage)
-        return true
-    }
-    return
+    return parent.putLog(lineNumber,type,message,app.label)
 }
