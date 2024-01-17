@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.12
+*  Version: 0.5.14
 *
 ***********************************************************************************************************************/
 
@@ -34,12 +34,54 @@ definition(
     iconX2Url: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png'
 )
 
+infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
+errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
+warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
+moreOptions = ' <font color="grey">(click for more options)</font>'
+
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
 // 5 for all
 def getLogLevel(){
-    return 5
+    return 4
+}
+def getMaxTemp(){
+    return 250
+}
+def getMinTemp(){
+    return -50
+}
+
+def displayLabel(text, width = 12){
+    if(!text) return
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+}
+
+def displayInfo(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    helpTip = ''
+}
+
+def displayError(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    errorMessage = ''
+}
+
+def displayWarning(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    warningMessage = ''
+}
+
+def highlightText(text, width=12){
+    if(!text) return
+    return '<div style="background-color:Wheat">' + text + '</div>'
 }
 
 /* ************************************************************************ */
@@ -67,10 +109,6 @@ def getLogLevel(){
 /* turning on a device.                                                     */
 /* ************************************************************************ */
 preferences {
-    infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
-    warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-    errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
-    moreOptions = ' <font color="gray">(more options)</font>'
     if(!settings) settings = [:]
 
     numberOfButtons = getButtonNumbers()
@@ -662,32 +700,6 @@ def displayMultiDeviceAdvanced(){
 }
 // Display functions
 
-
-def displayLabel(text, width = 12){
-    if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
-}
-
-def displayInfo(text,noDisplayIcon = null){
-    if(!text) return
-    paragraph '<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>'
-}
-
-def displayError(text){
-    if(!text) return
-    paragraph '<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>'
-}
-
-def displayWarning(text){
-    if(!text) return
-    paragraph '<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>'
-}
-
-def highlightText(text){
-    if(!text) return
-    return '<div style="background-color:Wheat">' + text + '</div>'
-}
-
 def formComplete(){
     if(!app.label) return false
     if(!buttonDevice) return false
@@ -785,18 +797,21 @@ def displayMultiDeviceOption(){
     fieldName = 'multiDevice'
     if(settings[fieldName]){
         fieldTitle = highlightText('Buttons unique per device') + ' Click for buttons to do the same thing across all devices. (If only controlling one device, leave off.)'
-        input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'bool', title: fieldTitle, submitOnChange:true
         //input fieldName, 'bool', title: '<b>Allow different lights for different buttons.</b> Click for all buttons controlling same light(s).', submitOnChange:true
         //displayInfo('Assign light(s)/switch(es) to each button. Click for the buttons to do the same thing for all devices.')
     }
     if(!settings[fieldName]){
-        fieldTitle = highlightText('Buttons do same thing for all devices [multiDevice]')
-        input fieldName, 'bool', title: addFieldName(fieldTitle,fieldName), submitOnChange:true
+        fieldTitle = highlightText('Buttons do same thing for all devices')
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'bool', title: fieldTitle, submitOnChange:true
         //input fieldName, 'bool', title: '<b>Same lights for all buttons.</b> Click to assign different device(s) to different buttons.', submitOnChange:true
         //displayInfo('The buttons will do the same thing for all devices. Click to assign light(s)/switch(es) to each button.')
         fieldName = 'controlDevice'
         fieldTitle = 'Device(s) to control <font color="gray">(or change option above to assign different buttons and/or actions to multiple devices)</font>'
-        input fieldName, 'capability.switch', title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'capability.switch', title: fieldTitle, multiple: true, submitOnChange:true
     }
 }
 
@@ -1188,13 +1203,13 @@ def addFieldName(text,fieldName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1191,'trace', 'Installed')
+    putLog(1206,'trace', 'Installed')
     app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1197,'trace','Updated')
+    putLog(1212,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1209,7 +1224,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1212,'trace','Initialized')
+    putLog(1227,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1222,6 +1237,7 @@ def buttonPushed(evt){
 
     buttonNumber = evt.value.toInteger()
     numberOfButtons = evt.device.currentValue('numberOfButtons')
+    
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
     if(buttonNumber == 2 && numberOfButtons == 2) buttonNumber = 5
     if(buttonNumber == 4 && numberOfButtons == 4) buttonNumber = 5
@@ -1231,7 +1247,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1234,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
+    putLog(1250,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
     // Turn on
     switchAction = 'on'
     if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
@@ -1241,7 +1257,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1244,'trace','Turning on ' + device)
+    if(device) putLog(1260,'trace','Turning on ' + device)
     
     // Turn off
     switchAction = 'off'
@@ -1253,7 +1269,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1256,'trace','Turning off ' + device)
+    if(device) putLog(1272,'trace','Turning off ' + device)
     
     // Toggle
     switchAction = 'toggle'
@@ -1264,7 +1280,7 @@ def buttonPushed(evt){
     }
     parent.updateStateMulti(device,switchAction,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1267,'trace','Toggling ' + device)
+    if(device) putLog(1283,'trace','Toggling ' + device)
     
     // Resume
     switchAction = 'resume'
@@ -1274,15 +1290,17 @@ def buttonPushed(evt){
         if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
     }
     // checkActiveSchedule doesn't exist
-    activeSchedule = parent.checkActiveScheduleMulti(device,app.label)
-    if(activeSchedule) {
-        parent.updateLevelsMulti(device,['level':['time':'resume'],'temp':['time':'resume'],'hue':['time':'resume'],'sat':['time':'resume']],app.label)
-        // This probably isn't right
-        if(!rescheduleIncrementalMulti(device,app.label)) parent.updateStateSingle(singleDevice,action,app.label)
+    device.each{singleDevice->
+        activeSchedule = parent.checkActiveScheduleSingle(singleDevice,app.label)
+        if(activeSchedule) {
+            parent.updateLevelsSingle(singleDevice,['level':['time':'resume'],'temp':['time':'resume'],'hue':['time':'resume'],'sat':['time':'resume']],app.label)
+            // This isn't right - there's no "action (also in magiccube)
+            if(!parent.rescheduleIncrementalSingle(singleDevice,app.label)) parent.updateStateSingle(singleDevice,action,app.label)
+        }
+        if(!activeSchedule) parent.updateStateMulti(singleDevice,'off',app.label)
     }
-    if(!activeSchedule) parent.updateStateMulti(device,'off',app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1285,'trace','Resuming ' + device)
+    if(device) putLog(1303,'trace','Resuming ' + device)
     
     // Brighten
     switchAction = 'brighten'
@@ -1302,7 +1320,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1305,'trace','Brightening ' + device)
+    if(device) putLog(1323,'trace','Brightening ' + device)
     
     // Dim
     switchAction = 'dim'
@@ -1322,7 +1340,7 @@ def buttonPushed(evt){
     }
     if(atomicState.action == 'hold') holdDim(device,app.label)
     parent.setStateMulti(device,app.label)
-    if(device) putLog(1325,'trace','Dimming ' + device)
+    if(device) putLog(1343,'trace','Dimming ' + device)
 }
 
 // place holder until I can redo my pico setups to not throw an error
@@ -1341,7 +1359,7 @@ def buttonReleased(evt){
     numberOfButtons = evt.device.currentValue('numberOfButtons')
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1344,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
+        putLog(1362,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
         unschedule()
     }
 }
@@ -1368,7 +1386,7 @@ def getDimSpeed(){
 // action = 'dim' or 'brighten'
 def getSteps(level, action){
     if (action != 'dim' && action != 'brighten'){
-        putLog(1371,'error','Invalid value for action "' + action + '" sent to getSteps function')
+        putLog(1389,'error','Invalid value for action "' + action + '" sent to getSteps function')
         return false
     }
 
@@ -1395,7 +1413,7 @@ def getSteps(level, action){
             }
         }
     }
-    putLog(1398,'debug','Function getSteps returning ' + steps)
+    putLog(1416,'debug','Function getSteps returning ' + steps)
     return steps
 }
 
@@ -1453,7 +1471,7 @@ def runSetProgressiveLevel(data){
         }
     }
     if(!device) {
-        putLog(1456,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1474,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     parent.setLevelSingle(defaults,device,app.label)
@@ -1475,7 +1493,7 @@ def holdDim(device){
             parent.updateStateSingle(singleDevice,'on',app.label)
         } else {
             if(level < 2){
-                putLog(1478,'info','Can\'t dim ' + singleDevice + '; already 1%.')
+                putLog(1496,'info','Can\'t dim ' + singleDevice + '; already 1%.')
             } else {
                 def steps = getSteps(level, 'dim')
                 def newLevel
@@ -1505,7 +1523,7 @@ def holdBrighten(device){
             reschedule(it)
         } else {
             if(level > 99){
-                putLog(1508,'info','Can\'t brighten ' + it + '; already 100%.')
+                putLog(1526,'info','Can\'t brighten ' + it + '; already 100%.')
             } else {
                 def steps = getSteps(level, 'brighten')
                 def newLevel
@@ -1543,23 +1561,23 @@ def resetStateDeviceChange(){
     atomicState.deviceChange = null
     return
 }
+
 def checkLog(type = null){
-    if(!state.logLevel) getLogLevel()
     switch(type) {
         case 'error':
-        if(state.logLevel > 0) return true
+        if(getLogLevel() > 0) return true
         break
         case 'warn':
-        if(state.logLevel > 1) return true
+        if(getLogLevel() > 1) return true
         break
         case 'info':
-        if(state.logLevel > 2) return true
+        if(getLogLevel() > 2) return true
         break
         case 'trace':
-        if(state.logLevel > 3) return true
+        if(getLogLevel() > 3) return true
         break
         case 'debug':
-        if(state.logLevel == 5) return true
+        if(getLogLevel() == 5) return true
     }
     return false
 }
