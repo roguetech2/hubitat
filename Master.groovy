@@ -11,8 +11,9 @@
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 *  <http://www.gnu.org/licenses/> for more details.
 *
-*  Name: Maste
-*  Version: 0.3.13
+*  Name: Master
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
+*  Version: 0.3.14
 *
 ***********************************************************************************************************************/
 
@@ -203,6 +204,29 @@ input "timeStop", "time", title: "and stop time", required: true, width: 6, subm
     }
 }
 
+def applyLabel(text){
+    return '<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>'
+}
+
+def applyInfo(text,noDisplayIcon = null){
+    infoIcon = "<img src=\"http://emily-john.love/icons/information.png\" width=20 height=20>"
+    if(noDisplayIcon) return '<div style="background-color:AliceBlue">' + text + '</div>'
+    if(!noDisplayIcon) return '<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>'
+}
+def applyError(text,noDisplayIcon = null){
+    errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    if(noDisplayIcon) return '<div style="background-color:Bisque">' + text + '</div>'
+    if(!noDisplayIcon) return '<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>'
+}
+def applyWarning(text,noDisplayIcon = null){
+    errorIcon = "<img src=\"http://emily-john.love/icons/error.png\" width=20 height=20>"
+    if(noDisplayIcon) return '<div style="background-color:LemonChiffon">' + text + '</div>'
+    if(!noDisplayIcon) return '<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>'
+}
+def applyHighlight(text){
+    return '<div style="background-color:Wheat">' + text + '</div>'
+}
+
 def displayInfo(text = 'Null',noDisplayIcon = null){
     if(text == 'Null') {
         paragraph '<div style="background-color:AliceBlue"> </div>'
@@ -265,9 +289,9 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(268,'error',"Invalid value for action \"$action\" sent to singleLock function",childLabel)
+        putLog(292,'error',"Invalid value for action \"$action\" sent to singleLock function",childLabel)
     }
-    putLog(270,'info',action + "ed $singleDevice",childLabel)
+    putLog(294,'info',action + "ed $singleDevice",childLabel)
 }
 
 /*
@@ -287,10 +311,10 @@ def waitStateChange(action, singleDevice, childLabel = "Master"){
         }
     }
     if((action == "on" && deviceState == "on") || (action == "off" && deviceState == "off")) {
-        putLog(290,"debug","Waited " + (loopCount * 10) + " milliseconds for $singleDevice to turn on",childLabel)
+        putLog(314,"debug","Waited " + (loopCount * 10) + " milliseconds for $singleDevice to turn on",childLabel)
         return true
     } else {
-        putLog(293,"error","$singleDevice refused to turn $action in " + (loopCount * 10) + " milliseconds",childLabel)
+        putLog(317,"error","$singleDevice refused to turn $action in " + (loopCount * 10) + " milliseconds",childLabel)
         return
     }
 }
@@ -301,7 +325,7 @@ def waitStateChange(action, singleDevice, childLabel = "Master"){
 // If not, need to set priorLevel, and non-fan code is borked
 def dim(action, multiDevice, appId, childLabel='Master'){
     if(action != 'dim' && action != 'brighten'){
-        putLog(304,'error',"Invalid value for action \"$action\" sent to dim function",childLabel)
+        putLog(328,'error',"Invalid value for action \"$action\" sent to dim function",childLabel)
         return
     }
 
@@ -341,8 +365,6 @@ def dim(action, multiDevice, appId, childLabel='Master'){
 // Determine next dim or brighten level based on "multiplier
 // action = "dim" or "brighten"
 def nextLevel(singleDevice, action, childLabel='Master'){
-    if(!singleDevice) return
-    if(action != 'brighten' && action != 'dim') return
     if(isFan(singleDevice,childLabel)){
         level = atomicState."deviceData${singleDevice.id}"?.'level'?.'startLevel' ? atomicState."deviceData${singleDevice.id}".'level'.'startLevel' : singleDevice.currentSpeed
         if(action == 'brighten'){
@@ -374,11 +396,11 @@ def nextLevel(singleDevice, action, childLabel='Master'){
         }
         if(!dimSpeed){
             dimSpeed = 1.2
-            putLog(377,'error','ERROR: Failed to find dimSpeed in function nextLevel',childLabel)
+            putLog(399,'error','ERROR: Failed to find dimSpeed in function nextLevel',childLabel)
         }
     }
     if (action != 'dim' && action != 'brighten'){
-        putLog(381,'error',"ERROR: Invalid value for action \"$action\" sent to nextLevel function",childLabel)
+        putLog(403,'error',"ERROR: Invalid value for action \"$action\" sent to nextLevel function",childLabel)
         return false
     }
     def newLevel = level as int
@@ -412,35 +434,35 @@ def changeMode(mode, childLabel = 'Master', device = ''){
     if(location.mode == mode) return
     oldMode = location.mode
     setLocationMode(mode)
-    putLog(415,'info',"Changed Mode from $oldMode to $mode",childLabel)
+    putLog(437,'info','Changed Mode from ' + oldMode + ' to ' + mode,childLabel)
 }
 
 // Send SMS text message to $phone with $message
 //SMS IS NO LONGER SUPPORTED
 def sendPushNotification(phone, message, childLabel = 'Master'){
-    putLog(421,'info',"Sent \"$message\" to $phone",childLabel)
+    putLog(443,'info','Sent "' + message + '" to ' + phone,childLabel)
     phone.deviceNotification(message)
     return true
 }
 
-// Test state of a group of switches
-// Return true if all are on
-def isAllOnMulti(multiDevice,childLabel='Master'){
-    return false
-    if(!multiDevice) return
-    returnStatus = true
-    multiDevice.each{singleDevice->
-        returnStatus = isOn(singleDevice,childLabel)
-    }
-    return returnStatus
-}
 // Test state of a group of switches
 // Return true if any are on
 def isAnyOnMulti(multiDevice,childLabel='Master'){
     if(!multiDevice) return
     returnStatus = false
     multiDevice.each{singleDevice->
-        returnStatus = isOn(singleDevice,childLabel)
+        if(isOn(singleDevice,childLabel)) returnStatus = true
+    }
+    return returnStatus
+}
+
+// Test state of a group of switches
+// Return true if any are on
+def isAllOnMulti(multiDevice,childLabel='Master'){
+    if(!multiDevice) return
+    returnStatus = true
+    multiDevice.each{singleDevice->
+        if(!isOn(singleDevice,childLabel)) returnStatus = false
     }
     return returnStatus
 }
@@ -505,7 +527,7 @@ def validateHueSat(hue,sat, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(508,'error',"ERROR: Multiplier $value is not valid",childLabel)
+            putLog(537,'error',"ERROR: Multiplier $value is not valid",childLabel)
             return
         }
     }
@@ -559,6 +581,7 @@ def rescheduleIncrementalMulti(multiDevice,childLabel='Master'){
 
 // deprecated function?
 def rescheduleIncrementalSingle(singleDevice,childLabel='Master'){
+    if(!singleDevice) return
 // Fix this to look for appIds in the table
     childApps.each {Child->
         if(Child.label.substring(0,7) == 'Time - ') {
@@ -597,6 +620,32 @@ def descheduleIncrementalSingle(singleDevice,childLabel='Master'){
     return
 }
 
+// Need to change this to either Any or All
+//Need code to track and return the result
+def checkActiveScheduleMulti(multiDevice,childLabel='Master'){
+    if(!multiDevice) return
+    multiDevice.each{singleDevice->
+        match = checkActiveScheduleSingle(singleDevice,childLabel)
+    }
+    return match
+}
+
+// deprecated function?
+def checkActiveScheduleSingle(singleDevice,childLabel='Master'){
+    if(!singleDevice) return
+// Fix this to look for appIds in the table
+    childApps.each {Child->
+        if(Child.label.substring(0,7) == 'Time - ') {
+            Child.timeDevice.each {ChildDevice->
+                if(singleDevice.id == ChildDevice.id){
+                    match = Child.getScheduleActive()
+                }
+            }
+        }
+    }
+
+    return match
+}
 // Returns date one day ahead of $date
 // Expects and returns format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
 def getTomorrow(date,childLabel='Master'){
@@ -662,13 +711,13 @@ def timeBetween(timeStart, timeStop,childLabel='Master'){
 
 def speakSingle(text,deviceId, childLabel='Master'){
     if(!deviceId) {
-        putLog(665,'warn',"No speech device for \"$text\"",childLabel)
+        putLog(721,'warn','No speech device for " ' + text + '"',childLabel)
         return
     }
     speechDevice.each{
         if(it.id == deviceId){
             it.speak(text)
-            putLog(671,'info',"Sending speech \"$text\" to device $it",childLabel)
+            putLog(727,'info','Sending speech "' + text + '" to device ' + it,childLabel)
             return true
         }
     }
@@ -755,7 +804,6 @@ def updateStateSingle(singleDevice,action,childLabel = 'Master'){
 }
 
 def updateLevelsMulti(multiDevice, defaults,childLabel = 'Master'){
-    if(!multiDevice) return
     // If table gets out of sync, or structure is change (eg with an update), uncomment line below to reset
     //atomicState.deviceData = null
     multiDevice.each{singleDevice->
@@ -765,7 +813,6 @@ def updateLevelsMulti(multiDevice, defaults,childLabel = 'Master'){
 }
 
 def updateLevelsSingle(singleDevice, defaults,childLabel = 'Master'){
-    if(!singleDevice) return
     time = new Date().time
 
     if(atomicState."deviceData${singleDevice.id}") currentDeviceData = atomicState."deviceData${singleDevice.id}"
@@ -901,6 +948,7 @@ def updateLevelsSingle(singleDevice, defaults,childLabel = 'Master'){
 }
 
 def setStateMulti(multiDevice,childLabel = 'Master'){
+    if(!multiDevice) return
     // Set current time (used for progressive changes)
     currentTime = new Date()
     //currentTimeSeconds = new Date().time
@@ -944,11 +992,11 @@ def handleFanWithStartLevel(singleDevice,defaults,childLabel = 'Master'){
     defaults.'level'.'time' = time
     if(singleDevice.currentSpeed == atomicState."deviceData${singleDevice.id}".'level'.'startLevel'){
         singleDevice.setSpeed('on')
-        putLog(947,'debug','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1002,'debug','Turning ' + singleDevice + ' on',childLabel)
     }
     if(singleDevice.currentSpeed != defaults.'level'.'startLevel'){
         singleDevice.setSpeed(atomicState."deviceData${singleDevice.id}".'level'.'startLevel')
-        putLog(951,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
+        putLog(1006,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
     }
     if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
 }
@@ -957,11 +1005,11 @@ def handleFanWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
     
     if(singleDevice.currentSpeed == 'high'){
         singleDevice.setSpeed('on')
-        putLog(960,'debug','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1015,'debug','Turning ' + singleDevice + ' on',childLabel)
         return true
     }
     singleDevice.setSpeed('high')
-    putLog(964,'debug','Setting ' + singleDevice + ' to high',childLabel)
+    putLog(1019,'debug','Setting ' + singleDevice + ' to high',childLabel)
 }
 
 def setStateSingleDimmable(singleDevice,defaults,childLabel = 'Master'){
@@ -982,11 +1030,11 @@ def handleDimmableWithStartLevel(singleDevice,defaults,childLabel = 'Master'){
     defaults.'level'.'time' = time
     if(singleDevice.currentLevel == defaults.'level'.'startLevel'){
         singleDevice.on()
-        putLog(985,'debug','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1040,'debug','Turning ' + singleDevice + ' on',childLabel)
     }
     if(singleDevice.currentLevel != defaults.'level'.'startLevel'){
         singleDevice.setLevel(defaults.'level'.'startLevel')
-        putLog(989,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
+        putLog(1044,'debug','Setting ' + singleDevice + ' to ' + defaults.'level'.'startLevel',childLabel)
     }
     if(defaults.'level'?.'time' == 'stop') defaults.remove('level')
 }
@@ -994,11 +1042,11 @@ def handleDimmableWithoutStartLevel(singleDevice,defaults,childLabel = 'Master')
     if(defaults?.'level'?.'startLevel') return
     if(singleDevice.currentLevel == 100){
         singleDevice.on()
-        putLog(997,'debug','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1052,'debug','Turning ' + singleDevice + ' on',childLabel)
         return
     }
     singleDevice.setLevel(100)
-    putLog(1001,'debug','Setting ' + singleDevice + ' to 100%',childLabel)
+    putLog(1056,'debug','Setting ' + singleDevice + ' to 100%',childLabel)
 }
 
 def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
@@ -1045,7 +1093,7 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
                         levelStart = defaults.'level'.'startLevel'
                     }
                 }
-                if(!levelStart) putLog(1048,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
+                if(!levelStart) putLog(1103,'warn',"$singleDevice level data = " + defaults.'level' + " for schedule id " + defaults.'level'.'appId' + " but schedule isn't active",childLabel)
                 // If just start level
             } else if(defaults.'level'.'startLevel'){
                 levelStart = defaults.'level'.'startLevel'
@@ -1111,12 +1159,12 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
                         hueStart = defaults.'hue'.'startLevel'
                     }
                 }
-                if(!hueStart) putLog(1114,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
+                if(!hueStart) putLog(1169,'warn',"$singleDevice hue data = " + defaults.'hue' + " for schedule id " + defaults.'hue'.'appId' + " but schedule isn't active",childLabel)
                 // If just start hue
             } else if(defaults.'hue'.'startLevel'){
                 hueStart = defaults.'hue'.'startLevel'
             } else if(!isNumeric(defaults.'hue'.'appId')){
-                putLog(1119,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
+                putLog(1174,'error',"ERROR: $singleDevice hue data = " + defaults + "; Hue node without start hue",childLabel)
             }
 
             // Set currentHue
@@ -1169,12 +1217,12 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
                         satStart = defaults.'sat'.'startLevel'
                     }
                 }
-                if(!satStart) putLog(1172,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
+                if(!satStart) putLog(1227,'warn',"$singleDevice sat data = " + defaults.'sat' + " for schedule id " + defaults.'sat'.'appId' + " but schedule isn't active",childLabel)
                 // If just start sat
             } else if(defaults.'sat'.'startLevel'){
                 satStart = defaults.'sat'.'startLevel'
             } else if(!isNumeric(defaults.'sat'.'appId')){
-                putLog(1177,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
+                putLog(1232,'error',"ERROR: $singleDevice sat data = $defaults; Sat node without start sat",childLabel)
             }
 
             // Set currentSat
@@ -1225,7 +1273,7 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
                         tempStart = defaults.'temp'.'startLevel'
                     }
                 }
-                if(!tempStart) putLog(1228,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
+                if(!tempStart) putLog(1283,'warn',"$singleDevice temp data = " + defaults.'temp' + " for schedule id " + defaults.'temp'.'appId' + " but schedule isn't active",childLabel)
                 // If just start temp
             } else if(defaults.'temp'.'startLevel'){
                 tempStart = defaults.'temp'.'startLevel'
@@ -1269,36 +1317,36 @@ def setStateSingleColor(singleDevice,defaults,childLabel = 'Master'){
             colorMap.'saturation' = satStart ? satStart : singleDevice.currentSaturation
 
             singleDevice.setColor(colorMap)
-            putLog(1272,'info','Set ' + singleDevice + ' ' + message,childLabel)
+            putLog(1327,'info','Set ' + singleDevice + ' ' + message,childLabel)
             if(settings['colorStaging']){
                 pauseExecution(200)
                 singleDevice.on()
-                putLog(1276,'info','Set ' + singleDevice + ' on',childLabel)
+                putLog(1331,'info','Set ' + singleDevice + ' on',childLabel)
             }
-            putLog(1278,message,'info',childLabel)
+            putLog(1333,message,'info',childLabel)
         } else if(levelStart && isDimmable(singleDevice,childLabel)){
             if(tempStart){
                 singleDevice.setColorTemperature(tempStart)
-                putLog(1282,'info','Set ' + singleDevice + ' temperature color set to ' + tempStart + 'K',childLabel)
+                putLog(1337,'info','Set ' + singleDevice + ' temperature color set to ' + tempStart + 'K',childLabel)
                 pauseExecution(200)
             }
             if(singleDevice.currentLevel != levelStart){
                 singleDevice.setLevel(levelStart)
-                putLog(1287,'info','Set ' + singleDevice + ' brightness to ' + levelStart + '%',childLabel)
+                putLog(1342,'info','Set ' + singleDevice + ' brightness to ' + levelStart + '%',childLabel)
             } else {
                 singleDevice.on()
-                putLog(1290,'info','Turned ' + singleDevice + 'on',childLabel)
+                putLog(1345,'info','Turned ' + singleDevice + 'on',childLabel)
             }
         } else if(tempStart && isColor(singleDevice,childLabel)){
             singleDevice.setColorTemperature(tempStart)
-            putLog(1294,'info','Set ' + singleDevice + 'temperature color set to ' + tempStart + 'K',childLabel)
+            putLog(1349,'info','Set ' + singleDevice + 'temperature color set to ' + tempStart + 'K',childLabel)
             if(settings['colorStaging']){
                 pauseExecution(200)
                 singleDevice.on()
-                putLog(1298,'info',"Set $singleDevice on",childLabel)
+                putLog(1353,'info',"Set $singleDevice on",childLabel)
             }
         } else {
-            if(singleDevice.currentValue('switch') != 'on') putLog(1301,'info','Set ' + singleDevice + ' on',childLabel)
+            if(singleDevice.currentValue('switch') != 'on') putLog(1356,'info','Set ' + singleDevice + ' on',childLabel)
             singleDevice.on()
         }
     }
@@ -1314,22 +1362,22 @@ def handleColorWithoutStartLevel(singleDevice,defaults,childLabel = 'Master'){
 
     if(singleDevice.currentLevel == 100){
         singleDevice.on()
-        putLog(1317,'debug','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1372,'debug','Turning ' + singleDevice + ' on',childLabel)
     }
     if(singleDevice.currentLevel != 100){
         singleDevice.setLevel(100)
-        putLog(1321,'info','Turning ' + singleDevice + ' on by setting to 100%',childLabel)
+        putLog(1376,'info','Turning ' + singleDevice + ' on by setting to 100%',childLabel)
     }
     if(singleDevice.currentColorMode == 'RGB'){
         pauseExecution(200)
         singleDevice.currentColorMode == 'CT'
-        putLog(1326,'info','Set color mode to "CT"',childLabel)
+        putLog(1381,'info','Set color mode to "CT"',childLabel)
     }
     //this needs a fudge check
     if(singleDevice.currentTemperatureColor != 3500){
         pauseExecution(200)
         singleDevice.setColorTemperature(3500)
-        putLog(1332,'info','Set ' + singleDevice + ' temperature color to 3500K',childLabel)
+        putLog(1387,'info','Set ' + singleDevice + ' temperature color to 3500K',childLabel)
     }
 
     return true
@@ -1342,7 +1390,7 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
     if(atomicState."deviceState${singleDevice.id}".'state' == 'off'){
         setStateSingleOff(singleDevice,childLabel)
         //atomicState."deviceState${singleDevice.id}" = ['time':time] 'Not sure why we did this, but it wipes the state, only stores time
-        putLog(1345,'info','Turning ' + singleDevice + ' off',childLabel)
+        putLog(1400,'info','Turning ' + singleDevice + 'off',childLabel)
         return
     }
 
@@ -1351,9 +1399,9 @@ def setStateSingle(singleDevice,childLabel = 'Master'){
     if(setStateSingleFan(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
     if(setStateSingleDimmable(singleDevice,defaults,childLabel)) atomicState."deviceData${singleDevice.id}" = defaults
     if(!setStateSingleColor(singleDevice,defaults,childLabel)){
-        if(singleDevice.currentValue('switch') != 'on') putLog(1342,'info','Set ' + singleDevice + ' on',childLabel)
+        if(singleDevice.currentValue('switch') != 'on') putLog(1409,'info','Set ' + singleDevice + ' on',childLabel)
         singleDevice.on()
-        putLog(1344,'info','Turning ' + singleDevice + ' on',childLabel)
+        putLog(1411,'info','Turning ' + singleDevice + ' on',childLabel)
     }
     return
 }
@@ -1484,7 +1532,7 @@ def getPresenceDevice(childLabel = 'Master'){
 
 def isNumeric(strNum) {
     if (strNum == null) {
-        return false;
+        return false
     }
     try {
         strNum as Integer
