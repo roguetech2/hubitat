@@ -31,7 +31,7 @@ Master - Pico.groovy:
 Master - Presense.groovy:
 	Child app for home presense.
 
-	Production status: Alpha.
+	Production status: Experimental. Do not install in any production enviroment.
 ------------------------------------------------
 Master - Time.groovy:
 	Child app for scheduling.
@@ -41,7 +41,7 @@ Master - Time.groovy:
 Master - Washer-Dryer.groovy:
 	Child app for washer/dryer alerts
 
-	Production state: Early alpha.
+	Production state: Experimental. Do not install in any production enviroment.
 ------------------------------------------------
 schedule.drawio:
 	Flowchart of logic for schedule app using draw.io, available at https://www.diagrams.net/
