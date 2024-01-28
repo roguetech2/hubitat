@@ -427,19 +427,19 @@ def compareDeviceLists(values,compare){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(427,'trace','Installed')
+    putLog(430,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(433,'trace','Updated')
+    putLog(436,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(439,'trace','Initialized')
+    putLog(442,'trace','Initialized')
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
@@ -498,7 +498,7 @@ def buttonEvent(evt){
 
 def doActions(device,action){
     if(!device) return
-    putLog(498,'trace','Set ' + device + ' as ' + action)
+    putLog(501,'trace','Set ' + device + ' as ' + action)
     if(action == 'on') parent.buildStateMapMulti(device,'on',app.label)
     if(action == 'off') parent.buildStateMapMulti(device,'off',app.label)
     if(action == 'toggle') parent.buildStateMapMulti(device,'toggle',app.label)
@@ -520,7 +520,7 @@ def doActions(device,action){
 def convertDriver(evt){
     
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(520,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(523,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
     //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
@@ -538,7 +538,7 @@ def convertDriver(evt){
     if(evt.name == 'release') atomicState.actionType = cubeActions[5]
     if(evt.name == 'hold') atomicState.actionType = cubeActions[6]
 
-    putLog(538,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
+    putLog(541,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
     atomicState.priorSide = evt.value
 }
 
