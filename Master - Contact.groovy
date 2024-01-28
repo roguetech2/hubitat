@@ -1000,14 +1000,14 @@ def compareDeviceLists(list1,list2){
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(999,'trace','Installed')
+    putLog(1003,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1006,'trace','Updated')
+    putLog(1010,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1032,31 +1032,13 @@ def initialize() {
     subscribe(sensor, 'contact.open', contactChange)
     subscribe(sensor, 'contact.closed', contactChange)            
     
-    putLog(1028,'trace','Initialized')
+    putLog(1035,'trace','Initialized')
 }
 
 def contactChange(evt){
-    //putLog(1032,'debug','Contact sensor ' + evt.displayName + ' ' + evt.value)
-
-
-    if(evt.value == '4') {
-            evt.value = 'closed'
-
-        }
-    if(evt.value == '1') {
-            evt.value = 'open'
-
-        }
-        log.debug 'contact mimiced as being ' + evt.value
-
-
-
     setTime()
-    if(getDisabled()) {
-        log.debug 'disabled'
-        return
-    }
-    putLog(1037,'debug','Contact sensor ' + evt.displayName + ' ' + evt.value)
+    if(getDisabled()) return
+    putLog(1041,'debug','Contact sensor ' + evt.displayName + ' ' + evt.value)
     
 
     // If opened a second time, it will reset delayed action
@@ -1147,7 +1129,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1125,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1132,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1157,7 +1139,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1135,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1142,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
