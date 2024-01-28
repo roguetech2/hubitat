@@ -383,7 +383,7 @@ def validateHueSat(hue,sat, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(562,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
+            putLog(386,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
             return
         }
     }
@@ -687,7 +687,7 @@ def _resumeDeviceScheduleSingle(singleDevice,childLabel='Master'){
             Child.find { ChildDevice ->
                 if(singleDevice.id == ChildDevice.id){
                     Child.setDailySchedules()
-                    putLog(1861,'info','Resuming schedule for ' + singleDevice + ' (' + ChildDevice.label + ')',childLabel,True)
+                    putLog(690,'info','Resuming schedule for ' + singleDevice + ' (' + ChildDevice.label + ')',childLabel,True)
                 }
             }
         }
@@ -707,7 +707,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(1881,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(710,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -733,7 +733,7 @@ def _setDeviceSingle(singleDevice,childLabel = 'Master'){
 def _setDeviceSingleState(singleDevice,childLabel = 'Master'){
     if(!singleDevice) return
     if(!state.'devices'?."${singleDevice.id}"?.'state') return
-    if(singleDevice.currentValue('switch') != !state.'devices'."${singleDevice.id}".'state'.'state') putLog(1885,'info','Turned ' + singleDevice + ' ' + state.'devices'."${singleDevice.id}".'state'.'state' ,childLabel,'True')
+    if(singleDevice.currentValue('switch') != !state.'devices'."${singleDevice.id}".'state'.'state') putLog(736,'info','Turned ' + singleDevice + ' ' + state.'devices'."${singleDevice.id}".'state'.'state' ,childLabel,'True')
     if(state.'devices'."${singleDevice.id}".'state'.'state' == 'on') singleDevice.on()
     if(state.'devices'."${singleDevice.id}".'state'.'state' == 'off') singleDevice.off()
     return true
@@ -752,7 +752,7 @@ def _setDeviceSingleLevels(singleDevice,type,childLabel='Master'){
     if(type == 'color' && !checkIsColor(singleDevice,childLabel)) return
     //if(type == 'sat' && !checkIsColor(singleDevice,childLabel)) return
     if(!state.'devices'."${singleDevice.id}"?."${type}"?.'currentLevel') {
-        putLog(1926,'warning','WARNING: ' + type + '.currentLevel not set in Table, when updating device (_setDeviceSingleLevel)',childLabel,True)
+        putLog(755,'warning','WARNING: ' + type + '.currentLevel not set in Table, when updating device (_setDeviceSingleLevel)',childLabel,True)
         return
     }
 
@@ -766,7 +766,7 @@ def _setDeviceSingleLevels(singleDevice,type,childLabel='Master'){
     if(type == 'level') singleDevice.setLevel(state.'devices'."${singleDevice.id}"."${type}".'currentLevel')
     //if(type == 'color') singleDevice.setColor(['hue':state.'devices'."${singleDevice.id}"."${type}".'currentLevel','saturation':state.'devices'."${singleDevice.id}"."${type}".'currentLevel'])
     //if(type == 'sat') singleDevice.currentSaturation = state.'devices'."${singleDevice.id}"."${type}".'currentLevel'
-    putLog(1940,'info','Set ' + type + ' of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}"."${type}".'currentLevel',childLabel,'True')
+    putLog(769,'info','Set ' + type + ' of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}"."${type}".'currentLevel',childLabel,'True')
 
     return true
 }
@@ -784,7 +784,7 @@ def _setDeviceSingleTemp(singleDevice,childLabel='Master'){
     if (tempDifference <= tolerance) return  // device level isn't changing
     state.'devices'."${singleDevice.id}".'temp'.'priorLevel' = singleDevice.currentColorTemperature
     singleDevice.setColorTemperature(state.'devices'."${singleDevice.id}".'temp'.'currentLevel')
-    putLog(1958,'info','Set temp of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}".'temp'.'currentLevel',childLabel,'True')
+    putLog(787,'info','Set temp of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}".'temp'.'currentLevel',childLabel,'True')
 
     return true
 }
@@ -810,7 +810,7 @@ def _setDeviceSingleColor(singleDevice,childLabel='Master'){
         if(newValue == singleDevice.currentHue) return  // device level isn't changing
         singleDevice.setColor(['hue':newValue,'saturation':state.'devices'."${singleDevice.id}"."${type}".'currentLevel'])
     }
-    putLog(1984,'info','Set hue of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}".'hue'.'currentLevel',childLabel,'True')
+    putLog(813,'info','Set hue of ' + singleDevice + ' to ' + state.'devices'."${singleDevice.id}".'hue'.'currentLevel',childLabel,'True')
     return true
 }          
 
@@ -839,7 +839,7 @@ def updateTableIncrementalSingle(singleDevice, type, childLabel = 'Master') {
         if (Child.id == state.'devices'."${singleDevice.id}"."${type}".'appId'.toInteger()) levelScheduleActive = Child.getScheduleActive()
     }
     if (!levelScheduleActive) {
-        putLog(2013, 'warn', "$singleDevice ${type} data = " + state.'devices'."${singleDevice.id}"."${type}" + " for schedule id " + state.'devices'."${singleDevice.id}"."${type}".'appId' + " but schedule isn't active", childLabel, true)
+        putLog(842, 'warn', "$singleDevice ${type} data = " + state.'devices'."${singleDevice.id}"."${type}" + " for schedule id " + state.'devices'."${singleDevice.id}"."${type}".'appId' + " but schedule isn't active", childLabel, true)
         return
     }
     incrementLevel = _computeIncrementalLevelSingle(singleDevice,type,childLabel)
@@ -968,7 +968,7 @@ def _updateTableSingle(singleDevice,rightMap,childLabel = 'Master'){
     time = new Date().time
     rightMap.each { entry, value ->
         if(entry != 'level' && entry != 'temp' && entry != 'hue' && entry != 'sat' && entry != 'state'){
-            putLog(2141,'warn','Invalid Table key of "' + entry + '" created in _updateTableSingle, with value of "' + value + '" for ' + singleDevice + ' (' + singleDevice.id + '), ' + childLabel,childLabel,'True')
+            putLog(971,'warn','Invalid Table key of "' + entry + '" created in _updateTableSingle, with value of "' + value + '" for ' + singleDevice + ' (' + singleDevice.id + '), ' + childLabel,childLabel,'True')
         }
         if (appId) rightMap."${entry}".'appId' = appId
         if (!appId) rightMap."${entry}".'appId' = 'manual'
@@ -993,7 +993,7 @@ def updateTableLevelSingle(singleDevice, type, level, childLabel='Master'){
     if(!singleDevice) return
     if(!level) return
     if(!type) return
-    if(type != 'level' && type != 'temp' && type != 'hue' && type != 'sat') putLog(2169,'warn','Invalid type of ' + type + ' with level of ' + level + ' sent to updateTableLevelSingle for ' + singleDevice + '  from ' + childLabel, appLabel,'True')
+    if(type != 'level' && type != 'temp' && type != 'hue' && type != 'sat') putLog(996,'warn','Invalid type of ' + type + ' with level of ' + level + ' sent to updateTableLevelSingle for ' + singleDevice + '  from ' + childLabel, appLabel,'True')
     
     map = [type:['level': level]]
     _updateTableSingle(singleDevice, map, childLabel)
@@ -1070,7 +1070,7 @@ def updateTableCapturedState(singleDevice,action,appId,childLabel = 'Master'){
     if(state.'devices'?."${singleDevice.id}"?.'state'?.'appId' == appId) return
     // Need more checks here!
     _buildStateMapSingle(singleDevice,action,childLabel)
-    putLog(2246,'trace','Captured manual state change for ' + singleDevice + ' to turn ' + action,childLabel,'True')
+    putLog(1073,'trace','Captured manual state change for ' + singleDevice + ' to turn ' + action,childLabel,'True')
 }
 def updateTableCapturedLevel(singleDevice,type,value,appId,childLabel = 'Master'){
     //value = parent.convertToInteger(event.value)
@@ -1080,7 +1080,7 @@ def updateTableCapturedLevel(singleDevice,type,value,appId,childLabel = 'Master'
     }
     if(!state.'devices'."${singleDevice.id}"?."${type}"?.'currentLevel') map = ["${type}":['currentLevel':value]]
 
-    putLog(2256,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + value,childLabel,'True')
+    putLog(1083,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + value,childLabel,'True')
     _updateTableSingle(singleDevice, map)
 }
 
@@ -1120,7 +1120,7 @@ def _getNextLevelDimmable(singleDevice, action, childLabel='Master'){
     }
     if(!dimSpeed){
         dimSpeed = 1.2
-        putLog(2296,'error','ERROR: Failed to find dimSpeed in function getNextLevel with ' + appId,childLabel,True)
+        putLog(1123,'error','ERROR: Failed to find dimSpeed in function getNextLevel with ' + appId,childLabel,True)
     }
 
     oldLevel = level
@@ -1160,12 +1160,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,no
         if(Child.id == appId) {
             if(noPerformDisableCheck || (!noPerformDisableCheck && !Child.getDisabled())) {
                 if(!functionName) {
-                    putLog(2336,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1163,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(2339,'debug','Scheduled ' + functionName + parameters + ' for ' + (now() + timeMillis),Child.label,'True')
+                putLog(1168,'debug','Scheduled ' + functionName + parameters + ' for ' + (now() + timeMillis),Child.label,'True')
             }
         }
     }
@@ -1175,7 +1175,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(2351,'debug',message + mode,childLabel,'True')
+    putLog(1178,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1184,14 +1184,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - state.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(2360,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1187,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     state.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(2367,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1194,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1200,7 +1200,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(2376,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1203,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
