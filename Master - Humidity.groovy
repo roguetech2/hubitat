@@ -1318,14 +1318,14 @@ def compareDeviceLists(firstDevices,secondDevices){
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1318,'trace','Installed')
+    putLog(1321,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1325,'trace','Updated')
+    putLog(1328,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1356,7 +1356,7 @@ def initialize() {
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
     subscribe(settings['device'], 'switch', switchHandler)
     
-    putLog(1356,'trace','Initialized')
+    putLog(1359,'trace','Initialized')
 }
 
 def humidityHandler(event) {
@@ -1389,7 +1389,7 @@ def turnOn(){
     if(getDisabled()) return
     if(!checkOnConditions()) return
     if(checkOffConditions()) {
-        putLog(1389,'warn','Both on and off conditions met.')
+        putLog(1392,'warn','Both on and off conditions met.')
         return
     }
     if(state.manualOn) return
@@ -1502,11 +1502,11 @@ def checkOnConditions(){
     if(!checkMinimumWaitTime()) return
     if(settings['multiStartTrigger']) {
         allOnConditions = checkAllOnConditions()
-        putLog(1504,'trace','All on conditions is ' + allOnConditions)
+        putLog(1505,'trace','All on conditions is ' + allOnConditions)
         return allOnConditions
     }
     anyOnConditions = checkAnyOnConditions()
-    putLog(1508,'trace','Any on condition is ' + anyOnConditions)
+    putLog(1509,'trace','Any on condition is ' + anyOnConditions)
     return anyOnConditions
 }
 
@@ -1515,12 +1515,12 @@ def checkOffConditions(){
     
     if(settings['multiStopTrigger']) {
         allOffConditions = checkAllOffConditions()
-        putLog(1517,'trace','All off conditions is ' + allOffConditions)
+        putLog(1518,'trace','All off conditions is ' + allOffConditions)
         return allOffConditions
     }
     if(!settings['multiStopTrigger']) {
         anyOffConditions = checkAnyOffConditions()
-        putLog(1522,'trace','Any off conditions is ' + anyOffConditions)
+        putLog(1523,'trace','Any off conditions is ' + anyOffConditions)
         return anyOffConditions
     }
 }
@@ -1637,7 +1637,7 @@ def checkRunTimeMaximum(){
     if(!state.startTime) return true
     
     if(now - state.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1639,'trace','Maximum runtime exceeded.')
+        putLog(1640,'trace','Maximum runtime exceeded.')
         return true
     }
 }
@@ -1647,7 +1647,7 @@ def checkMinimumWaitTime(){
     if(!state.stopTime) return true
     
     if(now - state.stopTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1649,'trace','Minimum wait time exceeded.')
+        putLog(1650,'trace','Minimum wait time exceeded.')
         return true
     }
 }
@@ -1694,7 +1694,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1125,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1697,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1704,7 +1704,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1135,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1707,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
