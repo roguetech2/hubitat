@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.01
+*  Version: 0.6.02
 *
 ***********************************************************************************************************************/
 
@@ -301,34 +301,8 @@ def displayMultiDeviceAdvanced(){
     }
 
     section(hideable: true, hidden: hidden, 'Top button ("On") ' + expandText) {
-        button = [1,'on','push']
-        getAdvancedSwitchInput(button)
-
-        button = [1,'off','push']
-        getAdvancedSwitchInput(button)
-        displayError(compareDeviceLists(button,'on'))
-
-        button = [1,'resume','push']
-        getAdvancedSwitchInput(button)
-        displayError(compareDeviceLists(button,'on'))
-        displayError(compareDeviceLists(button,'off'))
-
-        button = [1,'toggle','push']
-        getAdvancedSwitchInput(button)
-        displayError(compareDeviceLists(button,'on'))
-        displayError(compareDeviceLists(button,'off'))
-        displayError(compareDeviceLists(button,'resume'))
-
-        button = [1,'dim','push']
-        getAdvancedSwitchInput(button)
-        displayError(compareDeviceLists(button,'off'))
-        displayError(compareDeviceLists(button,'resume'))
-
-        button = [1,'brighten','push']
-        getAdvancedSwitchInput(button)
-        displayError(compareDeviceLists(button,'off'))
-        displayError(compareDeviceLists(button,'dim'))
-        displayError(compareDeviceLists(button,'resume'))
+        buttonMap = ['on','off','resume','toggle','dim','brighten']
+        displayMultiDeviceButtons(1,buttonMap)
     }
     //paragraph error
     if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
@@ -340,35 +314,8 @@ def displayMultiDeviceAdvanced(){
         }
 
         section(hideable: true, hidden: hidden, '"Brighten" Button (' + expandText + ')') {
-            button = [2,'brighten','push']
-            getAdvancedSwitchInput(button)
-
-            button = [2,'dim','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'brighten'))
-
-            button = [2,'on','push']
-            getAdvancedSwitchInput(button)
-
-            button = [2,'off','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'brighten'))
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'on'))
-
-            button = [2,'toggle','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-
-            button = [2,'resume','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'brighten'))
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'toggle'))
+            buttonMap = ['brighten','dim','on','off','toggle','resume']
+            displayMultiDeviceButtons(2,buttonMap)
         }
     }
     if(numberOfButtons == 5 && !error){
@@ -379,34 +326,8 @@ def displayMultiDeviceAdvanced(){
             expandText = 'Click to expand/collapse'
         }
         section(hideable: true, hidden: hidden, 'Middle Button (' + expandText + ')') {
-            button = [3,'toggle','push']
-            getAdvancedSwitchInput(button)
-
-            button = [3,'resume','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'toggle'))
-
-            button = [3,'on','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'toggle'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [3,'off','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'toggle'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [3,'dim','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [3,'brighten','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'resume'))
+            buttonMap = ['toggle','resume','on','off','dim','brighten']
+            displayMultiDeviceButtons(3,buttonMap)
         }
     }
     if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
@@ -417,34 +338,8 @@ def displayMultiDeviceAdvanced(){
             expandText = 'Click to expand/collapse'
         }
         section(hideable: true, hidden: hidden, '"Dim" Button (' + expandText + ')') {
-            button = [4,'dim','push']
-            getAdvancedSwitchInput(button)
-
-            button = [4,'brighten','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'dim'))
-
-            button = [4,'on','push']
-            getAdvancedSwitchInput(button)
-
-            button = [4,'off','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'brighten'))
-            displayError(compareDeviceLists(button,'on'))
-
-            button = [4,'toggle','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-
-            button = [4,'resume','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'brighten'))
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'resume'))
+            buttonMap = ['dim','brighten','on','off','toggle','resume']
+            displayMultiDeviceButtons(4,buttonMap)
         }
     }
 
@@ -456,34 +351,8 @@ def displayMultiDeviceAdvanced(){
             expandText = 'Click to expand/collapse'
         }
         section(hideable: true, hidden: hidden, 'Bottom Button ("Off") (' + expandText + ')') {
-            button = [5,'off','push']
-            getAdvancedSwitchInput(button)
-
-            button = [5,'on','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-
-            button = [5,'resume','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-
-            button = [5,'toggle','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [5,'dim','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [5,'brighten','push']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'resume'))
+            buttonMap = ['off','on','resume','toggle','dim','brighten']
+            displayMultiDeviceButtons(5,buttonMap)
         }
     }
     fieldName = 'replicateHold'
@@ -506,34 +375,8 @@ def displayMultiDeviceAdvanced(){
             expandText = 'Click to expand/collapse'
         }
         section(hideable: true, hidden: hidden, 'Top button ("On") (' + expandText + ')') {
-            button = [1,'on','hold']
-            getAdvancedSwitchInput(button)
-
-            button = [1,'off','hold']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-
-            button = [1,'resume','hold']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-
-            button = [1,'toggle','hold']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'on'))
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [1,'dim','hold']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'resume'))
-
-            button = [1,'brighten','hold']
-            getAdvancedSwitchInput(button)
-            displayError(compareDeviceLists(button,'off'))
-            displayError(compareDeviceLists(button,'dim'))
-            displayError(compareDeviceLists(button,'resume'))
+            buttonMap = ['on','off','resume','toggle','dim','brighten']
+            displayMultiDeviceButtons(1,buttonMap,'hold')
         }
         if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
             hidden = true
@@ -543,35 +386,8 @@ def displayMultiDeviceAdvanced(){
                 expandText = 'Click to expand/collapse'
             }
             section(hideable: true, hidden: hidden, '"Brighten" Button (' + expandText + ')') {
-                button = [2,'brighten','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [2,'dim','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'brighten'))
-
-                button = [2,'on','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [2,'off','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'brighten'))
-                displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'on'))
-
-                button = [2,'resume','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-
-                button = [2,'toggle','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'brighten'))
-                displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'resume'))
+                buttonMap = ['brighten','dim','on','off','resume','toggle']
+                displayMultiDeviceButtons(2,buttonMap,'hold')
             }
         }
         if(numberOfButtons == 5 && !error){
@@ -582,38 +398,8 @@ def displayMultiDeviceAdvanced(){
                 expandText = 'Click to expand/collapse'
             }
             section(hideable: true, hidden: hidden, 'Middle Button (' + expandText + ')') {
-                button = [3,'resume','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [3,'toggle','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))
-
-                button = [3,'on','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))
-                displayError(compareDeviceLists(button,'toggle'))
-
-                button = [3,'off','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))
-                displayError(compareDeviceLists(button,'toggle'))
-                displayError(compareDeviceLists(button,'on'))
-
-                button = [3,'dim','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))
-                displayError(compareDeviceLists(button,'toggle'))
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-
-                button = [3,'brighten','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'resume'))
-                displayError(compareDeviceLists(button,'toggle'))
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'dim'))
+                buttonMap = ['resume','toggle','on','off','dim','brighten']
+                displayMultiDeviceButtons(3,buttonMap,'hold')
             }
         }
         if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
@@ -625,34 +411,8 @@ def displayMultiDeviceAdvanced(){
             }
 
             section(hideable: true, hidden: hidden, '"Dim" Button (' + expandText + ')') {
-                button = [4,'dim','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [4,'brighten','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'dim'))
-
-                button = [4,'on','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [4,'off','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'brighten'))
-                displayError(compareDeviceLists(button,'on'))
-
-                button = [4,'resume','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-
-                button = [4,'toggle','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'brighten'))
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'resume'))
+                buttonMap = ['dim','brighten','on','off','resume','toggle']
+                displayMultiDeviceButtons(4,buttonMap,'hold')
             }
         }
 
@@ -664,34 +424,8 @@ def displayMultiDeviceAdvanced(){
                 expandText = 'Click to expand/collapse'
             }
             section(hideable: true, hidden: hidden, 'Bottom Button ("Off") (' + expandText + ')') {
-                button = [5,'off','hold']
-                getAdvancedSwitchInput(button)
-
-                button = [5,'resume','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-
-                button = [5,'on','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'resume'))
-
-                button = [5,'toggle','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'on'))
-                displayError(compareDeviceLists(button,'resume'))
-
-                button = [5,'dim','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'resume'))
-
-                button = [5,'brighten','hold']
-                getAdvancedSwitchInput(button)
-                displayError(compareDeviceLists(button,'off'))
-                displayError(compareDeviceLists(button,'dim'))
-                displayError(compareDeviceLists(button,'resume'))
+                buttonMap = ['off','resume','on','toggle','dim','brighten']
+                displayMultiDeviceButtons(5,buttonMap,'hold')
             }
         }
     }
@@ -823,7 +557,54 @@ def displayMultiDeviceOption(){
     }
 }
 
+def displayMultiDeviceButtons(buttonNumber, buttonMap, action = 'push') {
+    for (mainLoopNumber in 0..4) {
+            log.debug mainLoopNumber
+        button = [buttonNumber, buttonMap[mainLoopNumber], action]
+            getAdvancedSwitchInput(button)
 
+        if(mainLoopNumber != 0){
+            log.debug mainLoopNumber
+            if (buttonMap[mainLoopNumber] == 'on') {
+                for (errorLoopNumber in 0..mainLoopNumber - 1) {
+                    if (buttonMap[errorLoopNumber] in ['off', 'resume', 'toggle']) {
+                        displayError(compareDeviceLists(button, buttonMap[errorLoopNumber]))
+                    }
+                }
+            }
+            
+            if (buttonMap[mainLoopNumber] in ['off', 'resume']) {
+                for (errorLoopNumber in 0..mainLoopNumber - 1) {
+                    displayError(compareDeviceLists(button, buttonMap[errorLoopNumber]))
+                }
+            }
+            
+            if (buttonMap[mainLoopNumber] == 'toggle') {
+                for (errorLoopNumber in 0..mainLoopNumber - 1) {
+                    if (buttonMap[errorLoopNumber] in ['off', 'on', 'toggle']) {
+                        displayError(compareDeviceLists(button, buttonMap[errorLoopNumber]))
+                    }
+                }
+            }
+            
+            if (buttonMap[mainLoopNumber] == 'dim') {
+                for (errorLoopNumber in 0..mainLoopNumber - 1) {
+                    if (buttonMap[errorLoopNumber] in ['brighten', 'off', 'toggle', 'resume']) {
+                        displayError(compareDeviceLists(button, buttonMap[errorLoopNumber]))
+                    }
+                }
+            }
+            
+            if (buttonMap[mainLoopNumber] == 'brighten') {
+                for (errorLoopNumber in 0..mainLoopNumber - 1) {
+                    if (buttonMap[errorLoopNumber] in ['dim', 'off', 'toggle', 'resume']) {
+                        displayError(compareDeviceLists(button, buttonMap[errorLoopNumber]))
+                    }
+                }
+            }
+        }
+    }
+}
 
 // values sent as list
 // values.0 = number
@@ -1254,13 +1035,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1257,'trace', 'Installed')
+    putLog(1038,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1263,'trace','Updated')
+    putLog(1044,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1275,7 +1056,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1278,'trace','Initialized')
+    putLog(1059,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1298,7 +1079,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1301,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1082,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1313,7 +1094,7 @@ def buttonPushed(evt){
             if(atomicState.action == 'hold') holdNextLevelMulti(device,action,app.label)
         }
         if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
-        if(device) putLog(1316,'trace','Turning ' + action + ' ' + device)
+        if(device) putLog(1097,'trace','Turning ' + action + ' ' + device)
         device = ''
     }
     
@@ -1329,7 +1110,7 @@ def buttonReleased(evt){
     numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1332,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1113,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
@@ -1365,7 +1146,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1368,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1149,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1427,7 +1208,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1430,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1211,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1437,7 +1218,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1440,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1221,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
