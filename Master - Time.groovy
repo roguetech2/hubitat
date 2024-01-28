@@ -1149,7 +1149,7 @@ def setStartTime(){
     // But if start and stop time have passed today, setStopTime will fix it
     setTime = parent.setTimeAsIn24Hours(setStartStopTime('start'))  
     atomicState.start  = setTime
-    putLog(1195,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1152,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1164,14 +1164,13 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1210,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1167,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    log.debug settings[type + '_timeType']
     if(settings[type + '_timeType'] == 'time') return timeToday(settings[type + '_time']).getTime()
     if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
     if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
@@ -1219,7 +1218,7 @@ def buildSubMap(key) {
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1265,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1221,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
