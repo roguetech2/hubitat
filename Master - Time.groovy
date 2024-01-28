@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.6.15
+*  Version: 0.7.01
 *
 ***********************************************************************************************************************/
 
@@ -29,23 +29,69 @@ definition(
     iconX2Url: 'http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png'
 )
 
+infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
+errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
+warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
+moreOptions = ' (click for more options)'
+expandText = ' (Click to expand/collapse)'
+
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
-// 5 for all
+// 2 for warnings + errors
+// 3 for info + errors + warnings
+// 4 for trace + info + errors + warnings
+// 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
     return 5
+}
+
+def displayLabel(text, width = 12){
+    if(!text) return
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+}
+
+def displayInfo(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    helpTip = ''
+}
+
+def displayError(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    errorMessage = ''
+}
+
+def displayWarning(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    warningMessage = ''
+}
+
+def highlightText(text, width=12){
+    if(!text) return
+    return '<div style="background-color:Wheat">' + text + '</div>'
+}
+
+def addFieldName(text,fieldName){
+    if(!fieldName) return
+    if(getLogLevel() != 5) return text
+    return text + ' [' + fieldName + ']'
 }
 
 preferences {
     infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
     errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
     warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-    moreOptions = " <font color='gray'>(more options)</font>"
+    moreOptions = ' (click for more options)'
+    expandText = ' (Click to expand/collapse)'
 
     install = formComplete()
     page(name: 'setup', install: install, uninstall: true) {
-        // display Name
         if(!app.label){
             section(){
                 displayNameOption()
@@ -59,76 +105,19 @@ preferences {
             plainStopAction = getPlainAction(settings['stop_action'])
             pluralDevice = getDevicePlural()
 
-            if(!settings['deviceType']) settings['device'] = null
-            if(!settings['device']) {
-                settings['start_timeType'] = null
-                settings['start_timeType'] = null
-            }
-            if(settings['start_action'] == 'off') {
-                settings['start_level'] = null
-                settings['start_temp'] = null
-                settings['start_hue'] = null
-                settings['start_sat'] = null
-            }
-            if(!settings['stop_action']) {
-                settings['stop_level'] = null
-                settings['stop_temp'] = null
-                settings['stop_hue'] = null
-                settings['stop_sat'] = null
-            }
-            if(!settings['start_timeType']) {
-                settings['start_sunType'] = null
-                settings['stop_timeType'] = null
-            }
-            if(settings['start_timeType'] != 'time') settings['start_time'] = null
-            if(settings['start_timeType'] == 'time') settings['start_sunType'] = null
-            if(!settings['start_sunType']) settings['start_sunOffset'] = null
-            if(settings['start_sunType'] == 'at') settings['start_sunOffset'] = null
-            startTimeComplete = checkTimeComplete('start')
-            if(!startTimeComplete) settings['stop_timeType'] = null
-            if(!settings['stop_timeType']) settings['stop_sunType'] = null
-            if(settings['stop_timeType'] != 'time') settings['stop_time'] = null
-            if(settings['stop_timeType'] == 'time') settings['stop_sunType'] = null
-            if(settings['stop_sunType'] != 'before' && settings['stop_sunType'] != 'after') settings['stop_sunOffset'] = null
-            if(settings['stop_sunType'] == 'at') settings['stop_sunOffset'] = null
-            stopTimeComplete = checkTimeComplete('stop')
-            if((!settings['stop_timeType'] || !stopTimeComplete) && (!settings['start_timeType'] || !startTimeComplete)){
-                settings['months'] = null
-                settings['days'] = null
-                settings['start_level'] = null
-                settings['stop_level'] = null
-                settings['start_temp'] = null
-                settings['stop_temp'] = null
-                settings['start_hue'] = null
-                settings['stop_hue'] = null
-                settings['start_sat'] = null
-                settings['stop_sat'] = null
-                settings['start_action'] = null
-                settings['stop_action'] = null
-                settings['stop_time'] = null
-                settings['stop_sunType'] = null
-                settings['stop_sunOffset'] = null
-                settings['personHome'] = null
-                settings['personNotHome'] = null
-            }
-            if(settings['stop_timeType'] == 'none') settings['stop_action'] = null
-            if(!settings['start_hue']) settings['hueDirection'] = null
-            if(!settings['stop_hue']) settings['hueDirection'] = null
-
             peopleError = compareDeviceLists(personHome,personNotHome)
-            
             
             section(){
                 displayNameOption()
                 displayDevicesTypes()
                 displayDevicesOption()
-                if(install) displayDisableOption()
+                displayDisableOption()
             }
             
             displayScheduleSection()
             displayActionOption()
-            displayBrightnessOption()
-            displayTemperatureOption()
+            displayLevelsOption('level')
+            displayLevelsOption('temp')
             displayColorOption()
             displayChangeModeOption()
             displayPeopleOption()
@@ -154,77 +143,37 @@ preferences {
 // Display functions
 def formComplete(){
     if(!app.label) return false
-    if(!device) return false
-    if(!start_action) return false
-    if(!stop_action && stop_timeType != 'none') return false
-    if(!start_timeType) return false
-    if(!stop_timeType) return false
-    if(start_timeType == 'time' && !start_time) return false
-    if(stop_timeType == 'time' && !stop_time) return false
-    if((start_timeType == 'sunrise' || start_timeType == 'sunset') && !start_sunType) return false
-    if((stop_timeType == 'sunrise' || stop_timeType == 'sunset') && !stop_sunType) return false
-    if((start_sunType == 'before' || start_sunType == 'after') && !start_sunOffset) return false
-    if((stop_sunType == 'before' || stop_sunType == 'after') && !stop_sunOffset) return false
-    if(!validateStartLevel()) return false
-    if(!validateStopLevel()) return false
-    if(!validateStartTemp()) return false
-    if(!validateStopTemp()) return false
-    if(!validateHue(start_hue)) return false
-    if(!validateHue(stop_hue)) return false
-    if(!validateSat(start_sat)) return false
-    if(!validateSat(stop_sat)) return false
-    if(start_hue && stop_hue && !hueDirection) return false
+    if(!settings['device']) return false
+    if(!settings['start_action']) return false
+    if(!settings['stop_action'] && settings['stop_timeType'] != 'none') return false
+    if(!validateTimes('start')) return false
+    if(!validateTimes('stop')) return false
+    if(!validateLevels('start')) return false
+    if(!validateLevels('stop')) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(compareDeviceLists(personHome,personNotHome)) return false
     return true
 }
 
-def validateStartLevel(){
-    return parent.validateLevel(start_level)
-}
-
-def validateStopLevel(){
-    return parent.validateLevel(stop_level)
-}
-
-def validateStartTemp(){
-    return parent.validateTemp(start_temp)
-}
-
-def validateStopTemp(){
-    return parent.validateTemp(stop_temp)
-}
-
-def validateHue(value){
-    return parent.validateHue(value)
-}
-
-def validateSat(value){
-    return parent.validateSat(value)
-}
-
-def validateSunriseMinutes(time){
-        if(!time) return true
-        if(time > 719) return false
+def validateLevels(type){
+    if(!parent.validateLevel(settings[type + '_level'])) return false
+    if(!parent.validateTemp(settings[type + '_temp'])) return false
+    if(!parent.validateHue(settings[type + '_hue'])) return false
+    if(!parent.validateSat(settings[type + '_sat'])) return false
     return true
 }
 
-def displayLabel(text, width = 12){
-    paragraph("<div style=\"background-color:#DCDCDC\"><b>$text:</b></div>",width:width)
-}
-
-def displayInfo(text,noDisplayIcon = null){
-    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon $text</div>"
-}
-
-def displayError(text){
-    paragraph "<div style=\"background-color:Bisque\">$errorIcon $text</div>"
-}
-
-def displayWarning(text){
-    paragraph "<div style=\"background-color:LemonChiffon\">$warningIcon $text</div>"
-}
-
-def highlightText(text){
-    return "<div style=\"background-color:Wheat\">$text</div>"
+def validateColor(){
+    if(!settings['start_hue'] && settings['stop_hue']) return false
+    if(!settings['start_sat'] && settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) return false
+    if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(!parent.validateHue(settings['start_hue'])) return false
+    if(!parent.validateHue(settings['stop_hue'])) return false
+    if(!parent.validateSat(settings['start_sat'])) return false
+    if(!parent.validateSat(settings['stop_sat'])) return false
+    return true
 }
 
 // Display functions
@@ -244,8 +193,8 @@ def getDevicePlural(){
     if(deviceCount > 1) {
         if(settings['deviceType'] == 'lock') return 'locks'
         if(settings['deviceType'] == 'light') return 'lights'
-        if(settings['deviceType'] == 'switch')return 'switches'
-        if(settings['deviceType'] == 'fan')return 'fans'
+        if(settings['deviceType'] == 'switch') return 'switches'
+        if(settings['deviceType'] == 'fan') return 'fans'
     }
 
     if(settings['deviceType'] == 'lock') return 'lock'
@@ -255,100 +204,83 @@ def getDevicePlural(){
 }
 
 def displayNameOption(){
-    if(app.label){
-        displayLabel('Schedule name',2)
-        label title: '', required: false, width: 10,submitOnChange:true
-    } else {
-        displayLabel('Set name for this schedule')
-        label title: '', required: false, submitOnChange:true
+    labelText = 'Schedule name'
+    labelWidth = 2
+    if(!app.label) {
+        labelText = 'Set name for this schedule'
+        labelWidth = 10
+    }
+    displayLabel(labelText,labelWidth)
+    if(app.label) label title: '', required: false, width: labelWidth,submitOnChange:true
+    if(!app.label) {
+        label title: '', required: false, width: labelWidth, submitOnChange:true
         displayInfo('Name this schedule. Each schedule must have a unique name.')
     }
 }
 
 def displayDevicesTypes(){
+    fieldName = 'deviceType'
+    
     deviceText = 'device(s)'
     if(deviceCount == 1) deviceText = 'device'
-    if(deviceCount > 1) deviceText = 'devices'
-    inputTitle = "Type of $deviceText to schedule:"
-    if(!settings['deviceType']) inputTitle = highlightText('Which type of device(s) to schedule (click to select one)?')
-    input 'deviceType', 'enum', title: inputTitle, options: ['lock': 'Lock(s)','light': 'Light(s)', 'switch': 'Switch(es)', 'fan': 'Fan(s)'], multiple: false, required: false, submitOnChange:true
-    if(!settings['deviceType']) displayInfo('Light(s) allows selecting dimmable switches. Switch(es) include all lights (and fans).')
+    if(deviceCount && deviceCount > 1) deviceText = 'devices'
+    fieldTitle = 'Type of ' + deviceText + ' to schedule:'
+    if(!settings[fieldName]) fieldTitle = highlightText('Which type of ' + deviceText + ' to schedule (click to select one)?')
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    
+    input fieldName, 'enum', title: fieldTitle, options: ['lock': 'Lock(s)','light': 'Light(s)', 'switch': 'Switch(es)', 'fan': 'Fan(s)'], multiple: false, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Light(s) allows selecting dimmable switches. Switch(es) include all lights (and fans).')
 }
 
 def displayDevicesOption(){
     if(!settings['deviceType']) return
 
-    if(settings['deviceType'] == 'lock'){
-        capability = 'capability.lock'
-    } else if(settings['deviceType'] == 'light'){
-        capability = 'capability.switchLevel'
-    } else if(settings['deviceType'] == 'switch'){
-        capability = 'capability.switch'
-    } else if(settings['deviceType'] == 'fan'){
-        capability = 'capability.fanControl'
-    }
+    capability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'light') capability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'fan') capability = 'capability.fanControl'
+    if(settings['deviceType'] == 'lock') capability = 'capability.lock'
 
-    inputTitle = pluralDevice.capitalize() + ' to schedule (click to select)?'
-    if(settings['device']) inputTitle = pluralDevice.capitalize() + ' being scheduled:'
-    input 'device', capability, title: inputTitle, multiple: true, submitOnChange:true
+    fieldName = 'device'
+    fieldTitle = pluralDevice.capitalize() + ' to schedule (click to select)?'
+    if(settings[fieldName]) fieldTitle = pluralDevice.capitalize() + ' being scheduled:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldCapability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'light') fieldCapability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'fan') fieldCapability = 'capability.fanControl'
+    if(settings['deviceType'] == 'lock') fieldCapability = 'capability.lock'
+    input fieldName, fieldCapability, title: fieldTitle, multiple: true, submitOnChange:true
 }
 
 def displayDisableOption(){
-    if(disable){
-        input 'disable', 'bool', title: '<b><font color="#000099">This schedule is disabled.</font></b> Reenable it?', submitOnChange:true
-        return
-    }
-    input 'disable', 'bool', title: 'This schedule is enabled. Disable it?', submitOnChange:true
+    if(!install) return
+    fieldName = 'disable'
+    fieldTitle = fieldTitle = 'This schedule is disabled. Reenable it?'
+    if(!settings[fieldName]) fieldTitle = 'This schedule is enabled. Disable it?'
+    if(settings[fieldName]) displayError(fieldTitle,'True')
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
 }
 
-def displayActionOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
+def validateTimes(type){
+    if(!settings[type + '_timeType']) return false
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return true
+    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
+    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
+    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
+    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
+    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(!validateSunriseMinutes(type)) return false
+    return true
+}
 
-    hideable = true
-    hidden = true
-    if(!settings['start_action'] || (!settings['stop_action'] && settings['stop_timeType'] != 'none')) hideable = false
-    
-    sectionTitle = ''
-    if(hideable){
-        if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainStartAction.capitalize() + '</b>'
-        if(settings['start_action'] && settings['stop_action']) sectionTitle += '<br>'
-        if(settings['stop_action']) sectionTitle += '<b>When stopping: ' + plainStopAction.capitalize() + '</b>'
-    }
-    
-    if(settings['start_action']) startInputTitle = 'When starting:'
-    if(!settings['start_action'] && settings['deviceType'] == 'lock') startInputTitle = 'When starting, lock or unlock (click to select)?'
-    if(!settings['start_action'] && settings['deviceType'] != 'lock') startInputTitle = "When starting, do what with the $pluralDevice (click to select)?"
-    if(!settings['start_action']) startInputTitle = highlightText(startInputTitle)
-
-    if(settings['stop_action']) stopInputTitle = 'When stopping:'
-    if(!settings['stop_action'] && settings['deviceType'] == 'lock') stopInputTitle = 'When stopping, lock or unlock (click to select)?'
-    if(!settings['stop_action'] && settings['deviceType'] != 'lock') stopInputTitle = "When stopping, do what with the $pluralDevice (click to select)?"
-    if(!settings['stop_action']) stopInputTitle = highlightText(stopInputTitle)
-    
-    section(hideable: hideable, hidden: hidden, sectionTitle){
-        if(settings['deviceType'] == 'lock'){
-            input 'start_action', 'enum', title: startInputTitle, multiple: false, width: 12, options: ['none': 'Don\'t lock or unlock','lock': 'Lock', 'unlock': 'Unlock'], submitOnChange:true
-        } else {
-            input 'start_action', 'enum', title: startInputTitle, multiple: false, width: 12, options: ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle'], submitOnChange:true
-            if(!settings['start_action']) {
-                message = "Set whether to turn on, turn off, or toggle the $pluralDevice when the schedule starts. Select \"Don't\" to control other options (like setting Mode), or to do nothing when starting. Toggle will change the $pluralDevice from off to on and vice versa. Required."
-                displayInfo(message)
-            }
-        }
-        if(settings['start_action'] && settings['stop_timeType'] != 'none'){
-            if(settings['deviceType'] == 'lock'){
-                input 'stop_action', 'enum', title: stopInputTitle, multiple: false, width: 12, options: ['none': 'Don\'t lock or unlock','lock': 'Lock', 'unlock': 'Unlock'], submitOnChange:true
-            } else {
-                input 'stop_action', 'enum', title: stopInputTitle, multiple: false, width: 12, options: ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle'], submitOnChange:true
-                message = 'Set whether to turn on, turn off, or toggle when the schedule stops. Select "Don\'t" to do nothing when closed. Required.'
-                displayInfo(message)
-            }
-        }
-    }
+def validateSunriseMinutes(type){
+    if(!settings[type + '_sunOffset']) return true
+    if(settings[type + '_sunOffset'] > 719) return false
+    return true
 }
 
 def displayScheduleSection(){
+// Add dislaimer that schedules started will end, even if disabled?
     if(!settings['device']) return
     
     List dayList=[]
@@ -356,199 +288,138 @@ def displayScheduleSection(){
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    
     List monthList=[]
     settings['months'].each{
         monthList.add(Date.parse('MM',it).format('MMMM'))
 
     }
     monthText = monthList.join(', ')
-    hideable = true
     hidden = true
 
-    if(!settings['start_timeType'])  hideable = false
-    if(!settings['stop_timeType']) hideable = false
-    if(!startTimeComplete) hideable = false
-    if(!stopTimeComplete) hideable = false
-    //if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hideable = false
-    
-    //Date.parse( 'MM', "$month" ).format( 'MMMM' )
-    if(!settings['start_timeType']) hidden = false
-    if(!startTimeComplete) hidden = false
-    if(!stopTimeComplete && (settings['start_timeType'] || settings['stop_timeType'])) hidden = false
-    if(!validateSunriseMinutes(settings['start_sunOffset'])) hidden = false
-    if(!validateSunriseMinutes(settings['stop_sunOffset'])) hidden = false
+    if(!settings['stop_timeType']) hidden = false
     if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
-    
-    sectionTitle = ''
-    if(hideable){
-        if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) sectionTitle = 'Click to set schedule (optional)'
+    if(settings['disable']) hidden = true
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
 
-        if(settings['start_timeType']) sectionTitle += '<b>Starting: '
-        if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
-        if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
-        if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
-            if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
-            if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
-            if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
-            if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
-            if(startTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
-        }
-
-        if(settings['start_timeType'] && settings['days']) sectionTitle += " on: $dayText"
-        if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
-        if(settings['start_timeType'] && settings['months']) sectionTitle += " in $monthText"
-        if(settings['start_timeType']) sectionTitle += '</b>'
-        if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
-
-        if(settings['start_timeType'] && settings['stop_timeType']) sectionTitle += '</br>'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
-        if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') sectionTitle += '<b>No end'
-        if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
-        if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
-        if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
-            if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
-            if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
-            if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
-            if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
-            if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
-        }
-
-        if(settings['start_timeType']) sectionTitle += '</b>'
-    }
-
-    section(hideable: hideable, hidden: hidden, sectionTitle){
+    section(hideable: true, hidden: hidden, getTimeSectionTitle()){
         if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
 
-        displayStartTypeOption()
-
-        // Display exact time option
-        if(settings['start_timeType'] == 'time'){
-            displayTimeOption('start')
-        } else if(settings['start_timeType']){
-            // Display sunrise/sunset type option (at/before/after)
-            displaySunriseTypeOption('start')
-            // Display sunrise/sunset offset
-            if(settings['start_sunType'] && settings['start_sunType'] != 'at') displaySunriseOffsetOption('start')
-        }
-
-        if(startTimeComplete && settings['start_timeType']){
-            displayStopTypeOption()
-
-            // Display exact time option
-            if(settings['stop_timeType'] == 'time'){
-                displayTimeOption('stop')
-            } else if(settings['stop_timeType'] && settings['stop_timeType'] != 'none'){
-                // Display sunrise/sunset type option (at/before/after)
-                displaySunriseTypeOption('stop')
-                // Display sunrise/sunset offset
-                if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') displaySunriseOffsetOption('stop')
-            }
-        }
-
+        displayTypeOption('start')
+        displayTimeOption('start')
+        displaySunriseTypeOption('start')
+        displayTypeOption('stop')
+        displayTimeOption('stop')
+        displaySunriseTypeOption('stop')
         displayDaysOption()
         displayMonthsOption()
     }
 }
 
-def displayDaysOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
-    inputTitle = 'On these days (optional; defaults to all days):'
-    if(!settings['days']) inputTitle = 'On which days (optional; defaults to all days)?'
-    input 'days', 'enum', title: inputTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+def getTimeSectionTitle(){
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
 
-    return
-}
-
-def displayMonthsOption(){
-    if(!settings['start_timeType'] || !settings['stop_timeType']) return
-    if(!startTimeComplete || !stopTimeComplete) return
-    inputTitle = 'In these months (optional; defaults to all months):'
-    if(!settings['months']) inputTitle = 'In which months (optional; defaults to all months)?'
-
-    input 'months', 'enum', title: inputTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
-
-    return
-}
-
-def displayStartTypeOption(){
-    if(!startTimeComplete || !settings['start_timeType']){
-        displayLabel('Schedule starting time')
-    } else {
-        displayLabel('Schedule start')
+    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
+    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
+    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
+        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
+        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
+        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
+        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
     }
+
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
+    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
+    if(settings['start_timeType']) sectionTitle += '</b>'
+    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
     
-    if(settings['start_sunOffset'] && !validateSunriseMinutes(settings['start_sunOffset'])) displayWarning('Time ' + settings['start_sunType'] + ' ' + settings['start_timeType'] + ' is ' + (Math.round(settings['start_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
-    if(!settings['start_timeType']){
-        width = 12
-        inputTitle = highlightText('Start time (click to select)?')
-        input 'start_timeType', 'enum', title: inputTitle, multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-        displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
-    } else {
-        if(settings['start_timeType'] == 'time' || !settings['start_sunType'] || settings['start_sunType'] == 'at'){
-            width = 6
-        } else if(settings['start_sunType']){
-            width = 4
-        }
-        input 'start_timeType', 'enum', title: 'Start time option:', multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)'], submitOnChange:true
+    sectionTitle += '</br>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
+    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
+    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
+        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
+        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
+        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
     }
+
+    if(settings['start_timeType']) return sectionTitle + '</b>'
 }
 
-def displayStopTypeOption(){
-    if(!stopTimeComplete){
-        displayLabel('Schedule stopping time')
-    } else {
-        displayLabel('Schedule stop')
-    }
-    if(settings['stop_sunOffset'] && !validateSunriseMinutes(settings['stop_sunOffset'])) displayWarning('Time ' + settings['stop_sunType'] + ' ' + settings['stop_timeType'] + ' is ' + (Math.round(settings['stop_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+def displayTypeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    
+    labelText = 'Schedule ' + type
+    if(validateTimes('start')) labelText = ''
+    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
+    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    
+    if(labelText) displayLabel(labelText)
 
-    if(!settings['stop_timeType']){
-        width = 12
-        inputTitle = highlightText('Stop time (click to select)?')
-        input 'stop_timeType', 'enum', title: inputTitle, multiple: false, width: width, options: ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)'], submitOnChange:true
-    } else {
-        if(!settings['stop_timeType']){
-            width = 12
-        } else if(settings['stop_timeType'] == 'time' || !settings['stop_sunType'] || settings['stop_sunType'] == 'at'){
-            width = 6
-        } else if(stop_sunType){
-            width = 4
-        }
-        input 'stop_timeType', 'enum', title: 'Stop time option:', multiple: false, width: width, options: ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)'], submitOnChange:true
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    
+    fieldName = type + '_timeType'
+    fieldTitle = type.capitalize() + ' time option:'
+    if(!settings[type + '_timeType']){
+        fieldTitle = type.capitalize() + ' time?'
+        if(type == 'stop') fieldTitle += ' (Select "Don\'t stop" for none)'
+        highlightText(fieldTitle)
     }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
 }
 
 def displayTimeOption(type){
-    ucType = type.capitalize()
-    inputTitle = type.capitalize() + ' time:'
-    if(!settings["${type}_time"]) inputTitle = highlightText(type.capitalize() + ' time?')
-    input "${type}_time", 'time', title: inputTitle, width: width, submitOnChange:true
-    if(!settings["${type}_time"]) displayInfo("Enter the time to $type the schedule in \"hh:mm AM/PM\" format. Required.")
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] != 'time') return
+    
+    fieldName = type + '_time'
+    fieldTitle = type.capitalize() + ' time:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+}
+
+def getTypeOptionWidth(type){
+    if(!settings[type + '_timeType']) return 12
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
+    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    return 6
 }
 
 def displaySunriseTypeOption(type){
-    if(!settings["${type}_sunType"] || settings["${type}_sunType"] == 'at') {
-        width = 6 
-    } else {
-        width = 4
-    }
-    sunTime = getSunriseAndSunset()[settings["${type}_timeType"]].format('hh:mm a')
-    inputTitle = "At, before or after " + settings["${type}_timeType"] + " ($sunTime):"
-    if(!settings["${type}_sunType"]) inputTitle = highlightText("At, before or after " + settings["${type}_timeType"] + " ($sunTime)?")
-    input "${type}_sunType", 'enum', title: inputTitle, multiple: false, width: width, options: ['at':'At ' + settings["${type}_timeType"], 'before':'Before ' + settings["${type}_timeType"], 'after':'After ' + settings["${type}_timeType"]], submitOnChange:true
-    if(!settings["${type}_sunType"]) displayInfo("Select whether to start exactly at " + settings["${type}_timeType"] + " (currently, $sunTime). To allow entering minutes prior to or after " + settings["${type}_timeType"] + ", select \"Before " + settings["${type}_timeType"] + "\" or \"After " + settings["${type}_timeType"] + "\". Required.")
-}
+    if(!settings[type + '_timeType']) return
+    if(settings[type + '_timeType'] == 'time') return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    
+    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
 
-def checkTimeComplete(type){
-    if(!settings["${type}_timeType"]) return true
-    if(settings["${type}_timeType"] == 'none') return true
-    if(settings["${type}_timeType"] == 'time' && !settings["${type}_time"]) return false
-    if((settings["${type}_timeType"] == 'sunrise' || settings["${type}_timeType"] == 'sunset') && !settings["${type}_sunType"]) return false
-    if((settings["${type}_timeType"] == 'sunrise' || settings["${type}_timeType"] == 'sunset') && (settings["${type}_sunType"] && settings["${type}_sunType"] != 'at') && !settings["${type}_sunOffset"]) return false
-
-    return true
+    fieldName = type + '_sunType'
+    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    
+    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    displaySunriseOffsetOption(type)
 }
 
 def getSunriseTime(type,sunOffset,sunriseType){
@@ -561,222 +432,234 @@ def getSunriseTime(type,sunOffset,sunriseType){
 }
 
 def displaySunriseOffsetOption(type){
-    if(!settings["${type}_sunType"] || settings["${type}_sunType"] == 'at') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_sunType'] == 'at') return
 
-    inputTitle = 'Minutes ' + settings["${type}_sunType"] + ' ' + settings["${type}_timeType"] + '?'
-    if(settings["${type}_sunOffset"]) 'Minutes ' + settings["${type}_sunType"] + ' ' + settings["${type}_timeType"] + ':'
-    input "${type}_sunOffset", 'number', title: inputTitle, width: 4, submitOnChange:true
+    fieldName = type + '_sunOffset'
+    fieldTitle = 'Minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
     
-    if(!settings["${type}_sunOffset"] || !validateSunriseMinutes(settings["${type}_sunOffset"])) message = "Enter the number of minutes " + settings["${type}_sunType"] + " " + settings["${type}_timeType"] + " to start the schedule. Required."
-    if(!settings["${type}_sunOffset"]) {
-        displayInfo(message)
-    } else if(!validateSunriseMinutes(settings["${type}_sunOffset"])){
-        displayWarning(message)
-    }
+    message = 'Enter the number of minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
+    if(!settings[type + '_sunOffset']) displayInfo(message)
+    if(!validateSunriseMinutes(type)) displayWarning(message)
 }
 
-def displaySkipStartOption(){
-    input 'skipStart', 'bool', defaultValue: true, title: 'Run when available?', submitOnChange:true
-    if(skipStart){
-    helpTip = 'If the scheduled time is missed such as due to Hubitat being offline, it will run when available'
-        if(stopTime) helpTip += ' (if prior to Stop time)'
-        helpTip += '. Click to run only at Start time.'
-    } else {
-        helpTip = 'If the scheduled time is missed such as due to Hubitat being offline, it will NOT run when available.'
-    }
-    displayInfo(helpTip)
+def displayDaysOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'days'
+    fieldTitle = 'On these days (optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
-def displayBrightnessOption(){
-    if(settings['deviceType'] != 'light') return
-    if(!settings['start_action']) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
+def displayMonthsOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'months'
+    fieldTitle = 'In these months (optional; defaults to all months):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+}
+
+def displayActionOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
 
     hidden = true
-    if(!validateStartLevel()) hidden = false
-    if(!validateStopLevel()) hidden = false
-    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
-    if(!settings['start_level'] && settings['stop_level']) hidden = false
-    if(settings['start_level'] && settings['start_level'] == settings['stop_level']) hidden = false
+    if(!settings['start_action']) hidden = false
+    if(!settings['stop_action']) hidden = false
+    if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) hidden = true
 
-    width = 12
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
+    section(hideable: true, hidden: hidden, getActionSectionTitle()){
+        displayActionField('start')
+        displayActionField('stop')
+    }
+}
 
+def getActionSectionTitle(){
+    if(!settings['start_action'] && !settings['stop_action']) return '<b>Click to set ' + pluralDevice.capitalize() + ' control<b>'
+    if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) return 'Doing nothing'
     sectionTitle = ''
-    if(!settings['start_level'] && !settings['stop_level']) sectionTitle = 'Click to set brightness (optional)'
-    if(settings['start_level'] && (!settings['stop_level'] || settings['start_level'] == settings['stop_level'])) sectionTitle = '<b>On start, set brightness to ' + settings['start_level'] + '%</b>'
-    if(settings['stop_level'] && !settings['start_level']) sectionTitle += '<b>On stop, set brightness to ' + settings['stop_level'] + '%</b>'
-    if(settings['start_level'] && settings['stop_level'] && settings['start_level'] != settings['stop_level']) sectionTitle = "<b>Start to end: Change brightness from $settings.start_level% to $settings.stop_level%</b>"
+    if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainStartAction.capitalize() + '</b>'
+    if(!settings['stop_action']) return sectionTitle
+    if(settings['stop_action']) sectionTitle += '<br><b>When stopping: ' + plainStopAction.capitalize() + '</b>'
+    return sectionTitle
+}
+
+def displayActionField(type){
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    fieldName = type + '_action'
+    fieldTitle = 'When ' + ingText + 'ing:'
+    if(!settings[fieldName] && settings['deviceType'] == 'lock') fieldTitle = 'When ' + ingText + 'ing, lock or unlock (click to select)?'
+    if(!settings[fieldName] && settings['deviceType'] != 'lock') fieldTitle = 'When ' + ingText + 'ing, do what with the ' + pluralDevice + ' (click to select)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+
+    fieldOptions = ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle']
+    if(settings['deviceType'] == 'lock') fieldOptions = ['none': 'Don\'t lock or unlock','lock': 'Lock', 'unlock': 'Unlock']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: 12, options: fieldOptions, submitOnChange:true
+
+    if(settings['deviceType'] != 'lock' && !settings[fieldName]) displayInfo('Set whether to turn on, turn off, or toggle the ' + pluralDevice + ' when the schedule ' + type + 's. Select "Don\'t" to control other options (like setting Mode), or to do nothing when ' + ingText + 'ing. Toggle will change the ' + pluralDevice + ' from off to on and vice versa. Required.')
+}
+
+def displayLevelsOption(levelType){
+    if(settings['deviceType'] != 'light') return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(settings['start_action'] == 'off') return
+
+    hidden = true
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_' + levelType] && settings['stop_' + levelType]) hidden = false
+    if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) hidden = false
+    if(settings['disable']) hidden = true
+    
+    if(levelType == 'level') {
+        if(!parent.validateLevel(settings['start_' + levelType])) hidden = false
+        if(!parent.validateLevel(settings['stop_' + levelType])) hidden = false
+        typeString = 'brightness'
+        typeUnit = '%'
+    }
+    if(levelType == 'temp') {
+        if(!parent.validateTemp(settings['start_' + levelType])) hidden = false
+        if(!parent.validateTemp(settings['stop_' + levelType])) hidden = false
+        typeString = 'temperature color'
+        typeUnit = 'K'
+    }
+       
+    sectionTitle = ''
+    if(!settings['start_' + levelType] && !settings['stop_' + levelType]) sectionTitle = 'Click to set ' + levelType + ' (optional)'
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] || settings['start_' + levelType] == settings['stop_' + levelType])) sectionTitle = '<b>On start, set ' + typeString + ' to ' + settings['start_' + levelType] + typeUnit + '</b>'
+    if(settings['stop_' + levelType] && !settings['start_' + levelType]) sectionTitle += '<b>On stop, set ' + typeString + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
+    if(settings['start_' + levelType] && settings['stop_' + levelType] && settings['start_' + levelType] != settings['stop_' + levelType]) sectionTitle = '<b>Start to end: Change ' + typeString + ' from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
  
-
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(!validateStartLevel()) displayError('Start level must be from 1 to 100. Correct start brightness.')
-        if(!validateStopLevel()) displayError('Stop level must be from 1 to 100. Correct stop brightness.')
-        if(settings['start_level'] && settings['start_level'] == settings['stop_level']) displayWarning('Starting and ending brightness are both set to ' + settings['start_level'] + '. This won\'t hurt anything, but the Stop brightness setting won\'t actually <i>do</i> anything.')
-
-        inputTitle = 'Set brightness at start?'
-        if(settings['start_level']) inputTitle = 'Set brightness at start:'
-        input 'start_level', 'number', title: inputTitle, width: width, submitOnChange:true
-        inputTitle = 'Set brightness at stop?'
-        if(settings['stop_level']) inputTitle = 'Set brightness at stop:'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stop_level', 'number', title: inputTitle, width: width, submitOnChange:true
-
-        message = 'Brightness is percentage from 1 to 100.'
-        if(!settings['start_level'] && settings['stop_timeType'] == 'none') message = 'Enter the percentage of brightness when turning on, from 1 to 100.'
-        if(!settings['start_level'] && !settings['stop_level']) message = 'Enter the percentage of brightness when turning on, from 1 to 100, when starting and/or ending the schedule. If entering both starting and ending brightness, it will transition from starting to ending brightness for the duration of the schedule. Either starting or ending brightness is required (or unselect "Change brightness").'
-        if((!settings['start_level'] || !settings['stop_level']) && settings['stop_timeType'] != 'none') message = 'Enter the percentage of brightness when turning on, from 1 to 100. If entering both starting and ending brightness, it will transition from starting to ending brightness for the duration of the schedule.'
-
-        if(!validateStartLevel() || !validateStopLevel()) {
-            displayError(message)
-        } else {
-            displayInfo(message)
+        if(levelType == 'level'){
+            if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+            if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
         }
+        if(levelType == 'temp'){
+            if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+            if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        }
+        if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) displayWarning('Starting and ending ' + typeString + ' are both set to ' + settings['start_' + levelType] + '. This won\'t hurt anything, but the Stop ' + settings['start_' + levelType] + ' setting won\'t actually <i>do</i> anything.')
+        
+        displayLevelsField(levelType,'start')
+        displayLevelsField(levelType,'stop')
+        displayInfo(getLevelsMessage(levelType))
     }
 }
 
-def displayTemperatureOption(){
-    if(settings['deviceType'] != 'light') return
-    if(!settings['start_action']) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
-
-    hidden = true
-    if(!validateStartTemp()) hidden = false
-    if(!validateStopTemp()) hidden = false
-    if(settings['start_level'] && (!settings['stop_level'] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
-    if(!settings['start_temp'] && settings['stop_temp']) hidden = false
-    if(settings['start_temp'] && settings['start_temp'] == settings['stop_temp']) hidden = false
-    if(settings['start_temp'] && (settings['start_hue'] || settings['start_sat'])){
-        hidden = false
-        colorWarning = true
+def displayLevelsField(levelType, startType){
+    if(startType == 'stop' && !settings['stop_timeType']) return
+    if(startType == 'stop' && settings['stop_timeType'] == 'none') return
+    if(startType == 'stop' && !settings['start_' + levelType]) return
+    
+    if(startType == 'start' && 'start_action' == 'off'){
+        paragraph('',width:6)
+        return
     }
-    if(settings['stop_temp'] && (settings['stop_hue'] || settings['stop_sat'])){
-        hidden = false
-        colorWarning = true
+    typeString = 'brightness'
+    if(levelType == 'temp') typeString = 'temperature color'
+    if(levelType == 'hue') typeString = 'hue'
+    if(levelType == 'sat') typeString = 'saturation'
+    
+    fieldName = startType + '_' + levelType
+    unitString = ''
+    if(levelType == 'hue' && parent.settingHiRezHue) unitString = ' (in degrees)'
+    if(levelType == 'hue' && !parent.settingHiRezHue) unitString = ' (in percent)'
+    fieldTitle = 'Set ' + typeString + ' at start' + unitString + ':'
+    if(startType == 'stop') fieldTitle = 'Transition to ' + typeString + ' at stop:'
+    fieldWidth = 12
+    if(settings['start_' + levelType]) fieldWidth = 6
+    if(settings['stop_timeType'] == 'none') fieldWidth = 12
+    if(levelType == 'hue' && settings['start_hue'] && settings['stop_hue']) fieldWidth = 4
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: fieldWidth, submitOnChange:true
+}
+
+def getLevelsMessage(levelType){
+    if(levelType == 'level') {
+        typeString = 'brightness'
+        typeUnit = '%'
+        typeRange = '1 to 100' + typeUnit
     }
-
-    width = 12
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
-
-    sectionTitle = ''
-    if(!settings['start_temp'] && !settings['stop_temp']) sectionTitle = 'Click to set temperature color (optional)'
-    if(settings['start_temp'] && (!settings['stop_temp'] || settings['start_temp'] == settings['stop_temp'])) sectionTitle = '<b>On start, set temperature color to ' + settings['start_temp'] + 'K</b>'
-    if(settings['stop_temp'] && !settings['start_temp']) sectionTitle += '<b>On stop, set temperature color to ' + settings['stop_temp'] + 'K</b>'
-    if(settings['start_temp'] && settings['stop_temp'] && settings['start_temp'] != settings['stop_temp']) sectionTitle = '<b>Start to end: Change temperature color from ' + settings['start_temp'] + 'K to ' + settings['stop_temp'] + 'K</b>'
-
-    section(hideable: true, hidden: hidden, sectionTitle){
-        if(!validateStartTemp()) displayError('Start temperature color must be from 1800 to 5400. Correct start temperature color.')
-        if(!validateStopTemp()) displayError('Stop temperature color must be from 1800 to 5400. Correct stop temperature color.')
-        if(colorWarning) displayWarning('Color options have been entered that conflict with temperature color. Color will take precedence over temperature color.')
-        if(settings['start_temp'] && settings['start_temp'] == settings['stop_temp']) displayWarning('Starting and ending temperature color are both set to ' + settings['start_temp'] + '. This won\'t hurt anything, but the Stop brightness setting won\'t actually <i>do</i> anything.')
-
-        inputTitle = 'Set temperature color at start?'
-        if(settings['start_temp']) inputTitle = 'Set temperature color at start:'
-        input 'start_temp', 'number', title: inputTitle, width: width, submitOnChange:true
-        inputTitle = 'Set temperature color at stop?'
-        if(settings['stop_temp']) inputTitle = 'Set temperature color at start:'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stop_temp', 'number', title: inputTitle, width: width, submitOnChange:true
-
-        message = 'Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000.'
-        if(!settings['start_temp'] && !settings['stop_temp']) message = 'Temperature color is in Kelvin from 1800 to 5400, when starting and/or ending the schedule. Lower values have more red, while higher values have more blue, where daylight is 5000, cool white is 4000, and warm white is 3000. (Optional.)'
-        if((!settings['start_temp'] || !settings['stop_temp']) && settings['stop_timeType'] != 'none') message = 'Temperature color is from 1800 to 5400, where daylight is 5000, cool white is 4000, and warm white is 3000. If entering both starting and ending temperature, it will transition from starting to ending temperature for the duration of the schedule.' 
-        if(!validateStartTemp() || !validateStopTemp()) {
-            displayError(message)
-        } else {
-            displayInfo(message)
-        }
+    if(levelType == 'temp') {
+        typeString = 'temperature color'
+        typeUnit = 'K'
+        typeRange = '1800 to 5400' + typeUnit
     }
+    if(levelType == 'level'){
+        if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is percentage from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter the percentage of ' + typeString + ' when turning on, from ' + typeRange + ' where 0' + typeUnit + ' is off, and 100' + typeUnit + ' is maximum.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+    }
+    if(levelType == 'temp'){
+        if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter Kelvin of ' + typeString + ' when turning on, from ' + typeRange  + ' where 5000' + typeUnit + ' is daylight, 3000' + typeUnit + ' is cool white is 4000, and 3000' + typeUnit + ' is warm white.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+    }
+    return message
 }
 
 def displayColorOption(){
     if(settings['deviceType'] != 'light') return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
+    if(settings['start_action'] == 'off') return
 
-    validateStartHue = validateHue(settings['start_hue'])
-    validateStopHue = validateHue(settings['stop_hue'])
-    validateStartSat = validateSat(settings['start_sat'])
-    validateStopSat = validateSat(settings['stop_sat'])
+    typeUnit = parent.settingHiRezHue(settings['device']) ? '°' : '%'
 
-    unit = parent.getHiRezHue(settings['device']) ? 'Â°' : '%'
-    
     hidden = true
-
-    if(!validateStartHue) hidden = false
-    if(!validateStopHue) hidden = false
-    if(!validateStartSat) hidden = false
-    if(!validateStopSat) hidden = false
+    if(!validateColor()) hidden = false
     if(settings['start_hue'] && (!settings['stop_hue'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
-    if(!settings['start_hue'] && settings['stop_hue']) hidden = false
     if(settings['start_sat'] && (!settings['stop_sat'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
-    if(!settings['start_sat'] && settings['stop_sat']) hidden = false
-    if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) hidden = false
-    if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) hidden = false
-    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) hidden = false
+    if(settings['disable']) hidden = true
+    if(!validateColor()) hidden = false
 
-    hueWidth = 6
-    satWidth = 12
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') satWidth = 6
-    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') hueWidth = 12
-    if(settings['start_hue'] && settings['stop_hue'] && settings['start_hue'] != settings['stop_hue']) hueWidth = 4
-
-    sectionTitle = ''
-    if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_hue']) {
-        sectionTitle = 'Click to set color (hue and/or saturation) (optional)'
-    } else {
-        if(settings['start_hue'] && (!settings['stop_hue'] || settings['start_hue'] == settings['stop_hue'])) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + "$unit</b>"
-        if(settings['stop_hue'] && !settings['start_hue']) sectionTitle += '<b>On stop, set hue to ' + settings['stop_hue'] + "$unit</b>"
-        if(settings['start_hue'] && settings['stop_hue'] && settings['start_hue'] != settings['stop_hue']) sectionTitle = '<b>Start to end: Change hue from ' + settings['start_hue'] + "$unit to " + settings['stop_hue'] + "$unit</b>"
-        if(settings['hueDirection'] == 'reverse') sectionTitle += '<b> (in reverse order)</b>'
-        if(!settings['start_hue'] || !settings['stop_hue'] || !settings['start_sat'] || !settings['stop_hue'] && sectionTitle) sectionTitle += moreOptions
-        if((settings['start_hue'] || settings['stop_hue']) && (settings['start_sat'] || settings['stop_sat'])) sectionTitle += '<br>'
-        if(settings['start_sat'] && (settings['start_sat'] == settings['stop_sat'])) sectionTitle += '<b>On start, set saturation to ' + settings['start_sat'] + '%</b>'
-        if(settings['start_sat'] && !settings['stop_sat']) sectionTitle += '<b>On start, set saturation to ' + settings['start_sat'] + '%</b>'
-        if(settings['stop_sat'] && !settings['start_sat']) sectionTitle += '<b>On stop, set saturation to ' + settings['stop_sat'] + '%</b>'
-        if(settings['start_sat'] && settings['stop_sat'] && settings['start_sat'] != settings['stop_sat']) sectionTitle += '<b>Start to end: Change saturation from ' + settings['start_sat'] + '% to ' + settings['stop_sat'] + '%</b>'
-    }
-
-    section(hideable: true, hidden: hidden, sectionTitle){
-        if(!validateStartHue && unit == '%') displayError('Start hue must be from 1 to 100. Correct start hue.')
-        if(!validateStartHue && unit == 'Â°') displayError('Start hue must be from 1 to 360. Correct start hue.')
-        if(!validateStartSat) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
-        if(!validateStopHue && unit == '%') displayError('Stop hue must be from 1 to 100. Correct stop hue.')
-        if(!validateStopHue && unit == 'Â°') displayError('Stop hue must be from 1 to 360. Correct stop hue.')
-        if(!validateStopSat) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
+    section(hideable: true, hidden: hidden, getColorTitle()){
+        if(!parent.validateHue(settings['start_hue']) && typeUnit == '%') displayError('Start hue must be from 1 to 100. Correct start hue.')
+        if(!parent.validateHue(settings['start_hue']) && typeUnit == '°') displayError('Start hue must be from 1 to 360. Correct start hue.')
+        if(!parent.validateSat(settings['start_sat'])) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
+        if(!parent.validateHue(settings['stop_hue']) && typeUnit == '%') displayError('Stop hue must be from 1 to 100. Correct stop hue.')
+        if(!parent.validateHue(settings['stop_hue']) && typeUnit == '°') displayError('Stop hue must be from 1 to 360. Correct stop hue.')
+        if(!parent.validateSat(settings['stop_sat'])) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
         
         if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) displayWarning('Starting and ending hue are both set to ' + settings['start_hue'] + '. This won\'t hurt anything, but the Stop hue setting won\'t actually <i>do</i> anything.')
         if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) displayWarning('Starting and ending saturation are both set to ' + settings['start_sat'] + '. This won\'t hurt anything, but the Stop saturation setting won\'t actually <i>do</i> anything.')
 
-        
-        inputTitle = 'Set hue at start?'
-        if(settings['start_hue']) inputTitle = 'Set hue at start:'
-        input 'start_hue', 'number', title: inputTitle, width: hueWidth, submitOnChange:true
-        
-        inputTitle = 'Set hue at stop?'
-        if(settings['stop_hue']) inputTitle = 'Set hue at stop:'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stop_hue', 'number', title: inputTitle, width: hueWidth, submitOnChange:true
-        
-        if(settings['start_hue'] && settings['stop_hue']){
-            if(hiRezHue && settings['start_hue'] < settings['stop_hue']){
-                forwardSequence = '90, 91, 92  ... 270, 271, 272'
-                reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
-            }
-            if(!hiRezHue && settings['start_hue'] < settings['stop_hue']){
-                forwardSequence = '25, 26, 27  ... 73, 74, 75'
-                reverseSequence = '25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75'
-            }
-            if(hiRezHue && settings['start_hue'] > settings['stop_hue']){
-                forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
-                reverseSequence = '270, 269, 268 ... 75, 74, 73'
-            }
-            if(!hiRezHue && settings['start_hue'] > settings['stop_hue']){
-                forwardSequence = '75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25'
-                reverseSequence = '75, 74, 73 ... 27, 26, 25'
-            }
-        
-        inputTitle = highlightText('Which order to change hue?')
-        if(settings['hueDirection']) inputTitle = 'Order to change hue:'
-        input 'hueDirection', 'enum', title: inputTitle, width: hueWidth, submitOnChange:true, options: ['forward': forwardSequence, 'reverse': reverseSequence]
-        }
+        displayLevelsField('hue', 'start')
+        displayLevelsField('hue', 'stop')
+        displayHueDirection()
         
         if(settings['start_hue'] && settings['stop_hue']){
             if(hiRezHue && settings['hueDirection']) message = 'Red = 0 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional.'
@@ -790,18 +673,13 @@ def displayColorOption(){
             if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
             message += ' Optional.'
         }
-        if(validateStartHue && validateStartSat && validateStopHue && validateStopSat){
+        if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
             displayInfo(message)
         } else {
             displayError(message)
         }
-        
-        inputTitle = 'Set saturation at start?'
-        if(settings['start_sat']) inputTitle = 'Set saturation at start:'
-        input 'start_sat', 'number', title: inputTitle, width: satWidth, submitOnChange:true
-        inputTitle = 'Set saturation at stop?'
-        if(settings['stop_sat']) inputTitle = 'Set saturation at stop:'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stop_sat', 'number', title: inputTitle, width: satWidth, submitOnChange:true
+        displayLevelsField('sat', 'start')
+        displayLevelsField('sat', 'stop')
 
         if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
         if(!settings['start_hue'] || !settings['stop_hue']){
@@ -809,47 +687,101 @@ def displayColorOption(){
             if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
             message += ' Optional.'
         }
-
-        if(!validateStartTemp() || !validateStopTemp()) {
-            displayError(message)
-        } else {
-            displayInfo(message)
-        }
+        displayInfo(message)
     }
 }
 
+def displayHueDirection(){
+    if(!settings['start_hue']) return
+    if(!settings['stop_hue']) return
+
+    if(parent.settingHiRezHue(settings['device']) && settings['start_hue'] < settings['stop_hue']){
+        forwardSequence = '90, 91, 92  ... 270, 271, 272'
+        reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
+    }
+    if(parent.settingHiRezHue(settings['device']) && settings['start_hue'] > settings['stop_hue']){
+        forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
+        reverseSequence = '270, 269, 268 ... 75, 74, 73'
+    }
+    if(!parent.settingHiRezHue(settings['device']) && settings['start_hue'] < settings['stop_hue']){
+        forwardSequence = '25, 26, 27  ... 73, 74, 75'
+        reverseSequence = '25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75'
+    }
+    if(!parent.settingHiRezHue(settings['device']) && settings['start_hue'] > settings['stop_hue']){
+        forwardSequence = '75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25'
+        reverseSequence = '75, 74, 73 ... 27, 26, 25'
+    }
+
+    fieldName = 'hueDirection'
+    fieldTitle = 'Order to change hue:'
+    if(!settings[fieldName]) fieldTitle = 'Which order to change hue?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, width: 4, submitOnChange:true, options: ['forward': forwardSequence, 'reverse': reverseSequence]
+}
+
+def getColorTitle(){
+    if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat'])  return 'Click to set color (hue and/or saturation) (optional)'
+    typeUnit = parent.settingHiRezHue(settings['device']) ? '°' : '%'
+    sectionTitle = ''
+    
+    if(settings['start_hue'] && !settings['stop_hue']) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + typeUnit + '</b>'
+    if(settings['stop_hue'] && !settings['start_hue']) sectionTitle = '<b>On stop, set hue to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['start_hue'] && settings['stop_hue']) sectionTitle = '<b>Start to end: Change hue from ' + settings['start_hue'] + typeUnit + ' to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['hueDirection'] == 'reverse') sectionTitle += '<b> (in reverse order)</b>'
+    
+    if(!settings['start_sat'] && !settings['stop_sat']) return sectionTitle + moreOptions
+    
+    if(settings['start_hue'] || settings['stop_hue']) sectionTitle += '<br>'
+    if(settings['start_sat'] && !settings['stop_sat']) sectionTitle += '<b>On start, set saturation to ' + settings['start_sat'] + '%</b>'
+    if(settings['stop_sat'] && !settings['start_sat']) sectionTitle += '<b>On stop, set saturation to ' + settings['stop_sat'] + '%</b>'
+    if(settings['start_sat'] && settings['stop_sat']) sectionTitle += '<b>Start to end: Change saturation from ' + settings['start_sat'] + '% to ' + settings['stop_sat'] + '%</b>'
+
+    if(!settings['start_sat'] || !settings['stop_sat']) return sectionTitle + moreOptions
+    if(!validateColor()) return sectionTitle + moreOptions
+    return sectionTitle
+}
+
 def displayChangeModeOption(){
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     hidden = true
     if(settings['startMode'] && (!settings['stopMode'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
     if(!settings['startMode'] && settings['stopMode']) hidden = false
+    if(settings['disable']) hidden = true
 
     width = 12
     if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
     
     sectionTitle = ''
-    if(!settings['startMode'] && !settings['stopMode']){
-        sectionTitle = 'Click to set Mode change (optional)'
-    } else {
-        if(settings['startMode']) sectionTitle = '<b>On start, set Mode ' + settings['startMode'] + '</b>'
-        if(settings['startMode'] && settings['stopMode']) sectionTitle += '<br>'
-        if(settings['stopMode']) sectionTitle += '<b>On stop, set Mode ' + settings['stopMode'] + '</b>'
-    }
+    if(!settings['startMode'] && !settings['stopMode']) sectionTitle = 'Click to set Mode change (optional)'
+    if(settings['startMode']) sectionTitle = '<b>On start, set Mode ' + settings['startMode'] + '</b>'
+    if(settings['startMode'] && settings['stopMode']) sectionTitle += '<br>'
+    if(settings['stopMode']) sectionTitle += '<b>On stop, set Mode ' + settings['stopMode'] + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        inputTitle = 'Set Hubitat\'s "Mode" on start?'
-        if(settings['startMode']) inputTitle = 'Set Hubitat\'s "Mode" on start:'
-        input 'startMode', 'mode', title: inputTitle, width: 6, submitOnChange:true
-        inputTitle = 'Set Hubitat\'s "Mode" on stop?'
-        if(settings['stopMode']) inputTitle = 'Set Hubitat\'s "Mode" on stop:'
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') input 'stopMode', 'mode', title: inputTitle, width: width, submitOnChange:true
+        displayModeField('start')
+        displayModeField('stop')
     }
+}
+
+def displayModeField(type){
+    if(startType == 'stop' && settings['stop_timeType'] == 'none') return
+    fieldName = type + 'Mode'
+    fieldTitle = 'Set Hubitat\'s "Mode" on ' + type + '?'
+    if(settings['startMode']) fieldTitle = 'Set Hubitat\'s "Mode" on ' + type + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldWitch = 6
+    if(settings['stop_timeType'] == 'none') fieldWidth = 12
+    input fieldName, 'mode', title: fieldTitle, width: 6, submitOnChange:true
 }
 
 def displayPeopleOption(){
     if(!settings['start_action']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
     if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     List peopleList1=[]
@@ -866,6 +798,7 @@ def displayPeopleOption(){
     
     hidden = true
     if(peopleError) hidden = false
+    if(settings['disable']) hidden = true
     
     if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select people (optional)'
     if(settings['personHome']) sectionTitle = "<b>With: $withPeople</b>"
@@ -873,28 +806,36 @@ def displayPeopleOption(){
     if(settings['personNotHome']) sectionTitle += "<b>Without: $withoutPeople</b>"
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(peopleError) displayError('You can\'t include and exclude the same person.')
-
-        input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
-        input 'personNotHome', 'capability.presenceSensor', title: 'Only if all these people are NOT home (Optional)', multiple: true, submitOnChange:true
+        if(compareDeviceLists(personHome,personNotHome)) displayError('You can\'t include and exclude the same person.')
+        fieldName = 'personHome'
+        fieldTitle = 'Only if any of these people are home (Optional)'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
+        
+        fieldName = 'personNotHome'
+        fieldTitle = 'Only if all these people are NOT home (Optional)'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
     }
 }
 
 def displayIfModeOption(){
     if(!settings['start_action']) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
 
     sectionTitle = 'Click to select with what Mode (optional)'
     if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
 
     section(hideable: true, hidden: true, sectionTitle){
-        inputTitle = 'Only run if Mode?'
-        if(settings['ifMode']) inputTitle = 'Only run if Mode:'
-        input 'ifMode', 'mode', title: inputTitle, width: 12, submitOnChange:true
+        fieldName = 'ifMode'
+        fieldTitle = 'Only run if Mode?'
+        if(settings[fieldName]) fieldTitle = 'Only run if Mode:'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'mode', title: fieldTitle, width: 12, submitOnChange:true
 
         message = 'This will limit the schedule from running while Hubitat\'s Mode is as selected.'
-        if(settings['ifMode']) message = 'This will limit the schedule from running while Hubitat\'s Mode is ' + settings['ifMode'] + '.'
-
+        if(settings[fieldName]) message = 'This will limit the schedule from running while Hubitat\'s Mode is ' + settings[fieldName] + '.'
         displayInfo(message)
     }
 }
@@ -918,36 +859,29 @@ def getPlainAction(action){
     if(action == 'unlock') return 'unlock'
 }
 
-/*
-disableAll - bool - Flag to disable all schedules
-disable - bool - Flag to disable this single schedule
-start_action - enum (none, on, off, toggle) - What to do with device at starting time
-stop_action - enum (none, on, off, toggle) - What to do with device at stopping time
-device - capability.switch - Device(s) being scheduled
-days - enum (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) - Day(s) of the week schedule will run
-months - enum (Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec) - Months(s) of the year schedule will run
-start_timeType - enum (time, sunrise, sunset) - Sets whether start time is a specific time, or based on sunrise or sunset
-start_time - time - Start Time (only displays when start_timeType = "time")
-start_sunType - enum (at, before, after) - Sets whether start time is sunrise/sunset time, or uses positive or negative offset (only displays if start_timeType = "sunrise" or "sunset")
-start_sunOffset - number (1-) - Number of minutes before/after sunrise/sunset (only displays if start_timeType = "sunrise" or "sunset" and start_sunType = "before" or "after")
-stop_timeType - emum (none, time, sunrise, sunset) - Sets whether there is a stop time, and whether it is a specific time, or based on sunrise or sunset
-stop_time - time - Stop Time (only displays when stop_timeType = "time")
-stop_sunType - enum (at, before, after) - Sets whether stop time is sunrise/sunset time, or uses positive or negative offset (only displays if start_timeType = "sunrise" or "sunset")
-stop_sunOffset - number (1-) - Number of minutes before/after sunrise/sunset (only displays if start_timeType = "sunrise" or "sunset" and start_sunType = "before" or "after")
-start_level - number (1-100) - Level to set at start time
-stop_level - number (1-100) - Level to set at stop time
-start_temp - number (1800-5400) - Temperature to set at start time
-stop_temp - number (1800-5400) - Temperature to set at stop time
-start_hue - number (1-100) - Hue to set at start time
-stop_hue - number (1-100) - Hue to set at stop time
-hueDirection - enum (forward, reverse) - "Direction" in which to change hue; only displays if start_hue and stop_hue have values
-start_sat - number (1-100) - Sat to set at start time
-stop_sat - number (1-100) - Sat to set at stop time
-modeChangeOn - mode - Mode to set at start time
-//modeChangeOff - mode - Mode to set at stop time [doesn't currently exist]
-ifMode - mode - Mode system must have for schedule to run
-ifPeople - enum (everyone, noone) - who must be present for schedule to run
-*/
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
@@ -956,7 +890,7 @@ ifPeople - enum (everyone, noone) - who must be present for schedule to run
 /* ************************************************************************ */
 
 def installed() {
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
@@ -965,122 +899,63 @@ def updated() {
 }
 
 def initialize() {
+    putLog(902,'trace',app.label + ' initializing.')
     state.logLevel = getLogLevel()
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
-    // Need to deal with dim and brighten too (and even hue/sat)
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     unschedule()
-
-    if(disable) {
+    state.disable = false
+    if(settings['disable']) {
+        //parent.updateTableFromSettings(settings['device'], app.id) // Why? DOes it not update when the schedule starts?
         state.disable = true
+    }
+    if(state.disable) {
+        unschedule()
+        parent.removeScheduleFromTable(app.id)
         return
-    } else {
-        state.disable = false
     }
-
-    // Clean up settings values
-    if(start_timeType != 'sunrise' && start_timeType != 'sunset') {
-        settings.start_sunType = null
-        settings.start_sunOffset = null
-    }
-    if(start_sunType == 'at') settings.start_sunOffset = null
-    if(stop_timeType != 'sunrise' && stop_timeType != 'sunset') {
-        settings.stop_sunType = null
-        settings.stop_sunOffset = null
-    }
-    if(stop_sunType == 'at') settings.stop_sunOffset = null
-    if(stop_timeType == 'none'){
-        settings.stop_action = null
-        settings.stop_sunType = null
-        settings.stop_sunOffset = null
-        settings.stop_level = null
-        settings.stop_temp = null
-        settings.stop_hue = null
-        settings.stop_sat = null
-    }
-    if(!start_level || start_level == stop_level) settings.stop_level = null
-    if(!start_temp || start_temp == stop_temp) settings.stop_temp = null
-    if(!start_hue || start_hue == stop_hue) settings.stop_hue = null
-    if(!start_sat || start_sat == stop_sat) settings.stop_sat = null
-
-    // Set start time, stop time, and total seconds
-    //if(!setTime()) return false
 
     subscribeDevices()
+
+    parent.checkAnyOnMulti(settings['device'],app.label) //Initialize device into Table; we don't need the value of if "any on"
+
     setDailySchedules()
-
-    //Initialize deviceState variable
-    parent.isOnMulti(settings['device'])
-
-    atomicState.defaults = null
-    defaults = getStartDefaults()
-
-    if(defaults){
-        if(defaults.'level') defaults.'level'.'time' = 'start'
-        if(defaults.'temp') defaults.'temp'.'time' = 'start'
-        if(defaults.'sat') defaults.'sat'.'time' = 'start'
-        if(defaults.'hue') defaults.'hue'.'time' = 'start'
-
-        parent.updateLevelsMulti(settings['device'],defaults,app.label)
-
-    }
-    
-    // If defaults array required, thenwe need to create null values for if simply turning on/off
-        if(getScheduleActive()){
-            parent.setStateMulti(settings['device'],app.label)
-            runIncrementalSchedule()
-        }
+    putLog(922,'info',app.label + ' initialized.')
     return true
 }
 
 def handleStateChange(event){
-    //if(parent.isOn(event.device,app.label) && event.value == 'on') return
-    //if(!parent.isOn(event.device,app.label) && event.value == 'off') return
-    putLog(1038,'trace',"Captured manual state change for $event.device to turn $event.value")
-    parent.updateStateSingle(event.device,event.value,app.label)
-
-    return
+    parent.updateTableCapturedState(event.device,event.value,app.label)
 }
 
 def handleLevelChange(event){
-    levelChange = parent.getLastLevelChange(event.device, app.label)
-    if(!levelChange) return
-
-    if(levelChange.'appId' != app.id) return
-    // if appLabel = "Time", then return
-
-    value = parent.convertToInteger(event.value)
-
-    if(levelChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
-    if(levelChange.'priorLevel' == value && levelChange.'timeDifference' < 5000) return
-
-    defaults = ['level':['startLevel':value,'priorLevel':levelChange.'currentLevel','appId':'manual']]
-
-    parent.updateLevelsSingle(event.device,defaults,app.label)
-    putLog(1059,'warn',"Captured manual change for $event.device level to $event.value% - last changed " + levelChange.'currentLevel' + " " + levelChange.'timeDifference' + "ms")
-
-    return
+    parent.updateTableCapturedLevel(event.device,'level',event.value,app.label)
 }
 
+// This needs rewrite
 def handleTempChange(event){
+    //parent.updateTableCapturedBrightness(event.device,'temp',event.value,app.label)
+    
     tempChange = parent.getLastTempChange(event.device, app.label)
     if(!tempChange) return
-    // Temp can be different by + .5% (25 at 5000); always plus, never minus
     if(tempChange.'appId' != app.id) return
 
     value = parent.convertToInteger(event.value)
     
+    // Temp can be different by + .5% (25 at 5000); always plus, never minus
     if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'currentLevel' / 255) == Math.round(value / 255)) return
     if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'priorLevel' / 255) == Math.round(value / 255) && tempChange.'timeDifference' < 5000) return
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(1078,'warn',"Captured manual temperature change for $event.device to temperature color " + value + "K - last changed " + tempChange.'timeDifference' + "ms")
-        parent.updateLevelsSingle(event.device,defaults,app.label)
+    putLog(950,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
 }
 
+// This needs rewrite
 def handleHueChange(event){
+    //parent.updateTableCapturedBrightness(event.device,'hue',event.value,app.label)
     hueChange = parent.getLastHueChange(event.device, app.label)
     if(!hueChange) return
     if(hueChange.'appId' != app.id) return
@@ -1092,13 +967,14 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(1095,'warn',"Captured manual change for $event.device to hue $value% - last changed " + hueChange.'timeDifference' + "ms")
+    putLog(970,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
 }
 
 def handleSatChange(event){
+    //parent.updateTableCapturedBrightness(event.device,'sat',event.value,app.label)
     satChange = parent.getLastSatChange(event.device, app.label)
     if(!satChange) return
     if(satChange.'appId' != app.id) return
@@ -1109,193 +985,135 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(1112,'warn',"Captured manual change for $event.device to saturation $value% - last changed " + satChange.'timeDifference' + "ms (to " + satChange.'currentLevel')
+    putLog(988,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
 }
 
-def setDailySchedules(type = null){
-    // Set start time, stop time, and total seconds
-    if(!setTime()) return false
-    if(type != 'stop') {
-        unschedule(runDailyStartSchedule)
-    } else if(type != 'start'){
-        unschedule(runDailyStopSchedule)
-    }
-    
-    // Schedule dailyStart, either every day or with specific days
-    if(type != 'stop'){
-        startHours = new Date(atomicState.start).format('HH').toInteger()
-        startMinutes = new Date(atomicState.start).format('mm').toInteger()
-    }
-    if(type != 'start' && atomicState.stop){
-        stopHours = new Date(atomicState.stop).format('HH').toInteger()
-        stopMinutes = new Date(atomicState.stop).format('mm').toInteger()
-    }
+// Creates the schedule for start and stop
+def setDailySchedules(){
+    setTime()
+    if(!atomicState.start) return
+    unschedule()
 
-    days = '* * ?'
-
-    // Schedule start
-    if(type != 'stop') {
-        scheduleString = "0 $startMinutes $startHours $days"
-        // Need to pause or else Hubitat may run runDailyStartSchedule immediately and cause a loop
-        runIn(1,setStartSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1144,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($scheduleString)")
+    functionName = 'runDailyStartSchedule'
+    timeMillis = atomicState.start - now()
+    parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
+    logMessage = 'Set start schedule for ' + new Date(atomicState.start).format('HH:mm')
+    if(atomicState.stop){
+        functionName = 'runDailyStopSchedule'
+        timeMillis = atomicState.stop - now()
+        if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
+        parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
+        logMessage += '<br>Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm') + ''
     }
-
-    if((type != 'start') && atomicState.stop){
-        scheduleString = "0 $stopMinutes $stopHours $days"
-        // Need to pause or else Hubitat may run runDailyStopSchedule immediately and cause a loop
-        runIn(1,setStopSchedule, [data: ['scheduleString': scheduleString]])
-        putLog(1151,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($scheduleString)")
-    }
+    putLog(1011,'info',logMessage)
     return true
-}
-
-// Required for offsetting scheduling start and stop by a second, to prevent Hubitat running runDailyStartSchedule immediately
-def setStartSchedule(data){
-    schedule(data.scheduleString, runDailyStartSchedule)
-    putLog(1159,'debug',"Scheduling runDailyStartSchedule for " + parent.normalPrintDateTime(atomicState.start) + " ($data.scheduleString)")
-}
-
-def setStopSchedule(data){
-    schedule(data.scheduleString, runDailyStopSchedule)
-    putLog(1164,'debug',"Scheduling runDailyStopSchedule for " + parent.normalPrintDateTime(atomicState.stop) + " ($data.scheduleString)")
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    if(state.disable) return
-    atomicState.defaults = null
-    
-    // Set time state variables
-    //if(!setTime()) return 'this is done in setDailySchedules
-    
-    setDailySchedules('start')
+    if(state.disabled) return
 
-    // If not correct day, exit
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    
-    // If not correct month, exit
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-    
-    if(settings['start_action'] == 'on' || settings['start_action'] == 'off' || settings['start_action'] == 'toggle') {
-        log.debug 'updating state of ' + settings["device"] + ' to ' + settings['start_action']
-        parent.updateStateMulti(settings["device"],settings["start_action"],app.label)
-    }
-    if(settings['start_level'] || settings['start_temp'] || settings['start_hue'] || settings['start_sat']){
-        defaults = getStartDefaults()
-        if(defaults.'level') defaults.'level'.'time' = 'start'
-        if(defaults.'temp') defaults.'temp'.'time' = 'start'
-        if(defaults.'sat') defaults.'sat'.'time' = 'start'
-        if(defaults.'hue') defaults.'hue'.'time' = 'start'
-        parent.updateLevelsMulti(settings['device'],defaults,app.label)
-    }
-    
-    if(getDisabled()) return
-    
-    // Update and set state (when turning on, off, or toggling)
-        parent.setStateMulti(settings['device'],app.label)
-
-    // Set start mode
-    if(settings['startMode']) setLocationMode(settings['stopMode'])
-
-    runIn(8,runIncrementalSchedule)
-
-    return
-}
-
-// Performs actual changes for incremental schedule
-// Called only by schedule set in incrementalSchedule
-def runIncrementalSchedule(){
-    putLog(1213,'trace','runIncrementalSchedule starting')
-    if(!getScheduleActive()) return
-    if((settings['start_level'] && settings['stop_level']) || (settings['start_temp'] && settings['stop_temp']) || (settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
-        // If it's disabled, keep it active
-        // Master will only update when appropriate
-        if(state.disable) return
-        
-        if(!parent.isOnMulti(settings['device'],app.label)) return
-
-        // If mode isn't correct, return false
-        if(settings['ifMode'] && location.mode != settings['ifMode']) {
-            runIn(60,runIncrementalSchedule)
+    if(atomicState.start && atomicState.stop){
+        if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)) {
             return
         }
-        
-        if(!parent.getPeopleHome(settings['personHome'],app.label) || !parent.getNooneHome(settings['personNotHome'],app.label)) {
-            runIn(60,runIncrementalSchedule)
-            return true
+    }
+    
+    state.startSetOnValidDay = true
+    if(!parent.checkNowInDayList(settings['days'],app.Label)) state.startSetOnValidDay = false
+    if(!parent.checkNowInMonthList(settings['months'],app.Label)) state.startSetOnValidDay = false
+    if(!getDisabled()) {
+        state.startDisabled = false
+        if(settings['start_action']) {
+            parent.buildStateMapMulti(settings['device'],settings['start_action'],app.label)
+            if(!settings['start_level'] && !settings['start_temp'] && !settings['start_hue'] && !settings['start_sat']) parent.setDeviceMulti(settings['device'],app.label)
         }
 
-        parent.setStateMulti(settings['device'],app.label)
+        if(atomicState.start && atomicState.stop){
+            runIncremental = false
+            // buildIncrementalStartDefaults will set startTime, stopTime
+            if(parent.buildIncrementalStartDefaults('level', settings['device'],atomicState.start, atomicState.stop, settings['start_level'], settings['stop_level'], , app.id)) runIncremental = true
+            if(parent.buildIncrementalStartDefaults('temp',settings['device'],atomicState.start, atomicState.stop,  settings['start_temp'], settings['stop_temp'], , app.id)) runIncremental = true
+            if(parent.buildIncrementalStartDefaults('hue',settings['device'],atomicState.start, atomicState.stop, settings['start_hue'], settings['stop_hue'], settings['direction'], app.id)) runIncremental = true
+            if(parent.buildIncrementalStartDefaults('sat', settings['device'],atomicState.start, atomicState.stop, settings['start_sat'], settings['stop_sat'], , app.id)) runIncremental = true
+            if(runIncremental) runIncrementalSchedule()
+            if(!runIncremental) parent.setDeviceMulti(settings['device'],app.label)
+        }
 
-        // Reschedule itself
-        runIn(8,runIncrementalSchedule)
-        putLog(1237,'trace','runIncrementalSchedule exiting')
+        if(!atomicState.stop) {
+            // Parent will set seconds, etc. in Table
+            parent.updateTableLevelMulti(settings['device'],'level',settings['start_level'],app.label)   //These could be combined with buildIncrementalStartDefault but for getDisabled
+            parent.updateTableLevelMulti(settings['device'],'temp',settings['start_temp'],app.label)
+            parent.updateTableLevelMulti(settings['device'],'hue',settings['start_hue'],app.label)
+            parent.updateTableLevelMulti(settings['device'],'sat',settings['start_sat'],app.label)
+            parent.setDeviceMulti(settings['device'],app.label)
+        }
     }
-    return true
-}
 
+    if(!atomicState.stop) setDailySchedules()  // Reschedule next day; runDailyStopSchedule also reschedules, so on if start
+}
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    atomicState.defaults = null
-    if(state.disable) return
+    if(!atomicState.stop) return
+    if(state.disabled) return
+    unschedule()
 
-    // Set time state variables
-    if(!setTime()) return
-    setDailySchedules('stop')
+    if(!state.startSetOnValidDay) {
+        parent.resumeDeviceScheduleMulti(multiDevice,app.label)
+        return
+    }
 
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-    
-        // Update and set state (when turning on, off, or toggling)
-    if(settings['stop_action'] == 'on' || settings['stop_action'] == 'off' || settings['stop_action'] == 'toggle') {
-        parent.updateStateMulti(settings['device'],settings['stop_action'],app.label)
+    if(settings['stop_action']) {
+        // buildStateMapMulti adds on/off
+        parent.buildStateMapMulti(settings['device'],settings['stop_action'],app.label)
+        parent.setDeviceMulti(settings['device'],app.label)
     }
-    
-    defaults = getStartDefaults('stop')
 
-    // If level off value (either end level or progressive), use it
-    if(settings['stop_level']) {
-        defaults.'level'.'time' = 'stop'
-    // If no end level but start level, clear the schedule
-    } else if(settings['start_level']){
-        defaults.'level' = ['time':'stop','appId':app.id]
-    }
-    if(settings['stop_temp']) {
-        defaults.'temp'.'time' = 'stop'
-    } else if(settings['start_temp']){
-        defaults.'temp' = ['time':'stop','appId':app.id]
-    }
-    if(settings['stop_hue']) {
-        defaults.'hue'.'time' = 'stop'
-    } else if(settings['start_hue']){
-        defaults.'hue' = ['time':'stop','appId':app.id]
-    }
-    if(settings['stop_sat']) {
-        defaults.'sat'.'time' = 'stop'
-    } else if(settings['start_sat']){
-        defaults.'sat' = ['time':'stop','appId':app.id]
-    }
-    
-    // Clear out schedule's levels
-    parent.updateLevelsMulti(settings['device'],defaults,app.label)
-    
-    if(getDisabled()) return
-    
-    // Update and set state (when turning on, off, or toggling)
-    parent.setStateMulti(settings['device'],app.label)
+    parent.resumeDeviceScheduleMulti(multiDevice,app.label)  // Schedules other days and/or reschedule next day
+}
 
-    // Set stop mode
-    if(settings['stopMode']) setLocationMode(settings['stopMode'])
+// Is unscheduled from runDailyStopSchedule
+def runIncrementalSchedule(){
+    if(!atomicState.start) return
+    if(!atomicState.stop) return
 
-    return
+    if(atomicState.stop < now()) return       // Shouldn't be neccesary; uncommented for testing
+
+    functionName = runIncrementalSchedule
+    if(getDisabled()){
+        
+        timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
+        parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
+        return
+    }
+    activateScheduleFromManualOverride = true       // This is reversed, where true is to remain active
+
+    // activateScheduleFromManualOverride should be tracked for if no levels start+stop levels
+    if(settings['start_level'] && settings['stop_level']) {
+        if(parent.updateTableIncrementalMulti(settings['device'],'level',app.label)) activateScheduleFromManualOverride = false
+    }
+    if(settings['start_temp'] && settings['stop_temp']) {
+        if(parent.updateTableIncrementalMulti(settings['device'],'temp',app.label)) activateScheduleFromManualOverride = false
+    }
+    if((settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
+        if(parent.updateTableIncrementalMulti(settings['device'],'hue',app.label)) activateScheduleFromManualOverride = false
+    }
+    if(settings['start_sat'] && settings['stop_sat']) {
+        if(parent.updateTableIncrementalMulti(settings['device'],'sat',app.label)) activateScheduleFromManualOverride = false
+    }
+    //if(!parent.updateTableIncrementalMulti(settings['device'],app.label)) activateScheduleFromManualOverride = true
+    if(activateScheduleFromManualOverride) {
+        parent.setDeviceMulti(settings['device'],app.label)
+    }
+    if(!activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
+    if(activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleActiveFrequencyMilli()
+    parent.scheduleChildEvent(timeMillis,'',runIncrementalSchedule,'',true,app.id)
 }
 
 def subscribeDevices(){
@@ -1310,112 +1128,62 @@ def subscribeDevices(){
     return
 }
 
-def handleSystemBoot(evt){
-     if(settings['skipStart']) systemBootActivate()
-
-    initialize()
-}
-
+// Only thing really neede is:
+// 1) If schedule is not running, remove itself from Table
+// 2) Run Daily Start Schedule and let it deal with restarting a schedule
 def systemBootActivate(){
     if(state.disable) return
     
-    // need to exit if not with 1 hour of start time
-    if((new Date().getTime() - atomicState.start) > parent.CONSTHourInMilli()) return
-
-    atomicState.defaults = null
-
-    // Set time state variables
-    if(!setTime()) return
-    if(atomicState.stop){
-        if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-    }
-
-    // If not correct day, exit
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    
-    // If not correct month, exit
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-
-    if(settings['start_action'] == 'on' || settings['start_action'] == 'off' || settings['start_action'] == 'toggle') {
-        parent.updateStateMulti(settings['device'],settings['start_action'],app.label)
-    }
-    if(settings['start_level'] || settings['start_temp'] || settings['start_hue'] || settings['start_sat']){
-        defaults = getStartDefaults()
-        if(defaults.'level') defaults.'level'.'time' = 'start'
-        if(defaults.'temp') defaults.'temp'.'time' = 'start'
-        if(defaults.'sat') defaults.'sat'.'time' = 'start'
-        if(defaults.'hue') defaults.'hue'.'time' = 'start'
-        parent.updateLevelsMulti(settings['device'],defaults,app.label)
-    }
-
-    if(getDisabled()) return
-
-    // Update and set state (when turning on, off, or toggling)
-    parent.setStateMulti(settings['device'],app.label)
-
-    // Set start mode
-    if(settings['startMode']) setLocationMode(settings['startMode'])
-
-    runIn(8,runIncrementalSchedule)
-
-    return
+    initialize()
 }
 
-def setTime(){
-    if(setStartTime()) {
-        setStopTime()
-        return true
-    }
-    return false
+def setTime(){      // Should NOT be run from Incremental
+    if(!setStartTime()) return
+    setStopTime()
+    return true
 }
 
 def setStartTime(){
     if(!settings['start_timeType']) return
-    setTime = setStartStopTime('start')
-    if(setTime){
-        atomicState.start = setTime
-        putLog(1377,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
-        return true
-    }
+    // Gets start time caught up to today 
+    // But if start and stop time have passed today, setStopTime will fix it
+    setTime = parent.setTimeAsIn24Hours(setStartStopTime('start'))  
+    atomicState.start  = setTime
+    putLog(1195,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
 def setStopTime(){
-    if(!settings['start_timeType'] || settings['stop_timeType'] == 'none') return
+    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
     setTime = setStartStopTime('stop')
-    if(setTime){ 
-        if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
-        atomicState.stop = setTime
-        putLog(1388,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
+    while (setTime < atomicState.start) {       // If stop time is behind start, increment by a day until it's after start (could be behind multiple days if disabled)
+        setTime += parent.CONSTDayInMilli()
     }
-    return
+    if(setTime < now()){        // Increment both start and stop if stop has passed today
+        setTime += parent.CONSTDayInMilli()
+        atomicState.start += parent.CONSTDayInMilli()
+    }
+    atomicState.stop  = setTime
+    putLog(1210,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
 // Sets atomicState.start and atomicState.stop variables
+// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    if(settings["${type}_timeType"] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings["${type}_time"]).getTime()
-    if(settings["${type}_timeType"] == 'sunset') return (settings["${type}_sunType"] == 'before' ? parent.getSunset(settings["${type}_sunOffset"] * -1,app.label) : parent.getSunset(settings["${type}_sunOffset"],app.label))
-}
-
-// Used by Master to check whether to reschedule incremental
-def getTimeVariable(){
-    time = [atomicState.start,atomicState.stop]
-    return time
+    log.debug settings[type + '_timeType']
+    if(settings[type + '_timeType'] == 'time') return timeToday(settings[type + '_time']).getTime()
+    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
+    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
 }
 
 // Returns true is schedule is not inactive, and allows for no stop time
 // Used by getDefaultLevel
 def getScheduleActive(){
-    // If not correct day, return false
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    
-    // If not correct month, return false
-    if(settings['months'] && !parent.nowInMonthList(settings['months'],app.label)) return
-
-    // If no start or stop time, return false
+    if(!parent.checkNowInDayList(settings['days'],app.label)) return
+    if(!parent.checkNowInMonthList(settings['months'],app.label)) return
     if(!atomicState.start || !atomicState.stop) return
-
-    // If not between start and stop time, return false
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    if(!parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
 
     return true
 }
@@ -1427,104 +1195,39 @@ def getDisabled(){
     // If mode isn't correct, return false
     if(settings['ifMode'] && location.mode != settings['ifMode']) return true
     
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
 
     return false
 }
 
-def getStartDefaults(action = 'start'){
-    if(atomicState.defaults) return atomicState.defaults
-    
-    // If no settings, exit
-    if(!settings['start_level'] && !settings['stop_level'] && !settings['start_temp'] && !settings['stop_temp'] && !settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat']) return
-    
-    // If not correct time, exit
-    // Shouldn't happen
-    if(action == 'start' && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-    
-    defaults = [:]
-
-    if(settings['start_level'] || settings['stop_level']) {
-        defaults.'level' = [:]
-        if(settings['start_level']) defaults.'level'.'startLevel' = parent.convertToInteger(settings['start_level'],app.label)
-        if(settings['stop_level']) defaults.'level'.'stopLevel' = parent.convertToInteger(settings['stop_level'],app.label)
-        defaults.'level'.'appId' = app.id
-    }
-    if(settings['start_temp'] || settings['stop_temp']) {
-        defaults.'temp' = [:]
-        if(settings['start_temp']) defaults.'temp'.'startLevel' = parent.convertToInteger(settings['start_temp'],app.label)
-        if(settings['stop_temp']) defaults.'temp'.'stopLevel' = parent.convertToInteger(settings['stop_temp'],app.label)
-        defaults.'temp'.'appId' = app.id
-    }
-    if(settings['start_hue'] || settings['stop_hue']) {
-        defaults.'hue' = [:]
-        if(settings['start_hue']) defaults.'hue'.'startLevel' = parent.convertToInteger(settings['start_hue'],app.label)
-        if(settings['stop_hue']) defaults.'hue'.'stopLevel' = parent.convertToInteger(settings['stop_hue'],app.label)
-        defaults.'hue'.'appId' = app.id
-    }
-    if(settings['start_sat'] || settings['stop_sat']) {
-        defaults.'sat' = [:]
-        if(settings['start_sat']) defaults.'sat'.'startLevel' = parent.convertToInteger(settings['start_sat'],app.label)
-        if(settings['stop_sat']) defaults.'sat'.'stopLevel' = parent.convertToInteger(settings['stop_sat'],app.label)
-        defaults.'sat'.'appId' = app.id
-    }
-    
-    // If start and stop, compute seconds and set
-    if(atomicState.start && atomicState.stop){
-        startHours = new Date(atomicState.start).format('HH').toInteger()
-        startMinutes = new Date(atomicState.start).format('mm').toInteger()
-        startSeconds = startHours * 3600 + startMinutes * 60
-        totalSeconds = (atomicState.stop - atomicState.start) / 1000
-
-        if(settings['start_level'] && settings['stop_level']){
-            defaults.'level'.'startSeconds' = startSeconds
-            defaults.'level'.'totalSeconds' = totalSeconds
-        }
-        if(settings['start_temp'] && settings['stop_temp']){
-            defaults.'temp'.'startSeconds' = startSeconds
-            defaults.'temp'.'totalSeconds' = totalSeconds
-        }
-        if(settings['start_hue'] && settings['stop_hue']){
-            defaults.'hue'.'startSeconds' = startSeconds
-            defaults.'hue'.'totalSeconds' = totalSeconds
-            defaults.'hue'.'direction' = settings['hueDirection']
-        }
-        if(settings['start_sat'] && settings['stop_sat']){
-            defaults.'sat'.'startSeconds' = startSeconds
-            defaults.'sat'.'totalSeconds' = totalSeconds
-        }
-    }
-
-    atomicState.defaults = defaults
-    return defaults
+def getDevices(){
+    return settings['device']
 }
 
-def checkLog(type = null){
-    if(!state.logLevel) getLogLevel()
-    switch(type) {
-        case 'error':
-        if(state.logLevel > 0) return true
-        break
-        case 'warn':
-        if(state.logLevel > 1) return true
-        break
-        case 'info':
-        if(state.logLevel > 2) return true
-        break
-        case 'debug':
-        break
-        case 'trace':
-        if(state.logLevel == 5) return true
-        if(state.logLevel > 3) return true
+// Called from parent.updateTableFromSettings, to get settings
+def buildSubMap(key) {
+    def subMap = [:]
+    if (settings['startSeconds']) subMap['startSeconds'] = settings['startSeconds']
+    if (settings['stopSeconds']) subMap['stopSeconds'] = settings['stopSeconds']
+    if (settings['totalSeconds']) subMap['totalSeconds'] = settings['totalSeconds']
+    if (settings['stateLevel']) subMap['stateLevel'] = settings['stateLevel']
+    if (settings['stopLevel']) subMap['stopLevel'] = settings['stopLevel']
+    return subMap
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    if(timeMillis < 1) {
+        putLog(1265,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        return
     }
-    return false
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    if(!checkLog(type)) return
-    return parent.putLog(lineNumber,type,message,app.label)
+    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
 }
