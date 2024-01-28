@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.5.15
+*  Version: 0.6.01
 *
 ***********************************************************************************************************************/
 
@@ -37,20 +37,18 @@ definition(
 infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
 errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
 warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-moreOptions = ' <font color="grey">(click for more options)</font>'
+moreOptions = ' (click for more options)'
+expandText = ' (Click to expand/collapse)'
 
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
-// 5 for all
+// 2 for warnings + errors
+// 3 for info + errors + warnings
+// 4 for trace + info + errors + warnings
+// 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 4
-}
-def getMaxTemp(){
-    return 250
-}
-def getMinTemp(){
-    return -50
+    return 5
 }
 
 def displayLabel(text, width = 12){
@@ -82,6 +80,12 @@ def displayWarning(text,noDisplayIcon = null, width=12){
 def highlightText(text, width=12){
     if(!text) return
     return '<div style="background-color:Wheat">' + text + '</div>'
+}
+
+def addFieldName(text,fieldName){
+    if(!fieldName) return
+    if(getLogLevel() != 5) return text
+    return text + ' [' + fieldName + ']'
 }
 
 /* ************************************************************************ */
@@ -131,7 +135,7 @@ preferences {
                         displayMultiDeviceOption()
                         displayCustomActionsOption()
                     }
-                    paragraph '<div style="background-color:BurlyWood"><b> Select what to do for each Pico action:</b></div>'
+                    if(settings['device']) paragraph '<div style="background-color:BurlyWood"><b> Select what to do for each Pico action:</b></div>'
                 }
                 displayMultiDeviceAdvanced()
                 displayScheduleSection()
@@ -150,8 +154,10 @@ preferences {
                         displayMultiDeviceSimple()
                     }
                 }
-                displayScheduleSection()
             }
+            displayScheduleSection()
+            displayPeopleOption()
+            displayIfModeOption()
         }
     }
 }
@@ -286,6 +292,7 @@ def displayMultiDeviceSimple(){
 }
 
 def displayMultiDeviceAdvanced(){
+    if(!settings['device']) return
     hidden = true
     expandText = '(None selected - Click to expand)'
     if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_1_push_resume) {
@@ -737,7 +744,7 @@ def displayNameOption(){
     } else {
         displayLabel('Set name for this Pico setup')
         label title: '', required: false, submitOnChange:true
-        displayInfo('Name this schedule. Each schedule must have a unique name.')
+        displayInfo('Name this Pico. Each Pico app must have a unique name.')
     }
 }
 
@@ -747,7 +754,7 @@ def displayNameOption(){
 /* as well as a general warning.                                            */
 /* ************************************************************************ */
 def displayPicoOption(){
-    fieldName = 'buttonDevice'
+    fieldName = 'device'
     if(settings[fieldName]){
         settings[fieldName].each{
             if(count == 1) multipleDevices = true
@@ -769,24 +776,25 @@ def displayPicoOption(){
 /* TO-DO: Add errors in setup for defining actions to non-existent buttons. */
 /* ************************************************************************ */
 def getButtonNumbers(){
-    if(!buttonDevice) return
+    if(!settings['device']) return
     //Get maximum number of buttons
     /* ************************************************************************ */
     /* TO-DO: Add error trap for if no numberOfButtons is set for device.       */
     /* ************************************************************************ */
-    buttonDevice.each{
+    settings['device'].each{
         if(it.currentValue('numberOfButtons')) {
             if(numberOfButtons){
-                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons')
+                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
             }
-            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons')
-            return numberOfButtons
+            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
         }
         //display error
     }
+    return numberOfButtons
 }
 
 def displayCustomActionsOption(){
+    if(!settings['device']) return 
     fieldName = 'customActionsSetup'
     if(settings[fieldName]) fieldTitle = highlightText('Allowing custom button actions.') + ' Click to auto-set buttons.'
     if(!settings[fieldName]) fieldTitle = highlightText('Auto-setting buttons.') + ' Click to map buttons to other actions.'
@@ -927,244 +935,269 @@ def compareDeviceLists(values,compare){
     return returnText
 }
 
+def validateTimes(type){
+    if(settings['start_timeType'] && !settings['stop_timeType']) return false
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return true
+    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
+    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
+    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
+    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
+    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(!validateSunriseMinutes(type)) return false
+    return true
+}
+
+def validateSunriseMinutes(type){
+    if(!settings[type + '_sunOffset']) return true
+    if(settings[type + '_sunOffset'] > 719) return false
+    return true
+}
+
 def displayScheduleSection(){
-    if(!settings['buttonDevice']) return
-
-    helpTip = 'Scheduling only applies with ' + getPicoPlural() + '. To schedule the devices or default settings for them, use the Time app.'  
-
-    // If only days entered
-    sectionTitle='<b>'
+    if(!settings['device']) return
+    
     List dayList=[]
     settings['days'].each{
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    if(!settings['inputStartType'] && !settings['inputStopType'] && settings['days']){
-        sectionTitle += 'Only on: ' + dayText + '</b>' + moreOptions
-        hidden = true
-        // If only start time (and days) entered
-    }  else if(checkTimeComplete('start') && settings['inputStartType'] && (!checkTimeComplete('stop') || !settings['inputStopType'])){
-        sectionTitle = 'Beginning at ' + varStartTime
-        if(settings['days']) sectionTitle += ' on: ' + dayText
-        if(settings['months']) sectionTitle += '; in ' + monthText
-        sectionTitle += '</b>'
-        hidden = false
-        // If only stop time (and day) entered
-    } else if(checkTimeComplete('stop') && settings['inputStopType'] && (!checkTimeComplete('start') || !settings['inputStartType'])){
-        sectionTitle = 'Ending at ' + varStopTime
-        if(settings['days']) sectionTitle += ' on: ' + dayText
-        if(settings['months']) sectionTitle += '; in ' + monthText
-        sectionTitle += '</b>'
-        hidden = false
-        // If all options entered
-    } else if(checkTimeComplete('start') && checkTimeComplete('stop') && settings['inputStartType'] && settings['inputStopType']){
-        varStartTime = getTimeVariables('start')
-        varStopTime = getTimeVariables('stop')
-        sectionTitle = '<b>Only if between ' + varStartTime + ' and ' + varStopTime
-        if(settings['days'] && settings['months']) {
-            sectionTitle += '</b>'
-        } else {
-            sectionTitle += ' on: ' + dayText + '</b>'
-            if(settings['months']) sectionTitle += '; in ' + monthText
-            sectionTitle += '</b>'
-        }
-        hidden = true
-        // If no options are entered
-    } else {
-        sectionTitle = 'Click to set schedule (optional)'
-        hidden = true
+    List monthList=[]
+    settings['months'].each{
+        monthList.add(Date.parse('MM',it).format('MMMM'))
+
+    }
+    monthText = monthList.join(', ')
+    
+    hidden = true
+    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
+    if(settings['disable']) hidden = true
+    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
+
+    section(hideable: true, hidden: hidden, getTimeSectionTitle()){
+        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+
+        displayTypeOption('start')
+        displayTimeOption('start')
+        displaySunriseTypeOption('start')
+        displayTypeOption('stop')
+        displayTimeOption('stop')
+        displaySunriseTypeOption('stop')
+        displayDaysOption()
+        displayMonthsOption()
+    }
+}
+
+def getTimeSectionTitle(){
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
+
+    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
+    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
+    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
+        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
+        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
+        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
+        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
     }
 
-    section(hideable: true, hidden: hidden, sectionTitle){
-        if(!settings['inputStartType']) displayInfo(helpTip)
-        displayStartTypeOption()
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
+    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
+    if(settings['start_timeType']) sectionTitle += '</b>'
+    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
+    
+    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
-        // Display exact time option
-        if(settings['inputStartType'] == 'time'){
-            displayTimeOption('start')
-        } else if(settings['inputStartType']){
-            // Display sunrise/sunset type option (at/before/after)
-            displaySunriseTypeOption('start')
-            // Display sunrise/sunset offset
-            if(inputStartSunriseType && inputStartSunriseType != 'at') displaySunriseOffsetOption('start')
-        }
+    sectionTitle += '</br>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
+    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
+    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
+        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
+        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
+        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+    }
 
-        if(checkTimeComplete('start') && settings['inputStartType']){
-            displayStopTypeOption()
+    if(settings['start_timeType']) return sectionTitle + '</b>'
+}
 
-            // Display exact time option
-            if(settings['inputStopType'] == 'time'){
-                displayTimeOption('stop')
-            } else if(settings['inputStopType']){
-                // Display sunrise/sunset type option (at/before/after)
-                displaySunriseTypeOption('stop')
-                // Display sunrise/sunset offset
-                if(inputStopSunriseType && inputStopSunriseType != 'at') displaySunriseOffsetOption('stop')
-            }
-        }
+def displayTypeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    
+    labelText = 'Schedule ' + type
+    if(validateTimes('start')) labelText = ''
+    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
+    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    
+    if(labelText) displayLabel(labelText)
 
-        displayDaysOption(dayText)
-        displayMonthsOption(monthText)
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    
+    fieldName = type + '_timeType'
+    fieldTitle = type.capitalize() + ' time option:'
+    if(!settings[type + '_timeType']){
+        fieldTitle = type.capitalize() + ' time?'
+        if(type == 'stop') fieldTitle += ' (Select "Don\'t stop" for none)'
+        highlightText(fieldTitle)
+    }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
+}
+
+def displayTimeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] != 'time') return
+    
+    fieldName = type + '_time'
+    fieldTitle = type.capitalize() + ' time:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+}
+
+def getTypeOptionWidth(type){
+    if(!settings[type + '_timeType']) return 12
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
+    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    return 6
+}
+
+def displaySunriseTypeOption(type){
+    if(!settings[type + '_timeType']) return
+    if(settings[type + '_timeType'] == 'time') return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    
+    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
+
+    fieldName = type + '_sunType'
+    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    
+    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    displaySunriseOffsetOption(type)
+}
+
+def getSunriseTime(type,sunOffset,sunriseType){
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+}
+
+def displaySunriseOffsetOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_sunType'] == 'at') return
+
+    fieldName = type + '_sunOffset'
+    fieldTitle = 'Minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    
+    message = 'Enter the number of minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
+    if(!settings[type + '_sunOffset']) displayInfo(message)
+    if(!validateSunriseMinutes(type)) displayWarning(message)
+}
+
+def displayDaysOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'days'
+    fieldTitle = 'On these days (optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+}
+
+def displayMonthsOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'months'
+    fieldTitle = 'In these months (optional; defaults to all months):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+}
+
+def displayIfModeOption(){
+    if(!settings['device']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+
+    sectionTitle = 'Click to select with what Mode (optional)'
+    if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
+
+    section(hideable: true, hidden: true, sectionTitle){
+        input 'ifMode', 'mode', title: 'Only run if Mode is already?', width: 12, submitOnChange:true
+
+        message = 'This will limit the ' + pluralContact + ' from running to only when Hubitat\'s Mode is as selected.'
+        if(settings['ifMode']) message = 'This will limit the ' + pluralContact + ' from running to only when Hubitat\'s Mode is ' + settings['ifMode'] + '.'
 
         displayInfo(message)
     }
 }
 
-def displayDaysOption(dayText){
-    fieldName = 'days'
-    fieldTitle = 'On these days (defaults to all days)'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+def displayPeopleOption(){
+    if(!settings['device']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
 
-    return
-}
-
-def displayMonthsOption(monthText){
-    fieldName = 'months'
-    fieldTitle = 'In these months (defaults to all months)'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
-}
-
-def displayStartTypeOption(){
-    if(checkTimeComplete('start') && settings['inputStartType']) displayLabel('Schedule start')
-    if(!checkTimeComplete('start')  || !settings['inputStartType']) displayLabel('Schedule starting time')
-    fieldName = 'inputStartType'
-    if(settings[fieldName]){
-        fieldTitle = 'Start time option:'
-        if(settings[fieldName] == 'time' || !settings['inputStartSunriseType'] || settings['inputStartSunriseType'] == 'at'){
-            width = 6
-        } else if(settings['inputStartSunriseType']){
-            width = 4
-        }
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
+    List peopleList1=[]
+    settings['personHome'].each{
+        peopleList1.add(it)
     }
-    if(!settings[fieldName]){
-        fieldTitle = 'Start time (click to choose option):'
-        width = 12
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-        displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required field for a schedule.')
+    withPeople = peopleList1.join(', ')
+ 
+    List peopleList2 = []
+    settings['personNotHome'].each{
+        peopleList2.add(it)
     }
-}
+    withoutPeople = peopleList2.join(', ')
+    
+    hidden = true
+    if(peopleError) hidden = false
+    
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select people (optional)'
+    if(settings['personHome']) sectionTitle = '<b>With: ' + withPeople + '</b>'
+    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
+    if(settings['personNotHome']) sectionTitle += '<b>Without: ' + withoutPeople + '</b>'
 
-def displayStopTypeOption(){
-    if(!checkTimeComplete('stop')){
-        displayLabel('Schedule stopping time')
-    } else {
-        displayLabel('Schedule stop')
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(peopleError) displayError('You can\'t include and exclude the same person.')
+
+        input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
+        input 'personNotHome', 'capability.presenceSensor', title: 'Only if all these people are NOT home (Optional)', multiple: true, submitOnChange:true
     }
-    fieldName = 'inputStopType'
-    if(settings[fieldName]){
-        fieldTitle = 'Stop time option:'
-        if(!settings['inputStopType'] || settings['inputStopType'] == 'none'){
-            width = 12
-        } else if(settings['inputStopType'] == 'time' || !settings['inputStopSunriseType'] || settings['inputStopSunriseType'] == 'at'){
-            width = 6
-        } else if(inputStopSunriseType){
-            width = 4
-        }
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    }
-    if(!settings[fieldName]){
-        width = 12
-        fieldTitle = 'Stop time (click to choose option):'
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    }
-}
-
-def displayTimeOption(lcType){
-    fieldName = 'input' + ucType + 'Time'
-    fieldTitle = ucType + ' time:'
-    ucType = lcType.capitalize()
-    input fieldName, 'time', title: addFieldName(fieldTitle,fieldName), width: width, submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the time to ' + lcType + ' the schedule in "hh:mm AM/PM" format. Required field.')
-}
-
-def displaySunriseTypeOption(lcType){
-    if(!settings["input${ucType}SunriseType"] || settings["input${ucType}SunriseType"] == 'at') {
-        width = 6 
-    } else {
-        width = 4
-    }
-    // sunriseTime = getSunriseAndSunset()[settings["input${ucType}Type"]].format('hh:mm a')
-    fieldName = 'input' + ucType + 'SunriseType'
-    fieldTitle = 'At, before or after ' + settings['input' + ucType + 'Type'] + ':'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['at':'At ' + settings['input' + ucType + 'Type'], 'before':'Before ' + settings['input' + ucType + 'Type'], 'after':'After ' + settings['input' + ucType + 'Type']], submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings['input' + ucType + 'Type'] + ' (currently, ' + sunriseTime + '). To allow entering minutes prior to or after ' + settings['input' + ucType + 'Type'] + ', select "Before ' + settings['input' + ucType + 'Type'] + '" or "After ' + settings['input' + ucType + 'Type'] + '". Required field.')
-}
-
-def checkTimeComplete(lcType){
-    ucType = lcType.capitalize()
-
-    // If everything entered
-    if((settings['input' + ucType + 'Type'] == 'time' && settings['input' + ucType + 'Type']) || 
-       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && settings['input' + ucType + 'SunriseType'] == 'at') || 
-       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && (settings['input' + ucType + 'SunriseType'] == 'before' || settings['input' + ucType + 'SunriseType'] == 'after') && (settings['input' + ucType + 'Before']))){
-        return true
-    } else if(!settings['input' + ucType + 'Type'] && !settings['input' + ucType + 'SunriseType'] && !settings['input' + ucType + 'Before']){
-        return true
-    } else {
-        return false
-    }
-}
-
-def getTimeVariables(lcType){
-    ucType = lcType.capitalize()
-    type = settings['input' + ucType + 'Type']
-    sunriseType = settings['input' + ucType + 'SunriseType']
-    before = settings['input' + ucType + 'Before']
-    // If time, then set string to "[time]"
-    if(type == 'time'){
-        return Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['input' + ucType + 'Time']).format('h:mm a', location.timeZone)
-        // If sunrise or sunset
-    } else if((type == 'sunrise' || type == 'sunset')  && sunriseType){
-        if(sunriseType == 'at'){
-            // Set string to "sun[rise/set] ([sunrise/set time])"
-            return type + ' (' + getSunriseAndSunset()[type].format('hh:mm a') + ')'
-            // If before sunrise
-        } else if(type == 'sunrise' && sunriseType == 'before' && before){
-            // Set string to "[number] minutes before sunrise ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: (before * -1), sunsetOffset: 0)[type].format('hh:mm a') + ')'
-            // If after sunrise
-        } else if(type== 'sunrise' && sunriseType == 'after' && before){
-            // Set string to "[number] minutes after sunrise ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: before, sunsetOffset: 0)[type].format('hh:mm a') + ')'
-            // If before sunset
-        } else if(type == 'sunset' && sunriseType == 'before' && before){
-            // Set string to "[number] minutes before sunset ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: (before * -1))[type].format('hh:mm a') + ')'
-            // If after sunrise
-        } else if(type == 'sunset' && sunriseType == 'after' && before){
-            // Set string to "[number] minutes after sunset ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: before)[type].format('hh:mm a') + ')'
-        }
-    }
-}
-
-def displaySunriseOffsetOption(lcType){
-    ucType = lcType.capitalize()
-    type = settings['input' + ucType + 'Type']
-    sunriseType = settings['input' + ucType + 'SunriseType']
-    before = settings['input' + ucType + 'Before']
-    if(!sunriseType || sunriseType == 'at') return
-
-    if(before && before > 1441){
-        // "Minues [before/after] [sunrise/set] is equal to "
-        message = 'Minutes ' + sunriseType + ' ' + type + ' is equal to '
-        if(before  > 2881){
-            // "X days"
-            message += Math.floor(before  / 60 / 24) + " days."
-        } else {
-            message += 'a day.'
-        }
-        warningMessage(message)
-    }
-    fieldName = 'input' + ucType + 'Before'
-    fieldTitle = 'Minutes ' + sunriseType + ' ' + type + ':'
-    input fieldName, 'number', title: addFieldName(fieldTitle,fieldName), width: 4, submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the number of minutes ' + sunriseType + ' ' + type + ' to start the schedule. Required field.')
 }
 
 def displayChangeModeOption(){
-    if(!settings['contactDevice'] || !settings['deviceType'] || !settings['device'] || !settings['openAction'] || !settings['closeAction']) return
+    if(!settings['device']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
 
     hidden = true
     if((settings['openMode'] || settings['closeMode']) && (!settings['openMode'] || !settings['closeMode'])) hidden = false
@@ -1190,11 +1223,29 @@ def displayChangeModeOption(){
     }
 }
 
-def addFieldName(text,fieldName){
-    if(!fieldName) return
-    if(getLogLevel() != 5) return text
-    return text + ' [' + fieldName + ']'
-}
+/* ************************************************************************ */
+/*                                                                          */
+/*                      End display functions.                              */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                      End display functions.                              */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                      End display functions.                              */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                      End display functions.                              */
+/*                                                                          */
+/* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
@@ -1203,40 +1254,40 @@ def addFieldName(text,fieldName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1206,'trace', 'Installed')
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    putLog(1204,'trace', 'Installed')
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1212,'trace','Updated')
+    putLog(1210,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
     state.logLevel = getLogLevel()
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
-    subscribe(buttonDevice, 'pushed', buttonPushed)
-    subscribe(buttonDevice, 'held', buttonPushed)
-    subscribe(buttonDevice, 'released', buttonReleased)
+    subscribe(device, 'pushed', buttonPushed)
+    subscribe(device, 'held', buttonPushed)
+    subscribe(device, 'released', buttonReleased)
 
     setTime()
 
-    putLog(1227,'trace','Initialized')
+    putLog(1225,'trace','Initialized')
 }
 
 def buttonPushed(evt){
     // If not correct day, return nulls
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
+    if(!parent.checkNowInDayList(settings['days'],app.label)) return
+    if(!parent.checkNowInMonthList(settings['months'],app.label)) return
 
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
+    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
 
     buttonNumber = evt.value.toInteger()
-    numberOfButtons = evt.device.currentValue('numberOfButtons')
+    numberOfButtons = getButtonNumbers()
     
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
     if(buttonNumber == 2 && numberOfButtons == 2) buttonNumber = 5
@@ -1247,100 +1298,26 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1250,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + buttonDevice)
-    // Turn on
-    switchAction = 'on'
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!settings['customActionsSetup'] && buttonNumber == 1) device = settings['controlDevice']
-    }
-    parent.updateStateMulti(device,switchAction,app.label)
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1260,'trace','Turning on ' + device)
-    
-    // Turn off
-    switchAction = 'off'
-    device = ''
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!settings['customActionsSetup'] && buttonNumber == 5) device = settings['controlDevice']
-    }
-    parent.updateStateMulti(device,switchAction,app.label)
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1272,'trace','Turning off ' + device)
-    
-    // Toggle
-    switchAction = 'toggle'
-    device = ''
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-    }
-    parent.updateStateMulti(device,switchAction,app.label)
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1283,'trace','Toggling ' + device)
-    
-    // Resume
-    switchAction = 'resume'
-    device = ''
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-    }
-    // checkActiveSchedule doesn't exist
-    device.each{singleDevice->
-        activeSchedule = parent.checkActiveScheduleSingle(singleDevice,app.label)
-        if(activeSchedule) {
-            parent.updateLevelsSingle(singleDevice,['level':['time':'resume'],'temp':['time':'resume'],'hue':['time':'resume'],'sat':['time':'resume']],app.label)
-            // This isn't right - there's no "action (also in magiccube)
-            if(!parent.rescheduleIncrementalSingle(singleDevice,app.label)) parent.updateStateSingle(singleDevice,action,app.label)
+    putLog(1248,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+
+    switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
+
+    switchActions.each { action ->
+        device = getControlDeviceFromButton(action,buttonNumber)
+        if(action == 'on') parent.buildStateMapMulti(device,'on',app.label)
+        if(action == 'off') parent.buildStateMapMulti(device,'off',app.label)
+        if(action == 'toggle') parent.buildStateMapMulti(device,'toggle',app.label)
+        if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
+        if(action == 'brighten' || action == 'dim'){
+            if(atomicState.action == 'push') parent.updateTableNextLevelMulti(device, action, app.label)
+            if(atomicState.action == 'hold') holdNextLevelMulti(device,action,app.label)
         }
-        if(!activeSchedule) parent.updateStateMulti(singleDevice,'off',app.label)
+        if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
+        if(device) putLog(1263,'trace','Turning ' + action + ' ' + device)
+        device = ''
     }
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1303,'trace','Resuming ' + device)
     
-    // Brighten
-    switchAction = 'brighten'
-    device = ''
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!settings['customActionsSetup'] && buttonNumber == 2) device = settings['controlDevice']
-    }
-    if(atomicState.action == 'push'){
-        parent.updateStateMulti(device,'on',app.label)
-        device.each{singleDevice->
-            setLevel = parent.nextLevel(singleDevice,switchAction,app.label)
-            if(setLevel) defaults = ['level': ['startLevel': setLevel, 'appId':'pico']]
-        }
-        parent.updateLevelsMulti(device,defaults,app.label)
-    }
-    if(atomicState.action == 'hold') holdDim(device,app.label)
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1323,'trace','Brightening ' + device)
-    
-    // Dim
-    switchAction = 'dim'
-    device = ''
-    if(settings['multiDevice']) device = settings['button_' + buttonNumber + '_' + atomicState.action + '_' + switchAction]
-    if(!settings['multiDevice']){
-        if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == switchAction) device = settings['controlDevice']
-        if(!settings['customActionsSetup'] && buttonNumber == 4) device = settings['controlDevice']
-    }
-    if(atomicState.action == 'push'){
-        parent.updateStateMulti(device,'on',app.label)
-        device.each{singleDevice->
-            setLevel = parent.nextLevel(singleDevice,switchAction,app.label)
-            if(setLevel) defaults = ['level': ['startLevel': setLevel, 'appId':'pico']]
-        }
-        parent.updateLevelsMulti(device,defaults,app.label)
-    }
-    if(atomicState.action == 'hold') holdDim(device,app.label)
-    parent.setStateMulti(device,app.label)
-    if(device) putLog(1343,'trace','Dimming ' + device)
+    if(!settings['multiDevice']) parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
 
 // place holder until I can redo my pico setups to not throw an error
@@ -1348,237 +1325,142 @@ def buttonHeld(evt){
 }
 
 def buttonReleased(evt){
-    // If not correct day, return nulls
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-
-    // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-
     buttonNumber = evt.value.toInteger()
-    numberOfButtons = evt.device.currentValue('numberOfButtons')
+    numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1362,'trace',"Button $buttonNumber of $buttonDevice released, unscheduling all")
+        putLog(1279,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
 
+def getControlDeviceFromButton(action,buttonNumber){
+    switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
+    buttonNumbers = [1, 2, 4, 5, null, null]
+
+    switchActionToButtonNumber = [:]
+
+    for (int i = 0; i < switchActions.size(); i++) {
+        switchActionToButtonNumber[switchActions[i]] = buttonNumbers[i]
+    }
+    if(settings['multiDevice']) return settings['button_' + buttonNumber + '_' + atomicState.action + '_' + action]
+ 
+    if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == action) return settings['controlDevice']
+    if(!switchActionToButtonNumber[action]) return
+    if(!settings['customActionsSetup'] && buttonNumber == switchActionToButtonNumber[action]) return settings['controlDevice']
+}
 /* ************************************************************************ */
 /* TO-DO: Retest "multiplier" functionality (also in MagicCube). Make sure  */
 /* it's implemented in the UI, and it carries through in the logic. Also    */
 /* rename the variables. "Multiplier" is just stupid. And change it to a    */
-/* "percentage" for user ease.                                              */
+/* "percentage" for user ease.                                                */
 /* ************************************************************************ */
 def getDimSpeed(){
-    if(atomicState.action == 'push' &&  pushMultiplier){
-        return pushMultiplier
-    } else if(atomicState.action == 'hold' &&  holdMultiplier){
-        return holdMultiplier
-    } else if(atomicState.action == 'hold' &&  !pushMultiplier){
-        return pushMultiplier
-    } else {
-        return 1.2
-    }
-}
-
-// counts number of steps for brighten and dim
-// action = 'dim' or 'brighten'
-def getSteps(level, action){
-    if (action != 'dim' && action != 'brighten'){
-        putLog(1389,'error','Invalid value for action "' + action + '" sent to getSteps function')
-        return false
-    }
-
-    def steps = 0
-
-    // If as already level 1 and dimming or 100 and brightening
-    if((action == 'dim' && level < 2) || (action == 'brighten' && level > 99)){
-        steps = 0
-    }
-
-    //Just step through nextLevel until hit 1 or 100, and tally total times
-    if (action == 'dim'){
-        if(parent.isNumeric(level)){
-            while (level  > 1) {
-                steps = steps + 1
-                level = parent.nextLevel(level, action,app.getId())
-            }
-        }
-    } else if(action == 'brighten'){
-        if(parent.isNumeric(level)){
-            while (level  < 100) {
-                steps = steps + 1
-                level = parent.nextLevel(level, action,app.getId())
-            }
-        }
-    }
-    putLog(1416,'debug','Function getSteps returning ' + steps)
-    return steps
+    if(atomicState.action == 'push') return pushMultiplier
+    if(atomicState.action == 'hold' &&  holdMultiplier) return holdMultiplier
+    if(atomicState.action == 'hold' &&  pushMultiplier) return pushMultiplier
 }
 
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
-    /* ************************************************************************ */
-    /* TO-DO: Use a 1 to 5 loop here                                            */
-    /* ************************************************************************ */
-    button_1_hold_dim.each{
-        if (it.id == data.device) device = it
-    }
-    if(!device){
-        button_1_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_2_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_2_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_3_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_3_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_4_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_4_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_5_hold_dim.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device){
-        button_5_hold_brighten.each{
-            if (it.id == data.device) device = it
-        }
-    }
-    if(!device) {
-        putLog(1474,'trace','Function runSetProgressiveLevel returning (no matching device)')
+    if(!settings['multiDevice']) return settings['controlDevice']
+    if(!getSetProgressiveLevelDevice(data.device, data.action)) {
+        putLog(1315,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
-    parent.setLevelSingle(defaults,device,app.label)
-    // Why reschedule?
-    //parent.reschedule(device)
+    holdNextLevelSingle(singleDevice,action)
 }
 
-def holdDim(device){
-    // This needs to use the table data
-    def level = getLevel(device)
-
-    device.each{singleDevice->
-        if(parent.isFan(singleDevice,app.label) == true){
-            parent.dim('dim',singleDevice,app.id,app.label)
-            // If dimming a light that's off, turn it on
-            // setStateSingle does that by setting to 1% level, which is what we want
-        } else if(!parent.isOn(singleDevice,app.label)){
-            //parent.setLevelSingle(1,null,null,null,device,app.label)
-            parent.updateStateSingle(singleDevice,'on',app.label)
-        } else {
-            if(level < 2){
-                putLog(1496,'info','Can\'t dim ' + singleDevice + '; already 1%.')
-            } else {
-                def steps = getSteps(level, 'dim')
-                def newLevel
-
-                for(def i = 1; i <= steps; i++) {
-                    setLevel = parent.nextLevel(level, 'dim',app.getId())
-                    defaults = ['level': ['startLevel': setLevel, 'appId':'pico']]
-                    parent.updateLevelsSingle(device,app.label)
-                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: setLevel]])
-                    level = setLevel
-                }
+def getSetProgressiveLevelDevice(deviceId, action){
+    if(!settings['multiDevice']) return settings['controlDevice']
+    for (int i = 1; i <= 5; i++) {
+        if(action == 'dim'){
+            button_${i}_hold_dim.each{
+                if (it.id == deviceId) returnValue = it
+            }
+        }
+        if(action == 'brighten'){
+            button_${i}_hold_brighten.each{
+                if (it.id == deviceId) returnValue = it
             }
         }
     }
-    parent.setStateMulti(device,app.label)
+    return returnValue
 }
-
-def holdBrighten(device){
-    def level = getLevel(device)
+// Has to be in child app for schedule
+def holdNextLevelMulti(multiDevice,action){
+    if(!multiDevice) return
 
     device.each{singleDevice->
-        if(parent.isFan(singleDevice,app.label)){
-            parent.dim('brighten',singleDevice,'pico',app.label)
-            // If brightening a light that's off, turn it on at 1%
-        } else if(!parent.isOn(it,app.label)){
-            parent.updateStateSingle(singleDevice,'on',app.label)\
-            reschedule(it)
-        } else {
-            if(level > 99){
-                putLog(1526,'info','Can\'t brighten ' + it + '; already 100%.')
-            } else {
-                def steps = getSteps(level, 'brighten')
-                def newLevel
-
-                for(def i = 1; i <= steps; i++) {
-                    setLevel = parent.nextLevel(level, 'brighten',app.getId())
-                    defaults = ['level': ['startLevel': setLevel, 'appId':'pico']]
-                    runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, level: setLevel]])
-                    level = setLevel
-                }
-            }
-        }
+        holdNextLevelSingle(singleDevice,action)
     }
-    parent.setStateMulti(device,app.label)
 }
 
-// calculate average level of a group
-def getLevel(device){
-    def level = 0
-    def count = 0
-    device.each{
-        if(parent.isFan(it,app.label) != true){
-            level += it.currentLevel
-            count++
-                }
-    }
-    if(level>0) level = Math.round(level/count)
-    if (level > 100) level = 100
-    return level
+// Has to be in child app for schedule
+def holdNextLevelSingle(singleDevice,action){
+    if(!parent.checkIsDimmable(singleDevice,app.label)) return
+
+    if(!parent.updateTableNextLevelSingle(device,action,app.label)) return
+    
+    timeMillis = 750
+    functionName = runSetProgressiveLevel
+    parameters = '[device: it.id, action: action]'
+    parent.scheduleChildEvent(timeMillis: timeMillis,timeValue: null,functionName: functionName,parameters: parameters,noPerformDisableCheck: null,appId: app.id)
+    //do we need to add overwrite: false? If so, doing Master app function is probably too unwieldy
+    //runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, action: action]])
 }
 
-// Scheduled funtion to reset the value of deviceChange
-// Must be in every app using MultiOn
-def resetStateDeviceChange(){
-    atomicState.deviceChange = null
-    return
+def getDevices(){
+    return settings['controlDevice']
 }
 
-def checkLog(type = null){
-    switch(type) {
-        case 'error':
-        if(getLogLevel() > 0) return true
-        break
-        case 'warn':
-        if(getLogLevel() > 1) return true
-        break
-        case 'info':
-        if(getLogLevel() > 2) return true
-        break
-        case 'trace':
-        if(getLogLevel() > 3) return true
-        break
-        case 'debug':
-        if(getLogLevel() == 5) return true
-    }
+def setTime(){
+    if(!setStartTime()) return
+    setStopTime()
+    return true
+}
+
+def setStartTime(){
+    if(!settings['start_timeType']) return
+    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
+    setTime = setStartStopTime('start')
+    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
+    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
+    atomicState.start  = setTime
+    putLog(1125,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
+}
+
+def setStopTime(){
+    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
+    if(atomicState.stop > atomicState.start) return
+    setTime = setStartStopTime('stop')
+    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
+    atomicState.stop  = setTime
+    putLog(1135,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
+}
+
+// Sets atomicState.start and atomicState.stop variables
+// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
+def setStartStopTime(type){
+    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
+    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
+    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
+    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
+}
+
+def getDisabled(){
+    // If disabled, return true
+    if(state.disable) return true
+
+    // If mode isn't correct, return false
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
+    if(!parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return true
+
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
+
     return false
 }
 
@@ -1586,6 +1468,5 @@ def checkLog(type = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    if(!checkLog(type)) return
-    return parent.putLog(lineNumber,type,message,app.label)
+    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
 }
