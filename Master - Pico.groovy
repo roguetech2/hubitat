@@ -1254,13 +1254,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1204,'trace', 'Installed')
+    putLog(1257,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1210,'trace','Updated')
+    putLog(1263,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1275,7 +1275,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1225,'trace','Initialized')
+    putLog(1278,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1298,7 +1298,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1248,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1301,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1313,7 +1313,7 @@ def buttonPushed(evt){
             if(atomicState.action == 'hold') holdNextLevelMulti(device,action,app.label)
         }
         if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
-        if(device) putLog(1263,'trace','Turning ' + action + ' ' + device)
+        if(device) putLog(1316,'trace','Turning ' + action + ' ' + device)
         device = ''
     }
     
@@ -1329,7 +1329,7 @@ def buttonReleased(evt){
     numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1279,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1332,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
@@ -1365,7 +1365,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1315,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1368,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1427,7 +1427,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1125,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1430,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1437,7 +1437,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1135,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1440,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
