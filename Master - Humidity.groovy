@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.3.04
+*  Version: 0.4.01
 *
 ***********************************************************************************************************************/
 
@@ -32,20 +32,18 @@ definition(
 infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
 errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
 warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-moreOptions = ' <font color="grey">(click for more options)</font>'
+moreOptions = ' (click for more options)'
+expandText = ' (Click to expand/collapse)'
 
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
-// 5 for all
+// 2 for warnings + errors
+// 3 for info + errors + warnings
+// 4 for trace + info + errors + warnings
+// 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 4
-}
-def getMaxTemp(){
-    return 250
-}
-def getMinTemp(){
-    return -50
+    return 5
 }
 
 def displayLabel(text, width = 12){
@@ -85,8 +83,14 @@ def addFieldName(text,fieldName){
     return text + ' [' + fieldName + ']'
 }
 
-preferences {
+def getMaxTemp(){
+    return 250
+}
+def getMinTemp(){
+    return -50
+}
 
+preferences {
     install = formComplete()
     
     page(name: "setup", install: install, uninstall: true) {
@@ -106,9 +110,9 @@ preferences {
             controlInfoText  = getControlSensorText()
             duplicateSensors = compareDeviceLists(settings['humiditySensor'],settings['tempSensor'])
             duplicateControls = compareDeviceLists(settings['humidityControlSensor'],settings['tempControlSensor'])
-            if(humidityActive) averageHumidity = Math.round(averageHumidity(settings['humiditySensor'],settings['tempSensor']))
+            if(humidityActive) averageHumidity = averageHumidity(settings['humiditySensor'],settings['tempSensor'])
             if(humidityActive) averageHumidityText = averageHumidity + "%"
-            if(tempActive) averageTemp = Math.round(averageTemp(settings['tempSensor'],settings['humiditySensor']))
+            if(tempActive) averageTemp = averageTemp(settings['tempSensor'],settings['humiditySensor'])
             if(tempActive) averageTempText = averageTemp + '°' + getTemperatureScale()
             peopleError = compareDeviceLists(personHome,personNotHome)
 
@@ -136,7 +140,9 @@ preferences {
 
 def formComplete(){
     if(!app.label) return false
-    if(!humiditySensor) return false
+    if(settings['sensorType'] == 'humidityOnly' && !settings['humiditySensor']) return false
+    if(settings['sensorType'] == 'tempOnly' && !settings['tempSensor']) return false
+    if(settings['sensorType'] == 'both' && !settings['tempSensor'] && !settings['humiditySensor']) return false
     if(!device) return false
     if((humidityControlSensor || tempControlSensor) && (!controlStartDifference && !controlStopDifference)) return false
     if(controlStartDifference > 100) return false
@@ -195,7 +201,6 @@ def validateMinutes(value){
     if(value == 0) return 'Minimum minutes is 1.'
     if(!value) return
     if(value > 1440) return 'Maximum minutes is 1,440 (24 hours).'
-    log.debug 'value ' + value + ' < 1 = ' + (value < 1)
     if(value < 1) return 'Minimum minutes is 1.'
 }
 
@@ -356,14 +361,13 @@ def getControlSensorText(){
 
 def displayNameOption(){
     if(app.label){
-        displayLabel('Humidity/Temperature name',3)
-        label title: '', required: true, width: 9,submitOnChange:true
+        displayLabel('Humidity/Temperature name',2)
+        label title: '', required: false, width: 10,submitOnChange:true
     } else {
         displayLabel('Set name for this humidity/temperature')
-        label title: '', required: true, submitOnChange:true
+        label title: '', required: false, submitOnChange:true
         displayInfo('Name this humidity/temperature sensor app. Each humidity/temperature sensor app must have a unique name.')
     }
-    return
 }
 
 def displayDeviceTypeOption(){
@@ -787,8 +791,8 @@ def displayHumidityRelativeChangeOption(){
     if(!settings['device']) return
     if(!humidityActive) return
 
-    if(settings['humidityStartPercent']) humidityOn = Math.round(averageHumidity) + settings['humidityStartPercent'] + '%'
-    if(settings['humidityStopPercent']) humidityOff = Math.round(averageHumidity) + settings['humidityStopPercent'] + '%'
+    if(settings['humidityStartPercent']) humidityOn = averageHumidity + settings['humidityStartPercent'] + '%'
+    if(settings['humidityStopPercent']) humidityOff = averageHumidity + settings['humidityStopPercent'] + '%'
 
     minutes = settings['relativeMinutes']
     if(!settings['relativeMinutes']) minutes = 'the specified number of'
@@ -829,7 +833,6 @@ def displayHumidityRelativeChangeOption(){
         displayStartPercent()
         displayStopPercent()
             
-        log.debug settings['humidityStartPercent'] + ' ' + settings['humidityStopPercent']
         if(!settings['humidityStartPercent'] && !settings['humidityStopPercent']) displayInfo('Enter percentage of humidity increase within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level.')
 
         if(settings['humidityStartPercent'] && settings['humidityStopPercent']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + averageHumidityText + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + humidityOn + ', and turn off only when at ' + humidityOff + '.'
@@ -926,240 +929,164 @@ def displayRunTimeMaximumManual(){
     input fieldName, 'bool', defaultValue : true, title: fieldTitle, submitOnChange:true
 }
 
-def displayScheduleSection(){
-    if(!getSensorSet()) return
-    if(!settings['device']) return
-    helpTip = 'Scheduling only applies with this automation for ' + settings['device'] + '. To schedule the devices or default settings for them, use the Time app.'  
+def validateTimes(type){
+    if(settings['start_timeType'] && !settings['stop_timeType']) return false
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return true
+    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
+    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
+    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
+    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
+    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(!validateSunriseMinutes(type)) return false
+    return true
+}
 
-    // If only days entered
-    sectionTitle='<b>'
+def validateSunriseMinutes(type){
+    if(!settings[type + '_sunOffset']) return true
+    if(settings[type + '_sunOffset'] > 719) return false
+    return true
+}
+
+def displayScheduleSection(){
+    if(!settings['device']) return
+    
     List dayList=[]
     settings['days'].each{
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    if(!settings['inputStartType'] && !settings['inputStopType'] && settings['days']){
-        sectionTitle += 'Only on: ' + dayText + '</b>' + moreOptions
-        hidden = true
-        // If only start time (and days) entered
-    }  else if(checkTimeComplete('start') && settings['inputStartType'] && (!checkTimeComplete('stop') || !settings['inputStopType'])){
-        sectionTitle = 'Beginning at ' + varStartTime
-        if(settings['days']) sectionTitle += ' on: ' + dayText
-        if(settings['months']) sectionTitle += '; in ' + monthText
-        sectionTitle += '</b>'
-        hidden = false
-        // If only stop time (and day) entered
-    } else if(checkTimeComplete('stop') && settings['inputStopType'] && (!checkTimeComplete('start') || !settings['inputStartType'])){
-        sectionTitle = 'Ending at ' + varStopTime
-        if(settings['days']) sectionTitle += ' on: ' + dayText
-        if(settings['months']) sectionTitle += '; in ' + monthText
-        sectionTitle += '</b>'
-        hidden = false
-        // If all options entered
-    } else if(checkTimeComplete('start') && checkTimeComplete('stop') && settings['inputStartType'] && settings['inputStopType']){
-        varStartTime = getTimeVariables('start')
-        varStopTime = getTimeVariables('stop')
-        sectionTitle = '<b>Only if between ' + varStartTime + ' and ' + varStopTime
-        if(settings['days'] && settings['months']) {
-            sectionTitle += '</b>'
-        } else {
-            sectionTitle += ' on: ' + dayText + '</b>'
-            if(settings['months']) sectionTitle += '; in ' + monthText
-            sectionTitle += '</b>'
-        }
-        hidden = true
-        // If no options are entered
-    } else {
-        sectionTitle = 'Click to set schedule (optional)'
-        hidden = true
+    List monthList=[]
+    settings['months'].each{
+        monthList.add(Date.parse('MM',it).format('MMMM'))
+
     }
+    monthText = monthList.join(', ')
+    
+    hidden = true
+    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
+    if(settings['disable']) hidden = true
+    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
 
-    section(hideable: true, hidden: hidden, sectionTitle){
-        if(!settings['inputStartType']) displayInfo(helpTip)
-        displayStartTypeOption()
+    section(hideable: true, hidden: hidden, getTimeSectionTitle()){
+        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
 
-        // Display exact time option
-        if(settings['inputStartType'] == 'time'){
-            displayTimeOption('start')
-        } else if(settings['inputStartType']){
-            // Display sunrise/sunset type option (at/before/after)
-            displaySunriseTypeOption('start')
-            // Display sunrise/sunset offset
-            if(inputStartSunriseType && inputStartSunriseType != 'at') displaySunriseOffsetOption('start')
-        }
-
-        if(checkTimeComplete('start') && settings['inputStartType']){
-            displayStopTypeOption()
-
-            // Display exact time option
-            if(settings['inputStopType'] == 'time'){
-                displayTimeOption('stop')
-            } else if(settings['inputStopType']){
-                // Display sunrise/sunset type option (at/before/after)
-                displaySunriseTypeOption('stop')
-                // Display sunrise/sunset offset
-                if(inputStopSunriseType && inputStopSunriseType != 'at') displaySunriseOffsetOption('stop')
-            }
-        }
-
-        displayDaysOption(dayText)
-        displayMonthsOption(monthText)
-
-        displayInfo(message)
+        displayTypeOption('start')
+        displayTimeOption('start')
+        displaySunriseTypeOption('start')
+        displayTypeOption('stop')
+        displayTimeOption('stop')
+        displaySunriseTypeOption('stop')
+        displayDaysOption()
+        displayMonthsOption()
     }
 }
 
-def displayDaysOption(dayText){
-    fieldName = 'days'
-    fieldTitle = 'On these days (defaults to all days)'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+def getTimeSectionTitle(){
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
 
-    return
+    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(settings['start_timeType'] == 't ime' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
+    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
+    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
+        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
+        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
+        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
+        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
+    }
+
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
+    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
+    if(settings['start_timeType']) sectionTitle += '</b>'
+    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
+    
+    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
+
+    sectionTitle += '</br>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
+    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
+    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
+        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
+        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
+        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+    }
+
+    if(settings['start_timeType']) return sectionTitle + '</b>'
 }
 
-def displayMonthsOption(monthText){
-    fieldName = 'months'
-    fieldTitle = 'In these months (defaults to all months)'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+def displayTypeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    
+    labelText = 'Schedule ' + type
+    if(validateTimes('start')) labelText = ''
+    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
+    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    
+    if(labelText) displayLabel(labelText)
+
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    
+    fieldName = type + '_timeType'
+    fieldTitle = type.capitalize() + ' time option:'
+    if(!settings[type + '_timeType']){
+        fieldTitle = type.capitalize() + ' time?'
+        if(type == 'stop') fieldTitle += ' (Select "Don\'t stop" for none)'
+        highlightText(fieldTitle)
+    }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
 }
 
-def displayStartTypeOption(){
-    if(checkTimeComplete('start') && settings['inputStartType']) displayLabel('Schedule start')
-    if(!checkTimeComplete('start')  || !settings['inputStartType']) displayLabel('Schedule starting time')
-    fieldName = 'inputStartType'
-    if(settings[fieldName]){
-        fieldTitle = 'Start time option:'
-        if(settings[fieldName] == 'time' || !settings['inputStartSunriseType'] || settings['inputStartSunriseType'] == 'at'){
-            width = 6
-        } else if(settings['inputStartSunriseType']){
-            width = 4
-        }
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    }
-    if(!settings[fieldName]){
-        fieldTitle = 'Start time (click to choose option):'
-        width = 12
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-        displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required field for a schedule.')
-    }
+def displayTimeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] != 'time') return
+    
+    fieldName = type + '_time'
+    fieldTitle = type.capitalize() + ' time:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
 }
 
-def displayStopTypeOption(){
-    if(!checkTimeComplete('stop')){
-        displayLabel('Schedule stopping time')
-    } else {
-        displayLabel('Schedule stop')
-    }
-    fieldName = 'inputStopType'
-    if(settings[fieldName]){
-        fieldTitle = 'Stop time option:'
-        if(!settings['inputStopType'] || settings['inputStopType'] == 'none'){
-            width = 12
-        } else if(settings['inputStopType'] == 'time' || !settings['inputStopSunriseType'] || settings['inputStopSunriseType'] == 'at'){
-            width = 6
-        } else if(inputStopSunriseType){
-            width = 4
-        }
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    }
-    if(!settings[fieldName]){
-        width = 12
-        fieldTitle = 'Stop time (click to choose option):'
-        input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)' ], submitOnChange:true
-    }
+def getTypeOptionWidth(type){
+    if(!settings[type + '_timeType']) return 12
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
+    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    return 6
 }
 
-def displayTimeOption(lcType){
-    fieldName = 'input' + ucType + 'Time'
-    fieldTitle = ucType + ' time:'
-    ucType = lcType.capitalize()
-    input fieldName, 'time', title: addFieldName(fieldTitle,fieldName), width: width, submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the time to ' + lcType + ' the schedule in "hh:mm AM/PM" format. Required field.')
-}
+def displaySunriseTypeOption(type){
+    if(!settings[type + '_timeType']) return
+    if(settings[type + '_timeType'] == 'time') return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    
+    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
 
-def displaySunriseTypeOption(lcType){
-    if(!settings['input' + ucType + 'SunriseType'] || settings['input' + ucType + 'SunriseType'] == 'at') {
-        width = 6 
-    } else {
-        width = 4
-    }
-    // sunriseTime = getSunriseAndSunset()[settings['input' + ucType + 'Type']].format('hh:mm a')
-    fieldName = 'input' + ucType + 'SunriseType'
-    fieldTitle = 'At, before or after ' + settings['input' + ucType + 'Type'] + ':'
-    input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, width: width, options: ['at':'At ' + settings['input' + ucType + 'Type'], 'before':'Before ' + settings['input' + ucType + 'Type'], 'after':'After ' + settings['input' + ucType + 'Type']], submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings['input' + ucType + 'Type'] + ' (currently, ' + sunriseTime + '). To allow entering minutes prior to or after ' + settings['input' + ucType + 'Type'] + ', select "Before ' + settings['input' + ucType + 'Type'] + '" or "After ' + settings['input' + ucType + 'Type'] + '". Required field.')
-}
-
-def checkTimeComplete(lcType){
-    ucType = lcType.capitalize()
-
-    // If everything entered
-    if((settings['input' + ucType + 'Type'] == 'time' && settings['input' + ucType + 'Type']) || 
-       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && settings['input' + ucType + 'SunriseType'] == 'at') || 
-       ((settings['input' + ucType + 'Type'] == 'sunrise' || settings['input' + ucType + 'Type'] == 'sunset') && (settings['input' + ucType + 'SunriseType'] == 'before' || settings['input' + ucType + 'SunriseType'] == 'after') && (settings['input' + ucType + 'Before']))){
-        return true
-    } else if(!settings['input' + ucType + 'Type'] && !settings['input' + ucType + 'SunriseType'] && !settings['input' + ucType + 'Before']){
-        return true
-    } else {
-        return false
-    }
-}
-
-def getTimeVariables(lcType){
-    ucType = lcType.capitalize()
-    type = settings['input' + ucType + 'Type']
-    sunriseType = settings['input' + ucType + 'SunriseType']
-    before = settings['input' + ucType + 'Before']
-    // If time, then set string to "[time]"
-    if(type == 'time'){
-        return Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['input' + ucType + 'Time']).format('h:mm a', location.timeZone)
-        // If sunrise or sunset
-    } else if((type == 'sunrise' || type == 'sunset')  && sunriseType){
-        if(sunriseType == 'at'){
-            // Set string to "sun[rise/set] ([sunrise/set time])"
-            return type + ' (' + getSunriseAndSunset()[type].format('hh:mm a') + ')'
-            // If before sunrise
-        } else if(type == 'sunrise' && sunriseType == 'before' && before){
-            // Set string to "[number] minutes before sunrise ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: (before * -1), sunsetOffset: 0)[type].format('hh:mm a') + ')'
-            // If after sunrise
-        } else if(type== 'sunrise' && sunriseType == 'after' && before){
-            // Set string to "[number] minutes after sunrise ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: before, sunsetOffset: 0)[type].format('hh:mm a') + ')'
-            // If before sunset
-        } else if(type == 'sunset' && sunriseType == 'before' && before){
-            // Set string to "[number] minutes before sunset ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: (before * -1))[type].format('hh:mm a') + ')'
-            // If after sunrise
-        } else if(type == 'sunset' && sunriseType == 'after' && before){
-            // Set string to "[number] minutes after sunset ([time])
-            if(before) return before + ' minutes ' + sunriseType + ' ' + type + ' (' + getSunriseAndSunset(sunriseOffset: 0, sunsetOffset: before)[type].format('hh:mm a') + ')'
-        }
-    }
-}
-
-def displaySunriseOffsetOption(lcType){
-    ucType = lcType.capitalize()
-    type = settings['input' + ucType + 'Type']
-    sunriseType = settings['input' + ucType + 'SunriseType']
-    before = settings['input' + ucType + 'Before']
-    if(!sunriseType || sunriseType == 'at') return
-
-    if(before && before > 1441){
-        // "Minues [before/after] [sunrise/set] is equal to "
-        message = 'Minutes ' + sunriseType + ' ' + type + ' is equal to '
-        if(before  > 2881){
-            // "X days"
-            message += Math.floor(before  / 60 / 24) + " days."
-        } else {
-            message += 'a day.'
-        }
-        warningMessage(message)
-    }
-    fieldName = 'input' + ucType + 'Before'
-    fieldTitle = 'Minutes ' + sunriseType + ' ' + type + ':'
-    input fieldName, 'number', title: addFieldName(fieldTitle,fieldName), width: 4, submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the number of minutes ' + sunriseType + ' ' + type + ' to start the schedule. Required field.')
+    fieldName = type + '_sunType'
+    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    
+    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    displaySunriseOffsetOption(type)
 }
 
 def getSunriseTime(type,sunOffset,sunriseType){
@@ -1168,8 +1095,46 @@ def getSunriseTime(type,sunOffset,sunriseType){
     if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
     if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+}
+
+def displaySunriseOffsetOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_sunType'] == 'at') return
+
+    fieldName = type + '_sunOffset'
+    fieldTitle = 'Minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
     
+    message = 'Enter the number of minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
+    if(!settings[type + '_sunOffset']) displayInfo(message)
+    if(!validateSunriseMinutes(type)) displayWarning(message)
+}
+
+def displayDaysOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'days'
+    fieldTitle = 'On these days (optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+}
+
+def displayMonthsOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'months'
+    fieldTitle = 'In these months (optional; defaults to all months):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
 }
 
 def displayIfModeOption(){
@@ -1319,86 +1284,63 @@ def compareDeviceLists(firstDevices,secondDevices){
     return returnValue
 }
 
-/*
-Input fields:
 
-humiditySensor - device - required - multiple
-	primary humidity sensor
-humiditySensorAverage - bool
-	false = average
-disable - bool
-	disables this humidity routine
-switches - device - required - multiple
-	fan switch to be turned on/off
-humidityControlEnable - bool
-	shows options for a "control" sensor
-	false = using control device
-	true = not using control device
-humidityControlDevice - device
-	"control" device. Only appears if humidityControlEnable, but could be set regardless. Must be combined with controlStartDifference
-controlStartDifference - number - required
-	difference between primary and control sensors. Only appears if humidityControlEnable, but could be set regardless. Must be combined with humidityControlDevice
-humidityStartThreshold - number
-	absolute sensor value to turn on
-humidityIncreaseRate - number
-	amount of change with sensor to turn on
-multiStartTrigger - bool
-	indicates to use controlStartDifference, humidityStartThreshold, AND/OR humidityIncreaseRate
-	true = and
-	false = or
-controlStopDifference - number
-	percent difference of sensor compared to control sensor to turn off
-humidityStopThreshold - number
-	absolute sensor value to turn off
-humidityStopPercent - number
-	percent over starting point to turn off
-humidityWaitMinutes - number
-	minutes after controlStopDifference, humidityStopThreshold, and/or humidityStopPercent to wait
-runTimeMaximum - number
-	minutes of run time to turn off
-multiStopTrigger - bool
-	indicates to use controlStopDifference, humidityStopThreshold, humidityStopPercent AND/OR runTimeMaximum
-	true = and
-	false = or
-humidityDropTimeout - number
-	NOT USED
-controlStopDifferenceManual - bool
-	if manually on, indicates to use controlStopDifference to turn off
-humidityStopThresholdManual - bool
-	if manually on, indicates to use humidityStopThreshold to turn off
-runTimeMaximumManual - bool
-	if manually on, indicates to use runTimeMaximum to turn off
-*/
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                          End display functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
 
 def installed() {
     state.logLevel = getLogLevel()
-    
-    putLog(1376,'trace','Installed')
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    putLog(1318,'trace','Installed')
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1383,'trace','Updated')
+    putLog(1325,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
     state.logLevel = getLogLevel()
-    app.updateLabel(parent.appendAppTitle(app.getLabel(),app.getName()))
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
+
+	unschedule()
+
+    if(settings['disable']) state.disable = true
+    if(!settings['disable']) state.disable = false
 
     // If date/time for last notification not set, initialize it to 5 minutes ago
-    if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - 360000
-
-    if(settings['disable']) {
-        state.disable = true
-        return
-    }
-    state.disable = false
-    
-	unschedule()
+    if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli()
     
     getSensorType()
     state.humidityActive = humidityActive
@@ -1406,7 +1348,7 @@ def initialize() {
     if(!humidityActive && !tempActive) return
     
     setTime()
-    if(parent.isAnyOnMulti(settings['device'])) scheduleMaximum()
+    scheduleMaximum()
        
     if(humidityActive) subscribe(settings['humiditySensor'], 'humidity', humidityHandler)
     if(humidityActive && settings['humidityControlSensor']) subscribe(settings['humidityControlSensor'], 'humidity', temperatureHandler)
@@ -1414,7 +1356,7 @@ def initialize() {
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
     subscribe(settings['device'], 'switch', switchHandler)
     
-    putLog(1417,'trace','Initialized')
+    putLog(1356,'trace','Initialized')
 }
 
 def humidityHandler(event) {
@@ -1425,6 +1367,200 @@ def humidityHandler(event) {
 def temperatureHandler(event) {
     if(!state.tempActive) return
     updateStatus()
+}
+
+def switchHandler(evt) {
+    if(evt.value == 'on') scheduleMaximumRunTime()	
+}
+
+def updateStatus(){     // is called from maximumTime schedule, if parameters added, need to update scheduleMaximumRunTime
+    averageHumidity = averageHumidity(settings['humiditySensor'],settings['tempSensor'])
+    averageTemp = averageTemp(settings['humiditySensor'],settings['tempSensor'])
+    averageControlHumidity = averageHumidity(settings['humidityControlSensor'],settings['tempControlSensor'])
+    averageControlTemp = averageTemp(settings['humidityControlSensor'],settings['tempControlSensor'])
+
+    updateRelativeHumidityArray()
+    turnOn()
+    turnOff()
+    parent.setDeviceMulti(settings['device'],app.label)
+}
+
+def turnOn(){
+    if(getDisabled()) return
+    if(!checkOnConditions()) return
+    if(checkOffConditions()) {
+        putLog(1389,'warn','Both on and off conditions met.')
+        return
+    }
+    if(state.manualOn) return
+    parent.buildStateMapMulti(settings['device'],'on',app.label)
+    unschedule()
+    scheduleMaximumRunTime()
+
+    parent.sendPushNotification(it,evt.displayName + ' was ' + eventName + ' at ' + now.format('h:mm a', location.timeZone),app.label)
+    parent.sendVoiceNotification(settings['speechDevice'],settings['speech'],app.label)
+}
+
+def turnOff(){
+    // Not sure this will work for scheduled (max run time) off
+    if(maximumTime) {
+        // if starttime + maximumtime > now, then turn off
+    }
+    if(getDisabled()) return
+    if(!checkOffConditions()) return
+    if(checkOnConditions()) return
+    if(state.manualOn) return
+    parent.buildStateMapMulti(settings['device'],'off',app.label)
+    unschedule()
+}
+
+def averageHumidity(humidityDevice = null, temperatureDevice = null){
+    if(settings['sensorType'] == 'humidityOnly') temperatureDevice = null
+    if(settings['sensorType'] == 'tempOnly') humidityDevice = null
+    if(!humidityDevice && !temperatureDevice) return
+    humidity = 0
+    deviceCount = 0
+    if(humidityDevice){
+        humidityDevice.each {singleDevice->
+            if(checkIsHumidityDevice(singleDevice)) humidity += singleDevice.currentHumidity
+            deviceCount++
+        }
+    }
+    if(temperatureDevice){
+        temperatureDevice.each {singleDevice->
+            if(checkIsHumidityDevice(singleDevice)) humidity += singleDevice.currentHumidity
+            deviceCount++
+        }
+    }
+    
+    if(deviceCount > 0) return Math.round(humidity / deviceCount)
+    return 0
+}
+
+def averageTemp(humidityDevice = null, temperatureDevice = null){
+    if(settings['sensorType'] == 'tempOnly') humidityDevice = null
+    if(settings['sensorType'] == 'humidityOnly') temperatureDevice = null
+    if(!humidityDevice && !temperatureDevice) return
+
+    temp = 0
+    deviceCount = 0
+    if(humidityDevice){
+        humidityDevice.each {singleDevice->
+            if(checkIsTemperatureDevice(singleDevice)) {
+                temp += singleDevice.currentTemperature
+                deviceCount++
+            }
+        }
+    }
+    if(temperatureDevice){
+        temperatureDevice.each {singleDevice->
+            if(checkIsTemperatureDevice(singleDevice)) {
+                temp += singleDevice.currentTemperature
+                deviceCount++
+            }
+        }
+    }
+    if(deviceCount > 0) return Math.round(temp / deviceCount)
+    return 0
+}
+
+def updateRelativeHumidityArray(){
+    if(!state.humidityActive) return
+    timeNow = new Date().getTime()
+    timeLimit = timeNow - settings['relativeMinutes'] * parent.CONSTMinuteInMilli()
+    if(!state.humidityChanges){
+        state.humidityChanges = ['1':[time:timeNow,humidity:averageHumidity]]
+        return
+    }
+    itemCount = 0
+    newArray = [:]
+    state.humidityChanges.each{
+        if(it.value.time > timeLimit) {
+            itemCount++
+                newArray[itemCount]  = [time:it.value.time,humidity:it.value.humidity]
+        } else {
+            if(!earliestTime) {
+                earliestTime =  it.value.time
+                earliestValue = it.value.humidity
+            } else if(earliestValue && earliestValue < it.value.time)  {
+                earliestTime =  it.value.time
+                earliestValue = it.value.humidity
+            }
+        }
+    }
+    if(earliestValue){
+        if(!itemCount) itemCount = 0
+        itemCount++
+        newArray[itemCount] = [time:earliestTime,humidity:earliestValue]
+    }
+    itemCount++
+    newArray[itemCount]  = [time:timeNow,humidity:averageHumidity]
+    state.humidityChanges = newArray
+}
+
+def checkOnConditions(){
+    if(!checkMinimumWaitTime()) return
+    if(settings['multiStartTrigger']) {
+        allOnConditions = checkAllOnConditions()
+        putLog(1504,'trace','All on conditions is ' + allOnConditions)
+        return allOnConditions
+    }
+    anyOnConditions = checkAnyOnConditions()
+    putLog(1508,'trace','Any on condition is ' + anyOnConditions)
+    return anyOnConditions
+}
+
+def checkOffConditions(){
+    if(!checkRunTimeMaximum()) return
+    
+    if(settings['multiStopTrigger']) {
+        allOffConditions = checkAllOffConditions()
+        putLog(1517,'trace','All off conditions is ' + allOffConditions)
+        return allOffConditions
+    }
+    if(!settings['multiStopTrigger']) {
+        anyOffConditions = checkAnyOffConditions()
+        putLog(1522,'trace','Any off conditions is ' + anyOffConditions)
+        return anyOffConditions
+    }
+}
+
+def checkAllOnConditions(){
+    //False value used for log
+    if(settings['controlStartDifference'] && !checkControlStartDifference()) return false
+    if(settings['humidityStartThreshold'] && !checkHumidityStartThreshold()) return false
+    if(settings['humidityStartPercent'] && !checkHumidityStartPercent()) return false
+    if(settings['tempStartThreshold'] && !checkTempStartThreshold()) return false
+    
+    return true
+}
+
+def checkAllOffConditions(){
+    //False value used for log
+    if(checkRunTimeMinimum()) return false
+    if(settings['controlStopDifference'] && !checkControlStopDifference()) return false
+    if(settings['humidityStopThreshold'] && !checkHumidityStopThreshold()) return false
+    if(settings['humidityStopPercent'] && !checkHumidityStopPercent()) return false
+    if(settings['tempStopThreshold'] && !checkTempStopThreshold()) return false
+    
+    if(checkRunTimeMinimum()) return true
+}
+
+def checkAnyOnConditions(){
+    if(checkControlStartDifference()) return true
+    if(checkHumidityStartThreshold()) return true
+    if(checkHumidityStartPercent()) return true
+    if(checkTempStartThreshold()) return true
+    return false    // used for log
+}
+
+def checkAnyOffConditions(){
+    if(checkRunTimeMinimum()) return false
+    if(checkControlStopDifference()) return true
+    if(checkHumidityStopThreshold()) return true
+    if(checkHumidityStopPercent()) return true
+    if(checkTempStopThreshold()) return true
+    return false    // used for log
 }
 
 def checkControlStartDifference(){
@@ -1492,7 +1628,7 @@ def checkRunTimeMinimum(){
     if(!settings['runTimeMinimum']) return
     if(!state.startTime) return
     
-    if(now - state.startTime > settings['runTimeMinimum'] * 60000) return true
+    if(now - state.startTime > settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return true
 }
 
 //Returns true if condition is met
@@ -1500,385 +1636,101 @@ def checkRunTimeMaximum(){
     if(!settings['runTimeMaximum']) return true
     if(!state.startTime) return true
     
-    if(now - state.startTime > settings['runTimeMaximum'] * 60000){
-        putLog(1504,'trace','Maximum runtime exceeded.')
+    if(now - state.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
+        putLog(1639,'trace','Maximum runtime exceeded.')
         return true
     }
 }
-
 
 def checkMinimumWaitTime(){
     if(!settings['runTimeMaximum']) return true
     if(!state.stopTime) return true
     
-    if(now - state.stopTime > settings['runTimeMaximum'] * 60000){
-        putLog(1515,'trace','Minimum wait time exceeded.')
+    if(now - state.stopTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
+        putLog(1649,'trace','Minimum wait time exceeded.')
         return true
     }
 }
 
-def checkOnConditions(){
-    if(!checkMinimumWaitTime()) return
-    if(settings['multiStartTrigger']) {
-        allOnConditions = checkAllOnConditions()
-        putLog(1524,'trace','All on conditions is ' + allOnConditions)
-    }
-    if(!settings['multiStartTrigger']) {
-        anyOnConditions = checkAnyOnConditions()
-        putLog(1528,'trace','Any on condition is ' + anyOnConditions)
-            return anyOnConditions
-    }
-}
-
-def checkOffConditions(){
-    if(!checkRunTimeMaximum()) return
-    
-    if(settings['multiStopTrigger']) {
-        allOffConditions = checkAllOffConditions()
-        putLog(1538,'trace','All off conditions is ' + allOffConditions)
-        return allOffConditions
-    }
-    if(!settings['multiStopTrigger']) {
-        anyOffConditions = checkAnyOffConditions()
-        putLog(1543,'trace','Any off conditions is ' + anyOffConditions)
-        return anyOffConditions
-    }
-}
-
-def checkAllOnConditions(){
-    //False value used for log
-    if(settings['controlStartDifference'] && !checkControlStartDifference()) return false
-    if(settings['humidityStartThreshold'] && !checkHumidityStartThreshold()) return false
-    if(settings['humidityStartPercent'] && !checkHumidityStartPercent()) return false
-    if(settings['tempStartThreshold'] && !checkTempStartThreshold()) return false
-    
-    return true
-}
-
-def checkAllOffConditions(){
-    //False value used for log
-    if(checkRunTimeMinimum()) return false
-    if(settings['controlStopDifference'] && !checkControlStopDifference()) return false
-    if(settings['humidityStopThreshold'] && !checkHumidityStopThreshold()) return false
-    if(settings['humidityStopPercent'] && !checkHumidityStopPercent()) return false
-    if(settings['tempStopThreshold'] && !checkTempStopThreshold()) return false
-    
-    if(checkRunTimeMinimum()) return true
-}
-
-def checkAnyOnConditions(){
-    if(checkControlStartDifference()) return true
-    if(checkHumidityStartThreshold()) return true
-    if(checkHumidityStartPercent()) return true
-    if(checkTempStartThreshold()) return true
-    return false    // used for log
-}
-
-def checkAnyOffConditions(){
-    if(checkRunTimeMinimum()) return false
-    if(checkControlStopDifference()) return true
-    if(checkHumidityStopThreshold()) return true
-    if(checkHumidityStopPercent()) return true
-    if(checkTempStopThreshold()) return true
-    return false    // used for log
-}
-
-def scheduleTurnOff() {
-    if(state.manualOn && !settings['runTimeMaximumManual']) return
-    state.manualOn = false
-    if(!parent.isAnyOnMulti(settings['device'],app.label)) return
-    //check minimum run time
-    //clear any (all) schedules
-    state.startTime = null
-    state.stopTime = new Date().getTime()
-    parent.updateStateMulti(settings['device'],'off',app.label)
-    parent.setStateMulti(settings['device'],app.label)
-    putLog(1596,'debug','Turning off ' + settings['device'] + ' from schedule.')
-}
-
-def updateRelativeHumidityArray(){
-    if(!state.humidityActive) return
-    timeNow = new Date().getTime()
-    timeLimit = timeNow - settings['relativeMinutes'] * 60000
-    if(!state.humidityChanges){
-        state.humidityChanges = ['1':[time:timeNow,humidity:averageHumidity]]
-        return
-    }
-    itemCount = 0
-    newArray = [:]
-    state.humidityChanges.each{
-        if(it.value.time > timeLimit) {
-            itemCount++
-                newArray[itemCount]  = [time:it.value.time,humidity:it.value.humidity]
-        } else {
-            if(!earliestTime) {
-                earliestTime =  it.value.time
-                earliestValue = it.value.humidity
-            } else if(earliestValue && earliestValue < it.value.time)  {
-                earliestTime =  it.value.time
-                earliestValue = it.value.humidity
-            }
-        }
-    }
-    if(earliestValue){
-        if(!itemCount) itemCount = 0
-        itemCount++
-            newArray[itemCount] = [time:earliestTime,humidity:earliestValue]
-    }
-    itemCount++
-        newArray[itemCount]  = [time:timeNow,humidity:averageHumidity]
-    state.humidityChanges = newArray
-}
-
-def scheduleMaximum(){
-    if(!settings['runTimeMaximum']) return
-    unschedule()
-    // Need to check if already scheduled
-    runIn(60 * settings['runTimeMaximum'].toInteger(), updateStatus)
-    putLog(1638,'trace', 'Scheduling turn off in ' + settings['runTimeMaximum'] + ' minutes.')
-}
-
-def updateStatus(){
-    if(settings['disable']) return
-
-    // If mode set and node doesn't match, return nulls
-    if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1646,'trace','Humidity/temp disabled, requires mode ' + ifMode)
-        return
-    }
-    
-    // If not correct day, return nulls
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-
-    // if not between start and stop time, return nulls
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
-    
-    averageHumidity = averageHumidity(settings['humiditySensor'],settings['tempSensor'])
-    averageTemp = averageTemp(settings['humiditySensor'],settings['tempSensor'])
-    averageControlHumidity = averageHumidity(settings['humidityControlSensor'],settings['tempControlSensor'])
-    averageControlTemp = averageTemp(settings['humidityControlSensor'],settings['tempControlSensor'])
-
-    updateRelativeHumidityArray()
-    
-    turnOnStatus = checkOnConditions()
-    turnOffStatus = checkOffConditions()
-
-    if(turnOnStatus && turnOffStatus){
-        putLog(1671,'warn','Both on and off conditions met.')
-        return
-    }
-    if(turnOnStatus && !turnOffStatus) turnOn()
-    if(turnOffStatus && !turnOnStatus) turnOff()
-}
-
-def turnOn(){
-    if(parent.isAllOnMulti(settings['device'],app.label)) return
-    if(!state.manualOn) return
-    unschedule()
-    state.manualOn = false
-    state.startTime = new Date().getTime()
-    state.stopTime = null
-    scheduleMaximum()
-    parent.updateStateMulti(settings['device'],'on',app.label)
-    parent.setStateMulti(settings['device'],app.label)
-    putLog(1688,'debug','Turning on ' + settings['device'] + '.')
-    sendNotice()
-}
-
-def turnOff(){
-    if(state.manualOn) return
-    if(!parent.isAnyOnMulti(settings['device'],app.label)) return
-    state.manualOn = false
-    state.startTime = null
-    state.stopTime = new Date().getTime()
-    unschedule()
-    parent.updateStateMulti(settings['device'],'off',app.label)
-    parent.setStateMulti(settings["device"],app.label)
-    putLog(1701,'debug','Turning off ' + settings['device'] + '.')
-}
-
-
-def sendNotice(){
-    if(settings['pushNotificationDevice'] && settings['pushNotification']) sendPushNotice()
-    if(settings['speechDevice'] && settings['speech']) speakNotice()
-}
-
-def sendPushNotice(){
-    def now = new Date()getTime()
-
-    //if last text was sent less than 5 minutes ago, don't send
-    /* ************************************************************************ */
-    /* TO-DO: Add option to override text cooldown period? (Maybe in Master?)   */
-    /* Same with presence app.                                                  */
-    /* ************************************************************************ */
-    // Compute seconds from last notification
-    seconds = (now - state.contactLastNotification) / 1000
-
-    // Convert date to friendly format for log
-    if(seconds > 360){
-        state.contactLastNotification = now
-
-        settings['pushNotificationDevice'].each{
-            parent.sendPushNotification(it,evt.displayName + ' was ' + eventName + ' at ' + now.format('h:mm a', location.timeZone),app.label)
-        }
-        putLog(1728,'info','Sent push notice for ' + evt.displayName + ' ' + eventName + ' at ' + now.format('h:mm a', location.timeZone) + '.')
-    } else {
-        putLog(1730,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + ' due to notification sent ' + seconds + 's ago.')
-    }
-}
-
-def speakNotice(){
-    settings['speech'].each{
-        parent.speakSingle(settings['speech'],it,app.label)
-    }
-}
-
-def isHumidityDevice(singleDevice){
+def checkIsHumidityDevice(singleDevice){
     if(singleDevice.hasCapability("RelativeHumidityMeasurement")) return true
     return
 }
 
-def isTemperatureDevice(singleDevice){
+def checkIsTemperatureDevice(singleDevice){
     if(singleDevice.hasCapability("TemperatureMeasurement")) return true
     return
 }
 
-def switchHandler(evt) {
-    if(evt.value == 'off') return
-    if(settings['disable']) return
+def scheduleMaximumRunTime(){
+    if(!settings['runTimeMaximum']) return
+    if(!parent.checkAnyOnMulti(settings['device'])) return
+    unschedule()
+    
+    timeMillis = settings[evt.value + 'runTimeMaximum'] * parent.CONSTMinuteInMilli()
+    functionName = updateStatus
+    
+    parent.scheduleChildEvent(timeMillis,'',functionName,'',False,pp.id)
+}
 
-    // If mode set and node doesn't match, return nulls
-    if(settings['ifMode'] && location.mode != settings['ifMode']) {
-        putLog(1756,'trace','Humidity/temp disabled, requires mode ' + ifMode)
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    if(timeMillis < 1) {
+        putLog(1678,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
-    
-    // If not correct day, return nulls
-    if(!parent.nowInDayList(settings['days'],app.label)) return
-    if(!parent.nowInMonthList(settings['months'],app.label)) return
-
-    // if not between start and stop time, return nulls
-    if(!parent.timeBetween(atomicState.start, atomicState.stop, app.label)) return
-
-    if(!parent.getPeopleHome(settings['personHome'],app.label)) return
-    if(!parent.getNooneHome(settings['personNotHome'],app.label)) return
-    
-    scheduleMaximum()	   
-}
-
-def averageHumidity(firstMultiDevice, secondMultiDevice = null){
-    //if(!state.humidityActive) return
-    if(!firstMultiDevice && !secondMultiDevice) return
-    
-    humidity = 0
-    deviceCount = 0
-    if(firstMultiDevice){
-    firstMultiDevice.each {singleDevice->
-        if(isHumidityDevice(singleDevice)) humidity += singleDevice.currentHumidity
-        deviceCount++
-            }
-    }
-    if(secondMultiDevice){
-        secondMultiDevice.each {singleDevice->
-        if(isHumidityDevice(singleDevice)) humidity += singleDevice.currentHumidity
-        deviceCount++
-            }
-    }
-    
-    if(deviceCount > 0)  return humidity / deviceCount
-    return 0
-}
-
-def averageTemp(firstMultiDevice, secondMultiDevice = null){
-    //if(!state.tempActive) return
-    if(!firstMultiDevice && !secondMultiDevice) return
-
-    temp = 0
-    deviceCount = 0
-    if(firstMultiDevice){
-        firstMultiDevice.each {singleDevice->
-            if(isTemperatureDevice(singleDevice)) {
-                temp += singleDevice.currentTemperature
-                deviceCount++
-                    }
-                }
-    }
-    if(secondMultiDevice){
-        secondMultiDevice.each {singleDevice->
-            if(isTemperatureDevice(singleDevice)) {
-                temp += singleDevice.currentTemperature
-                deviceCount++
-                    }
-                }
-    }
-    if(deviceCount > 0) return temp / deviceCount
-    return 0
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 def setTime(){
-    if(setStartTime()) {
-        setStopTime()
-        return true
-    }
-    return false
+    if(!setStartTime()) return
+    setStopTime()
+    return true
 }
 
 def setStartTime(){
-    if(!settings['start_timeType']) {
-        atomicState.start = null
-        return
-    }
+    if(!settings['start_timeType']) return
+    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
     setTime = setStartStopTime('start')
-    if(setTime){
-        atomicState.start = setTime
-        putLog(1838,'info','Start time set to ' + parent.normalPrintDateTime(setTime))
-        return true
-    }
+    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
+    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
+    atomicState.start  = setTime
+    putLog(1125,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
 def setStopTime(){
-    if(!settings['start_timeType'] || settings['stop_timeType'] == 'none') {
-        atomicState.stop = null
-        return
-    }
+    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
+    if(atomicState.stop > atomicState.start) return
     setTime = setStartStopTime('stop')
-    if(setTime){ 
-        if(atomicState.start > setTime) setTime = parent.getTomorrow(setTime,app.label)
-        atomicState.stop = setTime
-        putLog(1852,'info','Stop time set to ' + parent.normalPrintDateTime(setTime))
-    }
-    return
+    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
+    atomicState.stop  = setTime
+    putLog(1135,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
 // Sets atomicState.start and atomicState.stop variables
 // Requires type value of "start" or "stop" (must be capitalized to match setting variables)
 def setStartStopTime(type){
-    if(settings['input' + type + 'Type'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings['input' + type + 'Type']).getTime()
-    if(settings['input' + type + 'Type'] == 'sunrise') return (settings['input' + type + 'SunriseType'] == 'before' ? parent.getSunrise(settings['input' + type + 'Before'] * -1,app.label) : parent.getSunrise(settings['input' + type + 'Before'],app.label))
-    if(settings['input' + type + 'Type'] == 'sunset')return (settings['input' + type + 'SunriseType'] == 'before' ? parent.getSunset(settings['input' + type + 'Before'] * -1,app.label) : parent.getSunset(settings['input' + type + 'Before'],app.label))
+    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
+    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
+    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
+    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
 }
 
-def checkLog(type = null){
-    switch(type) {
-        case 'error':
-        if(getLogLevel() > 0) return true
-        break
-        case 'warn':
-        if(getLogLevel() > 1) return true
-        break
-        case 'info':
-        if(getLogLevel() > 2) return true
-        break
-        case 'trace':
-        if(getLogLevel() > 3) return true
-        break
-        case 'debug':
-        if(getLogLevel() == 5) return true
-    }
+def getDisabled(){
+    // If disabled, return true
+    if(state.disable) return true
+
+    // If mode isn't correct, return false
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
+    
+    if(!parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return true
+    // if not days
+    // if not months
+
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
+
     return false
 }
 
@@ -1886,6 +1738,5 @@ def checkLog(type = null){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    if(!checkLog(type)) return
-    return parent.putLog(lineNumber,type,message,app.label)
+    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
 }
