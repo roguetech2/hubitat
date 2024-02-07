@@ -116,7 +116,7 @@ preferences {
             
             displayScheduleSection()
             displayActionOption()
-            displayLevelsOption('level')
+            displayLevelsOption('brightness')
             displayLevelsOption('temp')
             displayColorOption()
             displayChangeModeOption()
@@ -156,9 +156,9 @@ def formComplete(){
 }
 
 def validateLevels(type){
-    if(!parent.validateLevel(settings[type + '_level'])) return false
+    if(!parent.validateLevel(settings[type + '_brightness'])) return false
     if(!parent.validateTemp(settings[type + '_temp'])) return false
-    if(!parent.validateHue(settings[type + '_hue'])) return false
+    if(!parent.validateHue(settings[type + '_hue'],hiRezHue)) return false
     if(!parent.validateSat(settings[type + '_sat'])) return false
     return true
 }
@@ -169,8 +169,8 @@ def validateColor(){
     if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) return false
     if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) return false
     if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
-    if(!parent.validateHue(settings['start_hue'])) return false
-    if(!parent.validateHue(settings['stop_hue'])) return false
+    if(!parent.validateHue(settings['start_hue'],hiRezHue)) return false
+    if(!parent.validateHue(settings['stop_hue'],hiRezHue)) return false
     if(!parent.validateSat(settings['start_sat'])) return false
     if(!parent.validateSat(settings['stop_sat'])) return false
     return true
@@ -530,7 +530,7 @@ def displayLevelsOption(levelType){
     if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) hidden = false
     if(settings['disable']) hidden = true
     
-    if(levelType == 'level') {
+    if(levelType == 'brightness') {
         if(!parent.validateLevel(settings['start_' + levelType])) hidden = false
         if(!parent.validateLevel(settings['stop_' + levelType])) hidden = false
         typeString = 'brightness'
@@ -550,14 +550,7 @@ def displayLevelsOption(levelType){
     if(settings['start_' + levelType] && settings['stop_' + levelType] && settings['start_' + levelType] != settings['stop_' + levelType]) sectionTitle = '<b>Start to end: Change ' + typeString + ' from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
  
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(levelType == 'level'){
-            if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
-            if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
-        }
-        if(levelType == 'temp'){
-            if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
-            if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
-        }
+
         if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) displayWarning('Starting and ending ' + typeString + ' are both set to ' + settings['start_' + levelType] + '. This won\'t hurt anything, but the Stop ' + settings['start_' + levelType] + ' setting won\'t actually <i>do</i> anything.')
         
         displayLevelsField(levelType,'start')
@@ -595,7 +588,7 @@ def displayLevelsField(levelType, startType){
 }
 
 def getLevelsMessage(levelType){
-    if(levelType == 'level') {
+    if(levelType == 'brightness') {
         typeString = 'brightness'
         typeUnit = '%'
         typeRange = '1 to 100' + typeUnit
@@ -605,7 +598,7 @@ def getLevelsMessage(levelType){
         typeUnit = 'K'
         typeRange = '1800 to 5400' + typeUnit
     }
-    if(levelType == 'level'){
+    if(levelType == 'brightness'){
         if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
         if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
         //Both entered
@@ -647,11 +640,12 @@ def displayColorOption(){
     if(!validateColor()) hidden = false
 
     section(hideable: true, hidden: hidden, getColorTitle()){
-        if(!parent.validateHue(settings['start_hue']) && typeUnit == '%') displayError('Start hue must be from 1 to 100. Correct start hue.')
-        if(!parent.validateHue(settings['start_hue']) && typeUnit == '°') displayError('Start hue must be from 1 to 360. Correct start hue.')
+    
+        if(!parent.validateHue(settings['start_hue'],hiRezHue) && typeUnit == '%') displayError('Start hue must be from 1 to 100. Correct start hue.')
+        if(!parent.validateHue(settings['start_hue'],hiRezHue) && typeUnit == '°') displayError('Start hue must be from 1 to 360. Correct start hue.')
         if(!parent.validateSat(settings['start_sat'])) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
-        if(!parent.validateHue(settings['stop_hue']) && typeUnit == '%') displayError('Stop hue must be from 1 to 100. Correct stop hue.')
-        if(!parent.validateHue(settings['stop_hue']) && typeUnit == '°') displayError('Stop hue must be from 1 to 360. Correct stop hue.')
+        if(!parent.validateHue(settings['stop_hue'],hiRezHue) && typeUnit == '%') displayError('Stop hue must be from 1 to 100. Correct stop hue.')
+        if(!parent.validateHue(settings['stop_hue'],hiRezHue) && typeUnit == '°') displayError('Stop hue must be from 1 to 360. Correct stop hue.')
         if(!parent.validateSat(settings['stop_sat'])) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
         
         if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) displayWarning('Starting and ending hue are both set to ' + settings['start_hue'] + '. This won\'t hurt anything, but the Stop hue setting won\'t actually <i>do</i> anything.')
@@ -673,7 +667,7 @@ def displayColorOption(){
             if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
             message += ' Optional.'
         }
-        if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
+        if(parent.validateHue(settings['start_hue'],hiRezHue) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue'],hiRezHue) && parent.validateSat(settings['stop_sat'])){
             displayInfo(message)
         } else {
             displayError(message)
@@ -899,16 +893,30 @@ def updated() {
 }
 
 def initialize() {
+    if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null   //Wtf
+    if(settings['stop_temp'] == 0) settings['stop_temp'] = null   //Wtf
+    if(settings['stop_hue'] == 0) settings['stop_hue'] = null   //Wtf
+    if(settings['stop_sat'] == 0) settings['stop_sat'] = null   //Wtf
+    
+    if(settings['start_brightness']) settings['start_brightness'] = parent.convertToInteger(settings['start_brightness'])
+    if(settings['stop_brightness']) settings['stop_brightness'] = parent.convertToInteger(settings['stop_brightness'])
+    if(settings['start_temp']) settings['start_temp'] = parent.convertToInteger(settings['start_temp'])
+    if(settings['stop_temp']) settings['stop_temp'] = parent.convertToInteger(settings['stop_temp'])
+    if(settings['start_hue']) settings['start_hue'] = parent.convertToInteger(settings['start_hue'])
+    if(settings['stop_hue']) settings['stop_hue'] = parent.convertToInteger(settings['stop_hue'])
+    if(settings['start_sat']) settings['start_sat'] = parent.convertToInteger(settings['start_sat'])
+    if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
+
     putLog(902,'trace',app.label + ' initializing.')
-    state.logLevel = getLogLevel()
+    atomicState.logLevel = getLogLevel()
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     unschedule()
-    state.disable = false
+    atomicState.disable = false
     if(settings['disable']) {
         //parent.updateTableFromSettings(settings['device'], app.id) // Why? DOes it not update when the schedule starts?
         state.disable = true
     }
-    if(state.disable) {
+    if(atomicState.disable) {
         unschedule()
         parent.removeScheduleFromTable(app.id)
         return
@@ -918,21 +926,31 @@ def initialize() {
 
     parent.checkAnyOnMulti(settings['device'],app.label) //Initialize device into Table; we don't need the value of if "any on"
 
-    setDailySchedules()
+    setStartSchedule()
     putLog(922,'info',app.label + ' initialized.')
     return true
 }
 
 def handleStateChange(event){
+    return
+    log.debug 'STARTING CAPTURE state ' + event.value
     parent.updateTableCapturedState(event.device,event.value,app.label)
+    log.debug 'ENDING CAPTURE'
 }
 
-def handleLevelChange(event){
-    parent.updateTableCapturedLevel(event.device,'level',event.value,app.label)
+// this does level, temp, hue, and sat
+def handleBrightnessChange(event){
+    return
+    log.debug 'STARTING CAPTURE brightness ' + event.value
+    parent.updateTableCapturedLevel(event.device,'brightness',event.value,app.label)
 }
 
 // This needs rewrite
 def handleTempChange(event){
+    return
+    log.debug 'STARTING CAPTURE temp ' + event.value
+    parent.updateTableCapturedLevel(event.device,'temp',event.value,app.label)
+    return
     //parent.updateTableCapturedBrightness(event.device,'temp',event.value,app.label)
     
     tempChange = parent.getLastTempChange(event.device, app.label)
@@ -955,6 +973,10 @@ def handleTempChange(event){
 
 // This needs rewrite
 def handleHueChange(event){
+    return
+    log.debug 'STARTING CAPTURE hue ' + event.value
+    parent.updateTableCapturedLevel(event.device,'hue',event.value,app.label)
+    return  //REMOVE THIS
     //parent.updateTableCapturedBrightness(event.device,'hue',event.value,app.label)
     hueChange = parent.getLastHueChange(event.device, app.label)
     if(!hueChange) return
@@ -974,6 +996,10 @@ def handleHueChange(event){
 }
 
 def handleSatChange(event){
+    return
+    log.debug 'STARTING CAPTURE sat ' + event.value
+    parent.updateTableCapturedLevel(event.device,'sat',event.value,app.label)
+    return  //REMOVE THIS
     //parent.updateTableCapturedBrightness(event.device,'sat',event.value,app.label)
     satChange = parent.getLastSatChange(event.device, app.label)
     if(!satChange) return
@@ -992,147 +1018,216 @@ def handleSatChange(event){
 }
 
 // Creates the schedule for start and stop
-def setDailySchedules(){
+def setStartSchedule(){
     setTime()
     if(!atomicState.start) return
     unschedule()
-
-    functionName = 'runDailyStartSchedule'
     timeMillis = atomicState.start - now()
-    parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
-    logMessage = 'Set start schedule for ' + new Date(atomicState.start).format('HH:mm')
-    if(atomicState.stop){
-        functionName = 'runDailyStopSchedule'
-        timeMillis = atomicState.stop - now()
-        if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
-        parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
-        logMessage += '<br>Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm') + ''
-    }
+    parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
+    putLog(1027,'info','Set start schedule for ' + new Date(atomicState.start).format('HH:mm'))
+
     putLog(1011,'info',logMessage)
     return true
+}
+
+def setStopSchedule(){
+    if(!atomicState.stop) return
+    timeMillis = atomicState.stop - now()
+    if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
+    parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
+    putLog(1027,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
+
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    if(state.disabled) return
-
+    log.debug 'RUNNING START'
+    if(atomicState.disabled) return
     if(atomicState.start && atomicState.stop){
-        if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)) {
+        if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)){
+            parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
             return
         }
     }
     
-    state.startSetOnValidDay = true
-    if(!parent.checkNowInDayList(settings['days'],app.Label)) state.startSetOnValidDay = false
-    if(!parent.checkNowInMonthList(settings['months'],app.Label)) state.startSetOnValidDay = false
-    if(!getDisabled()) {
-        state.startDisabled = false
-        if(settings['start_action']) {
-            parent.buildStateMapMulti(settings['device'],settings['start_action'],app.label)
-            if(!settings['start_level'] && !settings['start_temp'] && !settings['start_hue'] && !settings['start_sat']) parent.setDeviceMulti(settings['device'],app.label)
-        }
-
-        if(atomicState.start && atomicState.stop){
-            runIncremental = false
-            // buildIncrementalStartDefaults will set startTime, stopTime
-            if(parent.buildIncrementalStartDefaults('level', settings['device'],atomicState.start, atomicState.stop, settings['start_level'], settings['stop_level'], , app.id)) runIncremental = true
-            if(parent.buildIncrementalStartDefaults('temp',settings['device'],atomicState.start, atomicState.stop,  settings['start_temp'], settings['stop_temp'], , app.id)) runIncremental = true
-            if(parent.buildIncrementalStartDefaults('hue',settings['device'],atomicState.start, atomicState.stop, settings['start_hue'], settings['stop_hue'], settings['direction'], app.id)) runIncremental = true
-            if(parent.buildIncrementalStartDefaults('sat', settings['device'],atomicState.start, atomicState.stop, settings['start_sat'], settings['stop_sat'], , app.id)) runIncremental = true
-            if(runIncremental) runIncrementalSchedule()
-            if(!runIncremental) parent.setDeviceMulti(settings['device'],app.label)
-        }
-
-        if(!atomicState.stop) {
-            // Parent will set seconds, etc. in Table
-            parent.updateTableLevelMulti(settings['device'],'level',settings['start_level'],app.label)   //These could be combined with buildIncrementalStartDefault but for getDisabled
-            parent.updateTableLevelMulti(settings['device'],'temp',settings['start_temp'],app.label)
-            parent.updateTableLevelMulti(settings['device'],'hue',settings['start_hue'],app.label)
-            parent.updateTableLevelMulti(settings['device'],'sat',settings['start_sat'],app.label)
-            parent.setDeviceMulti(settings['device'],app.label)
-        }
+    if(!parent.checkNowInDayList(settings['days'],app.Label)) {
+        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
+        return
+    }
+    if(!parent.checkNowInMonthList(settings['months'],app.Label)) {
+        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
+        return
     }
 
-    if(!atomicState.stop) setDailySchedules()  // Reschedule next day; runDailyStopSchedule also reschedules, so on if start
+    atomicState.startDisabled = false
+    scheduleBrightnessMap = getIncrementalScheduleMap('brightness')
+    scheduleTempMap = getIncrementalScheduleMap('temp')
+    scheduleHueMap = getIncrementalScheduleMap('hue')
+    scheduleSatMap = getIncrementalScheduleMap('sat')
+
+    if(scheduleBrightnessMap) runIncremental = true
+    if(scheduleTempMap) runIncremental = true
+    if(scheduleHueMap) runIncremental = true
+    if(scheduleSatMap) runIncremental = true
+
+    if(!getDisabled()) baseBrightnessMap = parent.getLevelMapSingle('brightness',settings['start_brightness'],app.id,app.label) // Should check if any level changes?
+    if(baseBrightnessMap) finalBrightnessMap = parent.mergeTwoMaps(baseBrightnessMap,scheduleBrightnessMap)
+    if(!baseBrightnessMap && scheduleBrightnessMap) finalBrightnessMap = scheduleBrightnessMap
+
+    if(!getDisabled()) baseTempMap = parent.getLevelMapSingle('temp',settings['start_temp'],app.id,app.label)
+    if(baseTempMap) finalTempMap = parent.mergeTwoMaps(baseTempMap,scheduleTempMap)
+    if(!baseTempMap && scheduleTempMap) finalTempMap = scheduleTempMap
+
+    if(!getDisabled()) baseHueMap = parent.getLevelMapSingle('hue',settings['start_hue'],app.id,app.label) // Do hiRezHue
+    if(baseHueMap) finalHueMap = parent.mergeTwoMaps(baseHueMap,scheduleHueMap)
+    if(!baseHueMap && scheduleHueMap) finalHueMap = scheduleHueMap
+
+    if(!getDisabled()) baseSatMap = parent.getLevelMapSingle('sat',settings['start_sat'],app.id,app.label)
+    if(baseSatMap) finalSatMap = parent.mergeTwoMaps(baseSatMap,scheduleSatMap)
+    if(!baseHueMap && scheduleHueMap) finalHueMap = scheduleHueMap
+
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
+        parent.mergeMapToTableWithPreserve(singleDevice,stateMap)
+        parent.mergeMapToTableWithPreserve(singleDevice,finalBrightnessMap)
+        parent.mergeMapToTableWithPreserve(singleDevice,finalTempMap)
+        parent.mergeMapToTableWithPreserve(singleDevice,finalHueMap)
+        parent.mergeMapToTableWithPreserve(singleDevice,finalSatMap)
+    }
+    if(!getDisabled) parent.setDeviceMulti(settings['device'],app.label)
+    
+    atomicState.start +=  parent.CONSTDayInMilli()
+    newTime = atomicState.start - now()
+    parent.scheduleChildEvent(newTime,'','runDailyStartSchedule','',app.id)
+    setStopSchedule()
+    //if(!runIncremental) parent.setDeviceMulti(settings['device'],app.label)
+    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
+    //if(!atomicState.stop) setDailySchedules()  // Reschedule next day; runDailyStopSchedule also reschedules, so on if start
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
+    log.debug 'RUNNING STOP'
     if(!atomicState.stop) return
-    if(state.disabled) return
-    unschedule()
+    if(atomicState.disabled) return
+    unschedule(runIncrementalSchedule)
 
-    if(!state.startSetOnValidDay) {
-        parent.resumeDeviceScheduleMulti(multiDevice,app.label)
-        return
+    brightnessMap = parent.getLevelMapSingle('brightness',settings['stop_brightness'],app.id,app.label) // Should check if any level changes?
+    tempMap = parent.getLevelMapSingle('temp',settings['stop_temp'],app.id,app.label)
+    hueMap = parent.getLevelMapSingle('hue',settings['stop_hue'],app.id,app.label) // Do hiRezHue
+    satMap = parent.getLevelMapSingle('sat',settings['stop_sat'],app.id,app.label)
+
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
+        
+        parent.mergeMapToTableWithoutPreserve(singleDevice,stateMap)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,brightnessMap)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,tempMap)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,hueMap)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,satMap)
     }
 
-    if(settings['stop_action']) {
-        // buildStateMapMulti adds on/off
-        parent.buildStateMapMulti(settings['device'],settings['stop_action'],app.label)
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
+    parent.setDeviceMulti(settings['device'],app.label)
 
-    parent.resumeDeviceScheduleMulti(multiDevice,app.label)  // Schedules other days and/or reschedule next day
+    atomicState.start +=  parent.CONSTDayInMilli()
+    newTime = atomicState.start - now()
+    parent.scheduleChildEvent(newTime,'','runDailyStopSchedule','',app.id)
 }
 
 // Is unscheduled from runDailyStopSchedule
 def runIncrementalSchedule(){
+    log.debug 'RUNNING INCREMENT'
     if(!atomicState.start) return
     if(!atomicState.stop) return
 
     if(atomicState.stop < now()) return       // Shouldn't be neccesary; uncommented for testing
 
-    functionName = runIncrementalSchedule
+    timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
+
     if(getDisabled()){
-        
-        timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
-        parent.scheduleChildEvent(timeMillis,'',functionName,'',true,app.id)
+        parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
         return
     }
-    activateScheduleFromManualOverride = true       // This is reversed, where true is to remain active
+    activateScheduleFromManualOverride = false       // True is to remain active
 
-    // activateScheduleFromManualOverride should be tracked for if no levels start+stop levels
-    if(settings['start_level'] && settings['stop_level']) {
-        if(parent.updateTableIncrementalMulti(settings['device'],'level',app.label)) activateScheduleFromManualOverride = false
+    settings['device'].each{singleDevice->
+        deviceChangedAny = false
+        //This is where we should be checking manual overrides
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'brightness',app.label)
+        brightnessMap = parent.getLevelMapSingle('brightness',newLevel,app.id,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,brightnessMap)
+        if(brightnessMap) deviceChangedAny = true
+        
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'temp',app.label)
+        tempMap = parent.getLevelMapSingle('temp',newLevel,app.id,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,tempMap)
+        if(tempMap) deviceChangedAny = true
+        
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'hue',app.label)
+        log.debug 'hue increment ' + newLevel
+        hueMap = parent.getLevelMapSingle('hue',newLevel,app.id,app.label)
+        log.debug 'hue map ' + hueMap
+        parent.mergeMapToTableWithPreserve(singleDevice,hueMap)
+        if(hueMap) deviceChangedAny = true
+        
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'sat',app.label)
+        satMap = parent.getLevelMapSingle('sat',newLevel,app.id,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,satMap)
+        if(satMap) deviceChangedAny = true
+
+        if(deviceChangedAny) activateScheduleFromManualOverride = true
     }
-    if(settings['start_temp'] && settings['stop_temp']) {
-        if(parent.updateTableIncrementalMulti(settings['device'],'temp',app.label)) activateScheduleFromManualOverride = false
-    }
-    if((settings['start_hue'] && settings['stop_hue']) || (settings['start_sat'] && settings['stop_sat'])) {
-        if(parent.updateTableIncrementalMulti(settings['device'],'hue',app.label)) activateScheduleFromManualOverride = false
-    }
-    if(settings['start_sat'] && settings['stop_sat']) {
-        if(parent.updateTableIncrementalMulti(settings['device'],'sat',app.label)) activateScheduleFromManualOverride = false
-    }
-    //if(!parent.updateTableIncrementalMulti(settings['device'],app.label)) activateScheduleFromManualOverride = true
-    if(activateScheduleFromManualOverride) {
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
-    if(!activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
-    if(activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleActiveFrequencyMilli()
-    parent.scheduleChildEvent(timeMillis,'',runIncrementalSchedule,'',true,app.id)
+    
+    if(deviceChangedAny)  parent.setDeviceMulti(settings['device'],app.label)
+
+    if(activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleActiveFrequencyMilli()  // Run infrequently, unless known otherwise
+
+    parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
+    log.debug 'ENDING INCREMENT'
 }
 
 def subscribeDevices(){
-    subscribe(settings['device'], 'switch', handleStateChange)
+    unsubscribe()
+    //subscribe(settings['device'], 'switch', handleStateChange)
     subscribe(settings['device'], 'hue', handleHueChange)
     subscribe(settings['device'], 'saturation', handleSatChange)
     subscribe(settings['device'], 'colorTemperature', handleTempChange)
-    subscribe(settings['device'], 'level', handleLevelChange)
-    subscribe(settings['device'], 'speed', handleLevelChange)
+    subscribe(settings['device'], 'brightness', handleBrightnessChange)
+    subscribe(settings['device'], 'speed', handleBrightnessChange)
     subscribe(location, 'systemStart', handleSystemBoot)
     subscribe(location,'timeZone',handleTimezone)
     return
+}
+
+
+// type expects 'brightness', 'temp', 'hue', 'sat'
+def getIncrementalScheduleMap(type){
+    if(!atomicState.start) return
+    if(!atomicState.stop) return
+    if(!settings['start_' + type]) return
+    if(!settings['stop_' + type]) return
+
+    scheduleMap = [:]
+    scheduleMap."${type}" = [:]
+    scheduleMap."${type}".'startLevel' = settings['start_' + type]
+    scheduleMap."${type}".'stopLevel' = settings['stop_' + type]
+    scheduleMap."${type}".'appId' = app.id
+    scheduleMap."${type}".'appType' = 'time'
+    scheduleMap."${type}".'currentLevel' = settings['start_' + type]
+    scheduleMap."${type}".'startTime' = atomicState.start
+    scheduleMap."${type}".'stopTime' = atomicState.stop
+    if(hueDirection) scheduleMap."${type}".'hueDirection' = hueDirection
+log.debug 'scheduleMap ' + scheduleMap
+    return scheduleMap
 }
 
 // Only thing really neede is:
 // 1) If schedule is not running, remove itself from Table
 // 2) Run Daily Start Schedule and let it deal with restarting a schedule
 def systemBootActivate(){
-    if(state.disable) return
+    if(atomicState.disable) return
     
     initialize()
 }
@@ -1144,6 +1239,13 @@ def setTime(){      // Should NOT be run from Incremental
 }
 
 def setStartTime(){
+    if(app.id == 2227) {
+        atomicState.start = now() + 5000
+        atomicState.stop = now() + 20000
+        return
+    }
+// REMOVE THESE
+
     if(!settings['start_timeType']) return
     // Gets start time caught up to today 
     // But if start and stop time have passed today, setStopTime will fix it
@@ -1189,7 +1291,7 @@ def getScheduleActive(){
 
 def getDisabled(){
     // If disabled, return true
-    if(state.disable) return true
+    if(atomicState.disable) return true
 
     // If mode isn't correct, return false
     if(settings['ifMode'] && location.mode != settings['ifMode']) return true
@@ -1210,7 +1312,7 @@ def buildSubMap(key) {
     if (settings['startSeconds']) subMap['startSeconds'] = settings['startSeconds']
     if (settings['stopSeconds']) subMap['stopSeconds'] = settings['stopSeconds']
     if (settings['totalSeconds']) subMap['totalSeconds'] = settings['totalSeconds']
-    if (settings['stateLevel']) subMap['stateLevel'] = settings['stateLevel']
+    if (settings['startLevel']) subMap['startLevel'] = settings['startLevel']
     if (settings['stopLevel']) subMap['stopLevel'] = settings['stopLevel']
     return subMap
 }
