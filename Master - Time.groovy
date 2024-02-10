@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.1
+*  Version: 0.7.1.2
 *
 ***********************************************************************************************************************/
 
@@ -575,8 +575,8 @@ def displayLevelsField(levelType, startType){
     
     fieldName = startType + '_' + levelType
     unitString = ''
-    if(levelType == 'hue' && parent.settingHiRezHue) unitString = ' (in degrees)'
-    if(levelType == 'hue' && !parent.settingHiRezHue) unitString = ' (in percent)'
+    if(levelType == 'hue' && parent.settingHiRezHue()) unitString = ' (in degrees)'
+    if(levelType == 'hue' && !parent.settingHiRezHue()) unitString = ' (in percent)'
     fieldTitle = 'Set ' + typeString + ' at start' + unitString + ':'
     if(startType == 'stop') fieldTitle = 'Transition to ' + typeString + ' at stop:'
     fieldWidth = 12
@@ -630,7 +630,7 @@ def displayColorOption(){
     if(!settings['start_action']) return
     if(settings['start_action'] == 'off') return
 
-    typeUnit = parent.settingHiRezHue(settings['device']) ? '°' : '%'
+    typeUnit = parent.settingHiRezHue() ? '°' : '%'
 
     hidden = true
     if(!validateColor()) hidden = false
@@ -689,19 +689,19 @@ def displayHueDirection(){
     if(!settings['start_hue']) return
     if(!settings['stop_hue']) return
 
-    if(parent.settingHiRezHue(settings['device']) && settings['start_hue'] < settings['stop_hue']){
+    if(parent.settingHiRezHue() && settings['start_hue'] < settings['stop_hue']){
         forwardSequence = '90, 91, 92  ... 270, 271, 272'
         reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
     }
-    if(parent.settingHiRezHue(settings['device']) && settings['start_hue'] > settings['stop_hue']){
+    if(parent.settingHiRezHue() && settings['start_hue'] > settings['stop_hue']){
         forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
         reverseSequence = '270, 269, 268 ... 75, 74, 73'
     }
-    if(!parent.settingHiRezHue(settings['device']) && settings['start_hue'] < settings['stop_hue']){
+    if(!parent.settingHiRezHue() && settings['start_hue'] < settings['stop_hue']){
         forwardSequence = '25, 26, 27  ... 73, 74, 75'
         reverseSequence = '25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75'
     }
-    if(!parent.settingHiRezHue(settings['device']) && settings['start_hue'] > settings['stop_hue']){
+    if(!parent.settingHiRezHue() && settings['start_hue'] > settings['stop_hue']){
         forwardSequence = '75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25'
         reverseSequence = '75, 74, 73 ... 27, 26, 25'
     }
@@ -716,7 +716,7 @@ def displayHueDirection(){
 
 def getColorTitle(){
     if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat'])  return 'Click to set color (hue and/or saturation) (optional)'
-    typeUnit = parent.settingHiRezHue(settings['device']) ? '°' : '%'
+    typeUnit = parent.settingHiRezHue() ? '°' : '%'
     sectionTitle = ''
     
     if(settings['start_hue'] && !settings['stop_hue']) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + typeUnit + '</b>'
@@ -1094,7 +1094,7 @@ def runDailyStartSchedule(){
     parent.scheduleChildEvent(newTime,'','runDailyStartSchedule','',app.id)
     setStopSchedule()
     //if(!runIncremental) parent.setDeviceMulti(settings['device'],app.label)
-    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
+    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleMinimumActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
     //if(!atomicState.stop) setDailySchedules()  // Reschedule next day; runDailyStopSchedule also reschedules, so on if start
 }
 
@@ -1145,8 +1145,14 @@ def runIncrementalSchedule(){
     if(!atomicState.stop) return
 
     if(atomicState.stop < now()) return       // Shouldn't be neccesary; uncommented for testing
-
-    timeMillis = parent.CONSTScheduleInactiveFrequencyMilli()
+    if(atomicState.start < atomicState.stop){
+        scheduleFrequency = Math.round(Math.abs(atomicState.stop - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+    }
+    if(atomicState.start > atomicState.stop){
+        scheduleFrequency = Math.round(Math.abs((atomicState.stop + parent.CONSTDayInMilli()) - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+    }
+    timeMillis = scheduleFrequency
+    if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumInactiveFrequencyMilli()
 
     if(getDisabled()){
         parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
@@ -1182,8 +1188,9 @@ def runIncrementalSchedule(){
     
     if(deviceChangedAny)  parent.setDeviceMulti(settings['device'],app.label)
 
-    if(activateScheduleFromManualOverride) timeMillis = parent.CONSTScheduleActiveFrequencyMilli()  // Run infrequently, unless known otherwise
-
+    if(activateScheduleFromManualOverride) {
+        if(scheduleFrequency < parent.CONSTScheduleMinimumActiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumActiveFrequencyMilli()
+    }
     parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
 }
 
