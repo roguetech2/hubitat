@@ -1005,7 +1005,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(1088,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(1008,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1256,7 +1256,7 @@ def setStartTime(){
     // But if start and stop time have passed today, setStopTime will fix it
     setTime = parent.setTimeAsIn24Hours(setStartStopTime('start'))  
     atomicState.start  = setTime
-    putLog(1252,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1259,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1271,7 +1271,7 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1267,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1274,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1314,7 +1314,7 @@ def getDevices(){
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1310,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1317,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
