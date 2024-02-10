@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.7.01
+*  Version: 0.7.1
 * 
 ***********************************************************************************************************************/
 
@@ -1051,7 +1051,7 @@ def contactChange(evt){
         if(evt.value == 'open') functionName = 'runScheduleOpen'
         if(evt.value == 'closed') functionName = 'runScheduleClosed'
         timeMillis = settings[evt.value + '_wait'] * 1000
-        parent.scheduleChildEvent(timeMillis,'',functionName,'',False,app.id)
+        parent.scheduleChildEvent(timeMillis,'',functionName,'',app.id)
     }
 
     if(!settings[evt.value + '_wait']) performUpdates(evt.value)
@@ -1065,27 +1065,18 @@ def performUpdates(action){
         parent.setLockMulti(settings['device'],settings[action + '_action'],app.label)
         return
     }
-    defaults = [:]
-    if(settings[action + '_action'] == 'on') parent.buildStateMapMulti(settings['device'],'on',app.label)
-    if(settings[action + '_action'] == 'off') parent.buildStateMapMulti(settings['device'],'off',app.label)
-    if(settings[action + '_action'] == 'toggle') parent.buildStateMapMulti(settings['device'],'toggle',app.label)
-    if(settings[action + '_level']) {
-        defaults.'level' = ['level':settings[action + '_level']]
-        parent.updateTableMulti(settings['device'],defaults,app.label)
-    }
-    if(settings[action + '_temp']) {
-        defaults.'level' = ['temp':settings[action + '_temp']]
-        parent.updateTableMulti(settings['device'],defaults,app.label)
-    }
-    if(settings[action + '_hue']) {
-        //set hiRezHue
-        defaults.'level' = ['hue':settings[action + '_hue']]
-        parent.updateTableMulti(settings['device'],defaults,app.label)
-    }
-    if(settings[action + '_sat']) {
-        //set hiRezHue
-        defaults.'level' = ['sat':settings[action + '_sat']]
-        parent.updateTableMulti(settings['device'],defaults,app.label)
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings[action + '_action'],app.id,app.label)       // on, off, toggle
+        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+
+        levelMap = parent.getLevelMap(type,settings[action + '_brightness'],app.id,childLabel)
+        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMap(type,settings[action + '_temp'],app.id,childLabel)
+        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMap(type,settings[action + '_hue'],app.id,childLabel)
+        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMap(type,settings[action + '_sat'],app.id,childLabel)
+        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
     }
 
     if(settings[action + '_action'] == 'resume') parent.resumeDeviceScheduleMulti(settings['device'],app.label)
@@ -1129,7 +1120,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1132,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1123,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1139,7 +1130,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1142,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1133,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
