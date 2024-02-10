@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.02
+*  Version: 0.6.1
 *
 ***********************************************************************************************************************/
 
@@ -559,12 +559,10 @@ def displayMultiDeviceOption(){
 
 def displayMultiDeviceButtons(buttonNumber, buttonMap, action = 'push') {
     for (mainLoopNumber in 0..4) {
-            log.debug mainLoopNumber
         button = [buttonNumber, buttonMap[mainLoopNumber], action]
             getAdvancedSwitchInput(button)
 
         if(mainLoopNumber != 0){
-            log.debug mainLoopNumber
             if (buttonMap[mainLoopNumber] == 'on') {
                 for (errorLoopNumber in 0..mainLoopNumber - 1) {
                     if (buttonMap[errorLoopNumber] in ['off', 'resume', 'toggle']) {
@@ -1035,13 +1033,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1038,'trace', 'Installed')
+    putLog(1036,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1044,'trace','Updated')
+    putLog(1042,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1056,7 +1054,7 @@ def initialize() {
 
     setTime()
 
-    putLog(1059,'trace','Initialized')
+    putLog(1057,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1079,22 +1077,26 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1082,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1080,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
-    switchActions.each { action ->
-        device = getControlDeviceFromButton(action,buttonNumber)
-        if(action == 'on') parent.buildStateMapMulti(device,'on',app.label)
-        if(action == 'off') parent.buildStateMapMulti(device,'off',app.label)
-        if(action == 'toggle') parent.buildStateMapMulti(device,'toggle',app.label)
-        if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
-        if(action == 'brighten' || action == 'dim'){
-            if(atomicState.action == 'push') parent.updateTableNextLevelMulti(device, action, app.label)
-            if(atomicState.action == 'hold') holdNextLevelMulti(device,action,app.label)
+    switchActions.each { switchAction ->
+        device = getControlDeviceFromButton(switchAction,buttonNumber)
+        device.each{singleDevice->
+            stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
+            
+            parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+            // need to get nextLevel here
+            if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
+            levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+            parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
         }
+        if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
+        if(atomicState.action == 'hold') holdNextLevelMulti(device,switchAction)
+
         if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
-        if(device) putLog(1097,'trace','Turning ' + action + ' ' + device)
+        //if(device) putLog(1097,'trace','Turning ' + action + ' ' + device)
         device = ''
     }
     
@@ -1110,7 +1112,7 @@ def buttonReleased(evt){
     numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1113,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1115,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
@@ -1146,7 +1148,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1149,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1151,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1171,6 +1173,7 @@ def getSetProgressiveLevelDevice(deviceId, action){
 // Has to be in child app for schedule
 def holdNextLevelMulti(multiDevice,action){
     if(!multiDevice) return
+    if(action != 'dim' && action != 'brighten') return
 
     device.each{singleDevice->
         holdNextLevelSingle(singleDevice,action)
@@ -1180,13 +1183,13 @@ def holdNextLevelMulti(multiDevice,action){
 // Has to be in child app for schedule
 def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.label)) return
-
-    if(!parent.updateTableNextLevelSingle(device,action,app.label)) return
+    level = parent._getNextLevelDimmable(singleDevice, action, app.label)
+    if(!level) return
+    levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+    parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
     
-    timeMillis = 750
-    functionName = runSetProgressiveLevel
     parameters = '[device: it.id, action: action]'
-    parent.scheduleChildEvent(timeMillis: timeMillis,timeValue: null,functionName: functionName,parameters: parameters,noPerformDisableCheck: null,appId: app.id)
+    parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters, '',app.id)
     //do we need to add overwrite: false? If so, doing Master app function is probably too unwieldy
     //runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, action: action]])
 }
@@ -1208,7 +1211,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1211,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1214,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1218,7 +1221,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1221,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1224,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
