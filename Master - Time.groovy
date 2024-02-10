@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1
+*  Version: 0.7.1.1
 *
 ***********************************************************************************************************************/
 
@@ -893,10 +893,10 @@ def updated() {
 }
 
 def initialize() {
-    if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null   //Wtf
-    if(settings['stop_temp'] == 0) settings['stop_temp'] = null   //Wtf
-    if(settings['stop_hue'] == 0) settings['stop_hue'] = null   //Wtf
-    if(settings['stop_sat'] == 0) settings['stop_sat'] = null   //Wtf
+    if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
+    if(settings['stop_temp'] == 0) settings['stop_temp'] = null
+    if(settings['stop_hue'] == 0) settings['stop_hue'] = null
+    if(settings['stop_sat'] == 0) settings['stop_sat'] = null
     
     if(settings['start_brightness']) settings['start_brightness'] = parent.convertToInteger(settings['start_brightness'])
     if(settings['stop_brightness']) settings['stop_brightness'] = parent.convertToInteger(settings['stop_brightness'])
@@ -1056,20 +1056,20 @@ def runDailyStartSchedule(){
 
     atomicState.startDisabled = false
     scheduleBrightnessMap = getIncrementalScheduleMap('brightness')
-    if(!getDisabled()) baseBrightnessMap = parent.getLevelMapSingle('brightness',settings['start_brightness'],app.id,app.label)
+    if(!getDisabled()) baseBrightnessMap = parent.getLevelMap('brightness',settings['start_brightness'],app.id,app.label)
     if(baseBrightnessMap) finalBrightnessMap = parent.mergeTwoMaps(baseBrightnessMap,scheduleBrightnessMap)
     if(!baseBrightnessMap && scheduleBrightnessMap) finalBrightnessMap = scheduleBrightnessMap
     
     scheduleTempMap = getIncrementalScheduleMap('temp')
-    if(!getDisabled()) baseTempMap = parent.getLevelMapSingle('temp',settings['start_temp'],app.id,app.label)
+    if(!getDisabled()) baseTempMap = parent.getLevelMap('temp',settings['start_temp'],app.id,app.label)
     if(baseTempMap) finalTempMap = parent.mergeTwoMaps(baseTempMap,scheduleTempMap)
     if(!baseTempMap && scheduleTempMap) finalTempMap = scheduleTempMap
     scheduleHueMap = getIncrementalScheduleMap('hue')
-    if(!getDisabled()) baseHueMap = parent.getLevelMapSingle('hue',settings['start_hue'],app.id,app.label) // hiRezHue needed here?
+    if(!getDisabled()) baseHueMap = parent.getLevelMap('hue',settings['start_hue'],app.id,app.label) // hiRezHue needed here?
     if(baseHueMap) finalHueMap = parent.mergeTwoMaps(baseHueMap,scheduleHueMap)
     if(!baseHueMap && scheduleHueMap) finalHueMap = scheduleHueMap
     scheduleSatMap = getIncrementalScheduleMap('sat')
-    if(!getDisabled()) baseSatMap = parent.getLevelMapSingle('sat',settings['start_sat'],app.id,app.label)
+    if(!getDisabled()) baseSatMap = parent.getLevelMap('sat',settings['start_sat'],app.id,app.label)
     if(baseSatMap) finalSatMap = parent.mergeTwoMaps(baseSatMap,scheduleSatMap)
     if(!baseHueMap && scheduleHueMap) finalHueMap = scheduleHueMap
 
@@ -1237,11 +1237,11 @@ def setTime(){      // Should NOT be run from Incremental
 }
 
 def setStartTime(){
-    if(app.id == 2227) {
-        atomicState.start = now() + 5000
-        atomicState.stop = now() + 20000
-        return
-    }
+    //if(app.id == 2227) {
+    //    atomicState.start = now() + 5000
+    //    atomicState.stop = now() + 20000
+    //    return
+    //}
 // REMOVE THESE
 
     if(!settings['start_timeType']) return
