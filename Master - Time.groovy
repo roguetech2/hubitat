@@ -907,7 +907,7 @@ def initialize() {
     if(settings['start_sat']) settings['start_sat'] = parent.convertToInteger(settings['start_sat'])
     if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
 
-    putLog(902,'trace',app.label + ' initializing.')
+    putLog(910,'trace',app.label + ' initializing.')
     atomicState.logLevel = getLogLevel()
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     unschedule()
@@ -927,7 +927,7 @@ def initialize() {
     parent.checkAnyOnMulti(settings['device'],app.label) //Initialize device into Table; we don't need the value of if "any on"
 
     setStartSchedule()
-    putLog(922,'info',app.label + ' initialized.')
+    putLog(930,'info',app.label + ' initialized.')
     return true
 }
 
@@ -961,7 +961,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(950,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    putLog(964,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -984,7 +984,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(970,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    putLog(987,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1005,7 +1005,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(988,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(1088,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1020,9 +1020,8 @@ def setStartSchedule(){
     if(scheduleStart < now()) scheduleStart += parent.CONSTDayInMilli()
     timeMillis = scheduleStart - now()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
-    putLog(1027,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
+    putLog(1023,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
 
-    putLog(1011,'info',logMessage)
     return true
 }
 
@@ -1031,7 +1030,7 @@ def setStopSchedule(){
     timeMillis = atomicState.stop - now()
     if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
-    putLog(1027,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
+    putLog(1033,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
 
 }
 
@@ -1238,12 +1237,19 @@ def setTime(){      // Should NOT be run from Incremental
 }
 
 def setStartTime(){
+    if(app.id == 2227) {
+        atomicState.start = now() + 5000
+        atomicState.stop = now() + 20000
+        return
+    }
+// REMOVE THESE
+
     if(!settings['start_timeType']) return
     // Gets start time caught up to today 
     // But if start and stop time have passed today, setStopTime will fix it
     setTime = parent.setTimeAsIn24Hours(setStartStopTime('start'))  
     atomicState.start  = setTime
-    putLog(1152,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1252,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1258,7 +1264,7 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1167,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1267,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1301,7 +1307,7 @@ def getDevices(){
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1221,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1310,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
