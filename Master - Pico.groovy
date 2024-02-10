@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.1
+*  Version: 0.6.2.2
 *
 ***********************************************************************************************************************/
 
@@ -1063,7 +1063,7 @@ def buttonPushed(evt){
     switchActions.each { switchAction ->
         device = getControlDeviceFromButton(switchAction,buttonNumber)
         device.each{singleDevice->
-            stateMap = parent.getLevelMap(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
+            stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
             
             parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
             // need to get nextLevel here
