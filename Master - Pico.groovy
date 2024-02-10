@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.1
+*  Version: 0.6.1.1a
 *
 ***********************************************************************************************************************/
 
@@ -131,21 +131,18 @@ preferences {
                 section(){
                     displayNameOption()
                     displayPicoOption()
-                    if(numberOfButtons) {
-                        displayMultiDeviceOption()
-                        displayCustomActionsOption()
-                    }
+                    displayMultiDeviceOption()
+                    displayCustomActionsOption()
                     if(settings['device']) paragraph '<div style="background-color:BurlyWood"><b> Select what to do for each Pico action:</b></div>'
                 }
                 displayMultiDeviceAdvanced()
-                displayScheduleSection()
             }
             if(!settings['multiDevice'] || !settings['customActionsSetup']){
                 section(){
                     displayNameOption()
                     displayPicoOption()
-                    if(numberOfButtons) displayMultiDeviceOption()
-                    if(numberOfButtons && !settings['multiDevice']) {
+                    displayMultiDeviceOption()
+                    if(!settings['multiDevice']) {
                         if(controlDevice) displayCustomActionsOption()
                         displaySingleDevice()
                     }
@@ -165,6 +162,7 @@ preferences {
 def displaySingleDevice(){
     if(!numberOfButtons) return
     if(!controlDevice) return
+    if(settings['multiDevice']) return
 
     if(settings['customActionsSetup']) displaySingleDeviceAdvanced()
     if(!settings['customActionsSetup']) displaySingleDeviceSimple()
@@ -294,50 +292,42 @@ def displayMultiDeviceSimple(){
 def displayMultiDeviceAdvanced(){
     if(!settings['device']) return
     hidden = true
-    expandText = '(None selected - Click to expand)'
     if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_1_push_resume) {
         hidden = false
-        expandText = '(Click to expand/collapse)'
     }
 
-    section(hideable: true, hidden: hidden, 'Top button ("On") ' + expandText) {
+    section(hideable: true, hidden: hidden, 'Top button ("On")' + expandText) {
         buttonMap = ['on','off','resume','toggle','dim','brighten']
         displayMultiDeviceButtons(1,buttonMap)
     }
     //paragraph error
     if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
         hidden = true
-        expandText = 'None selected - Click to expand'
         if(button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_2_push_resume) {
             hidden = false
-            expandText = 'Click to expand/collapse'
         }
 
-        section(hideable: true, hidden: hidden, '"Brighten" Button (' + expandText + ')') {
+        section(hideable: true, hidden: hidden, '"Brighten" Button' + expandText) {
             buttonMap = ['brighten','dim','on','off','toggle','resume']
             displayMultiDeviceButtons(2,buttonMap)
         }
     }
     if(numberOfButtons == 5 && !error){
         hidden = true
-        expandText = 'None selected - Click to expand'
         if(button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_3_push_resume) {
             hidden = false
-            expandText = 'Click to expand/collapse'
         }
-        section(hideable: true, hidden: hidden, 'Middle Button (' + expandText + ')') {
+        section(hideable: true, hidden: hidden, 'Middle Button' + expandText) {
             buttonMap = ['toggle','resume','on','off','dim','brighten']
             displayMultiDeviceButtons(3,buttonMap)
         }
     }
     if((numberOfButtons == 4 || numberOfButtons == 5) && !error){
         hidden = true
-        expandText = 'None selected - Click to expand'
         if(button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_4_push_resume) {
             hidden = false
-            expandText = 'Click to expand/collapse'
         }
-        section(hideable: true, hidden: hidden, '"Dim" Button (' + expandText + ')') {
+        section(hideable: true, hidden: hidden, '"Dim" Button' + expandText) {
             buttonMap = ['dim','brighten','on','off','toggle','resume']
             displayMultiDeviceButtons(4,buttonMap)
         }
@@ -345,12 +335,10 @@ def displayMultiDeviceAdvanced(){
 
     if(!error){
         hidden = true
-        expandText = 'None selected - Click to expand'
         if(button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_5_push_resume) {
             hidden = false
-            expandText = 'Click to expand/collapse'
         }
-        section(hideable: true, hidden: hidden, 'Bottom Button ("Off") (' + expandText + ')') {
+        section(hideable: true, hidden: hidden, 'Bottom Button ("Off")' + expandText) {
             buttonMap = ['off','on','resume','toggle','dim','brighten']
             displayMultiDeviceButtons(5,buttonMap)
         }
@@ -369,48 +357,40 @@ def displayMultiDeviceAdvanced(){
 
         // Advanced Hold
         hidden = true
-        expandText = 'None selected - Click to expand'
         if(button_1_hold_on || !button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_1_hold_resume) {
             hidden = false
-            expandText = 'Click to expand/collapse'
         }
-        section(hideable: true, hidden: hidden, 'Top button ("On") (' + expandText + ')') {
+        section(hideable: true, hidden: hidden, 'Top button ("On")' + expandText) {
             buttonMap = ['on','off','resume','toggle','dim','brighten']
             displayMultiDeviceButtons(1,buttonMap,'hold')
         }
         if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
             hidden = true
-            expandText = 'None selected - Click to expand'
             if(button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_2_hold_resume) {
                 hidden = false
-                expandText = 'Click to expand/collapse'
             }
-            section(hideable: true, hidden: hidden, '"Brighten" Button (' + expandText + ')') {
+            section(hideable: true, hidden: hidden, '"Brighten" Button' + expandText) {
                 buttonMap = ['brighten','dim','on','off','resume','toggle']
                 displayMultiDeviceButtons(2,buttonMap,'hold')
             }
         }
         if(numberOfButtons == 5 && !error){
             hidden = true
-            expandText = 'None selected - Click to expand'
             if(button_3_hold_on || !button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_3_hold_resume) {
                 hidden = false
-                expandText = 'Click to expand/collapse'
             }
-            section(hideable: true, hidden: hidden, 'Middle Button (' + expandText + ')') {
+            section(hideable: true, hidden: hidden, 'Middle Button' + expandText) {
                 buttonMap = ['resume','toggle','on','off','dim','brighten']
                 displayMultiDeviceButtons(3,buttonMap,'hold')
             }
         }
         if((numberOfButtons == 4 || numberOfButtons == 5)  && !error){
             hidden = true
-            expandText = 'None selected - Click to expand'
             if(button_4_hold_on || !button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_4_hold_resume) {
                 hidden = false
-                expandText = 'Click to expand/collapse'
             }
 
-            section(hideable: true, hidden: hidden, '"Dim" Button (' + expandText + ')') {
+            section(hideable: true, hidden: hidden, '"Dim" Button' + expandText) {
                 buttonMap = ['dim','brighten','on','off','resume','toggle']
                 displayMultiDeviceButtons(4,buttonMap,'hold')
             }
@@ -418,12 +398,10 @@ def displayMultiDeviceAdvanced(){
 
         if(!error){
             hidden = true
-            expandText = 'None selected - Click to expand'
             if(button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle || button_5_hold_resume) {
                 hidden = false
-                expandText = 'Click to expand/collapse'
             }
-            section(hideable: true, hidden: hidden, 'Bottom Button ("Off") (' + expandText + ')') {
+            section(hideable: true, hidden: hidden, 'Bottom Button ("Off")' + expandText) {
                 buttonMap = ['off','resume','on','toggle','dim','brighten']
                 displayMultiDeviceButtons(5,buttonMap,'hold')
             }
@@ -529,6 +507,7 @@ def getButtonNumbers(){
 
 def displayCustomActionsOption(){
     if(!settings['device']) return 
+    if(!numberOfButtons) return
     fieldName = 'customActionsSetup'
     if(settings[fieldName]) fieldTitle = highlightText('Allowing custom button actions.') + ' Click to auto-set buttons.'
     if(!settings[fieldName]) fieldTitle = highlightText('Auto-setting buttons.') + ' Click to map buttons to other actions.'
@@ -536,6 +515,7 @@ def displayCustomActionsOption(){
 }
 
 def displayMultiDeviceOption(){
+    if(!numberOfButtons) return
     fieldName = 'multiDevice'
     if(settings[fieldName]){
         fieldTitle = highlightText('Buttons unique per device') + ' Click for buttons to do the same thing across all devices. (If only controlling one device, leave off.)'
@@ -1033,28 +1013,27 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1036,'trace', 'Installed')
+    putLog(1016,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1042,'trace','Updated')
+    putLog(1022,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    state.logLevel = getLogLevel()
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
-    subscribe(device, 'pushed', buttonPushed)
-    subscribe(device, 'held', buttonPushed)
-    subscribe(device, 'released', buttonReleased)
+    subscribe(settings['device'], 'pushed', buttonPushed)
+    subscribe(settings['device'],, 'held', buttonPushed)
+    subscribe(settings['device'],, 'released', buttonReleased)
 
     setTime()
 
-    putLog(1057,'trace','Initialized')
+    putLog(1036,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1077,7 +1056,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1080,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1059,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1096,7 +1075,7 @@ def buttonPushed(evt){
         if(atomicState.action == 'hold') holdNextLevelMulti(device,switchAction)
 
         if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
-        //if(device) putLog(1097,'trace','Turning ' + action + ' ' + device)
+        //if(device) putLog(1078,'trace','Turning ' + action + ' ' + device)
         device = ''
     }
     
@@ -1112,7 +1091,7 @@ def buttonReleased(evt){
     numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1115,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1094,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
@@ -1148,7 +1127,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1151,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1130,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1211,7 +1190,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1214,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1193,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1221,7 +1200,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1224,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1203,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
