@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.01
+*  Version: 0.4.1
 * 
 ***********************************************************************************************************************/
 
@@ -499,10 +499,15 @@ def buttonEvent(evt){
 def doActions(device,action){
     if(!device) return
     putLog(501,'trace','Set ' + device + ' as ' + action)
-    if(action == 'on') parent.buildStateMapMulti(device,'on',app.label)
-    if(action == 'off') parent.buildStateMapMulti(device,'off',app.label)
-    if(action == 'toggle') parent.buildStateMapMulti(device,'toggle',app.label)
-    if(action == 'brighten' || action == 'dim')  parent.updateTableNextLevelMulti(device, action, app.label)
+    
+    device.each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
+        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+        
+        level = parent._getNextLevelDimmable(singleDevice, action, app.label)
+        levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+    }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
     if(multiDevice) parent.setDeviceMulti(device,app.label)
 }
@@ -520,7 +525,7 @@ def doActions(device,action){
 def convertDriver(evt){
     
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(523,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(528,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
     //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
@@ -538,7 +543,7 @@ def convertDriver(evt){
     if(evt.name == 'release') atomicState.actionType = cubeActions[5]
     if(evt.name == 'hold') atomicState.actionType = cubeActions[6]
 
-    putLog(541,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
+    putLog(546,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
     atomicState.priorSide = evt.value
 }
 
