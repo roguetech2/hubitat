@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1
+*  Version: 0.4.11
 *
 ***********************************************************************************************************************/
 
@@ -533,7 +533,7 @@ def settingHiRezHue(multiDevice,childLabel = 'Master'){
 
 // Should (really must) be greater than CONSTDeviceActionDelayMillis * 4
 def CONSTScheduleActiveFrequencyMilli(childLabel = 'Master'){
-    return 2000        //CHANGE THIS
+    return 8000        //CHANGE THIS
 }
 
 def CONSTScheduleInactiveFrequencyMilli(childLabel = 'Master'){
@@ -907,7 +907,7 @@ def getStateMapSingle(singleDevice,action,appId,childLabel = 'Master'){
     if(atomicState?.'devices'?."${singleDevice.id}"?.'state' == action) return  // Do we care if it's another app?
     if(action == 'toggle'){
         action = 'on'
-        if(atomicState.'devices'?."${singleDevice.id}"?.'state' == 'on') action = 'off'
+        if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'on') action = 'off'
     }
     return ['state':['state':action,'time':now()]]
 }
