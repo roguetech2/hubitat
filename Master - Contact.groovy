@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.7.1
+*  Version: 0.7.11
 * 
 ***********************************************************************************************************************/
 
@@ -115,7 +115,6 @@ preferences {
 
             section(){
                 displayNameOption()
-            input 'pico', 'capability.pushableButton', title: 'Pico', multiple: true, submitOnChange:true
                 displayDevicesOption()
                 displayDevicesTypes()
                 displayOpenCloseDevicesOption()
