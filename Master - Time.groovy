@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.2
+*  Version: 0.7.1.3
 *
 ***********************************************************************************************************************/
 
@@ -158,7 +158,7 @@ def formComplete(){
 def validateLevels(type){
     if(!parent.validateLevel(settings[type + '_brightness'])) return false
     if(!parent.validateTemp(settings[type + '_temp'])) return false
-    if(!parent.validateHue(settings[type + '_hue'],hiRezHue)) return false
+    if(!parent.validateHue(settings[type + '_hue'])) return false
     if(!parent.validateSat(settings[type + '_sat'])) return false
     return true
 }
@@ -169,8 +169,8 @@ def validateColor(){
     if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) return false
     if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) return false
     if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
-    if(!parent.validateHue(settings['start_hue'],hiRezHue)) return false
-    if(!parent.validateHue(settings['stop_hue'],hiRezHue)) return false
+    if(!parent.validateHue(settings['start_hue'])) return false
+    if(!parent.validateHue(settings['stop_hue'])) return false
     if(!parent.validateSat(settings['start_sat'])) return false
     if(!parent.validateSat(settings['stop_sat'])) return false
     return true
@@ -575,8 +575,7 @@ def displayLevelsField(levelType, startType){
     
     fieldName = startType + '_' + levelType
     unitString = ''
-    if(levelType == 'hue' && parent.settingHiRezHue()) unitString = ' (in degrees)'
-    if(levelType == 'hue' && !parent.settingHiRezHue()) unitString = ' (in percent)'
+    if(levelType == 'hue') unitString = ' (in 360 degrees)'
     fieldTitle = 'Set ' + typeString + ' at start' + unitString + ':'
     if(startType == 'stop') fieldTitle = 'Transition to ' + typeString + ' at stop:'
     fieldWidth = 12
@@ -630,7 +629,7 @@ def displayColorOption(){
     if(!settings['start_action']) return
     if(settings['start_action'] == 'off') return
 
-    typeUnit = parent.settingHiRezHue() ? '°' : '%'
+    typeUnit = '°'
 
     hidden = true
     if(!validateColor()) hidden = false
@@ -641,11 +640,9 @@ def displayColorOption(){
 
     section(hideable: true, hidden: hidden, getColorTitle()){
     
-        if(!parent.validateHue(settings['start_hue'],hiRezHue) && typeUnit == '%') displayError('Start hue must be from 1 to 100. Correct start hue.')
-        if(!parent.validateHue(settings['start_hue'],hiRezHue) && typeUnit == '°') displayError('Start hue must be from 1 to 360. Correct start hue.')
+        if(!parent.validateHue(settings['start_hue'])) displayError('Start hue must be from 1 to 360. Correct start hue.')
         if(!parent.validateSat(settings['start_sat'])) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
-        if(!parent.validateHue(settings['stop_hue'],hiRezHue) && typeUnit == '%') displayError('Stop hue must be from 1 to 100. Correct stop hue.')
-        if(!parent.validateHue(settings['stop_hue'],hiRezHue) && typeUnit == '°') displayError('Stop hue must be from 1 to 360. Correct stop hue.')
+        if(!parent.validateHue(settings['stop_hue'])) displayError('Stop hue must be from 1 to 360. Correct stop hue.')
         if(!parent.validateSat(settings['stop_sat'])) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
         
         if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) displayWarning('Starting and ending hue are both set to ' + settings['start_hue'] + '. This won\'t hurt anything, but the Stop hue setting won\'t actually <i>do</i> anything.')
@@ -656,18 +653,15 @@ def displayColorOption(){
         displayHueDirection()
         
         if(settings['start_hue'] && settings['stop_hue']){
-            if(hiRezHue && settings['hueDirection']) message = 'Red = 0 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional.'
-            if(!hiRezHue && settings['hueDirection']) message = 'Red = 0 hue (and 100). Orange = 8; yellow = 16; green = 33; turquiose = 50; blue = 66; purple = 79 (may vary by device). Optional.'
-            if(hiRezHue && !settings['hueDirection']) message = 'Red = 0 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). It will transition from starting to ending hue for the duration of the schedule. For "order", if for instance, a start value of 1 and stop value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green. Optional.'
-            if(!hiRezHue && !settings['hueDirection']) message = 'Red = 0 hue (and 100). Orange = 8; yellow = 16; green = 33; turquiose = 50; blue = 66; purple = 79 (may vary by device). It will transition from starting to ending hue for the duration of the schedule. For "order", if for instance, a start value of 1 and stop value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green. Optional.'
+            if(settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional.'
+            if(!settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). It will transition from starting to ending hue for the duration of the schedule. For "order", if for instance, a start value of 1 and stop value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green. Optional.'
         }
         if(!settings['start_hue'] || !settings['stop_hue']){
-            message = 'Hue is percent from 0 to 100 around a color wheel, where red is 0 (and 100). Orange = 8; yellow = 16; green = 33; turquiose = 50; blue = 66; purple = 79 (may vary by device).'
-            if(hiRezHue) message = 'Hue is degrees from 0 to 360 around a color wheel, where red is 0 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
+            message = 'Hue is degrees from 1 to 360 around a color wheel, where red is 1 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
             if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
             message += ' Optional.'
         }
-        if(parent.validateHue(settings['start_hue'],hiRezHue) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue'],hiRezHue) && parent.validateSat(settings['stop_sat'])){
+        if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
             displayInfo(message)
         } else {
             displayError(message)
@@ -676,7 +670,7 @@ def displayColorOption(){
         displayLevelsField('sat', 'stop')
 
         if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
-        if(!settings['start_hue'] || !settings['stop_hue']){
+        if(!settings['start_sat'] || !settings['stop_sat']){
             message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
             if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
             message += ' Optional.'
@@ -689,21 +683,13 @@ def displayHueDirection(){
     if(!settings['start_hue']) return
     if(!settings['stop_hue']) return
 
-    if(parent.settingHiRezHue() && settings['start_hue'] < settings['stop_hue']){
+    if(settings['start_hue'] < settings['stop_hue']){
         forwardSequence = '90, 91, 92  ... 270, 271, 272'
         reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
     }
-    if(parent.settingHiRezHue() && settings['start_hue'] > settings['stop_hue']){
+    if(settings['start_hue'] > settings['stop_hue']){
         forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
         reverseSequence = '270, 269, 268 ... 75, 74, 73'
-    }
-    if(!parent.settingHiRezHue() && settings['start_hue'] < settings['stop_hue']){
-        forwardSequence = '25, 26, 27  ... 73, 74, 75'
-        reverseSequence = '25, 24, 23 ... 2, 1, 100, 99 ... 77, 76, 75'
-    }
-    if(!parent.settingHiRezHue() && settings['start_hue'] > settings['stop_hue']){
-        forwardSequence = '75, 76, 77 ... 99, 100, 1, 2 ... 23, 24, 25'
-        reverseSequence = '75, 74, 73 ... 27, 26, 25'
     }
 
     fieldName = 'hueDirection'
@@ -716,7 +702,7 @@ def displayHueDirection(){
 
 def getColorTitle(){
     if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat'])  return 'Click to set color (hue and/or saturation) (optional)'
-    typeUnit = parent.settingHiRezHue() ? '°' : '%'
+    typeUnit = '°'
     sectionTitle = ''
     
     if(settings['start_hue'] && !settings['stop_hue']) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + typeUnit + '</b>'
@@ -907,7 +893,7 @@ def initialize() {
     if(settings['start_sat']) settings['start_sat'] = parent.convertToInteger(settings['start_sat'])
     if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
 
-    putLog(910,'trace',app.label + ' initializing.')
+    putLog(896,'trace',app.label + ' initializing.')
     atomicState.logLevel = getLogLevel()
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     unschedule()
@@ -927,7 +913,7 @@ def initialize() {
     parent.checkAnyOnMulti(settings['device'],app.label) //Initialize device into Table; we don't need the value of if "any on"
 
     setStartSchedule()
-    putLog(930,'info',app.label + ' initialized.')
+    putLog(916,'info',app.label + ' initialized.')
     return true
 }
 
@@ -961,7 +947,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(964,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    putLog(950,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -984,7 +970,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(987,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    putLog(973,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1005,7 +991,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(1008,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(994,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1020,7 +1006,7 @@ def setStartSchedule(){
     if(scheduleStart < now()) scheduleStart += parent.CONSTDayInMilli()
     timeMillis = scheduleStart - now()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
-    putLog(1023,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
+    putLog(1009,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
 
     return true
 }
@@ -1030,7 +1016,7 @@ def setStopSchedule(){
     timeMillis = atomicState.stop - now()
     if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
-    putLog(1033,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
+    putLog(1019,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
 
 }
 
@@ -1256,7 +1242,7 @@ def setStartTime(){
     // But if start and stop time have passed today, setStopTime will fix it
     setTime = parent.setTimeAsIn24Hours(setStartStopTime('start'))  
     atomicState.start  = setTime
-    putLog(1259,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1245,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1271,7 +1257,7 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1274,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1260,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1314,7 +1300,7 @@ def getDevices(){
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1317,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1303,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
