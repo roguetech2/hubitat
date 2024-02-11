@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.3
+*  Version: 0.4.1.4
 *
 ***********************************************************************************************************************/
 
@@ -348,13 +348,12 @@ def validateTemp(value, childLabel='Master'){
 
 
 // Returns true if temp value is either valid or null
-def validateHue(value, hiRezHue, childLabel='Master'){
+def validateHue(value, childLabel='Master'){
     if(!value) return true
     value = value as int
     if(value < 1) return false
 
-    if(hiRezHue && value > 360) return false
-    if(!hiRezHue && value > 100) return false
+    if(value > 360) return false
     return true
 }
 
@@ -365,14 +364,6 @@ def validateSat(value, childLabel='Master'){
         if(value < 1) return false
         if(value > 100) return false
         return true
-}
-
-// Returns true if neither hue nor sat are invalid
-// Returns true if both are null values
-def validateHueSat(hue,sat, childLabel='Master'){
-    if(hue && (hue < 1 || hue > 100)) return
-    if(sat && (sat < 1 || sat > 100)) return
-    return true
 }
 
 def validateMultiplier(value, childLabel='Master'){
