@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.5
+*  Version: 0.7.1.6
 *
 ***********************************************************************************************************************/
 
@@ -919,7 +919,6 @@ def initialize() {
 }
 
 def handleStateChange(event){
-    return
     parent.updateTableCapturedState(event.device,event.value,app.label)
 }
 
@@ -948,7 +947,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(951,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    putLog(950,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -971,7 +970,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(974,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    putLog(973,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1010,7 +1009,7 @@ def setStartSchedule(){
     }
     timeMillis = scheduleStart - now()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
-    putLog(1013,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
+    putLog(1012,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
 
     return true
 }
@@ -1020,7 +1019,7 @@ def setStopSchedule(){
     timeMillis = atomicState.stop - now()
     if(timeMillis < 0) timeMillis = atomicState.stop + parent.CONSTDayInMilli() - now() // If timeMillis is in the past, just exit?
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
-    putLog(1023,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
+    putLog(1022,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
 
 }
 
@@ -1079,36 +1078,31 @@ def runDailyStopSchedule(){
     if(!atomicState.stop) return
     if(atomicState.disabled) return
     unschedule(runIncrementalSchedule)
-
+    
     brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label) // Should check if any level changes?
     tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
     hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label) // Do hiRezHue
     satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
         
     settings['device'].each{singleDevice->
-        stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
-//strictly speaking, doesn't need WithoutPreserve, but that should be a bit more efficient?
-//If no other apps need it, maybe deprecate it
-        parent.mergeMapToTableWithoutPreserve(singleDevice,stateMap,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,brightnessMap,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,tempMap,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,hueMap,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,satMap,app.label)
-    }
-
-    parent.setDeviceMulti(settings['device'],app.label)
-    
-//make these all one function, unless we need individuals in other apps (maybe just 'state'?)
-// removing keys will muck up the "manual change" capture process
-// maybe change it so the key only has currentLevel, time and appId?
-    settings['device'].each{singleDevice->
         parent.clearTableKey(singleDevice,'state',app.id,app.label)
         parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
         parent.clearTableKey(singleDevice,'temp',app.id,app.label)
         parent.clearTableKey(singleDevice,'hue',app.id,app.label)
         parent.clearTableKey(singleDevice,'sat',app.id,app.label)
+        
+        stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
+//strictly speaking, doesn't need WithoutPreserve, but that should be a bit more efficient?
+//If no other apps need it, maybe deprecate it
+        parent.mergeMapToTableWithoutPreserve(singleDevice,stateMap,app.id,app.label)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,brightnessMap,app.id,app.label)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,tempMap,app.id,app.label)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,hueMap,app.id,app.label)
+        parent.mergeMapToTableWithoutPreserve(singleDevice,satMap,app.id,app.label)
     }
 
+    parent.setDeviceMulti(settings['device'],app.label)
+    
     atomicState.stop += parent.CONSTDayInMilli()
     newTime = atomicState.stop - now()
     parent.scheduleChildEvent(newTime,'','runDailyStopSchedule','',app.id)
@@ -1118,14 +1112,11 @@ def runDailyStopSchedule(){
 def runIncrementalSchedule(){
     if(!atomicState.start) return
     if(!atomicState.stop) return
+    if(atomicState.stop < now()) return
+    
+    if(atomicState.start < atomicState.stop) scheduleFrequency = Math.round(Math.abs(atomicState.stop - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+    if(atomicState.start > atomicState.stop) scheduleFrequency = Math.round(Math.abs((atomicState.stop + parent.CONSTDayInMilli()) - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
 
-    if(atomicState.stop < now()) return       // Shouldn't be neccesary; uncommented for testing
-    if(atomicState.start < atomicState.stop){
-        scheduleFrequency = Math.round(Math.abs(atomicState.stop - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
-    }
-    if(atomicState.start > atomicState.stop){
-        scheduleFrequency = Math.round(Math.abs((atomicState.stop + parent.CONSTDayInMilli()) - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
-    }
     timeMillis = scheduleFrequency
     if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumInactiveFrequencyMilli()
 
@@ -1161,7 +1152,7 @@ def runIncrementalSchedule(){
         if(deviceChangedAny) activateScheduleFromManualOverride = true
     }
     
-    if(deviceChangedAny)  parent.setDeviceMulti(settings['device'],app.label)
+    if(deviceChangedAny) parent.setDeviceMulti(settings['device'],app.label)
 
     if(activateScheduleFromManualOverride) {
         if(scheduleFrequency < parent.CONSTScheduleMinimumActiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumActiveFrequencyMilli()
@@ -1232,7 +1223,7 @@ def setStartTime(){
         setTime += parent.CONSTDayInMilli()
     }
     atomicState.start  = setTime
-    putLog(1235,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1226,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1248,7 +1239,7 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1251,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1242,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1294,7 +1285,7 @@ def getDevices(){
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1297,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1288,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
