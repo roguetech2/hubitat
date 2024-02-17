@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.6
+*  Version: 0.7.1.7
 *
 ***********************************************************************************************************************/
 
@@ -991,7 +991,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(995,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(994,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1043,10 +1043,10 @@ def runDailyStartSchedule(){
     }
 
     atomicState.startDisabled = false
-    brightnessMap = getScheduleMap('brightness')
-    tempMap = getScheduleMap('temp')
-    hueMap = getScheduleMap('hue')
-    satMap = getScheduleMap('sat')
+    brightnessMap = getScheduleMap('brightness',settings['start_brightness'])
+    tempMap = getScheduleMap('temp',settings['start_temp'])
+    hueMap = getScheduleMap('hue',settings['start_hue'])
+    satMap = getScheduleMap('sat',settings['start_sat'])
 
     if(atomicState.start && atomicState.stop){
         if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
@@ -1057,7 +1057,6 @@ def runDailyStartSchedule(){
 
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
-        
         parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
         parent.mergeMapToTableWithPreserve(singleDevice,brightnessMap,app.label)
         parent.mergeMapToTableWithPreserve(singleDevice,tempMap,app.label)
@@ -1092,13 +1091,11 @@ def runDailyStopSchedule(){
         parent.clearTableKey(singleDevice,'sat',app.id,app.label)
         
         stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
-//strictly speaking, doesn't need WithoutPreserve, but that should be a bit more efficient?
-//If no other apps need it, maybe deprecate it
-        parent.mergeMapToTableWithoutPreserve(singleDevice,stateMap,app.id,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,brightnessMap,app.id,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,tempMap,app.id,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,hueMap,app.id,app.label)
-        parent.mergeMapToTableWithoutPreserve(singleDevice,satMap,app.id,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,brightnessMap,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,tempMap,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,hueMap,app.label)
+        parent.mergeMapToTableWithPreserve(singleDevice,satMap,app.label)
     }
 
     parent.setDeviceMulti(settings['device'],app.label)
@@ -1143,7 +1140,7 @@ def runIncrementalSchedule(){
         hueMap = parent.getLevelMap('hue',newLevel,app.id,app.label)
         parent.mergeMapToTableWithPreserve(singleDevice,hueMap)
         if(hueMap) deviceChangedAny = true
-        
+
         newLevel = parent.getIncrementalLevelSingle(singleDevice,'sat',app.label)
         satMap = parent.getLevelMap('sat',newLevel,app.id,app.label)
         parent.mergeMapToTableWithPreserve(singleDevice,satMap)
@@ -1175,20 +1172,16 @@ def subscribeDevices(){
 
 
 // type expects 'brightness', 'temp', 'hue', 'sat'
-def getScheduleMap(type){
+def getScheduleMap(type,level){
     if(!atomicState.start) return
     if(!settings['start_' + type]) return
 
-    scheduleMap = [:]
-    scheduleMap."${type}" = [:]
+    scheduleMap =  parent.getLevelMap(type,level,app.id,app.label)
     scheduleMap."${type}".'startLevel' = settings['start_' + type]
     if(settings['stop_' + type]) scheduleMap."${type}".'stopLevel' = settings['stop_' + type]
-    scheduleMap."${type}".'appId' = app.id
-    scheduleMap."${type}".'appType' = 'time'
-    scheduleMap."${type}".'currentLevel' = settings['start_' + type]
     if(atomicState.stop) scheduleMap."${type}".'startTime' = atomicState.start
     if(atomicState.stop) scheduleMap."${type}".'stopTime' = atomicState.stop
-    if(type == 'hue') scheduleMap."${type}".'hueDirection' = hueDirection
+    if(type == 'hue' && settings['hueDirection']) scheduleMap."${type}".'hueDirection' = settings['hueDirection']
     return scheduleMap
 }
 
@@ -1223,7 +1216,7 @@ def setStartTime(){
         setTime += parent.CONSTDayInMilli()
     }
     atomicState.start  = setTime
-    putLog(1226,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1219,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1239,7 +1232,7 @@ def setStopTime(){
         atomicState.start += parent.CONSTDayInMilli()
     }
     atomicState.stop  = setTime
-    putLog(1242,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1235,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1285,7 +1278,7 @@ def getDevices(){
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1288,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1281,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
