@@ -11,29 +11,22 @@
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 *  <http://www.gnu.org/licenses/> for more details.
 *
-*  Name: Master
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.9
-*
-***********************************************************************************************************************/
-
-/***********************************************************************************************************************
-*
-*  Speech device is set as "speechSynthesis". The device capability must be set in the driver, or change this to
-*  "voice".
+*  Name: Master - Time
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
+*  Version: 0.7.1.8
 *
 ***********************************************************************************************************************/
 
 definition(
-    name: 'Master',
+    name: 'Master - Time',
     namespace: 'master',
-    singleInstance: true,
     author: 'roguetech',
-    description: 'Parent app for automation suite',
+    description: 'Schedules, times and default settings',
+    parent: 'master:Master',
     category: 'Convenience',
-    importUrl: 'https://raw.githubusercontent.com/roguetech2/hubitat/master/Master.groovy',
-    iconUrl: 'http://cdn.device-icons.smartthings.com/home2-icn@2x.png',
-    iconX2Url: 'http://cdn.device-icons.smartthings.com/home2-icn@2x.png'
+    importUrl: 'https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20Time.groovy',
+    iconUrl: 'http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png',
+    iconX2Url: 'http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png'
 )
 
 infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
@@ -91,1157 +84,1215 @@ def addFieldName(text,fieldName){
 }
 
 preferences {
-    page(name: 'mainPage')
-}
+    infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
+    errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
+    warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
+    moreOptions = ' (click for more options)'
+    expandText = ' (Click to expand/collapse)'
 
-def mainPage() {
-    
-    return dynamicPage(name: 'mainPage', title: '', install: true, uninstall: true) {
-        if(!atomicState.masterInstalled) {
-            section('Click Done.') {
+    install = formComplete()
+    page(name: 'setup', install: install, uninstall: true) {
+        if(!app.label){
+            section(){
+                displayNameOption()
             }
-
         } else {
-            if(presenceDevice || pushNotificationDevice || speechDevice || hiRezHue || colorStaging) hidden = true
-            title = 'Device Settings'
-            if(hidden && (!presenceDevice || !pushNotificationDevice || !speechDevice)) title += moreOptions
-                section(hideable: true, hidden: hidden, title) {
-                    input 'presenceDevice', 'capability.presenceSensor', title: 'Select all people:', multiple: true, required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
-                    input 'pushNotificationDevice', 'capability.notification', title: 'Select push notification device(s):', multiple: true, required: false, submitOnChange:true
+            if(!settings) settings = [:]
 
-                    input 'speechDevice', 'capability.speechSynthesis', title: 'Select text-to-speech notification device(s):', multiple: true, required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
-                    input name: 'hiRezHue', type: 'bool', title: 'Enable Hue in degrees (0-360)', defaultValue: false, submitOnChange:true
-                    displayInfo('Select if light devices have been set to degrees. Leave unselected by default, but failure to match device settings may result in hue settings not working correctly.')
-                    input name: 'colorStaging', type: 'bool', title: 'Enable color pre-staging', defaultValue: false, submitOnChange:true
-                    displayInfo('Select if light devices have been set for color pre-staging. This allows the color of lights to be set prior to turning on, but this app can handle that internally. Leave unselected by default, but failure to match device settings may result in devices not turning on correctly.')
-                    
-                }
-            section(){}
+            deviceCount = getDeviceCount(device)
+            peopleError = compareDeviceLists(personHome,personNotHome)
+            plainStartAction = getPlainAction(settings['start_action'])
+            plainStopAction = getPlainAction(settings['stop_action'])
+            pluralDevice = getDevicePlural()
 
-                    /*
-// Used for flash-alerts; nothing else
-input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
-paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
-*/
-
-
-                }
-                /* ********************************************* */
-                /* TO-DO: Finish BDay code. Not complete.        */
-                /* Try to move it to child app, using this code: */
-                /* https://community.hubitat.com/t/parent-function-to-return-settings-state-data-to-child-app/2261/3 */
-                /* ********************************************* */
-                /*
-if(notificationDevice && people){
-section(""){
-def i = 0
-people.each{
-i++
-paragraph "<div style=\"background-color:BurlyWood\"><b> Sing Happy Birthday for $it:</b></div>"
-if(i == 1) paragraph "This sets Google Home to sing Happy Birthday on the individual's birthday between the times entered, a few minutes after they (or a few minutes after the start time, if they're already home). It can be set to wait for everyone to be home before singing."
-if(!settings["happyBDay$i"]){
-input "happyBDay${i}", "bool", title: "Do not sing Happy Birthday for $it? Click to sing.", submitOnChange:true
-} else {
-input "happyBDay${i}", "bool", title: "Sing Happy Birthday for $it? Click to not sing.", submitOnChange:true
-}
-if(settings["happyBDay$i"]){
-input "dateBDay${i}", "date", title: "Enter birthday date for $it."
-if(!settings["bDayEveryone$i"]){
-input "bDayEveryone${i}", "bool", title: "Sing regardless of who else is home. Click to only sing with everyone.", submitOnChange:true
-} else {
-input "bDayEveryone${i}", "bool", title: "Only sing when everyone is home. Click to sing regardless who's home.", submitOnChange:true
-}
-input "timeStart", "time", title: "Only sing between start time", required: true, width: 6, submitOnChange:true
-input "timeStop", "time", title: "and stop time", required: true, width: 6, submitOnChange:true
-}
-}
-
-}
-}
-*/
-
-        scheduleCount = 0
-        presenceCount = 0
-        picoCount = 0
-        magicCubeCount = 0
-        contactCount = 0
-        humidityCount = 0
-        childApps.each {Child->
-            if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Time - ') {
-                scheduleCount++
-                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Presence - ') {
-                presenceCount++
-                    } else if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Pico - ') {
-                picoCount++
-                    } else if(Child.label.length() > 11 && Child.label.substring(0,12) == 'MagicCube - ') {
-                magicCubeCount++
-                    } else if(Child.label.length() > 9 && Child.label.substring(0,10) == 'Contact - ') {
-                contactCount++
-                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Humidity - ') {
-                humidityCount++
-                    }
+            peopleError = compareDeviceLists(personHome,personNotHome)
+            
+            section(){
+                displayNameOption()
+                displayDevicesTypes()
+                displayDevicesOption()
+                displayDisableOption()
+            }
+            
+            displayScheduleSection()
+            displayActionOption()
+            displayLevelsOption('brightness')
+            displayLevelsOption('temp')
+            displayColorOption()
+            displayChangeModeOption()
+            displayPeopleOption()
+            displayIfModeOption()
         }
-
-                title = 'Click to add '
-                if(scheduleCount == 0) {
-                    title += 'a <b>schedule</b>'
-                } else {
-                    title += "or edit <b>schedules</b> ($scheduleCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Time', namespace: 'master', title: 'New Schedule', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(presenceCount == 0) {
-                    title += 'a <b>presence</b> setting'
-                } else {
-                    title += "or edit <b>presence</b> settings ($presenceCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Presence', namespace: 'master', title: 'New Presence', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(picoCount == 0) {
-                    title += 'a <b>Pico</b>'
-                } else {
-                    title += "or edit <b>Picos</b> ($picoCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Pico', namespace: 'master', title: 'New Pico', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(magicCubeCount == 0) {
-                    title += 'a <b>MagicCube</b>'
-                } else {
-                    title += "or edit <b>MagicCubes</b> ($magicCubeCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - MagicCube', namespace: 'master', title: 'New MagicCube', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(contactCount == 0) {
-                    title += 'a <b>contact/door sensor</b>'
-                } else {
-                    title += "or edit <b>contact/door sensors</b> ($contactCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Contact', namespace: 'master', title: 'New Contact Sensor', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(humidityCount == 0) {
-                    title += 'a <b>humidity sensor</b>'
-                } else {
-                    title += "or edit <b>humidity sensors</b> ($humidityCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Humidity', namespace: 'master', title: 'New Humidity Sensor', multiple: true)
-                }
-
     }
 }
 
+/* ************************************************** */
+/* TO-DO: Test for schedule spanning two days, but    */
+/* scheduled for specific days;                       */
+/* Warn that progressive changes may not work as      */
+/* intended, and will not turn off on a non-scheduled */
+/* day.                                               */
+/* ************************************************** */
+/* ************************************************** */
+/* TO-DO: Add warning for if time span is small and   */
+/* changes are large, where change will not be        */
+/* smooth.                                            */
+/* ************************************************** */
+
+
+// Display functions
+def formComplete(){
+    if(!app.label) return false
+    if(!settings['device']) return false
+    if(!settings['start_action']) return false
+    if(!settings['stop_action'] && settings['stop_timeType'] != 'none') return false
+    if(!validateTimes('start')) return false
+    if(!validateTimes('stop')) return false
+    if(!validateLevels('start')) return false
+    if(!validateLevels('stop')) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(compareDeviceLists(personHome,personNotHome)) return false
+    return true
+}
+
+def validateLevels(type){
+    if(!parent.validateLevel(settings[type + '_brightness'])) return false
+    if(!parent.validateTemp(settings[type + '_temp'])) return false
+    if(!parent.validateHue(settings[type + '_hue'])) return false
+    if(!parent.validateSat(settings[type + '_sat'])) return false
+    return true
+}
+
+def validateColor(){
+    if(!settings['start_hue'] && settings['stop_hue']) return false
+    if(!settings['start_sat'] && settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) return false
+    if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(!parent.validateHue(settings['start_hue'])) return false
+    if(!parent.validateHue(settings['stop_hue'])) return false
+    if(!parent.validateSat(settings['start_sat'])) return false
+    if(!parent.validateSat(settings['stop_sat'])) return false
+    return true
+}
+
+// Display functions
+def getDeviceCount(device){
+    if(!device) return 0
+    return device.size()
+}
+
+def getDevicePlural(){
+    if(!deviceCount) {
+        if(settings['deviceType'] == 'lock') return 'lock(s)'
+        if(settings['deviceType'] == 'light') return 'light(s)'
+        if(settings['deviceType'] == 'switch') return 'switch(es)'
+        if(settings['deviceType'] == 'fan') return 'fan(s)'
+    }
+    
+    if(deviceCount > 1) {
+        if(settings['deviceType'] == 'lock') return 'locks'
+        if(settings['deviceType'] == 'light') return 'lights'
+        if(settings['deviceType'] == 'switch') return 'switches'
+        if(settings['deviceType'] == 'fan') return 'fans'
+    }
+
+    if(settings['deviceType'] == 'lock') return 'lock'
+    if(settings['deviceType'] == 'light') return 'light'
+    if(settings['deviceType'] == 'switch') return 'switch'
+    if(settings['deviceType'] == 'fan') return 'fan'
+}
+
+def displayNameOption(){
+    labelText = 'Schedule name'
+    labelWidth = 2
+    if(!app.label) {
+        labelText = 'Set name for this schedule'
+        labelWidth = 10
+    }
+    displayLabel(labelText,labelWidth)
+    if(app.label) label title: '', required: false, width: labelWidth,submitOnChange:true
+    if(!app.label) {
+        label title: '', required: false, width: labelWidth, submitOnChange:true
+        displayInfo('Name this schedule. Each schedule must have a unique name.')
+    }
+}
+
+def displayDevicesTypes(){
+    fieldName = 'deviceType'
+    
+    deviceText = 'device(s)'
+    if(deviceCount == 1) deviceText = 'device'
+    if(deviceCount && deviceCount > 1) deviceText = 'devices'
+    fieldTitle = 'Type of ' + deviceText + ' to schedule:'
+    if(!settings[fieldName]) fieldTitle = highlightText('Which type of ' + deviceText + ' to schedule (click to select one)?')
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    
+    input fieldName, 'enum', title: fieldTitle, options: ['lock': 'Lock(s)','light': 'Light(s)', 'switch': 'Switch(es)', 'fan': 'Fan(s)'], multiple: false, submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Light(s) allows selecting dimmable switches. Switch(es) include all lights (and fans).')
+}
+
+def displayDevicesOption(){
+    if(!settings['deviceType']) return
+
+    capability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'light') capability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'fan') capability = 'capability.fanControl'
+    if(settings['deviceType'] == 'lock') capability = 'capability.lock'
+
+    fieldName = 'device'
+    fieldTitle = pluralDevice.capitalize() + ' to schedule (click to select)?'
+    if(settings[fieldName]) fieldTitle = pluralDevice.capitalize() + ' being scheduled:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldCapability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'light') fieldCapability = 'capability.switchLevel'
+    if(settings['deviceType'] == 'fan') fieldCapability = 'capability.fanControl'
+    if(settings['deviceType'] == 'lock') fieldCapability = 'capability.lock'
+    input fieldName, fieldCapability, title: fieldTitle, multiple: true, submitOnChange:true
+}
+
+def displayDisableOption(){
+    if(!install) return
+    fieldName = 'disable'
+    fieldTitle = fieldTitle = 'This schedule is disabled. Reenable it?'
+    if(!settings[fieldName]) fieldTitle = 'This schedule is enabled. Disable it?'
+    if(settings[fieldName]) displayError(fieldTitle,'True')
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
+}
+
+def validateTimes(type){
+    if(!settings[type + '_timeType']) return false
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return true
+    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
+    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
+    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
+    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
+    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(!validateSunriseMinutes(type)) return false
+    return true
+}
+
+def validateSunriseMinutes(type){
+    if(!settings[type + '_sunOffset']) return true
+    if(settings[type + '_sunOffset'] > 719) return false
+    return true
+}
+
+def displayScheduleSection(){
+// Add dislaimer that schedules started will end, even if disabled?
+    if(!settings['device']) return
+    
+    List dayList=[]
+    settings['days'].each{
+        dayList.add(it)
+    }
+    dayText = dayList.join(', ')
+    List monthList=[]
+    settings['months'].each{
+        monthList.add(Date.parse('MM',it).format('MMMM'))
+
+    }
+    monthText = monthList.join(', ')
+    hidden = true
+
+    if(!settings['stop_timeType']) hidden = false
+    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(settings['disable']) hidden = true
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
+
+    section(hideable: true, hidden: hidden, getTimeSectionTitle()){
+        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+
+        displayTypeOption('start')
+        displayTimeOption('start')
+        displaySunriseTypeOption('start')
+        displayTypeOption('stop')
+        displayTimeOption('stop')
+        displaySunriseTypeOption('stop')
+        displayDaysOption()
+        displayMonthsOption()
+    }
+}
+
+def getTimeSectionTitle(){
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
+
+    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
+    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
+    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
+        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
+        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
+        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
+        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
+    }
+
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
+    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
+    if(settings['start_timeType']) sectionTitle += '</b>'
+    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
+    
+    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
+
+    sectionTitle += '</br>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
+    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
+    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
+        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
+        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
+        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+    }
+
+    if(settings['start_timeType']) return sectionTitle + '</b>'
+}
+
+def displayTypeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    
+    labelText = 'Schedule ' + type
+    if(validateTimes('start')) labelText = ''
+    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
+    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    
+    if(labelText) displayLabel(labelText)
+
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    
+    fieldName = type + '_timeType'
+    fieldTitle = type.capitalize() + ' time option:'
+    if(!settings[type + '_timeType']){
+        fieldTitle = type.capitalize() + ' time?'
+        if(type == 'stop') fieldTitle += ' (Select "Don\'t stop" for none)'
+        highlightText(fieldTitle)
+    }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
+}
+
+def displayTimeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] != 'time') return
+    
+    fieldName = type + '_time'
+    fieldTitle = type.capitalize() + ' time:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+}
+
+def getTypeOptionWidth(type){
+    if(!settings[type + '_timeType']) return 12
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
+    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    return 6
+}
+
+def displaySunriseTypeOption(type){
+    if(!settings[type + '_timeType']) return
+    if(settings[type + '_timeType'] == 'time') return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    
+    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
+
+    fieldName = type + '_sunType'
+    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    
+    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    displaySunriseOffsetOption(type)
+}
+
+def getSunriseTime(type,sunOffset,sunriseType){
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+}
+
+def displaySunriseOffsetOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_sunType'] == 'at') return
+
+    fieldName = type + '_sunOffset'
+    fieldTitle = 'Minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    
+    message = 'Enter the number of minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
+    if(!settings[type + '_sunOffset']) displayInfo(message)
+    if(!validateSunriseMinutes(type)) displayWarning(message)
+}
+
+def displayDaysOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'days'
+    fieldTitle = 'On these days (optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+}
+
+def displayMonthsOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    
+    fieldName = 'months'
+    fieldTitle = 'In these months (optional; defaults to all months):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+}
+
+def displayActionOption(){
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+
+    hidden = true
+    if(!settings['start_action']) hidden = false
+    if(!settings['stop_action']) hidden = false
+    if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) hidden = true
+
+    section(hideable: true, hidden: hidden, getActionSectionTitle()){
+        displayActionField('start')
+        displayActionField('stop')
+    }
+}
+
+def getActionSectionTitle(){
+    if(!settings['start_action'] && !settings['stop_action']) return '<b>Click to set ' + pluralDevice.capitalize() + ' control<b>'
+    if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) return 'Doing nothing'
+    sectionTitle = ''
+    if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainStartAction.capitalize() + '</b>'
+    if(!settings['stop_action']) return sectionTitle
+    if(settings['stop_action']) sectionTitle += '<br><b>When stopping: ' + plainStopAction.capitalize() + '</b>'
+    return sectionTitle
+}
+
+def displayActionField(type){
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    fieldName = type + '_action'
+    fieldTitle = 'When ' + ingText + 'ing:'
+    if(!settings[fieldName] && settings['deviceType'] == 'lock') fieldTitle = 'When ' + ingText + 'ing, lock or unlock (click to select)?'
+    if(!settings[fieldName] && settings['deviceType'] != 'lock') fieldTitle = 'When ' + ingText + 'ing, do what with the ' + pluralDevice + ' (click to select)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+
+    fieldOptions = ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle']
+    if(settings['deviceType'] == 'lock') fieldOptions = ['none': 'Don\'t lock or unlock','lock': 'Lock', 'unlock': 'Unlock']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: 12, options: fieldOptions, submitOnChange:true
+
+    if(settings['deviceType'] != 'lock' && !settings[fieldName]) displayInfo('Set whether to turn on, turn off, or toggle the ' + pluralDevice + ' when the schedule ' + type + 's. Select "Don\'t" to control other options (like setting Mode), or to do nothing when ' + ingText + 'ing. Toggle will change the ' + pluralDevice + ' from off to on and vice versa. Required.')
+}
+
+def displayLevelsOption(levelType){
+    if(settings['deviceType'] != 'light') return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(settings['start_action'] == 'off') return
+
+    hidden = true
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] && settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['start_' + levelType] && settings['stop_' + levelType]) hidden = false
+    if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) hidden = false
+    if(settings['disable']) hidden = true
+    
+    if(levelType == 'brightness') {
+        if(!parent.validateLevel(settings['start_' + levelType])) hidden = false
+        if(!parent.validateLevel(settings['stop_' + levelType])) hidden = false
+        typeString = 'brightness'
+        typeUnit = '%'
+    }
+    if(levelType == 'temp') {
+        if(!parent.validateTemp(settings['start_' + levelType])) hidden = false
+        if(!parent.validateTemp(settings['stop_' + levelType])) hidden = false
+        typeString = 'temperature color'
+        typeUnit = 'K'
+    }
+       
+    sectionTitle = ''
+    if(!settings['start_' + levelType] && !settings['stop_' + levelType]) sectionTitle = 'Click to set ' + levelType + ' (optional)'
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] || settings['start_' + levelType] == settings['stop_' + levelType])) sectionTitle = '<b>On start, set ' + typeString + ' to ' + settings['start_' + levelType] + typeUnit + '</b>'
+    if(settings['stop_' + levelType] && !settings['start_' + levelType]) sectionTitle += '<b>On stop, set ' + typeString + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
+    if(settings['start_' + levelType] && settings['stop_' + levelType] && settings['start_' + levelType] != settings['stop_' + levelType]) sectionTitle = '<b>Start to end: Change ' + typeString + ' from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
+ 
+    section(hideable: true, hidden: hidden, sectionTitle){
+
+        if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) displayWarning('Starting and ending ' + typeString + ' are both set to ' + settings['start_' + levelType] + '. This won\'t hurt anything, but the Stop ' + settings['start_' + levelType] + ' setting won\'t actually <i>do</i> anything.')
+        
+        displayLevelsField(levelType,'start')
+        displayLevelsField(levelType,'stop')
+        displayInfo(getLevelsMessage(levelType))
+    }
+}
+
+def displayLevelsField(levelType, startType){
+    if(startType == 'stop' && !settings['stop_timeType']) return
+    if(startType == 'stop' && settings['stop_timeType'] == 'none') return
+    if(startType == 'stop' && !settings['start_' + levelType]) return
+    
+    if(startType == 'start' && 'start_action' == 'off'){
+        paragraph('',width:6)
+        return
+    }
+    typeString = 'brightness'
+    if(levelType == 'temp') typeString = 'temperature color'
+    if(levelType == 'hue') typeString = 'hue'
+    if(levelType == 'sat') typeString = 'saturation'
+    
+    fieldName = startType + '_' + levelType
+    unitString = ''
+    if(levelType == 'hue') unitString = ' (in 360 degrees)'
+    fieldTitle = 'Set ' + typeString + ' at start' + unitString + ':'
+    if(startType == 'stop') fieldTitle = 'Transition to ' + typeString + ' at stop:'
+    fieldWidth = 12
+    if(settings['start_' + levelType]) fieldWidth = 6
+    if(settings['stop_timeType'] == 'none') fieldWidth = 12
+    if(levelType == 'hue' && settings['start_hue'] && settings['stop_hue']) fieldWidth = 4
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: fieldWidth, submitOnChange:true
+}
+
+def getLevelsMessage(levelType){
+    if(levelType == 'brightness') {
+        typeString = 'brightness'
+        typeUnit = '%'
+        typeRange = '1 to 100' + typeUnit
+    }
+    if(levelType == 'temp') {
+        typeString = 'temperature color'
+        typeUnit = 'K'
+        typeRange = '1800 to 5400' + typeUnit
+    }
+    if(levelType == 'brightness'){
+        if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is percentage from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter the percentage of ' + typeString + ' when turning on, from ' + typeRange + ' where 0' + typeUnit + ' is off, and 100' + typeUnit + ' is maximum.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+    }
+    if(levelType == 'temp'){
+        if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter Kelvin of ' + typeString + ' when turning on, from ' + typeRange  + ' where 5000' + typeUnit + ' is daylight, 3000' + typeUnit + ' is cool white is 4000, and 3000' + typeUnit + ' is warm white.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+    }
+    return message
+}
+
+def displayColorOption(){
+    if(settings['deviceType'] != 'light') return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(settings['start_action'] == 'off') return
+
+    typeUnit = '°'
+
+    hidden = true
+    if(!validateColor()) hidden = false
+    if(settings['start_hue'] && (!settings['stop_hue'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(settings['start_sat'] && (!settings['stop_sat'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(settings['disable']) hidden = true
+    if(!validateColor()) hidden = false
+
+    section(hideable: true, hidden: hidden, getColorTitle()){
+    
+        if(!parent.validateHue(settings['start_hue'])) displayError('Start hue must be from 1 to 360. Correct start hue.')
+        if(!parent.validateSat(settings['start_sat'])) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
+        if(!parent.validateHue(settings['stop_hue'])) displayError('Stop hue must be from 1 to 360. Correct stop hue.')
+        if(!parent.validateSat(settings['stop_sat'])) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
+        
+        if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) displayWarning('Starting and ending hue are both set to ' + settings['start_hue'] + '. This won\'t hurt anything, but the Stop hue setting won\'t actually <i>do</i> anything.')
+        if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) displayWarning('Starting and ending saturation are both set to ' + settings['start_sat'] + '. This won\'t hurt anything, but the Stop saturation setting won\'t actually <i>do</i> anything.')
+
+        displayLevelsField('hue', 'start')
+        displayLevelsField('hue', 'stop')
+        displayHueDirection()
+        
+        if(settings['start_hue'] && settings['stop_hue']){
+            if(settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional.'
+            if(!settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). It will transition from starting to ending hue for the duration of the schedule. For "order", if for instance, a start value of 1 and stop value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green. Optional.'
+        }
+        if(!settings['start_hue'] || !settings['stop_hue']){
+            message = 'Hue is degrees from 1 to 360 around a color wheel, where red is 1 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
+            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
+            message += ' Optional.'
+        }
+        if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
+            displayInfo(message)
+        } else {
+            displayError(message)
+        }
+        displayLevelsField('sat', 'start')
+        displayLevelsField('sat', 'stop')
+
+        if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+        if(!settings['start_sat'] || !settings['stop_sat']){
+            message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
+            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+            message += ' Optional.'
+        }
+        displayInfo(message)
+    }
+}
+
+def displayHueDirection(){
+    if(!settings['start_hue']) return
+    if(!settings['stop_hue']) return
+
+    if(settings['start_hue'] < settings['stop_hue']){
+        forwardSequence = '90, 91, 92  ... 270, 271, 272'
+        reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
+    }
+    if(settings['start_hue'] > settings['stop_hue']){
+        forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
+        reverseSequence = '270, 269, 268 ... 75, 74, 73'
+    }
+
+    fieldName = 'hueDirection'
+    fieldTitle = 'Order to change hue:'
+    if(!settings[fieldName]) fieldTitle = 'Which order to change hue?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, width: 4, submitOnChange:true, options: ['forward': forwardSequence, 'reverse': reverseSequence]
+}
+
+def getColorTitle(){
+    if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat'])  return 'Click to set color (hue and/or saturation) (optional)'
+    typeUnit = '°'
+    sectionTitle = ''
+    
+    if(settings['start_hue'] && !settings['stop_hue']) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + typeUnit + '</b>'
+    if(settings['stop_hue'] && !settings['start_hue']) sectionTitle = '<b>On stop, set hue to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['start_hue'] && settings['stop_hue']) sectionTitle = '<b>Start to end: Change hue from ' + settings['start_hue'] + typeUnit + ' to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['hueDirection'] == 'reverse') sectionTitle += '<b> (in reverse order)</b>'
+    
+    if(!settings['start_sat'] && !settings['stop_sat']) return sectionTitle + moreOptions
+    
+    if(settings['start_hue'] || settings['stop_hue']) sectionTitle += '<br>'
+    if(settings['start_sat'] && !settings['stop_sat']) sectionTitle += '<b>On start, set saturation to ' + settings['start_sat'] + '%</b>'
+    if(settings['stop_sat'] && !settings['start_sat']) sectionTitle += '<b>On stop, set saturation to ' + settings['stop_sat'] + '%</b>'
+    if(settings['start_sat'] && settings['stop_sat']) sectionTitle += '<b>Start to end: Change saturation from ' + settings['start_sat'] + '% to ' + settings['stop_sat'] + '%</b>'
+
+    if(!settings['start_sat'] || !settings['stop_sat']) return sectionTitle + moreOptions
+    if(!validateColor()) return sectionTitle + moreOptions
+    return sectionTitle
+}
+
+def displayChangeModeOption(){
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+
+    hidden = true
+    if(settings['startMode'] && (!settings['stopMode'] && settings['stop_timeType'] || settings['stop_timeType'] != 'none')) hidden = false
+    if(!settings['startMode'] && settings['stopMode']) hidden = false
+    if(settings['disable']) hidden = true
+
+    width = 12
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') width = 6
+    
+    sectionTitle = ''
+    if(!settings['startMode'] && !settings['stopMode']) sectionTitle = 'Click to set Mode change (optional)'
+    if(settings['startMode']) sectionTitle = '<b>On start, set Mode ' + settings['startMode'] + '</b>'
+    if(settings['startMode'] && settings['stopMode']) sectionTitle += '<br>'
+    if(settings['stopMode']) sectionTitle += '<b>On stop, set Mode ' + settings['stopMode'] + '</b>'
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        displayModeField('start')
+        displayModeField('stop')
+    }
+}
+
+def displayModeField(type){
+    if(startType == 'stop' && settings['stop_timeType'] == 'none') return
+    fieldName = type + 'Mode'
+    fieldTitle = 'Set Hubitat\'s "Mode" on ' + type + '?'
+    if(settings['startMode']) fieldTitle = 'Set Hubitat\'s "Mode" on ' + type + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldWitch = 6
+    if(settings['stop_timeType'] == 'none') fieldWidth = 12
+    input fieldName, 'mode', title: fieldTitle, width: 6, submitOnChange:true
+}
+
+def displayPeopleOption(){
+    if(!settings['start_action']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
+
+    List peopleList1=[]
+    settings['personHome'].each{
+        peopleList1.add(it)
+    }
+    withPeople = peopleList1.join(', ')
+ 
+    List peopleList2 = []
+    settings['personNotHome'].each{
+        peopleList2.add(it)
+    }
+    withoutPeople = peopleList2.join(', ')
+    
+    hidden = true
+    if(peopleError) hidden = false
+    if(settings['disable']) hidden = true
+    
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select people (optional)'
+    if(settings['personHome']) sectionTitle = "<b>With: $withPeople</b>"
+    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
+    if(settings['personNotHome']) sectionTitle += "<b>Without: $withoutPeople</b>"
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(compareDeviceLists(personHome,personNotHome)) displayError('You can\'t include and exclude the same person.')
+        fieldName = 'personHome'
+        fieldTitle = 'Only if any of these people are home (Optional)'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
+        
+        fieldName = 'personNotHome'
+        fieldTitle = 'Only if all these people are NOT home (Optional)'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
+    }
+}
+
+def displayIfModeOption(){
+    if(!settings['start_action']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+
+    sectionTitle = 'Click to select with what Mode (optional)'
+    if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
+
+    section(hideable: true, hidden: true, sectionTitle){
+        fieldName = 'ifMode'
+        fieldTitle = 'Only run if Mode?'
+        if(settings[fieldName]) fieldTitle = 'Only run if Mode:'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        input fieldName, 'mode', title: fieldTitle, width: 12, submitOnChange:true
+
+        message = 'This will limit the schedule from running while Hubitat\'s Mode is as selected.'
+        if(settings[fieldName]) message = 'This will limit the schedule from running while Hubitat\'s Mode is ' + settings[fieldName] + '.'
+        displayInfo(message)
+    }
+}
+
+def compareDeviceLists(list1,list2){
+   list1.each{first->
+        list2.each{second->
+            if(first.id == second.id) returnValue = true
+        }
+    }
+    return returnValue
+}
+
+def getPlainAction(action){
+    if(!action) return 'perform action'
+    if(action == 'none') return 'do nothing'
+    if(action == 'on') return 'turn on'
+    if(action == 'off') return 'turn off'
+    if(action == 'toggle') return 'toggle'
+    if(action == 'lock') return 'lock'
+    if(action == 'unlock') return 'unlock'
+}
+
 /* ************************************************************************ */
 /*                                                                          */
-/*                      End display functions.                              */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                      End display functions.                              */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                      End display functions.                              */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                      End display functions.                              */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                      End display functions.                              */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 def installed() {
-    atomicState.logLevel = getLogLevel()
-    atomicState.masterInstalled = true
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    atomicState.logLevel = getLogLevel()
     initialize()
 }
 
 def initialize() {
-    _getTable()
-    atomicState.logLevel = getLogLevel()
-}
+    putLog(882,'trace',app.label + ' initializing.')
+    if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
+    if(settings['stop_temp'] == 0) settings['stop_temp'] = null
+    if(settings['stop_hue'] == 0) settings['stop_hue'] = null
+    if(settings['stop_sat'] == 0) settings['stop_sat'] = null
+    
+    if(settings['start_brightness']) settings['start_brightness'] = parent.convertToInteger(settings['start_brightness'])
+    if(settings['stop_brightness']) settings['stop_brightness'] = parent.convertToInteger(settings['stop_brightness'])
+    if(settings['start_temp']) settings['start_temp'] = parent.convertToInteger(settings['start_temp'])
+    if(settings['stop_temp']) settings['stop_temp'] = parent.convertToInteger(settings['stop_temp'])
+    if(settings['start_hue']) settings['start_hue'] = parent.convertToInteger(settings['start_hue'])
+    if(settings['stop_hue']) settings['stop_hue'] = parent.convertToInteger(settings['stop_hue'])
+    if(settings['start_sat']) settings['start_sat'] = parent.convertToInteger(settings['start_sat'])
+    if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
 
-// Returns app name with app title prepended
-def appendAppTitle(appName,appTitle){
-    //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
-    if(appName.length() < appTitle.length() - 6){
-        returnValue = appTitle.substring(9,appTitle.length()) + ' - ' + appName
-        //Compare first part of name (eg "Testing") to middle part of appTitle (eg "Master - Time" minus "Master - " plus " - ")
-    } else if(appName.substring(0,appTitle.length() - 9) != appTitle.substring(9,appTitle.length())){
-        returnValue = appTitle.substring(9,appTitle.length()) + ' - ' + appName
-    } else {
-        returnValue = appName
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
+    unschedule()
+
+    settings['device'].each{singleDevice->
+        parent.clearTableKey(singleDevice,'state',app.id,app.label)
+        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
+        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
+        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
+        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
     }
+        return
 
-    return returnValue
-}
+    if(settings['disable']) return
 
-// Lock or unlock a group of locks
-def multiLock(action, multiDevice, childLabel = 'Master'){
-    multiDevice.each{
-        singleLock(action,it,childLabel)
-    }
-}
+    subscribeDevices()
 
-// Lock or unlock a single lock
-def singleLock(action, singleDevice, childLabel = 'Master'){
-    if(action == 'lock'){
-        singleDevice.lock()
-    } else if(action == 'unlock'){
-        singleDevice.unlock()
-    } else {
-        putLog(325,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
-    }
-    putLog(327,'info',action + 'ed ' + singleDevice,childLabel,'True')
-}
+    setStartSchedule()
+    setStopSchedule()
 
-
-// Returns true if level value is either valid or null
-def validateLevel(value, childLabel='Master'){
-    if(!value) return true
-    value = value as int
-        if(value < 1) return false
-        if(value > 100) return false
+    putLog(916,'info',app.label + ' initialized.')
     return true
 }
 
-// Returns true if temp value is either valid or null
-def validateTemp(value, childLabel='Master'){
-    if(!value) return true
-        value = value as int
-            if(value < 1800) return false
-            if(value > 6500) return false
+def handleStateChange(event){
+    log.debug 'Captured state change: ' + event.device + ' ' + event.value
+    parent.updateTableCapturedState(event.device,event.value,app.label)
+}
+
+// this does level, temp, hue, and sat
+def handleBrightnessChange(event){
+    return
+    parent.updateTableCapturedLevel(event.device,'brightness',event.value,app.label)
+}
+
+// This needs rewrite
+def handleTempChange(event){
+    return
+    parent.updateTableCapturedLevel(event.device,'temp',event.value,app.label)
+    return
+    //parent.updateTableCapturedBrightness(event.device,'temp',event.value,app.label)
+    
+    tempChange = parent.getLastTempChange(event.device, app.label)
+    if(!tempChange) return
+    if(tempChange.'appId' != app.id) return
+
+    value = parent.convertToInteger(event.value)
+    
+    // Temp can be different by + .5% (25 at 5000); always plus, never minus
+    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'currentLevel' / 255) == Math.round(value / 255)) return
+    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'priorLevel' / 255) == Math.round(value / 255) && tempChange.'timeDifference' < 5000) return
+
+    defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
+
+    putLog(950,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    parent.updateLevelsSingle(event.device,defaults,app.label)
+
+    return
+}
+
+// This needs rewrite
+def handleHueChange(event){
+    return
+    parent.updateTableCapturedLevel(event.device,'hue',event.value,app.label)
+    return  //REMOVE THIS
+    //parent.updateTableCapturedBrightness(event.device,'hue',event.value,app.label)
+    hueChange = parent.getLastHueChange(event.device, app.label)
+    if(!hueChange) return
+    if(hueChange.'appId' != app.id) return
+
+    value = parent.convertToInteger(event.value)
+    
+    if(hueChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
+    if(hueChange.'priorLevel' == value && hueChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
+
+    defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
+
+    putLog(973,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    parent.updateLevelsSingle(event.device,defaults,app.label)
+
+    return
+}
+
+def handleSatChange(event){
+    return
+    parent.updateTableCapturedLevel(event.device,'sat',event.value,app.label)
+    return  //REMOVE THIS
+    //parent.updateTableCapturedBrightness(event.device,'sat',event.value,app.label)
+    satChange = parent.getLastSatChange(event.device, app.label)
+    if(!satChange) return
+    if(satChange.'appId' != app.id) return
+
+    value = parent.convertToInteger(event.value)
+
+    if(satChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
+    if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
+
+    defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
+    putLog(994,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    parent.updateLevelsSingle(event.device,defaults,app.label)
+
+    return
+}
+
+// Creates the schedule for start and stop
+def setStartSchedule(){
+    setTime()
+    if(!atomicState.start) return
+    scheduleStart = atomicState.start
+    if(scheduleStart < now()) {
+        if(atomicState.stop > now()) {
+            runDailyStartSchedule()
             return true
-}
+        }
+        if(atomicState.stop < now()) scheduleStart += parent.CONSTDayInMilli()
+    }
+    timeMillis = scheduleStart - now()
+    parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
+    putLog(1014,'info','Set start schedule for ' + new Date(scheduleStart).format('HH:mm'))
 
-
-// Returns true if temp value is either valid or null
-def validateHue(value, childLabel='Master'){
-    if(!value) return true
-    value = value as int
-    if(value < 1) return false
-
-    if(value > 360) return false
     return true
 }
 
-// Returns true if temp value is either valid or null
-def validateSat(value, childLabel='Master'){
-    if(!value) return true
-    value = value as int
-        if(value < 1) return false
-        if(value > 100) return false
-        return true
+def setStopSchedule(){
+    if(!atomicState.stop) return
+    if(atomicState.stop < now()) atomicState.stop += parent.CONSTDayInMilli()
+    timeMillis = atomicState.stop - now()
+    parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
+    putLog(1024,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
+
 }
 
-def validateMultiplier(value, childLabel='Master'){
-    if(value){
-        if(value < 1 || value > 100){
-            putLog(372,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
+// Performs actual changes at time set with start_action
+// Called only by schedule set in incrementalSchedule
+def runDailyStartSchedule(){
+    if(settings['disabled']) return
+    if(atomicState.start && atomicState.stop){
+        if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)){
+            parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
             return
         }
     }
-    return value
-}
-
-/* ************************************************************************ */
-/* TO-DO: Clean it up, and schedule it every day, with an alert.            */
-/* ************************************************************************ */
-def test(){
-    // Get current time
-    varNow = now()
-    sensors.each{
-        // lastCheckin only available for Xiaomi drivers
-        // Could use it.lastUpdate, but maybe it's just not used much
-        // So ... maybe subscribe and create state variable??
-        if(it.currentLastCheckin){
-            // Covert lastCheckin to Unix epoch timestamp
-            //		long epoch = it.currentLastCheckin.getTime()
-
-            diff = (varNow - it.currentLastCheckin.toBigInteger()) / 1000 / 60 / 60
-            if(diff > 24) {
-                numDays = Math.round(diff / 24)
-                if(!phone){
-                    if($numDays > 1){
-                        log.debug "$it hasn't done anything in $numDays days."
-                    } else {
-                        log.debug "$it hasn't done anything in $numDays day."
-                    }
-                } else {
-                    if($numDays > 1){
-                        sendText(phone,"$it hasn't done anything in $numDay days.")
-                    } else {
-                        sendText(phone,"$it hasn't done anything in $numDay day.")
-                    }
-                }
-            }
-        } else {
-            log.debug "$it not tested."
-        }
+    if(!parent.checkNowInDayList(settings['days'],app.Label)) {
+        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
+        return
     }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def checkIsDimmable(singleDevice, childLabel='Master'){
-    if(singleDevice) return singleDevice.hasCapability('SwitchLevel')
-}
-
-def checkIsTemp(singleDevice, childLabel='Master'){
-    if(singleDevice) return singleDevice.hasCapability('ColorTemperature')
-}
-
-def checkIsColor(singleDevice, childLabel='Master'){
-    if(singleDevice) return singleDevice.hasCapability('ColorMode')
-}
-
-def checkIsFan(singleDevice, childLabel='Master'){
-    if(singleDevice) return singleDevice.hasCapability('FanControl')
-}
-// Test state of a single switch
-def checkIsOn(singleDevice,childLabel='Master'){
-    // If no deviceState, set it
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'on') return true
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return false 
-    if(singleDevice.currentValue('switch') == 'on') return true
-}
-
-// Used by humidity
-// Used by time, but not sure why
-// Test state of a group of switches
-// Return true if any are on
-def checkAnyOnMulti(multiDevice,childLabel='Master'){
-    if(!multiDevice) return
-    returnStatus = false
-    multiDevice.each{singleDevice->
-        if(checkIsOn(singleDevice,childLabel)) returnStatus = true
+    if(!parent.checkNowInMonthList(settings['months'],app.Label)) {
+        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
+        return
     }
-    return returnStatus
-}
 
-def checkPeopleHome(multiDevice,childLabel = 'Master'){
-    if(!multiDevice) return true
-    peopleHome = true
-    multiDevice.each{it ->
-        if(it.currentPresence != 'present') peopleHome = false
+    putLog(1047,'info','Starting ' + app.label + ' schedule.')
+
+    atomicState.startDisabled = false
+    brightnessMap = getScheduleMap('brightness',settings['start_brightness'])
+    tempMap = getScheduleMap('temp',settings['start_temp'])
+    hueMap = getScheduleMap('hue',settings['start_hue'])
+    satMap = getScheduleMap('sat',settings['start_sat'])
+
+    if(atomicState.start && atomicState.stop){
+        if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
+        if(settings['start_temp'] && settings['stop_temp']) runIncremental = true
+        if(settings['start_hue'] && settings['stop_hue']) runIncremental = true
+        if(settings['start_sat'] && settings['stop_sat']) runIncremental = true
     }
-    return peopleHome
-}
 
-def checkNoPeopleHome(multiDevice,childLabel = 'Master'){
-    if(!multiDevice) return true
-    nooneHome = true
-    multiDevice.each{it ->
-        if(it.currentPresence == 'present') nooneHome = false
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
+        parent.mergeMapToTable(singleDevice,brightnessMap,app.label)
+        parent.mergeMapToTable(singleDevice,tempMap,app.label)
+        parent.mergeMapToTable(singleDevice,hueMap,app.label)
+        parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    return nooneHome
-}
-// hiRezHue is currently boolean global option in master
-// It should allow setting it for specific devices
-// Possibly could automate:
-//  Loop through all devices used in any schedule, store device.currentHue
-//  Store current state (on/off) of device
-//  Set device currentHue to 360
-//  Check if devic.currentHue reports 100
-//  Set device hiRezHue
-//  Set device currentHue to stored value
-//  Set device state to stored value
-def settingHiRezHue(){
-    return settings['hiRezHue']
-}
-
-// Should (really must) be greater than CONSTDeviceActionDelayMillis * 4
-def CONSTScheduleMinimumActiveFrequencyMilli(){
-    return 8000        //CHANGE THIS
-}
-
-def CONSTScheduleMinimumInactiveFrequencyMilli(){
-    return 30000
-}
-
-def CONSTScheduleMaximumIncrements(){
-    return 200
-}
-
-def CONSTDayInMilli(){
-    return 86400000
-}
-
-// USED IN HUMIDITY, but not sure why
-def CONSTHourInMilli(){
-    return 3600000
-}
-
-def CONSTMinuteInMilli(){
-    return 60000
-}
-
-def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
-    returnValue = 200
-    putLog(553,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
-    return returnValue
-}
-
-def CONSTProgressiveDimmingDelayTimeMillis(){
-    return 750
-}
-def CONSTDeviceDefaultBrightness(){
-    return 100
-}
-
-def CONSTDeviceDefaultTemp(){
-    return 3250
-}
-
-// Returns app name with app title prepended
-def appendChildAppTitle(appName,appTitle){
-    //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
-    if(appName.length() < appTitle.length() - 6) return appTitle.substring(9,appTitle.length()) + ' - ' + appName
-    //Compare first part of name (eg "Testing") to middle part of appTitle (eg "Master - Time" minus "Master - " plus " - ")
-    if(appName.substring(0,appTitle.length() - 9) != appTitle.substring(9,appTitle.length())) return appTitle.substring(9,appTitle.length()) + ' - ' + appName
-    return appName
-}
-
-def _getChildAppIdFromLabel(childLabel = 'Master'){
-    if(childLabel == 'Master') return
-    childApps.find { Child ->
-        if(Child.label == childLabel) returnValue = Child.id
-    }
-    return returnValue
-}
-
-// Returns true if today is in $days map
-// Returns true for null values
-def checkNowInDayList(days,childLabel='Master'){
-    if(!days) return true
+    if(!getDisabled()) parent.setDeviceMulti(settings['device'],app.label)
     
-    dateFormat = new java.text.SimpleDateFormat('EEEE')
-    dateFormat.setTimeZone(location.timeZone)
-    dayToday = dateFormat.format(new Date())
-    if(days.contains(dayToday)) return true
+    atomicState.start +=  parent.CONSTDayInMilli()
+    newTime = atomicState.start - now()         // Keeps schedule accurate regardles of processing time
+    parent.scheduleChildEvent(newTime,'','runDailyStartSchedule','',app.id)
+    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleMinimumActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
 }
 
-// Returns true if today is in $months map
-// Returns true for null values
-def checkNowInMonthList(months,childLabel='Master'){
-    if(!months) return true
+// Performs actual changes at time set with start_action
+// Called only by schedule set in incrementalSchedule
+def runDailyStopSchedule(){
+    if(!atomicState.stop) return
+    unschedule(runIncrementalSchedule)
+    if(settings['disabled']) return
+    
+    putLog(1085,'info','Stopping ' + app.label + ' schedule.')
 
-    monthToday = new Date().getMonth() + 1
-    if(months.contains(monthToday.toString())) return true
-}
-
-// Returns true if now is between two times
-// Need to allow checking if time spans midnight
-// Returns true for null values
-def checkNowBetweenTimes(timeStart, timeStop,childLabel='Master'){
-    if(!timeStart) return true
-    if(!timeStop) return true
-
-    varNow = now()
-    if(varNow < timeStart) return false
-    if(varNow > timeStop) return false
-
-    return true
-}
-
-def checkTempWithVariance(originalTemp, newTemp, childLabel='Master'){
-    if(!orignalTemp) return
-    if(!newTemp) return
-    if(originalTemp == newTemp) return true
-    tempDifference = Math.abs(originalTemp - newTemp)
-    tolerance = originalTemp * 0.05
-    if (tempDifference < tolerance) return true
-}
-
-def getPrintDateTimeFormat(datetime){
-    return new Date(datetime).format('h:mma MMM dd, yyyy', location.timeZone)
-}
-
-def getSunriseSunset(type, childLabel='Master'){
-    if(!type) return
-    if(type == 'sunrise') return getSunrise('',childLabel)
-    if(type == 'sunset') return getSunset('',childLabel)
-}
-
-// Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-// negative is true of false
-def getSunrise(offset = false, childLabel='Master'){
-    if(offset) return getSunriseAndSunset().sunrise.getTime() + (offset * CONSTMinuteInMilli())
-    if(!offset) return getSunriseAndSunset().sunrise.getTime()
-}
-
-// Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSunset(offset = false,childLabel='Master'){
-    if(offset) return getSunriseAndSunset().sunset.getTime() + (offset * CONSTMinuteInMilli())
-    if(!offset) return getSunriseAndSunset().sunset.getTime()
-}
-
-def checkToday(time,childLabel = 'Master'){
-    if(time + CONSTDayInMilli() > now()) return true
-}
-
-//NOT USED
-// Used for "resume" function
-def _rescheduleIncrementalMulti(multiDevice,childLabel='Master'){
-    multiDevice.each{singleDevice->
-        _rescheduleIncrementalSingle(singleDevice,childLabel)
+    brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label)
+    tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
+    hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label)
+    satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
+        
+    settings['device'].each{singleDevice->
+        parent.clearTableKey(singleDevice,'state',app.id,app.label)
+        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
+        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
+        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
+        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
+        
+        stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
+        parent.mergeMapToTable(singleDevice,brightnessMap,app.label)
+        parent.mergeMapToTable(singleDevice,tempMap,app.label)
+        parent.mergeMapToTable(singleDevice,hueMap,app.label)
+        parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
+
+    parent.setDeviceMulti(settings['device'],app.label)
+    
+    atomicState.stop += parent.CONSTDayInMilli()
+    newTime = atomicState.stop - now()
+    parent.scheduleChildEvent(newTime,'','runDailyStopSchedule','',app.id)
+}
+
+// Is unscheduled from runDailyStopSchedule
+def runIncrementalSchedule(){
+    if(!atomicState.start) return
+    if(!atomicState.stop) return
+    if(atomicState.stop < now()) return
+    
+    if(atomicState.start < atomicState.stop) scheduleFrequency = Math.round(Math.abs(atomicState.stop - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+    if(atomicState.start > atomicState.stop) scheduleFrequency = Math.round(Math.abs((atomicState.stop + parent.CONSTDayInMilli()) - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+
+    timeMillis = scheduleFrequency
+    if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumInactiveFrequencyMilli()
+
+    if(getDisabled()){
+        parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
+        return
+    }
+    activateScheduleFromManualOverride = false       // True is to remain active
+
+    settings['device'].each{singleDevice->
+        deviceChangedAny = false
+        //This is where we should be checking manual overrides
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'brightness',app.label)
+        brightnessMap = parent.getLevelMap('brightness',newLevel,app.id,app.label)
+        parent.mergeMapToTable(singleDevice,brightnessMap)
+        if(brightnessMap) deviceChangedAny = true
+        
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'temp',app.label)
+        tempMap = parent.getLevelMap('temp',newLevel,app.id,app.label)
+        parent.mergeMapToTable(singleDevice,tempMap)
+        if(tempMap) deviceChangedAny = true
+        
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'hue',app.label)
+        hueMap = parent.getLevelMap('hue',newLevel,app.id,app.label)
+        parent.mergeMapToTable(singleDevice,hueMap)
+        if(hueMap) deviceChangedAny = true
+
+        newLevel = parent.getIncrementalLevelSingle(singleDevice,'sat',app.label)
+        satMap = parent.getLevelMap('sat',newLevel,app.id,app.label)
+        parent.mergeMapToTable(singleDevice,satMap)
+        if(satMap) deviceChangedAny = true
+
+        if(deviceChangedAny) activateScheduleFromManualOverride = true
+    }
+    
+    if(deviceChangedAny) parent.setDeviceMulti(settings['device'],app.label)
+
+    if(activateScheduleFromManualOverride) {
+        if(scheduleFrequency < parent.CONSTScheduleMinimumActiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumActiveFrequencyMilli()
+    }
+    parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
+}
+
+def subscribeDevices(){
+    unsubscribe()
+    subscribe(settings['device'], 'switch', handleStateChange)
+    subscribe(settings['device'], 'hue', handleHueChange)
+    subscribe(settings['device'], 'saturation', handleSatChange)
+    subscribe(settings['device'], 'colorTemperature', handleTempChange)
+    subscribe(settings['device'], 'brightness', handleBrightnessChange)
+    subscribe(settings['device'], 'speed', handleBrightnessChange)
+    subscribe(location, 'systemStart', handleSystemBoot)
+    subscribe(location,'timeZone',handleTimezone)
     return
 }
 
-def resumeDeviceScheduleMulti(multiDevice,childLabel='Master'){
-    if(!multiDevice) return
-    multiDevice.each{singleDevice->
-        _resumeDeviceScheduleSingle(singleDevice,childLabel)
-    }
-}
-
-//DEPRICATED?
-// THIS needs to loop through schedules, and if match, update the appId to not be manual
-//then the schedule should magically resume
-def _resumeDeviceScheduleSingle(singleDevice,childLabel='Master'){
-    if(!singleDevice) return
-    childApps.each { Child ->   // COuld be multiple sechedules per device
-        if(Child.label.startsWith('Time - ')){
-            Child.getSetting('device').find{childDevice->
-                if(singleDevice.id == childDevice.id){
-                    Child.setDailySchedules()
-                    putLog(681,'info','Resuming schedule for ' + singleDevice + ' (' + Child.label + ')',childLabel,True)
-                }
-            }
-        }
-    }
-}
-
-// Should be added to Table
-// Lock or unlock a group of locks
-def setLockMulti(multiDevice, action, childLabel = 'Master'){
-    if(!multiDevice) return
-    multiDevice.each{singleDevice->
-        setLockSingle(singleDevice,action,childLabel)
-    }
-}
-
-// Lock or unlock a single lock
-def _setLockSingle(singleDevice, action, childLabel = 'Master'){
-    if(action == 'lock') singleDevice.lock()
-    if(action == 'unlock') singleDevice.unlock()
-    putLog(701,'info',action + 'ed ' + singleDevice,childLabel,'True')
-}
-
-// Sets devices to match state
-def setDeviceMulti(multiDevice,childLabel = 'Master'){
-    if(!multiDevice) return
-    anyChange = false
-    // Separate device loops for if there are multiple devices, don't pause per device, pause per action
-    multiDevice.each{singleDevice->
-        deviceChange = setDeviceBrightnessSingle(singleDevice,childLabel)
-        if(!anyChange) anyChange = deviceChange
-    }
-    if(anyChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    anyChange = false
-    multiDevice.each{singleDevice->
-        deviceChange = setDeviceTempSingle(singleDevice,childLabel)
-        if(!anyChange) anyChange = deviceChange
-    }
-    if(anyChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    anyChange = false
-    multiDevice.each{singleDevice->
-        deviceChange = setDeviceHueSingle(singleDevice,childLabel)
-        if(!anyChange) anyChange = deviceChange
-    }
-    if(anyChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    anyChange = false
-    multiDevice.each{singleDevice->
-        deviceChange = setDeviceSatSingle(singleDevice,childLabel)
-        if(!anyChange) anyChange = deviceChange
-    }
-    if(anyChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    multiDevice.each{singleDevice->
-        setDeviceStateSingle(singleDevice,childLabel)
-    }
-}
-// Sets devices to match state
-def setDeviceSingle(singleDevice,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!atomicState.'devices'?."${singleDevice.id}") return
-
-    deviceChange = setDeviceBrightnessSingle(singleDevice,childLabel)
-    if(deviceChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    deviceChange = false
-
-    deviceChange = setDeviceTempSingle(singleDevice,childLabel)
-    if(deviceChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    deviceChange = false
-
-    deviceChange = setDeviceHueSingle(singleDevice,childLabel)
-    if(deviceChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-    deviceChange = false
-
-    deviceChange = setDeviceSatSingle(singleDevice,childLabel)
-    if(deviceChange) pauseExecution(CONSTDeviceActionDelayMillis(childLabel))
-
-    setDeviceStateSingle(singleDevice,childLabel)
-}
-
-def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
-    if(!singleDevice) return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
-    newLevel = atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'currentLevel'
-    if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'startTime' && atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime'){
-        if(!checkNowBetweenTimes(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'startTime',atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime',childLabel)) newLevel = null
-    }
-    if(!newLevel) newLevel = CONSTDeviceDefaultBrightness()
-    return setDeviceBrightnessToLevel(singleDevice,newLevel,childLabel)
-}
-def setDeviceBrightnessToLevel(singleDevice,newLevel,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!checkIsDimmable(singleDevice,childLabel)) return
-    oldLevel = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
-    if(oldLevel == newLevel) return
-    singleDevice.setLevel(newLevel)
-    putLog(775,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel,childLabel + ' (from ' + oldLevel + ')',childLabel,'True')
-    return true
-}
-
-// Need to confirm colorMode
-def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
-    newLevel = atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'currentLevel'
-    if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'startTime' && atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime'){
-        if(!checkNowBetweenTimes(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'startTime',atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime',childLabel)) newLevel = null
-    }
-    if(!newLevel) newLevel = CONSTDeviceDefaultTemp()
-    return setDeviceTempToLevel(singleDevice,newLevel,childLabel)
-}
-def setDeviceTempToLevel(singleDevice,newLevel,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!checkIsTemp(singleDevice,childLabel)) return
-    oldLevel = _getDeviceCurrentLevel(singleDevice,'temp',childLabel)
-    if(oldLevel == newLevel && singleDevice.currentColorMode == 'CT') return
-    if(checkTempWithVariance(oldLevel,newLevel,childLabel) && singleDevice.currentColorMode == 'CT') return
-    singleDevice.setColorTemperature(newLevel)
-    putLog(799,'info','Set temperature of ' + singleDevice + ' to ' + newLevel,childLabel + ' (from ' + oldLevel + ')',childLabel,'True')
-    return true
-}
-
-// Need to confirm colorMode
-def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
-    if(!checkIsDimmable(singleDevice,childLabel)) return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'startTime' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime'){
-        if(!checkNowBetweenTimes(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'startTime',atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime',childLabel)) return
-    }
-    if(settings['hiRezHue']) newLevel = atomicState.'devices'."${singleDevice.id}".'hue'.'currentLevel'
-    if(!settings['hiRezHue']) newLevel = Math.round(atomicState.'devices'."${singleDevice.id}".'hue'.'currentLevel' / 3.6)
-    if(_getDeviceCurrentLevel(singleDevice,'hue',childLabel) == newLevel && singleDevice.currentColorMode == 'RGB') return
-    singleDevice.setHue(newLevel)
-    putLog(816,'info','Set hue of ' + singleDevice + ' to ' + newLevel,childLabel,'True')
-    return true
-}
-def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'startTime' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime'){
-        if(!checkNowBetweenTimes(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'startTime',atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime',childLabel)) return
-    }
-    if(!checkIsDimmable(singleDevice,childLabel)) return
-    newLevel = atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel'
-    if(_getDeviceCurrentLevel(singleDevice,'sat',childLabel) == newLevel && singleDevice.currentColorMode == 'RGB') return
-    singleDevice.setSaturation(newLevel)
-    putLog(830,'info','Set saturation of ' + singleDevice + ' to ' + newLevel,childLabel,'True')
-    return true
-}
-
-def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
-    if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
-        singleDevice.on()
-        putLog(839,'info','Turned on ' + singleDevice,childLabel,'True')
-        return true
-    }
-    if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
-        if(singleDevice.currentValue('switch') == 'off') return
-        singleDevice.off()
-        putLog(845,'info','Turned off ' + singleDevice,childLabel,'True')
-        return true
-    }
-}
-
-def _getDeviceCurrentLevel(singleDevice,type,childLabel = 'Master'){
-    if(type == 'brightness') return singleDevice.currentLevel as Integer
-    if(type == 'temp') return singleDevice.currentColorTemperature as Integer
-    if(type == 'hue') return singleDevice.currentHue as Integer
-    if(type == 'sat') return singleDevice.currentSaturation as Integer
-}
 
 // type expects 'brightness', 'temp', 'hue', 'sat'
-// With Hue, checks reverse
-def getIncrementalLevelSingle(singleDevice,type,childLabel = 'Master'){
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'startTime') return
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'stopTime') return
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'startLevel') return
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'stopLevel') return
-    if(atomicState.'devices'."${singleDevice.id}"?."${type}"?.'stopTime' == atomicState.'devices'."${singleDevice.id}"."${type}".'startTime') return
-    if(!atomicState.'devices'."${singleDevice.id}"?."${type}"?.'startLevel' == atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel') return
+def getScheduleMap(type,level){
+    if(!atomicState.start) return
+    if(!settings['start_' + type]) return
 
-    if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appType' != 'time') return    // Checks for manual override
-    // If no seconds elapsed
-    //if (currentSeconds == atomicState.'devices'."${singleDevice.id}"."${type}".'startSeconds') resultLevel = atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel'
+    scheduleMap =  parent.getLevelMap(type,level,app.id,app.label)
+    scheduleMap."${type}".'startLevel' = settings['start_' + type]
+    if(settings['stop_' + type]) scheduleMap."${type}".'stopLevel' = settings['stop_' + type]
+    if(atomicState.stop) scheduleMap."${type}".'startTime' = atomicState.start
+    if(atomicState.stop) scheduleMap."${type}".'stopTime' = atomicState.stop
+    if(type == 'hue' && settings['hueDirection']) scheduleMap."${type}".'hueDirection' = settings['hueDirection']
+    return scheduleMap
+}
 
-    // Calculate dynamic value
-    elapsedSeconds = Math.round((now() - atomicState.'devices'."${singleDevice.id}"."${type}".'startTime') / 1000)
+// Only thing really neede is:
+// 1) If schedule is not running, remove itself from Table
+// 2) Run Daily Start Schedule and let it deal with restarting a schedule
+def systemBootActivate(){
+    if(settings['disabled']) return
     
-    totalSeconds = Math.round((atomicState.'devices'."${singleDevice.id}"."${type}".'stopTime' - atomicState.'devices'."${singleDevice.id}"."${type}".'startTime') / 1000)
-    
-    if (elapsedSeconds == 0) elapsedSeconds = 1
-    //remainingSeconds = Math.round((atomicState.'devices'."${singleDevice.id}"."${type}".'stopTime' - atomicState.'devices'."${singleDevice.id}"."${type}".'startTime') / 1000)
-    percentComplete = elapsedSeconds / totalSeconds
-    if(type == 'hue') levelRange = _computeIncrementalHueRange(singleDevice,childLabel)
-    if(type != 'hue') levelRange = Math.abs(atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel' - atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel')
-    
-    remainingLevel = Math.round(levelRange * percentComplete)
-
-    if(atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' < atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel') forward = True
-    if(atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' > atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel') forward = False
-    if(atomicState.'devices'."${singleDevice.id}"."${type}"?.'hueDirection' == 'reverse') forward = !forward
-    if(atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' < atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel') resultLevel = atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' + remainingLevel
-    if(atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' > atomicState.'devices'."${singleDevice.id}"."${type}".'stopLevel') resultLevel = atomicState.'devices'."${singleDevice.id}"."${type}".'startLevel' - remainingLevel
-    return resultLevel
-}
-// Do reverse, and wrap around
-def _computeIncrementalHueRange(singleDevice,childLabel = 'Master'){
-    if(atomicState.'devices'."${singleDevice.id}".'hue'?.'hueDirection' == 'reverse') return 360 - Math.abs(atomicState.'devices'."${singleDevice.id}".'hue'.'stopLevel' + atomicState.'devices'."${singleDevice.id}".'hue'.'startLevel')
-    if(atomicState.'devices'."${singleDevice.id}".'hue'?.'hueDirection' != 'reverse') return Math.abs(atomicState.'devices'."${singleDevice.id}".'hue'.'stopLevel' - atomicState.'devices'."${singleDevice.id}".'hue'.'startLevel')
+    initialize()
 }
 
-def getStateMapSingle(singleDevice,action,appId,childLabel = 'Master'){
-    if(!action) return
-    if(!singleDevice) return
-    if(!appId) return
-    if(action != 'on' && action != 'off' && action != 'toggle') return
-    if(atomicState?.'devices'?."${singleDevice.id}"?.'state' == action) return  // Do we care if it's another app?
-    if(action == 'toggle'){
-        action = 'on'
-        if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'on') action = 'off'
-    }
-    return ['state':['state':action,'time':now()]]
-}
-def getLevelMap(type,level,appId,childLabel = 'Master'){
-    if(!type) return
-    if(!level) return
-    if(!appId) return
-    if(type != 'brightness' && type != 'temp' && type != 'hue' && type != 'sat') return
-    
-    return [(type):['currentLevel':level,'time':now(),'appId':appId,'appType':_getAppTypeFromId(appId,childLabel)]]
-}
-
-def _getAppTypeFromId(appId,childLabel = 'Master'){
-    if(!appId) return 'manual'
-    childApps.find { Child ->
-        if (Child.id == appId) {
-            // These should be pared down to just 'manual', 'time' and maybe 'auto'
-            // Leaving for testing
-            if(Child.label.startsWith('Time - ')) returnValue = 'time'
-            if(Child.label.startsWith('Presence - ')) returnValue = 'presence'
-            if(Child.label.startsWith('Pico - ')) returnValue = 'pico'
-            if(Child.label.startsWith('MagicCube - ')) returnValue = 'magicCube'
-            if(Child.label.startsWith('Contact - ')) returnValue = 'contact'
-            if(Child.label.startsWith('Humidity - ')) returnValue = 'humidity'
-        }
-    }
-    if(!returnValue) return 'manual'
-    return returnValue
-}
-
-def updateTableCapturedState(singleDevice,action,appId,childLabel = 'Master'){
-    if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(939, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
-}
-
-def updateTableCapturedLevel(singleDevice,type,value,appId,childLabel = 'Master'){
-    //value = convertToInteger(event.value)
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' == convertToInteger(value)) return
-    
-    currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(948,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + value + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + '; actually was ' + currentLevel + ')',childLabel,'True')
-}
-
-def _getNextLevelDimmable(singleDevice, action, childLabel='Master'){
-    if(checkIsFan(singleDevice,childLabel)) return _getNextLevelFan(singleDevice,action,childLabel)
-    if(!checkIsDimmable(singleDevice,childLabel)) return
-    if(action != 'dim' && action != 'brighten') return
-    if(atomicState.'devices'."${singleDevice.id}"?.'brightness'?.'currentLevel') level = atomicState.'devices'."${singleDevice.id}".'brightness'.'currentLevel'
-    if(!atomicState.'devices'."${singleDevice.id}"?.'brightness'?.'currentLevel') level = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
-
-    newLevel = level
-    if(level < 1) level = 1
-    if(level > 100) level = 100
-    if(action == 'dim' && level < 2) return
-    if(action ==  'brighten' && level > 99) return
-
-    childApps.find {Child->
-        if(Child.id == appId) dimSpeed = Child.getDimSpeed()
-    }
-    if(!dimSpeed){
-        dimSpeed = 1.2
-        putLog(969,'error','ERROR: Failed to find dimSpeed in function getNextLevel with ' + appId,childLabel,True)
-    }
-
-    oldLevel = level
-    if (action == 'dim'){
-        newLevel = Math.round(convertToInteger(level) / dimSpeed)
-        if (newLevel == level) newLevel = newLevel - 1
-        if(newLevel < 1) newLevel = 1
-    }
-    if (action == 'brighten'){
-        newLevel = Math.round(convertToInteger(level) * dimSpeed)
-        if (newLevel == level) newLevel = newLevel + 1
-        if(newLevel > 100) newLevel = 100
-    }
-
-    return newLevel
-}
-
-def _getNextLevelFan(singleDevice, action, childLabel='Master'){
-    if(!checkIsFan(singleDevice,childLabel)) return
-    if(action != 'dim' && action != 'brighten') return
-    if(atomicState.'devices'."${singleDevice.id}"?.'brightness'?.'currentLevel') level = atomicState.'devices'."${singleDevice.id}".'brightness'.'currentLevel'
-    if(!atomicState.'devices'."${singleDevice.id}"?.'brightness'?.'currentLevel') level = singleDevice.currentSpeed
-
-    if(action == 'brighten'){
-        if(level == 'low' || level == 'medium-low') return 'medium'
-        if(level == 'medium' || level == 'medium-high') return 'high'
-        if(!level || level == 0 || level == 'off') return 'low'
-    }
-    if(!level) return
-    if(level == 'high') return 'medium'
-    if(level == 'medium-high') return 'medium'
-    if(level == 'medium') return 'low'
-    if(level == 'medium-low') return 'low'
-}
-
-// Sets cron string based on:
-//      timeMillis = time from now in milliseconds, or
-//      timeValue = time in timestamp
-// Checks child app getDisabled
-// If active, passes cronString, functionName, and formated parameters back to child app, to set the schedule
-def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,appId){
-    // noPerformDisableCheck is reversed, so that null does not equal False
-    // true = not check, False = check
-    if(!appId) return
-    if(!timeMillis && !timeValue) return
-    if(timeMillis < 0) {
-        putLog(1016,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
-        return
-    }
-    if(timeValue) {
-        def currentTimeMillis = now()
-        def targetTimeMillis = new Date(timeValue).time
-        timeMillis = targetTimeMillis - currentTimeMillis
-        if(timeMillis < 0) timeMillis += CONSTDayInMilli()
-    }
-    if(parameters) parametersMap = [data:[' + parameters + ']]
-
-    childApps.find {Child->
-        if(Child.id == appId) {
-                if(!functionName) {
-                    putLog(1030,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
-                    return
-                }
-                Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
-                if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1035,'debug','Scheduled ' + functionName + parameters + ' for ' + Math.round(timeMillis / 1000) + ' seconds from now',Child.label,'True')
-        }
-    }
-}
-
-def changeMode(mode, childLabel = 'Master'){
-    if(location.mode == mode) return
-    message = 'Changed Mode from ' + oldMode + ' to '
-    setLocationMode(mode)
-    putLog(1044,'debug',message + mode,childLabel,'True')
-}
-
-// Send SMS text message to $phone with $message
-//SMS IS NO LONGER SUPPORTED
-def sendPushNotification(phone, message, childLabel = 'Master'){
-    def now = new Date()getTime()
-    seconds = (now - atomicState.contactLastNotification) / 1000
-    if(seconds < 361) {
-        putLog(1053,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
-        return
-    }
-
-    atomicState.contactLastNotification = now
-    speechDevice.find{it ->
-        if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1060,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
-        }
-    }
-}
-
-def sendVoiceNotification(deviceId,message, childLabel='Master'){
-    if(!deviceId)  return
-    speechDevice.find{it ->
-        if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1069,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
-        }
-    }
-}
-
-
-//Merges maps as left to right, where left takes precedence
-def mergeTwoMaps(Map leftMap, Map rightMap, childLabel = 'Master'){
-    //deviceId = convertToInteger(deviceId)
-    if(!leftMap) return rightMap
-    if(!rightMap) return leftMap
-    
-    newMap = [:]
-    (leftMap.entrySet() + rightMap.entrySet()).each { entry -> 
-        newMap[entry.key] = newMap.containsKey(entry.key) ? [:] << newMap[entry.key] << entry.value : entry.value 
-    }
-  
-    return newMap
-}
-
-// Deletes and replaces an atomicState key with a new map
-// Replaces an atomicState key with a new map, preserving subkeys not in common
-def mergeMapToTableWithPreserve(singleDevice, newMap, childLabel = 'Master'){
-
-    if(!singleDevice) return
-    if(!newMap) return
-    //mainMap = [:]
-    if(atomicState.'devices') mainMap = atomicState.'devices'
-    if(!atomicState.'devices') mainMap = [:]
-    if(!mainMap?."${singleDevice.id}") mainMap[(singleDevice.id)] = [:]
-
-    newMap.each{newKey,newValue->
-        if(!mainMap."${singleDevice.id}"?."${newKey}"){
-            mainMap."${singleDevice.id}"."${newKey}" = newValue
-        }
-        if(mainMap."${singleDevice.id}"?."${newKey}"){
-            newMap?."${newKey}".each {newSubkey,newSubvalue->
-                mainMap."${singleDevice.id}"."${newKey}"."${newSubkey}" = newSubvalue
-            }
-        }
-    }
-    if(mainMap?."${singleDevice.id}") atomicState.'devices' =  mainMap
-}
-
-//DEPRICATED
-// Deletes and replaces an atomicState key with a new map
-def mergeMapToTableWithoutPreserve(singleDevice, Map rightMap, childLabel = 'Master'){
-    if(!singleDevice) return
-    if(!rightMap) return
-    if(!atomicState.'devices') atomicState.'devices' = [:]
-    if(!atomicState.'devices'?."${singleDevice.id}") atomicState.'devices'."${singleDevice.id}" = [:]
-
-    newMap = atomicState.'devices'."${singleDevice.id}"
-    newMap << rightMap //??
-  
-    deviceMap = [:]
-    deviceMap."${singleDevice.id}" = newMap
-    fullMap = [:]
-    fullMap = atomicState.'devices' + deviceMap
-    atomicState.'devices' =  fullMap
-}
-
-def clearTableKey(singleDevice,type,appId, childLabel = 'Master'){
-    if(!appId) return
-    //if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appId' != appId) return
-    tempMap = atomicState.'devices'
-    tempMap."${singleDevice.id}".remove((type))
-    
-    atomicState.'devices' = tempMap
+def setTime(){      // Should NOT be run from Incremental
+    if(!setStartTime()) return
+    setStopTime()
     return true
 }
 
-//DEPRECATED?
-def removeScheduleFromTable(appId){
-    if(!appId) return
-    Child.find { Child ->
-        if(Child.id == appId) {
-            multiDevice = Child.getDevices()
-            multiDevice.each{singleDevice->
-                if(leftMap?."${singleDevice.id}"){
-                    deviceMap = atomicState.'devices'."${singleDevice.id}"
-                    if(deviceMap?.'brightness'?.appId == appId || deviceMap?.'brightness'?.appType != 'schedule'){
-                        //deviceMap?.'level'?.remove('startSeconds')
-                        //deviceMap?.'level'?.remove('stopSeconds')
-                        //deviceMap?.'level'?.remove('totalSeconds')
-                        deviceMap?.'brightness'?.remove('startTime')
-                        deviceMap?.'brightness'?.remove('stopTime')
-                        deviceMap?.'brightness'?.remove('startLevel')
-                        deviceMap?.'brightness'?.remove('stopLevel')
-                    }
-                    if(deviceMap?.'temp'?.appId == appId || deviceMap?.'temp'?.appType != 'schedule'){
-                        deviceMap?.'temp'?.remove('startTime')
-                        deviceMap?.'temp'?.remove('stopTime')
-                        deviceMap?.'temp'?.remove('startLevel')
-                        deviceMap?.'temp'?.remove('stopLevel')
-                    }
-                    if(deviceMap?.'hue'?.appId == appId || deviceMap?.'hue'?.appType != 'schedule'){
-                        deviceMap?.'hue'?.remove('startTime')
-                        deviceMap?.'hue'?.remove('stopTime')
-                        deviceMap?.'hue'?.remove('startLevel')
-                        deviceMap?.'hue'?.remove('stopLevel')
-                    }
-                    if(deviceMap?.'sat'?.appId == appId || deviceMap?.'sat'?.appType != 'schedule'){
-                        deviceMap?.'sat'?.remove('startTime')
-                        deviceMap?.'sat'?.remove('stopTime')
-                        deviceMap?.'sat'?.remove('startLevel')
-                        deviceMap?.'sat'?.remove('stopLevel')
-                    }
-                    atomicState."${singleDevice.id}" = deviceMap
-                }
-            }
-        }
+def setStartTime(){
+    //if(app.id == 2227) {
+    //    atomicState.start = now() + 5000
+    //    atomicState.stop = now() + 20000
+    //    return
+    //}
+// REMOVE THESE
+
+    if(!settings['start_timeType']) return
+    setTime = setStartStopTime('start')
+    if(!setTime) return
+    if(setTime > now()) setTime = setTime - parent.CONSTDayInMilli()
+    while (setTime < (now() - parent.CONSTDayInMilli())) { 
+        setTime += parent.CONSTDayInMilli()
     }
-    return leftMap
+    atomicState.start  = setTime
+    putLog(1225,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
-def convertToInteger(value, childLabel = 'Master'){
-    if(value instanceof Integer) return value
-    if(value instanceof Long) return value
-    if(value instanceof String && value.isInteger()) return value.toInteger()
-    return
+def setStopTime(){
+    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
+    setTime = setStartStopTime('stop')
+    if(!setTime) return
+    while (setTime < atomicState.start) {       // If stop time is behind start, increment by a day until it's after start (could be behind multiple days if disabled)
+        setTime += parent.CONSTDayInMilli()
+    }
+    if(setTime < now()){        // Increment both start and stop if stop has passed today
+        setTime += parent.CONSTDayInMilli()
+        atomicState.start += parent.CONSTDayInMilli()
+    }
+    atomicState.stop  = setTime
+    putLog(1241,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    return true
 }
 
-def checkLog(type,logLevel){
-    switch(type) {
-        case 'error':
-        if(atomicState.logLevel > 0) return true
-        break
-        case 'warn':
-        if(atomicState.logLevel > 1) return true
-        break
-        case 'info':
-        if(atomicState.logLevel > 2) return true
-        break
-        case 'trace':
-        if(atomicState.logLevel > 3) return true
-        case 'debug':
-        if(atomicState.logLevel > 4) return true
-        break
+// Sets atomicState.start and atomicState.stop variables
+// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
+def setStartStopTime(type){
+    if(settings[type + '_timeType'] == 'time') {
+        if(!settings[type + '_time']) return
+        return timeToday(settings[type + '_time']).getTime()
     }
+    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
+    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
+}
+
+// Returns true is schedule is not inactive, and allows for no stop time
+// Used by getDefaultLevel
+def getScheduleActive(){
+    if(!parent.checkNowInDayList(settings['days'],app.label)) return
+    if(!parent.checkNowInMonthList(settings['months'],app.label)) return
+    if(!atomicState.start || !atomicState.stop) return
+    if(!parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
+
+    return true
+}
+
+def getDisabled(){
+    // If disabled, return true
+    if(settings['disabled']) return true
+
+    // If mode isn't correct, return false
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
+    
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
+
     return false
+}
+
+def getDevices(){
+    return settings['device']
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    if(timeMillis < 1) {
+        putLog(1287,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        return
+    }
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def putLog(lineNumber, type = 'trace', message, childLabel = 'Master', app = False,logLevel = null){
-    if(!app && !logLevel) return
-    if(app) logLevel = getLogLevel()
-    if(!checkLog(type,logLevel)) return
-    if(!app && !type) return
-    errorText = ''
-    if(type == 'error') errorText = '<font color="red">'
-    if(type == 'warn') errorText = '<font color="brown">'
-    appText = ''
-    if(app) appText = '[Master] '
-    if(childLabel != 'Master') appText += '[' + childLabel + '] '
-    if(lineNumber) lineText = '(line ' + lineNumber + ') '
-    if(message) messageText = '-- ' + message
-    logMessage = errorText + appText + lineText  + messageText
-    if(type == 'error' || type == 'warn') logMessage += '</font>'
-
-    switch(type) {
-        case 'error':
-        log.error(logMessage)
-        return
-        case 'warn':
-        log.warn(logMessage)
-        return
-        case 'info':
-        log.info(logMessage)
-        return
-        case 'debug':
-        log.debug(logMessage)
-        return
-        case 'trace':
-        log.trace(logMessage)
-    }
+def putLog(lineNumber,type = 'trace',message = null){
+    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
 }
