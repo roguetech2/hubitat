@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.1.1
+*  Version: 0.4.1.2
 *
 ***********************************************************************************************************************/
 
@@ -1347,13 +1347,13 @@ def initialize() {
     if(!humidityActive && !tempActive) return
     
     setTime()
-    scheduleMaximum()
+    scheduleMaximumRunTime()
        
     if(humidityActive) subscribe(settings['humiditySensor'], 'humidity', humidityHandler)
     if(humidityActive && settings['humidityControlSensor']) subscribe(settings['humidityControlSensor'], 'humidity', temperatureHandler)
     if(tempActive) subscribe(settings['tempSensor'], 'temperature', temperatureHandler)
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
-    subscribe(settings['device'], 'switch', switchHandler)
+    subscribe(settings['device'], 'switch', handleStateChange)
     
     putLog(1358,'trace','Initialized')
 }
@@ -1368,13 +1368,7 @@ def temperatureHandler(event) {
     updateStatus()
 }
 
-def switchHandler(evt) {
-//Need to check if it was turned on by humidity!
-    atomicState.manualOn = true
-    if(evt.value == 'on') scheduleMaximumRunTime()	
-}
-
-def updateStatus(){     // is called from maximumTime schedule, if parameters added, need to update scheduleMaximumRunTime
+def updateStatus(){
     averageHumidity = averageHumidity(settings['humiditySensor'],settings['tempSensor'])
     averageTemp = averageTemp(settings['humiditySensor'],settings['tempSensor'])
     averageControlHumidity = averageHumidity(settings['humidityControlSensor'],settings['tempControlSensor'])
@@ -1383,27 +1377,34 @@ def updateStatus(){     // is called from maximumTime schedule, if parameters ad
     updateRelativeHumidityArray()
     turnOn()
     turnOff()
-    parent.setDeviceMulti(settings['device'],app.label)
+}
+
+def handleStateChange(event) {
+    lastChangeAddId = parent.getStateChangeAppId(event.device,app.id,app.label)
+    currentState = parent.checkIsOn(event.device,app.label)
+    if(lastChangeAddId == app.id && currentState == event.value) return
+    parent.updateTableCapturedState(event.device,event.value,app.label)
+    if(event.value == 'on') scheduleMaximumRunTime()	
 }
 
 def turnOn(){
     if(getDisabled()) return
     if(!checkOnConditions()) return
     if(checkOffConditions()) {
-        putLog(1393,'warn','Both on and off conditions met.')
+        putLog(1394,'warn','Both on and off conditions met.')
         return
     }
 
-    atomicState.manualOn = false
-
     state.startTime = now()
     settings['device'].each{singleDevice->
-        stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label) 
+        stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
     }
+    parent.setDeviceMulti(settings['device'],app.label)
     unschedule()
     scheduleMaximumRunTime()
 
-    parent.sendPushNotification(it,evt.displayName + ' was ' + eventName + ' at ' + now.format('h:mm a', location.timeZone),app.label)
+    parent.sendPushNotification(it,app.label + ' turned on at ' + now.format('h:mm a', location.timeZone),app.label)
     parent.sendVoiceNotification(settings['speechDevice'],settings['speech'],app.label)
 }
 
@@ -1411,18 +1412,21 @@ def turnOff(){
     // Not sure this will work for scheduled (max run time) off
     // MAXIMUMTIME IS NOT A THING
     // Supposed to be settings['runTimeMaximum'] ?
-    if(maximumTime) {
+    //if(maximumTime) {
         // if starttime + maximumtime > now, then turn off
-    }
+   // }
     if(getDisabled()) return
     if(!checkOffConditions()) return
     if(checkOnConditions()) return
-    if(atomicState.manualOn) return
+    
+    if(parent.getStateChangeAppId(event.device,app.id,app.label) != app.id) return
 
     state.startTime = null
     settings['device'].each{singleDevice->
-        stateMap = parent.getStateMapSingle(singleDevice,'off',app.id,app.label) 
+        stateMap = parent.getStateMapSingle(singleDevice,'off',app.id,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
     }
+    parent.setDeviceMulti(settings['device'],app.label)
     unschedule()
 }
 
@@ -1514,25 +1518,25 @@ def checkOnConditions(){
     if(!checkMinimumWaitTime()) return
     if(settings['multiStartTrigger']) {
         allOnConditions = checkAllOnConditions()
-        putLog(1517,'trace','All on conditions is ' + allOnConditions)
+        putLog(1521,'trace','All on conditions is ' + allOnConditions)
         return allOnConditions
     }
     anyOnConditions = checkAnyOnConditions()
-    putLog(1521,'trace','Any on condition is ' + anyOnConditions)
+    putLog(1525,'trace','Any on condition is ' + anyOnConditions)
     return anyOnConditions
 }
 
 def checkOffConditions(){
-    if(!checkRunTimeMaximum()) return
+    if(!checkRunTimeMinimum()) return
 
     if(settings['multiStopTrigger']) {
         allOffConditions = checkAllOffConditions()
-        putLog(1530,'trace','All off conditions is ' + allOffConditions)
+        putLog(1534,'trace','All off conditions is ' + allOffConditions)
         return allOffConditions
     }
     if(!settings['multiStopTrigger']) {
         anyOffConditions = checkAnyOffConditions()
-        putLog(1535,'trace','Any off conditions is ' + anyOffConditions)
+        putLog(1539,'trace','Any off conditions is ' + anyOffConditions)
         return anyOffConditions
     }
 }
@@ -1549,13 +1553,12 @@ def checkAllOnConditions(){
 
 def checkAllOffConditions(){
     //False value used for log
+    if(checkRunTimeMaximum()) return true
     if(checkRunTimeMinimum()) return false
     if(settings['controlStopDifference'] && !checkControlStopDifference()) return false
     if(settings['humidityStopThreshold'] && !checkHumidityStopThreshold()) return false
     if(settings['humidityStopPercent'] && !checkHumidityStopPercent()) return false
     if(settings['tempStopThreshold'] && !checkTempStopThreshold()) return false
-    
-    if(checkRunTimeMinimum()) return true
 }
 
 def checkAnyOnConditions(){
@@ -1567,6 +1570,7 @@ def checkAnyOnConditions(){
 }
 
 def checkAnyOffConditions(){
+    if(checkRunTimeMaximum()) return true
     if(checkRunTimeMinimum()) return false
     if(checkControlStopDifference()) return true
     if(checkHumidityStopThreshold()) return true
@@ -1651,7 +1655,7 @@ def checkRunTimeMaximum(){
     if(!state.startTime) return true
     
     if(now - state.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1654,'trace','Maximum runtime exceeded.')
+        putLog(1658,'trace','Maximum runtime exceeded.')
         return true
     }
 }
@@ -1661,7 +1665,7 @@ def checkMinimumWaitTime(){
     if(!state.stopTime) return true
     
     if(now - state.stopTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1664,'trace','Minimum wait time exceeded.')
+        putLog(1668,'trace','Minimum wait time exceeded.')
         return true
     }
 }
@@ -1681,15 +1685,28 @@ def scheduleMaximumRunTime(){
     if(!parent.checkAnyOnMulti(settings['device'])) return
     unschedule()
     
-    timeMillis = settings[evt.value + 'runTimeMaximum'] * parent.CONSTMinuteInMilli()
-    functionName = updateStatus
+    timeMillis = settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()
     
-    parent.scheduleChildEvent(timeMillis,'',functionName,'',False,pp.id)
+    parent.scheduleChildEvent(timeMillis,'','performMaximumRunTime','',app.id)
+}
+
+def performMaximumRunTime(){     // is called from maximumTime schedule, if parameters added, need to update scheduleMaximumRunTime
+    averageHumidity = averageHumidity(settings['humiditySensor'],settings['tempSensor'])
+    averageTemp = averageTemp(settings['humiditySensor'],settings['tempSensor'])
+    averageControlHumidity = averageHumidity(settings['humidityControlSensor'],settings['tempControlSensor'])
+    averageControlTemp = averageTemp(settings['humidityControlSensor'],settings['tempControlSensor'])
+
+    updateRelativeHumidityArray()
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,'off',app.id,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
+    }
+    parent.setDeviceMulti(settings['device'],app.label)
 }
 
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     if(timeMillis < 1) {
-        putLog(1692,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
+        putLog(1709,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
         return
     }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
@@ -1708,7 +1725,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1711,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1728,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1718,7 +1735,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1721,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1738,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
