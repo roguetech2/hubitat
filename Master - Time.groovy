@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.9
+*  Version: 0.7.1.10
 *
 ***********************************************************************************************************************/
 
@@ -1280,10 +1280,6 @@ def getDevices(){
 
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
-    if(timeMillis < 1) {
-        putLog(1287,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
-        return
-    }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
