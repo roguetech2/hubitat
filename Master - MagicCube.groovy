@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.1
+*  Version: 0.4.1.1
 * 
 ***********************************************************************************************************************/
 
@@ -502,11 +502,11 @@ def doActions(device,action){
     
     device.each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
-        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
         
         level = parent._getNextLevelDimmable(singleDevice, action, app.label)
         levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
-        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
     if(multiDevice) parent.setDeviceMulti(device,app.label)
@@ -536,14 +536,11 @@ def convertDriver(evt){
         if(evt.value == '5' && atomicState.priorSide == '2') atomicState.actionType = cubeActions[2]
         if(evt.value == '6' && atomicState.priorSide == '1') atomicState.actionType = cubeActions[2]
     }
-    if(evt.name == 'pushed'){
-        if(atomicState.actionType != 'flip90') atomicState.actionType = cubeActions[1]
-    }
     if(evt.name == 'doubleTap') atomicState.actionType = cubeActions[0]
     if(evt.name == 'release') atomicState.actionType = cubeActions[5]
     if(evt.name == 'hold') atomicState.actionType = cubeActions[6]
 
-    putLog(546,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
+    putLog(543,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
     atomicState.priorSide = evt.value
 }
 
