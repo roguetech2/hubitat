@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.10
+*  Version: 0.4.1.11
 *
 ***********************************************************************************************************************/
 
@@ -975,7 +975,7 @@ def updateTableCapturedState(singleDevice,action,appId,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
     stateMap = getStateMapSingle(singleDevice,action,appId,childLabel)
     mergeMapToTable(singleDevice,stateMap,childLabel)
-    if(action == 'on') setDeviceSingle(singleDevice,childLabel)
+    if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
 
     putLog(980, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
 }
@@ -1153,11 +1153,10 @@ def mergeMapToTable(singleDevice, newMap, childLabel = 'Master'){
 
 def clearTableKey(singleDevice,type,appId, childLabel = 'Master'){
     if(!appId) return
-    //if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appId' != appId) return
-    tempMap = atomicState.'devices'
-    if(tempMap."${singleDevice.id}"?."${type}"?.'appId' != appId) return
-    tempMap."${singleDevice.id}".remove((type))
-    
+    if(type != 'state') {
+        if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appId' != appId) return
+    }
+    tempMap."${singleDevice.id}".remove(type)
     atomicState.'devices' = tempMap
     return true
 }
