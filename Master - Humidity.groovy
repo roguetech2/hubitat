@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.1.3
+*  Version: 0.4.1.4
 *
 ***********************************************************************************************************************/
 
@@ -129,6 +129,7 @@ preferences {
             displayLevelOption('humidity')
             displayLevelOption('temp')
             displayHumidityRelativeChangeOption()
+            displayTempRelativeChangeOption()
             displayRunTimeOption()
             displayAlertOptions()
             displayPeopleOption()
@@ -843,6 +844,60 @@ def displayHumidityRelativeChangeOption(){
     }
 }
 
+def displayTempRelativeChangeOption(){
+    if(!settings['device']) return
+    if(!tempActive) return
+
+    if(settings['tempStartPercent']) tempOn = averageTemp + settings['tempStartPercent'] + '°'
+    if(settings['tempStopPercent']) tempOff = averageTemp + settings['tempStopPercent'] + '°'
+
+    minutes = settings['relativeMinutes']
+    if(!settings['relativeMinutes']) minutes = 'the specified number of'
+    
+    hidden = true
+    if(settings['relativeMinutes'] != 5 && !settings['tempStartPercent']) hidden = false
+    if(validateMinutes(settings['relativeMinutes'])) hidden = false
+    if(settings['tempStartPercent'] && settings['tempStopPercent'] && settings['tempStopPercent'] > settings['tempStartPercent']) hidden = false
+    if(settings['tempStartPercent'] && settings['tempStopPercent'] == settings['tempStartPercent']) hidden = false
+
+    sectionTitle = 'Click to set temperature increase (optional)'
+    //if(!settings['tempStartPercent'])
+    if(!settings['tempStartPercent'] && !settings['tempStopPercent']) sectionTitle = 'Click to set temperature increase (optional)'
+    startIncrease = 'increases'
+    startLevel = settings['tempStartPercent']
+    if(settings['tempStartPercent'] && settings['tempStartPercent'] < 0) {
+        startIncrease = 'decreases'
+        startLevel = settings['tempStartPercent'] * -1
+    }
+    stopIncrease = 'above'
+    stopLevel = settings['tempStopPercent']
+    if(settings['tempStopPercent'] && settings['tempStopPercent'] < 0) {
+        stopIncrease = 'below'
+        stopLevel = settings['tempStopPercent'] * -1
+    }
+    if(settings['tempStartPercent'] && settings['relativeMinutes']) sectionTitle = '<b>Start: Temperature ' + startIncrease + ' ' + startLevel + '° in ' + minutes + ' min.</b>'
+    if(settings['tempStartPercent'] && !settings['relativeMinutes']) sectionTitle = '<b>Start: Temperature  ' + startIncrease + '  ' + startLevel + '°</b>'
+    if(settings['tempStartPercent'] && settings['tempStopPercent']) sectionTitle += '<br>'
+    //if(settings['tempStopPercent'] && !settings['tempStartPercent'] && settings['relativeMinutes']) sectionTitle += '<b>Stop: Temperature ' + settings['tempStopPercent'] + '% above start level in ' + minutes + ' min.</b>'
+    if(settings['tempStartPercent'] && settings['tempStopPercent']) sectionTitle += '<b>Stop: Temperature ' + stopLevel + '% ' + stopIncrease + ' start level</b>'
+    
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(settings['tempStartPercent'] && settings['tempStopPercent'] == settings['tempStartPercent']) displayError('The starting and stopping levels can be the same, since it would turn on and off at the same time.')
+        //Validate temp (as percent change)?
+        displayError(validateMinutes(settings['relativeMinutes']))
+        
+        displayRelativeMinutes()
+        displayStartDegrees()
+        displayStopDegrees()
+            
+        if(!settings['tempStartPercent'] && !settings['tempStopPercent']) displayInfo('Enter degrees of temperature increase within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level.')
+
+        if(settings['tempStartPercent'] && settings['tempStopPercent']) helpTip = 'The ' + pluralTemp + ' is currently at ' + averageTempText + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + tempOn + ', and turn off only when at ' + tempOff + '.'
+        if(settings['tempStartPercent'] && !settings['tempStopPercent']) helpTip = 'The ' + pluralTemp + ' is currently at ' + averageTempText + ', so it would turn turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + tempOn + '.'
+        displayInfo(helpTip)
+    }
+}
+
 def displayRelativeMinutes(){
     fieldName = 'relativeMinutes'
     fieldTitle = 'Minutes between change'
@@ -861,10 +916,29 @@ def displayStartPercent(){
 }
 
 def displayStopPercent(){
-    if(!settings['humidityStartPercent']) return
+    if(!settings['tempStartPercent']) return
     if(validateMinutes(settings['relativeMinutes'])) return
-    fieldName = 'humidityStopPercent'
-    fieldTitle = 'Percent above starting humidity (where zero (0) is the initial level)'
+    fieldName = 'tempStopPercent'
+    fieldTitle = 'Degrees above starting temperature (where zero (0) is the initial level)'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    displayLabel('To stop ' + pluralFan)
+    input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
+}
+
+def displayStartDegrees(){
+    if(validateMinutes(settings['relativeMinutes'])) return
+    fieldName = 'tempStartPercent'
+    fieldTitle = 'Temperature increase'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    displayLabel('To start ' + pluralFan)
+    input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
+}
+
+def displayStopDegrees(){
+    if(!settings['tempStartPercent']) return
+    if(validateMinutes(settings['relativeMinutes'])) return
+    fieldName = 'tempStopPercent'
+    fieldTitle = 'Degrees above starting temperature (where zero (0) is the initial level)'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     displayLabel('To stop ' + pluralFan)
     input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
@@ -1319,13 +1393,13 @@ def compareDeviceLists(firstDevices,secondDevices){
 
 
 def installed() {
-    putLog(1322,'trace','Installed')
+    putLog(1396,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1328,'trace','Updated')
+    putLog(1402,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1335,15 +1409,12 @@ def initialize() {
 
 	unschedule()
 
-    if(settings['disable']) state.disable = true
-    if(!settings['disable']) state.disable = false
-
     // If date/time for last notification not set, initialize it to 5 minutes ago
-    if(!state.contactLastNotification) state.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli() //Wtf?
+    if(!atomicState.contactLastNotification) atomicState.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli() //Wtf?
     
     getSensorType()
-    state.humidityActive = humidityActive
-    state.tempActive = tempActive
+    atomicState.humidityActive = humidityActive
+    atomicState.tempActive = tempActive
     if(!humidityActive && !tempActive) return
     
     setTime()
@@ -1355,16 +1426,16 @@ def initialize() {
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
     subscribe(settings['device'], 'switch', handleStateChange)
     
-    putLog(1358,'trace','Initialized')
+    putLog(1429,'trace','Initialized')
 }
 
 def humidityHandler(event) {
-    if(!state.humidityActive) return
+    if(!atomicState.humidityActive) return
     updateStatus()
 }
 
 def temperatureHandler(event) {
-    if(!state.tempActive) return
+    if(!atomicState.tempActive) return
     updateStatus()
 }
 
@@ -1391,11 +1462,13 @@ def turnOn(){
     if(getDisabled()) return
     if(!checkOnConditions()) return
     if(checkOffConditions()) {
-        putLog(1394,'warn','Both on and off conditions met.')
+        putLog(1465,'warn','Both on and off conditions met.')
         return
     }
-
-    state.startTime = now()
+    atomicState.startHumidity = averageHumidity()
+    atomicState.startTemp = averageTemp()
+    
+    atomicState.startTime = now()
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1409,19 +1482,13 @@ def turnOn(){
 }
 
 def turnOff(){
-    // Not sure this will work for scheduled (max run time) off
-    // MAXIMUMTIME IS NOT A THING
-    // Supposed to be settings['runTimeMaximum'] ?
-    //if(maximumTime) {
-        // if starttime + maximumtime > now, then turn off
-   // }
     if(getDisabled()) return
     if(!checkOffConditions()) return
     if(checkOnConditions()) return
     
     if(parent.getStateChangeAppId(event.device,app.id,app.label) != app.id) return
 
-    state.startTime = null
+    atomicState.startTime = null
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,'off',app.id,app.label)
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1481,16 +1548,16 @@ def averageTemp(humidityDevice = null, temperatureDevice = null){
 }
 
 def updateRelativeHumidityArray(){
-    if(!state.humidityActive) return
+    if(!atomicState.humidityActive) return
     timeNow = new Date().getTime()
     timeLimit = timeNow - settings['relativeMinutes'] * parent.CONSTMinuteInMilli()
-    if(!state.humidityChanges){
-        state.humidityChanges = ['1':[time:timeNow,humidity:averageHumidity]]
+    if(!atomicState.humidityChanges){
+        atomicState.humidityChanges = ['1':[time:timeNow,humidity:averageHumidity]]
         return
     }
     itemCount = 0
     newArray = [:]
-    state.humidityChanges.each{
+    atomicState.humidityChanges.each{
         if(it.value.time > timeLimit) {
             itemCount++
                 newArray[itemCount]  = [time:it.value.time,humidity:it.value.humidity]
@@ -1510,19 +1577,19 @@ def updateRelativeHumidityArray(){
             newArray[itemCount] = [time:earliestTime,humidity:earliestValue]
     }
     itemCount++
-        newArray[itemCount]  = [time:timeNow,humidity:averageHumidity]
-    state.humidityChanges = newArray
+    newArray[itemCount]  = [time:timeNow,humidity:averageHumidity]
+    atomicState.humidityChanges = newArray
 }
 
 def checkOnConditions(){
     if(!checkMinimumWaitTime()) return
     if(settings['multiStartTrigger']) {
         allOnConditions = checkAllOnConditions()
-        putLog(1521,'trace','All on conditions is ' + allOnConditions)
+        putLog(1588,'trace','All on conditions is ' + allOnConditions)
         return allOnConditions
     }
     anyOnConditions = checkAnyOnConditions()
-    putLog(1525,'trace','Any on condition is ' + anyOnConditions)
+    putLog(1592,'trace','Any on condition is ' + anyOnConditions)
     return anyOnConditions
 }
 
@@ -1531,12 +1598,12 @@ def checkOffConditions(){
 
     if(settings['multiStopTrigger']) {
         allOffConditions = checkAllOffConditions()
-        putLog(1534,'trace','All off conditions is ' + allOffConditions)
+        putLog(1601,'trace','All off conditions is ' + allOffConditions)
         return allOffConditions
     }
     if(!settings['multiStopTrigger']) {
         anyOffConditions = checkAnyOffConditions()
-        putLog(1539,'trace','Any off conditions is ' + anyOffConditions)
+        putLog(1606,'trace','Any off conditions is ' + anyOffConditions)
         return anyOffConditions
     }
 }
@@ -1558,6 +1625,7 @@ def checkAllOffConditions(){
     if(settings['controlStopDifference'] && !checkControlStopDifference()) return false
     if(settings['humidityStopThreshold'] && !checkHumidityStopThreshold()) return false
     if(settings['humidityStopPercent'] && !checkHumidityStopPercent()) return false
+    if(settings['tempStopPercent'] && !checkTempStopPercent()) return false
     if(settings['tempStopThreshold'] && !checkTempStopThreshold()) return false
 }
 
@@ -1575,6 +1643,7 @@ def checkAnyOffConditions(){
     if(checkControlStopDifference()) return true
     if(checkHumidityStopThreshold()) return true
     if(checkHumidityStopPercent()) return true
+    if(checkTempStopPercent()) return true
     if(checkTempStopThreshold()) return true
     return false    // used for log
 }
@@ -1587,85 +1656,102 @@ def checkControlStartDifference(){
 
 def checkControlStopDifference(){
     if(!settings['controlStopDifference']) return
-    if(atomicState.manualOn && !settings['controlStopDifferenceManual']) return
+    if(getStateChangeAppId(event.device,app.id,app.label) != app.id && !settings['controlStopDifferenceManual']) return
 
     if(averageHumidity < averageControlhumidity + settings['controlStopDifference']) return true
 }
 
 def checkHumidityStartThreshold(){
-    if(!state.humidityActive) return
+    if(!atomicState.humidityActive) return
     if(!settings['humidityStartThreshold']) return
     if(settings['humidityOver'] && averageHumidity > settings['humidityStartThreshold']) return true
     if(!settings['humidityOver'] && averageHumidity < settings['humidityStartThreshold']) return true
 }
 
 def checkHumidityStopThreshold(){
-    if(!state.humidityActive) return
+    if(!atomicState.humidityActive) return
     if(!settings['humidityStopThreshold']) return
-    if(atomicState.manualOn && !settings['humidityStopThresholdManual']) return
+    if(getStateChangeAppId(event.device,app.id,app.label) != app.id && !settings['humidityStopThresholdManual']) return
     if(settings['humidityOver'] && averageHumidity < settings['humidityStopThreshold']) return true
     if(!settings['humidityOver'] && averageHumidity > settings['humidityStopThreshold']) return true
 }
 
 def checkTempStartThreshold(){
-    if(!state.tempActive) return
+    if(!atomicState.tempActive) return
     if(!settings['tempStartThreshold']) return
     if(settings['tempOver'] && averageTemp < settings['tempStartThreshold']) return true
     if(!settings['tempOver'] && averageTemp > settings['tempStartThreshold']) return true
 }
 
 def checkTempStopThreshold(){
-    if(!state.tempActive) return
+    if(!atomicState.tempActive) return
     if(!settings['tempStopThreshold']) return
-    if(atomicState.manualOn && !settings['tempStopThresholdManual']) return
+    if(getStateChangeAppId(event.device,app.id,app.label) != app.id && !settings['tempStopThresholdManual']) return
 
     if(settings['tempOver'] && averageTemp > settings['tempStopThreshold']) return true
     if(!settings['tempOver'] && averageTemp < settings['tempStopThreshold']) return true
 }
 
+
+// start/stopHumdity/Temp are never set
 def checkHumidityStartPercent(){
-    if(!state.humidityActive) return
+    if(!atomicState.humidityActive) return
     if(!settings['humidityStartPercent']) return
     if(!settings['relativeMinutes']) return
-    if(!state.startHumidity) return
+    if(!atomicState.startHumidity) return
     
-    if(averageHumidity > state.startHumidity + settings['humidityStartPercent']) return true
+    if(averageHumidity > atomicState.startHumidity + settings['humidityStartPercent']) return true
 }
 
-def checkHumidityStopPercent(){
+def checkHumidityStopPercent(){        
     if(!settings['humidityStopPercent']) return
     if(!settings['relativeMinutes']) return
-    if(!state.startHumidity) return
+    if(!atomicState.startHumidity) return
     
-    if(averageHumidity < state.startHumidity + settings['humidityStopPercent']) return true
+    if(averageHumidity < atomicState.startHumidity + settings['humidityStopPercent']) return true
+}
+
+def checkTempStartPercent(){
+    if(!atomicState.tempActive) return
+    if(!settings['tempStartPercent']) return
+    if(!settings['relativeMinutes']) return
+    if(!atomicState.startTemp) return
+    
+    if(averageTemp > atomicState.startTemp + settings['tempStartPercent']) return true
+}
+
+def checkTempStopPercent(){
+    if(!settings['tempStopPercent']) return
+    if(!settings['relativeMinutes']) return
+    if(!atomicState.startTemp) return
+    
+    if(averageTemp < atomicState.startTemp + settings['tempStopPercent']) return true
 }
 
 def checkRunTimeMinimum(){
     if(!settings['runTimeMinimum']) return
-// STATE.STARTTIME IS NEVER SET
     if(!state.startTime) return
     
-    if((now() - state.startTime) > settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return true
+    if((now() - atomicState.startTime) > settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return true
 }
 
 //Returns true if condition is met
 def checkRunTimeMaximum(){
     if(!settings['runTimeMaximum']) return true
-// STATE.STARTTIME IS NEVER SET
-    if(!state.startTime) return true
+    if(!atomicState.startTime) return true
     
-    if(now - state.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1658,'trace','Maximum runtime exceeded.')
+    if(now() - atomicState.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
+        putLog(1744,'trace','Maximum runtime exceeded.')
         return true
     }
 }
 
 def checkMinimumWaitTime(){
     if(!settings['runTimeMaximum']) return true
-    if(!state.stopTime) return true
+    if(!atomicState.stopTime) return true
     
-    if(now - state.stopTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1668,'trace','Minimum wait time exceeded.')
+    if(now() - atomicState.stopTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
+        putLog(1754,'trace','Minimum wait time exceeded.')
         return true
     }
 }
@@ -1721,7 +1807,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1724,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1810,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1731,7 +1817,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1734,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1820,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1746,7 +1832,7 @@ def setStartStopTime(type){
 
 def getDisabled(){
     // If disabled, return true
-    if(state.disable) return true
+    if(settings['disable']) return true
 
     // If mode isn't correct, return false
     if(settings['ifMode'] && location.mode != settings['ifMode']) return true
