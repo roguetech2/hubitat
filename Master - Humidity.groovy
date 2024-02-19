@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.1.2
+*  Version: 0.4.1.3
 *
 ***********************************************************************************************************************/
 
@@ -1705,10 +1705,6 @@ def performMaximumRunTime(){     // is called from maximumTime schedule, if para
 }
 
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
-    if(timeMillis < 1) {
-        putLog(1709,'warning','Scheduled time ' + timeMillis + ' is not a positive number with ' + scheduleFunction)
-        return
-    }
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
@@ -1725,7 +1721,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1728,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1724,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1735,7 +1731,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1738,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1734,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
