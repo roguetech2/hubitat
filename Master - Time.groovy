@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.8
+*  Version: 0.7.1.9
 *
 ***********************************************************************************************************************/
 
@@ -884,7 +884,6 @@ def initialize() {
     if(settings['stop_temp'] == 0) settings['stop_temp'] = null
     if(settings['stop_hue'] == 0) settings['stop_hue'] = null
     if(settings['stop_sat'] == 0) settings['stop_sat'] = null
-    
     if(settings['start_brightness']) settings['start_brightness'] = parent.convertToInteger(settings['start_brightness'])
     if(settings['stop_brightness']) settings['stop_brightness'] = parent.convertToInteger(settings['stop_brightness'])
     if(settings['start_temp']) settings['start_temp'] = parent.convertToInteger(settings['start_temp'])
@@ -904,7 +903,6 @@ def initialize() {
         parent.clearTableKey(singleDevice,'hue',app.id,app.label)
         parent.clearTableKey(singleDevice,'sat',app.id,app.label)
     }
-        return
 
     if(settings['disable']) return
 
@@ -918,7 +916,6 @@ def initialize() {
 }
 
 def handleStateChange(event){
-    log.debug 'Captured state change: ' + event.device + ' ' + event.value
     parent.updateTableCapturedState(event.device,event.value,app.label)
 }
 
@@ -1031,6 +1028,7 @@ def runDailyStartSchedule(){
     if(settings['disabled']) return
     if(atomicState.start && atomicState.stop){
         if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)){
+            putLog(1034,'Now ' + now() + ' not between times ' + atomicState.start + ' ' + atomicState.stop + ' when starting schedule ' + app.label)
             parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
             return
         }
@@ -1045,7 +1043,6 @@ def runDailyStartSchedule(){
     }
 
     putLog(1047,'info','Starting ' + app.label + ' schedule.')
-
     atomicState.startDisabled = false
     brightnessMap = getScheduleMap('brightness',settings['start_brightness'])
     tempMap = getScheduleMap('temp',settings['start_temp'])
