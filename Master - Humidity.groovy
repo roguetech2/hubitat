@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.1.6
+*  Version: 0.4.1.7
 *
 ***********************************************************************************************************************/
 
@@ -1562,7 +1562,7 @@ def averageTemp(humidityDevice, tempDevice){
 def updateRelativeHumidityArray(){
     if(!atomicState.humidityActive) return
     if(!atomicState.humidityChanges){
-        atomicState.humidityChanges = ['1':[time:now(),humidity:atomicState.averageHumidity]]    // averageHumidity doesn't equal anything
+        atomicState.humidityChanges = ['1':[time:now(),humidity:atomicState.averageHumidity]]
         return
     }
     itemCount = 0
@@ -1588,14 +1588,14 @@ def updateRelativeHumidityArray(){
             newArray[itemCount] = [time:earliestTime,humidity:earliestValue]
     }
     itemCount++
-    newArray[itemCount]  = [time:now(),humidity:atomicState.averageHumidity]    // averageHumidity doesn't equal anything
+    newArray[itemCount]  = [time:now(),humidity:atomicState.averageHumidity]
     atomicState.humidityChanges = newArray
 }
 
-def updateRelativeHumidityArray(){
+def updateRelativeTempArray(){
     if(!atomicState.tempActive) return
     if(!atomicState.tempChanges){
-        atomicState.tempChanges = ['1':[time:now(),temp:atomicState.averageTemp]]    // averageTemp doesn't equal anything
+        atomicState.tempChanges = ['1':[time:now(),temp:atomicState.averageTemp]]
         return
     }
     itemCount = 0
@@ -1621,7 +1621,7 @@ def updateRelativeHumidityArray(){
             newArray[itemCount] = [time:earliestTime,temp:earliestValue]
     }
     itemCount++
-    newArray[itemCount]  = [time:now(),temp:atomicState.averageTemp]    // averageTemp doesn't equal anything
+    newArray[itemCount]  = [time:now(),temp:atomicState.averageTemp]
     atomicState.tempChanges = newArray
 }
 
