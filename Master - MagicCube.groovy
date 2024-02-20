@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.1.1
+*  Version: 0.4.1.2
 * 
 ***********************************************************************************************************************/
 
@@ -527,8 +527,8 @@ def convertDriver(evt){
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
     if(!atomicState.priorSide) putLog(528,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
-    //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
+        atomicState.actionType = cubeActions[1]
         if(evt.value == '1' && atomicState.priorSide == '6') atomicState.actionType = cubeActions[2]
         if(evt.value == '2' && atomicState.priorSide == '5') atomicState.actionType = cubeActions[2]
         if(evt.value == '3' && atomicState.priorSide == '4') atomicState.actionType = cubeActions[2]
