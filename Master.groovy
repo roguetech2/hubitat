@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.12
+*  Version: 0.4.1.13
 *
 ***********************************************************************************************************************/
 
@@ -1162,6 +1162,7 @@ def clearTableKey(singleDevice,type,appId, childLabel = 'Master'){
     if(type != 'state') {
         if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appId' != appId) return
     }
+    tempMap = atomicState.'devices'
     tempMap."${singleDevice.id}".remove(type)
     atomicState.'devices' = tempMap
     return true
