@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.2
+*  Version: 0.6.2.3
 *
 ***********************************************************************************************************************/
 
@@ -125,7 +125,7 @@ preferences {
                 displayNameOption()
             }
         } else {
-            //if(buttonDevice) numberOfButtons = getButtonNumbers()
+            //if(device) numberOfButtons = getButtonNumbers()
             // Multi + advanced needs section closed
             if(settings['multiDevice'] && settings['customActionsSetup']){
                 section(){
@@ -421,7 +421,7 @@ def displayMultiDeviceAdvanced(){
 
 def formComplete(){
     if(!app.label) return false
-    if(!buttonDevice) return false
+    if(!settings['device']) return false
     if(!numberOfButtons) return false
     if(!settings['multiDevice']) {
         if(settings['customActionsSetup'] && !button_1_push && !button_2_push && !button_3_push && !button_4_push && !button_5_push) return false
@@ -439,8 +439,8 @@ def formComplete(){
 
 // Display functions
 def getDeviceCount(device){
-    if(!settings[buttonDevice]) return false
-    return settings[buttonDevice].size()
+    if(!settings['device']) return false
+    return settings['device'].size()
 }
 
 def getPicoPlural(){
@@ -1065,11 +1065,11 @@ def buttonPushed(evt){
         device.each{singleDevice->
             stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
             
-            parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+            parent.mergeMapToTable(singleDevice,stateMap,app.label)
             // need to get nextLevel here
             if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
             levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
-            parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+            parent.mergeMapToTable(singleDevice,levelMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
         if(atomicState.action == 'hold') holdNextLevelMulti(device,switchAction)
@@ -1165,7 +1165,7 @@ def holdNextLevelSingle(singleDevice,action){
     level = parent._getNextLevelDimmable(singleDevice, action, app.label)
     if(!level) return
     levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
-    parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+    parent.mergeMapToTable(singleDevice,levelMap,app.label)
     
     parameters = '[device: it.id, action: action]'
     parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters, '',app.id)
