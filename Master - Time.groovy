@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.11
+*  Version: 0.7.1.12
 *
 ***********************************************************************************************************************/
 
@@ -998,11 +998,11 @@ def handleSatChange(event){
 def setStartSchedule(){
     setTime()
     if(!atomicState.start) return
-    scheduleStart = atomicState.start
-    if(atomicState.start < now() && atomicState.stop > now()) {
-        runDailyStartSchedule()
-        return true
-    }
+
+    stopTime = atomicState.stop
+    if(!stopTime) stopTime = 0
+    if(atomicState.start < now() && stopTime > now()) runDailyStartSchedule()
+    
     timeMillis = atomicState.start - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
