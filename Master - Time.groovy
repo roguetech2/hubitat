@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.3
+*  Version: 0.7.2.4
 *
 ***********************************************************************************************************************/
 
@@ -903,14 +903,13 @@ def initialize() {
     subscribeDevices()
 
     setStartSchedule()
-    //setStopSchedule()
 
     startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
     stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
 
     if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) runDailyStartSchedule()
 
-    putLog(913,'info',app.label + ' initialized.')
+    putLog(912,'info',app.label + ' initialized.')
     return true
 }
 
@@ -943,7 +942,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(946,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    putLog(945,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -966,7 +965,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(969,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    putLog(968,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -987,7 +986,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(990,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(989,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -1017,7 +1016,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(1020,'info',app.label + ' schedule has started.')
+    putLog(1019,'info',app.label + ' schedule has started.')
     clearScheduleFromTable()
     if(settings['disabled']) return
 
@@ -1064,14 +1063,14 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1067,'info','Performing start action(s) for ' + app.label + ' schedule.')
+    putLog(1066,'info','Performing start action(s) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1074,'info',app.label + ' schedule has ended.')
+    putLog(1073,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1096,7 +1095,7 @@ def runDailyStopSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1099,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
+    putLog(1098,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
@@ -1109,6 +1108,7 @@ def runIncrementalSchedule(){
     if(!parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) return  // Unscheduled from runDailyStopSchedule
 
     if(!getActive()) {
+//Needs to only clear out THIS schedule - clearScheduleFromTable() does everything
         clearScheduleFromTable()
         parent.scheduleChildEvent(parent.CONSTScheduleMinimumInactiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
         return
@@ -1165,10 +1165,10 @@ def subscribeDevices(){
 def clearScheduleFromTable(){
     settings['device'].each{singleDevice->
         //parent.clearTableKey(singleDevice,'state',app.id,app.label)
-        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
-        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
-        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
-        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
+        if(parent.getAppIdForDeviceFromTable(singleDevice,'brightness',app.label) == app.id) parent.clearTableKey(singleDevice,'brightness',app.label)
+        if(parent.getAppIdForDeviceFromTable(singleDevice,'temp',app.label) == app.id) parent.clearTableKey(singleDevice,'temp',app.label)
+        if(parent.getAppIdForDeviceFromTable(singleDevice,'hue',app.label) == app.id) parent.clearTableKey(singleDevice,'hue',app.label)
+        if(parent.getAppIdForDeviceFromTable(singleDevice,'sat',app.label) == app.id) parent.clearTableKey(singleDevice,'sat',app.label)
     }
 }
 
