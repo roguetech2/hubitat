@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.1.12
+*  Version: 0.7.2
 *
 ***********************************************************************************************************************/
 
@@ -879,7 +879,9 @@ def updated() {
 }
 
 def initialize() {
-    putLog(882,'trace',app.label + ' initializing.')
+    //timeInMillis = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'))
+    //log.debug 'milli-of-day ' + timeInMillis + ' ' + timeInMillis2
+    putLog(884,'trace',app.label + ' initializing.')
     if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
     if(settings['stop_temp'] == 0) settings['stop_temp'] = null
     if(settings['stop_hue'] == 0) settings['stop_hue'] = null
@@ -894,24 +896,23 @@ def initialize() {
     if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
-    unschedule()
 
-    settings['device'].each{singleDevice->
-        parent.clearTableKey(singleDevice,'state',app.id,app.label)
-        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
-        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
-        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
-        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
-    }
+    unschedule()
+    clearScheduleFromTable()
 
     if(settings['disable']) return
 
     subscribeDevices()
 
     setStartSchedule()
-    setStopSchedule()
+    //setStopSchedule()
 
-    putLog(914,'info',app.label + ' initialized.')
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
+    stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
+
+    if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) runDailyStartSchedule()
+
+    putLog(915,'info',app.label + ' initialized.')
     return true
 }
 
@@ -944,7 +945,7 @@ def handleTempChange(event){
 
     defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
 
-    putLog(947,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
+    putLog(948,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -967,7 +968,7 @@ def handleHueChange(event){
 
     defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
 
-    putLog(970,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
+    putLog(971,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -988,7 +989,7 @@ def handleSatChange(event){
     if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
 
     defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(991,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
+    putLog(992,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
     parent.updateLevelsSingle(event.device,defaults,app.label)
 
     return
@@ -996,66 +997,51 @@ def handleSatChange(event){
 
 // Creates the schedule for start and stop
 def setStartSchedule(){
-    setTime()
-    if(!atomicState.start) return
-
-    stopTime = atomicState.stop
-    if(!stopTime) stopTime = 0
-    if(atomicState.start < now() && stopTime > now()) runDailyStartSchedule()
-    
-    timeMillis = atomicState.start - now()
+    startTime = getBaseStartStopTimes('start')
+    if(!startTime) return
+    timeMillis = startTime - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
-    putLog(1009,'info','Set start schedule for ' + new Date(atomicState.start).format('HH:mm'))
+    
 
     return true
 }
 
 def setStopSchedule(){
-    setTime()
-    if(!atomicState.start) return
-    if(!atomicState.stop) return
-    timeMillis = atomicState.stop - now()
+    stopTime = getBaseStartStopTimes('stop')
+    if(!stopTime) return
+    timeMillis = stopTime - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
-    putLog(1021,'info','Set stop schedule for ' + new Date(atomicState.stop).format('HH:mm'))
 
+    return true
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
+    putLog(1023,'info',app.label + ' schedule has started.')
+    clearScheduleFromTable()
     if(settings['disabled']) return
-    if(atomicState.start && atomicState.stop){
-        if(!parent.checkNowBetweenTimes(atomicState.start,atomicState.stop)){
-            putLog(1031,'Now ' + now() + ' not between times ' + atomicState.start + ' ' + atomicState.stop + ' when starting schedule ' + app.label)
-            parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
-            return
-        }
-    }
-    if(!parent.checkNowInDayList(settings['days'],app.Label)) {
-        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
-        return
-    }
-    if(!parent.checkNowInMonthList(settings['months'],app.Label)) {
-        parent.scheduleChildEvent(atomicState.start + parent.CONSTDayInMilli(),'','runDailyStartSchedule','',app.id)
-        return
-    }
 
-    putLog(1045,'info','Starting ' + app.label + ' schedule.')
+    setStopSchedule()
+    
+    if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
+    if(settings['start_temp'] && settings['stop_temp']) runIncremental = true
+    if(settings['start_hue'] && settings['stop_hue']) runIncremental = true
+    if(settings['start_sat'] && settings['stop_sat']) runIncremental = true
+    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleMinimumActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
+
+    if(!getActive()) {
+        atomicState.startDisabled = true
+        return
+    }
     atomicState.startDisabled = false
-    brightnessMap = getScheduleMap('brightness',settings['start_brightness'])
-    tempMap = getScheduleMap('temp',settings['start_temp'])
-    hueMap = getScheduleMap('hue',settings['start_hue'])
-    satMap = getScheduleMap('sat',settings['start_sat'])
 
-    if(atomicState.start && atomicState.stop){
-        if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
-        if(settings['start_temp'] && settings['stop_temp']) runIncremental = true
-        if(settings['start_hue'] && settings['stop_hue']) runIncremental = true
-        if(settings['start_sat'] && settings['stop_sat']) runIncremental = true
-    }
-
+    brightnessMap = parent.getLevelMap('brightness',settings['start_brightness'],app.id,app.label)
+    tempMap = parent.getLevelMap('temp',settings['start_temp'],app.id,app.label)
+    hueMap = parent.getLevelMap('hue',settings['start_hue'],app.id,app.label)
+    satMap = parent.getLevelMap('sat',settings['start_sat'],app.id,app.label)
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1064,33 +1050,30 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    if(!getDisabled()) parent.setDeviceMulti(settings['device'],app.label)
-
-    setStartSchedule()
-    if(runIncremental) parent.scheduleChildEvent(parent.CONSTScheduleMinimumActiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
+    putLog(1053,'info','Performing start action(s) for ' + app.label + ' schedule.')
+    parent.setDeviceMulti(settings['device'],app.label)
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    if(!atomicState.stop) return
+    putLog(1060,'info',app.label + ' schedule has ended.')
+
+    atomicState.startTime = null
+    atomicState.stopTime = null
+    clearScheduleFromTable()
     unschedule(runIncrementalSchedule)
+
     if(settings['disabled']) return
     
-    putLog(1080,'info','Stopping ' + app.label + ' schedule.')
+    setStartSchedule()
+    if(!atomicState.startDisabled) return
 
     brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label)
     tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
     hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label)
     satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
-        
     settings['device'].each{singleDevice->
-        parent.clearTableKey(singleDevice,'state',app.id,app.label)
-        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
-        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
-        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
-        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
-        
         stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
         parent.mergeMapToTable(singleDevice,brightnessMap,app.label)
@@ -1098,56 +1081,55 @@ def runDailyStopSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-
+    putLog(1084,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
-    
-    setStopSchedule()
 }
 
 // Is unscheduled from runDailyStopSchedule
 def runIncrementalSchedule(){
-    if(!atomicState.start) return
-    if(!atomicState.stop) return
-    if(atomicState.stop < now()) return
-    
-    if(atomicState.start < atomicState.stop) scheduleFrequency = Math.round(Math.abs(atomicState.stop - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
-    if(atomicState.start > atomicState.stop) scheduleFrequency = Math.round(Math.abs((atomicState.stop + parent.CONSTDayInMilli()) - atomicState.start) / parent.CONSTScheduleMaximumIncrements())
+    if(settings['disabled']) return
 
-    timeMillis = scheduleFrequency
-    if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumInactiveFrequencyMilli()
+    setTime()
+    if(!atomicState.startTime) return
+    if(!atomicState.stopTime) return
+    //if(!parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) return  // Unscheduled from runDailyStopSchedule
 
-    if(getDisabled()){
-        parent.scheduleChildEvent(timeMillis,'','runIncrementalSchedule','',app.id)
+    if(!getActive()) {
+        clearScheduleFromTable()
+        parent.scheduleChildEvent(parent.CONSTScheduleMinimumInactiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
         return
     }
+    
+    if(atomicState.startTime < atomicState.stopTime) scheduleFrequency = Math.round(Math.abs(atomicState.stopTime - atomicState.startTime) / parent.CONSTScheduleMaximumIncrements())
+    if(atomicState.startTime > atomicState.stopTime) scheduleFrequency = Math.round(Math.abs((atomicState.stopTime + parent.CONSTDayInMilli()) - atomicState.startTime) / parent.CONSTScheduleMaximumIncrements())
+    timeMillis = scheduleFrequency
+    if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumInactiveFrequencyMilli()
+    
     activateScheduleFromManualOverride = false       // True is to remain active
-
     settings['device'].each{singleDevice->
         deviceChangedAny = false
-        //This is where we should be checking manual overrides
-        newLevel = parent.getIncrementalLevelSingle(singleDevice,'brightness',app.label)
+        newLevel = getIncrementalLevelSingle(singleDevice,'brightness')
         brightnessMap = parent.getLevelMap('brightness',newLevel,app.id,app.label)
         parent.mergeMapToTable(singleDevice,brightnessMap)
         if(brightnessMap) deviceChangedAny = true
         
-        newLevel = parent.getIncrementalLevelSingle(singleDevice,'temp',app.label)
+        newLevel = getIncrementalLevelSingle(singleDevice,'temp')
         tempMap = parent.getLevelMap('temp',newLevel,app.id,app.label)
         parent.mergeMapToTable(singleDevice,tempMap)
         if(tempMap) deviceChangedAny = true
         
-        newLevel = parent.getIncrementalLevelSingle(singleDevice,'hue',app.label)
+        newLevel = getIncrementalLevelSingle(singleDevice,'hue')
         hueMap = parent.getLevelMap('hue',newLevel,app.id,app.label)
         parent.mergeMapToTable(singleDevice,hueMap)
         if(hueMap) deviceChangedAny = true
 
-        newLevel = parent.getIncrementalLevelSingle(singleDevice,'sat',app.label)
+        newLevel = getIncrementalLevelSingle(singleDevice,'sat')
         satMap = parent.getLevelMap('sat',newLevel,app.id,app.label)
         parent.mergeMapToTable(singleDevice,satMap)
         if(satMap) deviceChangedAny = true
 
         if(deviceChangedAny) activateScheduleFromManualOverride = true
     }
-    
     if(deviceChangedAny) parent.setDeviceMulti(settings['device'],app.label)
 
     if(activateScheduleFromManualOverride) {
@@ -1169,19 +1151,14 @@ def subscribeDevices(){
     return
 }
 
-
-// type expects 'brightness', 'temp', 'hue', 'sat'
-def getScheduleMap(type,level){
-    if(!atomicState.start) return
-    if(!settings['start_' + type]) return
-
-    scheduleMap =  parent.getLevelMap(type,level,app.id,app.label)
-    scheduleMap."${type}".'startLevel' = settings['start_' + type]
-    if(settings['stop_' + type]) scheduleMap."${type}".'stopLevel' = settings['stop_' + type]
-    if(atomicState.stop) scheduleMap."${type}".'startTime' = atomicState.start
-    if(atomicState.stop) scheduleMap."${type}".'stopTime' = atomicState.stop
-    if(type == 'hue' && settings['hueDirection']) scheduleMap."${type}".'hueDirection' = settings['hueDirection']
-    return scheduleMap
+def clearScheduleFromTable(){
+    settings['device'].each{singleDevice->
+        //parent.clearTableKey(singleDevice,'state',app.id,app.label)
+        parent.clearTableKey(singleDevice,'brightness',app.id,app.label)
+        parent.clearTableKey(singleDevice,'temp',app.id,app.label)
+        parent.clearTableKey(singleDevice,'hue',app.id,app.label)
+        parent.clearTableKey(singleDevice,'sat',app.id,app.label)
+    }
 }
 
 // Only thing really neede is:
@@ -1194,29 +1171,9 @@ def systemBootActivate(){
 }
 
 def setTime(){      // Should NOT be run from Incremental
-    baseStartTime = getBaseStartStopTimes('start')
-    if(!baseStartTime) return
-    baseStopTime = getBaseStartStopTimes('stop')
-    if(!baseStopTime){
-        atomicState.stop = null
-        if(baseStartTime < now()) baseStartTime += parent.CONSTDayInMilli()
-        atomicState.start  = baseStartTime
-        return
-    }
-    if(baseStopTIme > now()){
-        atomicState.start  = baseStartTime
-        atomicState.stop  = baseStopTime
-        return
-    }
-    if(baseStopTIme < now()){
-        atomicState.start  = baseStartTime + parent.CONSTDayInMilli()
-        atomicState.stop  = baseStopTime + parent.CONSTDayInMilli()
-        return
-    }
-
-    //if(!setStartTime()) return
-    //setStopTime()
-    //return true
+    //if(atomicState.startTime) return
+    atomicState.startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
+    atomicState.stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
 }
 
 // Sets atomicState.start and atomicState.stop variables
@@ -1232,28 +1189,59 @@ def getBaseStartStopTimes(type){
     if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
 }
 
-// Returns true is schedule is not inactive, and allows for no stop time
-// Used by getDefaultLevel
-def getScheduleActive(){
-    if(!parent.checkNowInDayList(settings['days'],app.label)) return
-    if(!parent.checkNowInMonthList(settings['months'],app.label)) return
-    if(!atomicState.start || !atomicState.stop) return
-    if(!parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
+// type expects 'brightness', 'temp', 'hue', 'sat'
+// With Hue, checks reverse
+def getIncrementalLevelSingle(singleDevice,type){
+    if(!singleDevice) return
+    if(!type) return
+    if(!atomicState.startTime) return
+    if(!atomicState.stopTime) return
+    if(!settings['start_' + type]) return
+    if(!settings['stop_' + type]) return
 
+    // need to check if time was before schedule started?
+    if(parent.getAppIdForDeviceFromTable(singleDevice,type,app.label) != app.id) return
+
+    totalMillis = atomicState.stopTime - atomicState.startTime
+    if(totalMillis < 0) totalMillis = atomicState.startTime + atomicState.stopTime  // Adjust for going past midnight
+    elapsedMillis = parent.getTimeOfDayInMillis(now(),app.label) - atomicState.startTime
+    //if(elapsedMillis > totalMillis) return
+    percentComplete = elapsedMillis / totalMillis
+    forward = false
+    if(settings['start_' + type] < settings['stop_' + type]) forward = true
+    if(type == 'hue' && settings['hueDirection'] == 'reverse') forward = !forward
+
+    totalRange = Math.abs(settings['start_' + type] - settings['stop_' + type])
+    if(type == 'hue'){
+        if(forward) totalRange = 360 - settings['start_' + type] + settings['stop_' + type]
+        if(!forward) totalRange = 360 - settings['stop_' + type] + settings['start_' + type]
+    }
+    if(forward) resultLevel = Math.round(totalRange * percentComplete + settings['start_' + type])
+    if(!forward) resultLevel = Math.round(settings['start_' + type] - totalRange * percentComplete)
+    if(type == 'hue'){
+        if(resultLevel < 0) resultLevel = 360 + resultLevel
+        if(resultLevel > 360) resultLevel = resultLevel - 360
+    }
+    
+    return resultLevel
+}
+
+def getActive(){
+    if(settings['disabled']) return
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return
+
+    if(!parent.checkNowInDayList(settings['days'],app.Label)) return
+    if(!parent.checkNowInMonthList(settings['months'],app.Label)) return
+    
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
     return true
 }
 
+//DEPRECATED??
 def getDisabled(){
     // If disabled, return true
     if(settings['disabled']) return true
-
-    // If mode isn't correct, return false
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
-    
-    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
-    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
-
-    return false
 }
 
 def getDevices(){
