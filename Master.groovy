@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.14
+*  Version: 0.4.1.15
 *
 ***********************************************************************************************************************/
 
@@ -617,7 +617,7 @@ def checkNowBetweenScheduledStartStopTimes(timeStart, timeStop,childLabel='Maste
     if(!timeStart) return
     if(!timeStop) return
     if(timeStart > CONSTDayInMilli()) timeStart = getTimeOfDayInMillis(timeStart)       // Convert from Epoch millis to time in millis, for testing/conversion
-    if(timeStop > CONSTDayInMilli()) timeStart = getTimeOfDayInMillis(timeStop)       // Convert from Epoch millis to time in millis, for testing/conversion
+    if(timeStop > CONSTDayInMilli()) timeStop = getTimeOfDayInMillis(timeStop)       // Convert from Epoch millis to time in millis, for testing/conversion
     currentTime = getTimeOfDayInMillis(now())
 
     if(currentTime < timeStart) return
@@ -1065,10 +1065,9 @@ def mergeTwoMaps(Map leftMap, Map rightMap, childLabel = 'Master'){
 // Deletes and replaces an atomicState key with a new map
 // Replaces an atomicState key with a new map, preserving subkeys not in common
 def mergeMapToTable(singleDevice, newMap, childLabel = 'Master'){
-
     if(!singleDevice) return
     if(!newMap) return
-    //mainMap = [:]
+    
     if(atomicState.'devices') mainMap = atomicState.'devices'
     if(!atomicState.'devices') mainMap = [:]
     if(!mainMap?."${singleDevice.id}") mainMap[(singleDevice.id)] = [:]
@@ -1086,13 +1085,10 @@ def mergeMapToTable(singleDevice, newMap, childLabel = 'Master'){
     if(mainMap?."${singleDevice.id}") atomicState.'devices' =  mainMap
 }
 
-def clearTableKey(singleDevice,type,appId, childLabel = 'Master'){
+def clearTableKey(singleDevice,type, childLabel = 'Master'){
     if(!singleDevice) return
-    if(!appId) return
     if(!atomicState.'devices'?."${singleDevice.id}"?."${type}") return
-    if(type != 'state') {
-        if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'appId' != appId) return
-    }
+
     tempMap = atomicState.'devices'
     tempMap."${singleDevice.id}".remove(type)
     atomicState.'devices' = tempMap
