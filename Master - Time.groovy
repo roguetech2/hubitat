@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2
+*  Version: 0.7.2.1
 *
 ***********************************************************************************************************************/
 
@@ -1024,6 +1024,16 @@ def runDailyStartSchedule(){
     clearScheduleFromTable()
     if(settings['disabled']) return
 
+    
+    if(!parent.checkNowInDayList(settings['days'],app.Label)) {
+        setStartSchedule()
+        return
+    }
+    if(!parent.checkNowInMonthList(settings['months'],app.Label)) {
+        setStartSchedule()
+        return
+    }
+
     setStopSchedule()
     
     if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
@@ -1050,14 +1060,14 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1053,'info','Performing start action(s) for ' + app.label + ' schedule.')
+    putLog(1063,'info','Performing start action(s) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1060,'info',app.label + ' schedule has ended.')
+    putLog(1070,'info',app.label + ' schedule has ended.')
 
     atomicState.startTime = null
     atomicState.stopTime = null
@@ -1081,13 +1091,14 @@ def runDailyStopSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1084,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
+    putLog(1094,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
 // Is unscheduled from runDailyStopSchedule
 def runIncrementalSchedule(){
     if(settings['disabled']) return
+
 
     setTime()
     if(!atomicState.startTime) return
@@ -1229,9 +1240,6 @@ def getIncrementalLevelSingle(singleDevice,type){
 def getActive(){
     if(settings['disabled']) return
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
-
-    if(!parent.checkNowInDayList(settings['days'],app.Label)) return
-    if(!parent.checkNowInMonthList(settings['months'],app.Label)) return
     
     if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
     if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
