@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.2
+*  Version: 0.7.2.3
 *
 ***********************************************************************************************************************/
 
@@ -1082,12 +1082,12 @@ def runDailyStopSchedule(){
 
     if(settings['disabled']) return
     
-    if(!atomicState.startDisabled) return
+    if(atomicState.startDisabled) return
 
-    brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label)
-    tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
-    hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label)
-    satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
+    if(!settings['start_brightness']) brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label)
+    if(!settings['start_temp']) tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
+    if(!settings['start_hue']) hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label)
+    if(!settings['start_sat']) satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1120,7 +1120,7 @@ def runIncrementalSchedule(){
     settings['device'].each{singleDevice->
         deviceChangedAny = false
         newLevel = getIncrementalLevelSingle(singleDevice, 'brightness')
-        brightnessMap = parent.getLevelMap( 'brightness', newLevel, app.id, app.label)
+        brightnessMap = parent.getLevelMap('brightness', newLevel, app.id, app.label)
         parent.mergeMapToTable(singleDevice, brightnessMap)
         if(brightnessMap) deviceChangedAny = true
         
