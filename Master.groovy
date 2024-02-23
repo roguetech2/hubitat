@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.15
+*  Version: 0.4.1.16
 *
 ***********************************************************************************************************************/
 
@@ -790,7 +790,7 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'currentLevel'
     if(!newLevel) newLevel = CONSTDeviceDefaultTemp()
     
-    if(checkTempWithinVariance(oldLevel,newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
+    if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
     putLog(796,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
