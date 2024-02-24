@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.16
+*  Version: 0.4.1.17
 *
 ***********************************************************************************************************************/
 
@@ -879,7 +879,7 @@ def getStateMapSingle(singleDevice,action,appId,childLabel = 'Master'){
     return ['state':['state':action,'time':now(),'appId':appId]]    // appId used by humidity
 }
 
-def getLevelMap(type,level,appId,childLabel = 'Master'){
+def getLevelMapSingle(type,level,appId,childLabel = 'Master'){
     if(!type) return
     if(!level) return
     if(!appId) return
@@ -915,12 +915,11 @@ def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     putLog(915, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
 }
 
-def updateTableCapturedLevel(singleDevice,type,value,appId,childLabel = 'Master'){
-    //value = convertToInteger(event.value)
-    if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel') return
-    if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' == convertToInteger(value)) return
+def updateTableCapturedLevel(singleDevice,type,value,childLabel = 'Master'){
+    if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' == value) return
     
-    currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
+    levelMap = getLevelMapSingle(type,value,'manual',childLabel)
+    mergeMapToTable(singleDevice,levelMap,childLabel)
     putLog(924,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + value + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + '; actually was ' + currentLevel + ')',childLabel,'True')
 }
 
