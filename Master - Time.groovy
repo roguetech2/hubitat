@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.4
+*  Version: 0.7.2.5
 *
 ***********************************************************************************************************************/
 
@@ -919,77 +919,21 @@ def handleStateChange(event){
 
 // this does level, temp, hue, and sat
 def handleBrightnessChange(event){
-    return
     parent.updateTableCapturedLevel(event.device,'brightness',event.value,app.label)
 }
 
 // This needs rewrite
 def handleTempChange(event){
-    return
-    parent.updateTableCapturedLevel(event.device,'temp',event.value,app.label)
-    return
-    //parent.updateTableCapturedBrightness(event.device,'temp',event.value,app.label)
-    
-    tempChange = parent.getLastTempChange(event.device, app.label)
-    if(!tempChange) return
-    if(tempChange.'appId' != app.id) return
-
-    value = parent.convertToInteger(event.value)
-    
-    // Temp can be different by + .5% (25 at 5000); always plus, never minus
-    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'currentLevel' / 255) == Math.round(value / 255)) return
-    if(event.device.currentColorMode == 'CT' && Math.round(tempChange.'priorLevel' / 255) == Math.round(value / 255) && tempChange.'timeDifference' < 5000) return
-
-    defaults = ['temp':['startLevel':value,'priorLevel':tempChange.'currentLevel','appId':'manual']]
-
-    putLog(945,'warn','Captured manual temperature change for ' + event.device + ' to temperature color ' + value + 'K - last changed ' + tempChange.'timeDifference' + 'ms (to ' + tempChange.'currentLevel' + ')')
-    parent.updateLevelsSingle(event.device,defaults,app.label)
-
-    return
+    parent.updateTableCapturedLevel(event.device,'colorTemperature',event.value,app.label)
 }
 
 // This needs rewrite
 def handleHueChange(event){
-    return
     parent.updateTableCapturedLevel(event.device,'hue',event.value,app.label)
-    return  //REMOVE THIS
-    //parent.updateTableCapturedBrightness(event.device,'hue',event.value,app.label)
-    hueChange = parent.getLastHueChange(event.device, app.label)
-    if(!hueChange) return
-    if(hueChange.'appId' != app.id) return
-
-    value = parent.convertToInteger(event.value)
-    
-    if(hueChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
-    if(hueChange.'priorLevel' == value && hueChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
-
-    defaults = ['hue':['startLevel':value,'priorLevel':hueChange.'currentLevel','appId':'manual']]
-
-    putLog(968,'warn','Captured manual change for ' + event.device + ' to hue ' + value + '% - last changed ' + hueChange.'timeDifference' + 'ms (to ' + hueChange.'currentLevel' + ')')
-    parent.updateLevelsSingle(event.device,defaults,app.label)
-
-    return
 }
 
 def handleSatChange(event){
-    return
-    parent.updateTableCapturedLevel(event.device,'sat',event.value,app.label)
-    return  //REMOVE THIS
-    //parent.updateTableCapturedBrightness(event.device,'sat',event.value,app.label)
-    satChange = parent.getLastSatChange(event.device, app.label)
-    if(!satChange) return
-    if(satChange.'appId' != app.id) return
-
-    value = parent.convertToInteger(event.value)
-
-    if(satChange.'currentLevel' == value && event.device.currentColorMode == 'RGB') return
-    if(satChange.'priorLevel' == value && satChange.'timeDifference' < 5000 && event.device.currentColorMode == 'RGB') return
-
-    defaults = ['sat':['startLevel':value,'priorLevel':event.device.currentSat,'appId':'manual']]
-    putLog(989,'warn','Captured manual change for ' + event.device + ' to saturation ' + value + '% - last changed ' + satChange.'timeDifference' + 'ms (to ' + satChange.'currentLevel' + ')')
-    parent.updateLevelsSingle(event.device,defaults,app.label)
-
-    return
+    parent.updateTableCapturedLevel(event.device,'saturation',event.value,app.label)
 }
 
 // Creates the schedule for start and stop
@@ -1016,7 +960,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(1019,'info',app.label + ' schedule has started.')
+    putLog(963,'info',app.label + ' schedule has started.')
     clearScheduleFromTable()
     if(settings['disabled']) return
 
@@ -1051,10 +995,10 @@ def runDailyStartSchedule(){
     }
     atomicState.startDisabled = false
 
-    brightnessMap = parent.getLevelMap('brightness',settings['start_brightness'],app.id,app.label)
-    tempMap = parent.getLevelMap('temp',settings['start_temp'],app.id,app.label)
-    hueMap = parent.getLevelMap('hue',settings['start_hue'],app.id,app.label)
-    satMap = parent.getLevelMap('sat',settings['start_sat'],app.id,app.label)
+    brightnessMap = parent.getLevelMapSingle('brightness',settings['start_brightness'],app.id,app.label)
+    tempMap = parent.getLevelMapSingle('temp',settings['start_temp'],app.id,app.label)
+    hueMap = parent.getLevelMapSingle('hue',settings['start_hue'],app.id,app.label)
+    satMap = parent.getLevelMapSingle('sat',settings['start_sat'],app.id,app.label)
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1063,14 +1007,14 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1066,'info','Performing start action(s) for ' + app.label + ' schedule.')
+    putLog(1010,'info','Performing start action(s) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1073,'info',app.label + ' schedule has ended.')
+    putLog(1017,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1083,10 +1027,10 @@ def runDailyStopSchedule(){
     
     if(atomicState.startDisabled) return
 
-    if(!settings['start_brightness']) brightnessMap = parent.getLevelMap('brightness',settings['stop_brightness'],app.id,app.label)
-    if(!settings['start_temp']) tempMap = parent.getLevelMap('temp',settings['stop_temp'],app.id,app.label)
-    if(!settings['start_hue']) hueMap = parent.getLevelMap('hue',settings['stop_hue'],app.id,app.label)
-    if(!settings['start_sat']) satMap = parent.getLevelMap('sat',settings['stop_sat'],app.id,app.label)
+    if(!settings['start_brightness']) brightnessMap = parent.getLevelMapSingle('brightness',settings['stop_brightness'],app.id,app.label)
+    if(!settings['start_temp']) tempMap = parent.getLevelMapSingle('temp',settings['stop_temp'],app.id,app.label)
+    if(!settings['start_hue']) hueMap = parent.getLevelMapSingle('hue',settings['stop_hue'],app.id,app.label)
+    if(!settings['start_sat']) satMap = parent.getLevelMapSingle('sat',settings['stop_sat'],app.id,app.label)
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
@@ -1095,7 +1039,7 @@ def runDailyStopSchedule(){
         parent.mergeMapToTable(singleDevice,hueMap,app.label)
         parent.mergeMapToTable(singleDevice,satMap,app.label)
     }
-    putLog(1098,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
+    putLog(1042,'info','Performing stop action(s) (if any) for ' + app.label + ' schedule.')
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
@@ -1120,22 +1064,22 @@ def runIncrementalSchedule(){
     settings['device'].each{singleDevice->
         deviceChangedAny = false
         newLevel = getIncrementalLevelSingle(singleDevice, 'brightness')
-        brightnessMap = parent.getLevelMap('brightness', newLevel, app.id, app.label)
+        brightnessMap = parent.getLevelMapSingle('brightness', newLevel, app.id, app.label)
         parent.mergeMapToTable(singleDevice, brightnessMap)
         if(brightnessMap) deviceChangedAny = true
         
         newLevel = getIncrementalLevelSingle(singleDevice, 'temp')
-        tempMap = parent.getLevelMap('temp', newLevel, app.id, app.label)
+        tempMap = parent.getLevelMapSingle('temp', newLevel, app.id, app.label)
         parent.mergeMapToTable(singleDevice, tempMap)
         if(tempMap) deviceChangedAny = true
         
         newLevel = getIncrementalLevelSingle(singleDevice, 'hue')
-        hueMap = parent.getLevelMap('hue', newLevel, app.id, app.label)
+        hueMap = parent.getLevelMapSingle('hue', newLevel, app.id, app.label)
         parent.mergeMapToTable(singleDevice, hueMap)
         if(hueMap) deviceChangedAny = true
 
         newLevel = getIncrementalLevelSingle(singleDevice, 'sat')
-        satMap = parent.getLevelMap('sat', newLevel, app.id, app.label)
+        satMap = parent.getLevelMapSingle('sat', newLevel, app.id, app.label)
         parent.mergeMapToTable(singleDevice, satMap)
         if(satMap) deviceChangedAny = true
 
@@ -1155,7 +1099,7 @@ def subscribeDevices(){
     subscribe(settings['device'], 'hue', handleHueChange)
     subscribe(settings['device'], 'saturation', handleSatChange)
     subscribe(settings['device'], 'colorTemperature', handleTempChange)
-    subscribe(settings['device'], 'brightness', handleBrightnessChange)
+    subscribe(settings['device'], 'level', handleBrightnessChange)
     subscribe(settings['device'], 'speed', handleBrightnessChange)
     subscribe(location, 'systemStart', handleSystemBoot)
     subscribe(location,'timeZone',handleTimezone)
