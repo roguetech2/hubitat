@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.7.11
+*  Version: 0.7.1.2
 * 
 ***********************************************************************************************************************/
 
@@ -1066,16 +1066,16 @@ def performUpdates(action){
     }
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings[action + '_action'],app.id,app.label)       // on, off, toggle
-        parent.mergeMapToTableWithPreserve(singleDevice,stateMap,app.label)
+        parent.mergeMapToTable(singleDevice,stateMap,app.label)
 
-        levelMap = parent.getLevelMap(type,settings[action + '_brightness'],app.id,childLabel)
-        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMap(type,settings[action + '_temp'],app.id,childLabel)
-        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMap(type,settings[action + '_hue'],app.id,childLabel)
-        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMap(type,settings[action + '_sat'],app.id,childLabel)
-        parent.mergeMapToTableWithPreserve(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMapSingle(type,settings[action + '_brightness'],app.id,childLabel)
+        parent.mergeMapToTable(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMapSingle(type,settings[action + '_temp'],app.id,childLabel)
+        parent.mergeMapToTable(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMapSingle(type,settings[action + '_hue'],app.id,childLabel)
+        parent.mergeMapToTable(singleDevice,levelMap,app.label)
+        levelMap = parent.getLevelMapSingle(type,settings[action + '_sat'],app.id,childLabel)
+        parent.mergeMapToTable(singleDevice,levelMap,app.label)
     }
 
     if(settings[action + '_action'] == 'resume') parent.resumeDeviceScheduleMulti(settings['device'],app.label)
