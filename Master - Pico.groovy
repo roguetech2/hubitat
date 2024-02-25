@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.3
+*  Version: 0.6.2.4
 *
 ***********************************************************************************************************************/
 
@@ -1068,7 +1068,7 @@ def buttonPushed(evt){
             parent.mergeMapToTable(singleDevice,stateMap,app.label)
             // need to get nextLevel here
             if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
-            levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+            levelMap = parent.getLevelMapSingle(type,level,app.id,childLabel)         // dim, brighten
             parent.mergeMapToTable(singleDevice,levelMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1164,7 +1164,7 @@ def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.label)) return
     level = parent._getNextLevelDimmable(singleDevice, action, app.label)
     if(!level) return
-    levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+    levelMap = parent.getLevelMapSingle(type,level,app.id,childLabel)         // dim, brighten
     parent.mergeMapToTable(singleDevice,levelMap,app.label)
     
     parameters = '[device: it.id, action: action]'
