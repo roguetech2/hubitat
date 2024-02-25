@@ -505,7 +505,7 @@ def doActions(device,action){
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
         
         level = parent._getNextLevelDimmable(singleDevice, action, app.label)
-        levelMap = parent.getLevelMap(type,level,app.id,childLabel)         // dim, brighten
+        levelMap = parent.getLevelMapSingle(type,level,app.id,childLabel)         // dim, brighten
         parent.mergeMapToTable(singleDevice,stateMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -527,8 +527,8 @@ def convertDriver(evt){
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
     if(!atomicState.priorSide) putLog(528,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
+    //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
-        atomicState.actionType = cubeActions[1]
         if(evt.value == '1' && atomicState.priorSide == '6') atomicState.actionType = cubeActions[2]
         if(evt.value == '2' && atomicState.priorSide == '5') atomicState.actionType = cubeActions[2]
         if(evt.value == '3' && atomicState.priorSide == '4') atomicState.actionType = cubeActions[2]
