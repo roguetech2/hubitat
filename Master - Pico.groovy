@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.4
+*  Version: 0.6.2.5
 *
 ***********************************************************************************************************************/
 
@@ -1065,17 +1065,16 @@ def buttonPushed(evt){
         device.each{singleDevice->
             stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
             
-            parent.mergeMapToTable(singleDevice,stateMap,app.label)
             // need to get nextLevel here
             if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
-            levelMap = parent.getLevelMapSingle(type,level,app.id,childLabel)         // dim, brighten
-            parent.mergeMapToTable(singleDevice,levelMap,app.label)
+            levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
+            fullMap = parent.addMaps(stateMap, levelMap)
+            parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
         if(atomicState.action == 'hold') holdNextLevelMulti(device,switchAction)
 
         if(settings['multiDevice']) parent.setDeviceMulti(device,app.label)
-        //if(device) putLog(1078,'trace','Turning ' + action + ' ' + device)
         device = ''
     }
     
@@ -1091,7 +1090,7 @@ def buttonReleased(evt){
     numberOfButtons = getButtonNumbers()
 
     if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1094,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1093,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
     }
 }
@@ -1127,7 +1126,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1130,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1129,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1164,13 +1163,11 @@ def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.label)) return
     level = parent._getNextLevelDimmable(singleDevice, action, app.label)
     if(!level) return
-    levelMap = parent.getLevelMapSingle(type,level,app.id,childLabel)         // dim, brighten
-    parent.mergeMapToTable(singleDevice,levelMap,app.label)
+    levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
+    parent.mergeMapToTable(singleDevice.id,levelMap,app.label)
     
     parameters = '[device: it.id, action: action]'
     parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters, '',app.id)
-    //do we need to add overwrite: false? If so, doing Master app function is probably too unwieldy
-    //runInMillis(i*750,runSetProgressiveLevel, [overwrite: false, data: [device: it.id, action: action]])
 }
 
 def getDevices(){
@@ -1190,7 +1187,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1193,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1190,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1200,7 +1197,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1203,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1200,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
