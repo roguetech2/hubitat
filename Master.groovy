@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.18
+*  Version: 0.4.1.19
 *
 ***********************************************************************************************************************/
 
@@ -787,6 +787,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime' < getTimeOfDayInMillis(now())) newLevel = null    //If from expired schedule, it doesn't count
     }
+    
     if(!newLevel) {
         putLog(792,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
@@ -844,9 +845,8 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' < getTimeOfDayInMillis(now())) return    //If from expired schedule, it doesn't count
     }
-    
+
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel'
-    log.debug newLevel
     
     if(!settings['hiRezHue']) newLevel = Math.round(newLevel / 3.6)
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
@@ -970,7 +970,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' == _getDeviceCurrentLevel(singleDevice,type,childLabel)) return
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(973,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + value + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + '; actually was ' + currentLevel + ')',childLabel,'True')
+    putLog(973,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
