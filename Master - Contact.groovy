@@ -13,7 +13,7 @@
 *
 *  Name: Master - Contact
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Contact.groovy
-*  Version: 0.7.1.2
+*  Version: 0.7.1.3
 * 
 ***********************************************************************************************************************/
 
@@ -124,7 +124,7 @@ preferences {
             displayOpenOption()
             displayCloseOption()
             displayBrightnessOption()
-            if((!settings["openhue"] && !settings["open_sat"]) || (!settings["closed_hue"] && !settings["closed_sat"])) displayTemperatureOption()
+            if((!settings["open_hue"] && !settings["open_sat"]) || (!settings["closed_hue"] && !settings["closed_sat"])) displayTemperatureOption()
             if(!settings["open_temp"] || !settings["closed_temp"]) displayColorOption()
             displayChangeModeOption()
             displayAlertOptions()
@@ -999,14 +999,14 @@ def compareDeviceLists(list1,list2){
 
 def installed() {
     state.logLevel = getLogLevel()
-    putLog(1003,'trace','Installed')
+    putLog(1002,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
     state.logLevel = getLogLevel()
-    putLog(1010,'trace','Updated')
+    putLog(1009,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1031,13 +1031,13 @@ def initialize() {
     subscribe(sensor, 'contact.open', contactChange)
     subscribe(sensor, 'contact.closed', contactChange)            
     
-    putLog(1035,'trace','Initialized')
+    putLog(1034,'trace','Initialized')
 }
 
 def contactChange(evt){
     setTime()
     if(getDisabled()) return
-    putLog(1041,'debug','Contact sensor ' + evt.displayName + ' ' + evt.value)
+    putLog(1040,'debug','Contact sensor ' + evt.displayName + ' ' + evt.value)
     
 
     // If opened a second time, it will reset delayed action
@@ -1066,16 +1066,14 @@ def performUpdates(action){
     }
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings[action + '_action'],app.id,app.label)       // on, off, toggle
-        parent.mergeMapToTable(singleDevice,stateMap,app.label)
 
-        levelMap = parent.getLevelMapSingle(type,settings[action + '_brightness'],app.id,childLabel)
-        parent.mergeMapToTable(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMapSingle(type,settings[action + '_temp'],app.id,childLabel)
-        parent.mergeMapToTable(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMapSingle(type,settings[action + '_hue'],app.id,childLabel)
-        parent.mergeMapToTable(singleDevice,levelMap,app.label)
-        levelMap = parent.getLevelMapSingle(type,settings[action + '_sat'],app.id,childLabel)
-        parent.mergeMapToTable(singleDevice,levelMap,app.label)
+        brightnessMap = parent.getLevelMap(type,settings[action + '_brightness'],app.id,'',childLabel)
+        tempMap = parent.getLevelMap(type,settings[action + '_temp'],app.id,'',childLabel)
+        hueMap = parent.getLevelMap(type,settings[action + '_hue'],app.id,'',childLabel)
+        satMap = parent.getLevelMap(type,settings[action + '_sat'],app.id,'',childLabel)
+        
+        fullMap = parent.addMaps(stateMap, brightnessMap, tempMap, hueMap, satMap)
+        parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
 
     if(settings[action + '_action'] == 'resume') parent.resumeDeviceScheduleMulti(settings['device'],app.label)
@@ -1119,7 +1117,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1123,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1120,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1129,7 +1127,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1133,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1130,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
