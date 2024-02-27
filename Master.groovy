@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.21
+*  Version: 0.4.1.22
 *
 ***********************************************************************************************************************/
 
@@ -114,8 +114,6 @@ def mainPage() {
                     paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
                     input name: 'hiRezHue', type: 'bool', title: 'Enable Hue in degrees (0-360)', defaultValue: false, submitOnChange:true
                     displayInfo('Select if light devices have been set to degrees. Leave unselected by default, but failure to match device settings may result in hue settings not working correctly.')
-                    input name: 'colorStaging', type: 'bool', title: 'Enable color pre-staging', defaultValue: false, submitOnChange:true
-                    displayInfo('Select if light devices have been set for color pre-staging. This allows the color of lights to be set prior to turning on, but this app can handle that internally. Leave unselected by default, but failure to match device settings may result in devices not turning on correctly.')
                     
                 }
             section(){}
@@ -322,9 +320,9 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(325,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
+        putLog(323,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
     }
-    putLog(327,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(325,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 
@@ -369,7 +367,7 @@ def validateSat(value, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(372,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
+            putLog(370,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
             return
         }
     }
@@ -553,7 +551,7 @@ def CONSTMinuteInMilli(){
 
 def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
     returnValue = 200
-    putLog(556,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
+    putLog(554,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
     return returnValue
 }
 
@@ -717,7 +715,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(720,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(718,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -793,14 +791,14 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(796,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(794,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
 
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)) return
 
     singleDevice.setLevel(newLevel)
-    putLog(803,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(801,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -821,14 +819,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     if(!newLevel) {
-        putLog(824,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(822,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(831,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(829,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -850,7 +848,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(853,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(851,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -875,7 +873,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(878,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(876,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -890,13 +888,13 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(893,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(891,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         if(singleDevice.currentValue('switch') == 'off') return
         singleDevice.off()
-        putLog(899,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(897,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -958,7 +956,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(961, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(959, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -974,7 +972,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(977,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(975,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1043,7 +1041,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1046,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1044,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1057,12 +1055,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1060,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1058,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1065,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1063,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1071,7 +1069,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1074,'debug',message + mode,childLabel,'True')
+    putLog(1072,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1080,14 +1078,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1083,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1081,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1090,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1088,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1096,7 +1094,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1099,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1097,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
