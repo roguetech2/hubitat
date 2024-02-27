@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.7
+*  Version: 0.7.2.8
 *
 ***********************************************************************************************************************/
 
@@ -977,7 +977,7 @@ def runDailyStartSchedule(){
     if(settings['start_temp']) clearLevelFromTable('hue')
     if(settings['start_temp']) clearLevelFromTable('sat')
     if(settings['start_sat']) clearLevelFromTable('temp')
-    if(settings['hue']) clearLevelFromTable('temp')
+    if(settings['start_hue']) clearLevelFromTable('temp')
 
     if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
     if(settings['start_temp'] && settings['stop_temp']) runIncremental = true
@@ -998,12 +998,12 @@ def runDailyStartSchedule(){
     }
     atomicState.startDisabled = false
 
-    if(settings['stop_brightness']) 
     brightnessMap = getLevelMap('brightness',settings['start_brightness'])
     tempMap = getLevelMap('temp',settings['start_temp'])
     hueMap = getLevelMap('hue',settings['start_hue'])
     satMap = getLevelMap('sat',settings['start_sat'])
     scheduleMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
+
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
@@ -1081,7 +1081,7 @@ def runIncrementalSchedule(){
 
 def getLevelMap(type,level){
     if(settings['stop_' + type]) return parent.getLevelMap(type,level,app.id,atomicState.stopTime,app.label)
-    return parent.getLevelMap('brightness',level,app.id,'',app.label)
+    return parent.getLevelMap(type,level,app.id,'',app.label)
 }
 
 def getIncrementalMaps(singleDevice,type){
