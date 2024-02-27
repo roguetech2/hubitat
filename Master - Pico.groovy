@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.5
+*  Version: 0.6.2.6
 *
 ***********************************************************************************************************************/
 
@@ -1044,19 +1044,13 @@ def buttonPushed(evt){
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
 
-    buttonNumber = evt.value.toInteger()
-    numberOfButtons = getButtonNumbers()
-    
-    // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(buttonNumber == 2 && numberOfButtons == 2) buttonNumber = 5
-    if(buttonNumber == 4 && numberOfButtons == 4) buttonNumber = 5
-    if(buttonNumber == 3 && numberOfButtons == 4) buttonNumber = 4
+    buttonNumber = assignButtonNumber(evt.value.toInteger())
 
     // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1059,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1053,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1086,13 +1080,19 @@ def buttonHeld(evt){
 }
 
 def buttonReleased(evt){
-    buttonNumber = evt.value.toInteger()
-    numberOfButtons = getButtonNumbers()
+    buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    if (buttonNumber == 2 || (buttonNumber == 4 && (numberOfButtons == 4 || numberOfButtons == 5)) || (buttonNumber == 1 && numberOfButtons == 2)){
-        putLog(1093,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+        putLog(1085,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
-    }
+}
+
+def assignButtonNumber(originalButton){
+    numberOfButtons = getButtonNumbers()
+    
+    // Treat 2nd button of 2-button Pico as "off" (eg button 5)
+    if(originalButton == 2 && numberOfButtons == 2) return 5
+    if(originalButton == 4 && numberOfButtons == 4) return 5
+    if(originalButton == 3 && numberOfButtons == 4) return 4
 }
 
 def getControlDeviceFromButton(action,buttonNumber){
