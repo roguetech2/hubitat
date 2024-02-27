@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.20
+*  Version: 0.4.1.21
 *
 ***********************************************************************************************************************/
 
@@ -574,6 +574,12 @@ def getTimeOfDayInMillis(time,childLabel = 'Master'){
     return time - timeAtMidnight
 }
 
+def getDatetimeFromTimeInMillis(time,childLabel = 'Master'){
+    if(!time) return
+    timeAtMidnight = new Date(time).clearTime().getTime()
+    return time + timeAtMidnight
+}
+
 // Returns app name with app title prepended
 def appendChildAppTitle(appName,appTitle){
     //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
@@ -622,24 +628,25 @@ def checkNowInMonthList(months,childLabel='Master'){
 }
 
 // Checks if current time in Millis from midnight is bewteen two times (both in millis from midnight)
-def checkNowBetweenScheduledStartStopTimes(timeStart, timeStop,childLabel='Master'){
-    if(!timeStart) return
-    if(!timeStop) return
-    if(timeStart > CONSTDayInMilli()) timeStart = getTimeOfDayInMillis(timeStart)       // Convert from Epoch millis to time in millis, for testing/conversion
-    if(timeStop > CONSTDayInMilli()) timeStop = getTimeOfDayInMillis(timeStop)       // Convert from Epoch millis to time in millis, for testing/conversion
+def checkNowBetweenScheduledStartStopTimes(startTime, stopTime,childLabel='Master'){
+    if(!startTime) return
+    if(!stopTime) return
     currentTime = getTimeOfDayInMillis(now())
-
-    if(currentTime < timeStart) return
-
-    if(currentTime > timeStop) {
-        if(timeStart < timeStop) return
+    if(startTime > stopTime) {
+        if(currentTime < startTime) {
+            startTime -= CONSTDayInMilli()
+        } else {
+            stopTime += CONSTDayInMilli()
+        }
     }
+ 
+    if(currentTime < startTime) return
+    if(currentTime > stopTime) return
 
     return true
 }
 
 // Returns true if now is between two times
-// Need to allow checking if time spans midnight
 // Returns true for null values
 def checkNowBetweenTimes(timeStart, timeStop,childLabel='Master'){
     if(!timeStart) return
@@ -710,7 +717,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(713,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(720,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -781,22 +788,19 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
 
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'currentLevel'
-    if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'time'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'time' + CONSTDayInMilli() < now()) newLevel = null    //If from yesterday, it doesn't count
-    }
     if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime' < getTimeOfDayInMillis(now())) newLevel = null    //If from expired schedule, it doesn't count
+        if(atomicState.'devices'?."${singleDevice.id}"?.'brightness'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     
     if(!newLevel) {
-        putLog(792,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(796,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
 
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)) return
 
     singleDevice.setLevel(newLevel)
-    putLog(799,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(803,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -808,26 +812,23 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
 
-    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' > getTimeOfDayInMillis(now())) return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' > getTimeOfDayInMillis(now())) return
+    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' > now()) return
+    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' > now()) return
     
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'currentLevel'
     
-    if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'time'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'time' + CONSTDayInMilli() < now()) newLevel = null    //If from yesterday, it doesn't count
-    }
     if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < getTimeOfDayInMillis(now())) newLevel = null    //If from expired schedule, it doesn't count
+        if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     if(!newLevel) {
-        putLog(823,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(824,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(830,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(831,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -839,11 +840,8 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel') return
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
     
-    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'time'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'time' + CONSTDayInMilli() < now()) return    //If from yesterday, it doesn't count
-    }
     if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' < getTimeOfDayInMillis(now())) return    //If from expired schedule, it doesn't count
+        if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' < now()) return    //If from expired schedule, it doesn't count
     }
 
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel'
@@ -852,7 +850,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(855,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(853,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -867,8 +865,9 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'time'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'time' + CONSTDayInMilli() < now()) return    //If from yesterday, it doesn't count
     }
+    
     if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime'){
-        if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' < getTimeOfDayInMillis(now())) return    //If from expired schedule, it doesn't count
+        if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' < now()) return    //If from expired schedule, it doesn't count
     }
     
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel'
@@ -876,7 +875,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(879,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(878,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -891,13 +890,13 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(894,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(893,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         if(singleDevice.currentValue('switch') == 'off') return
         singleDevice.off()
-        putLog(900,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(899,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -959,7 +958,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(962, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(961, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -975,7 +974,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(978,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(977,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1044,7 +1043,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1047,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1046,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1058,12 +1057,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1061,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1060,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1066,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1065,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1072,7 +1071,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1075,'debug',message + mode,childLabel,'True')
+    putLog(1074,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1081,14 +1080,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1084,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1083,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1091,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1090,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1097,7 +1096,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1100,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1099,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
