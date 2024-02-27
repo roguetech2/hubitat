@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.6
+*  Version: 0.6.2.7
 *
 ***********************************************************************************************************************/
 
@@ -1081,6 +1081,7 @@ def buttonHeld(evt){
 
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
+    log.debug buttonNumber
 
         putLog(1085,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
         unschedule()
@@ -1088,11 +1089,14 @@ def buttonReleased(evt){
 
 def assignButtonNumber(originalButton){
     numberOfButtons = getButtonNumbers()
-    
+    log.debug numberOfButtons + ' ' + originalButton
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
     if(originalButton == 2 && numberOfButtons == 2) return 5
     if(originalButton == 4 && numberOfButtons == 4) return 5
     if(originalButton == 3 && numberOfButtons == 4) return 4
+    return originalButton
+
+
 }
 
 def getControlDeviceFromButton(action,buttonNumber){
