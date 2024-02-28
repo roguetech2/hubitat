@@ -943,6 +943,7 @@ def setStartSchedule(){
 }
 
 def setStopSchedule(){
+    if(!atomicState.stopTime) return
     timeMillis = getBaseStartStopTimes('stop') - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
@@ -953,7 +954,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(956,'info',app.label + ' schedule has started.')
+    putLog(957,'info',app.label + ' schedule has started.')
     if(settings['disabled']) return
     
     if(!parent.checkNowInDayList(settings['days'],app.Label)) {
@@ -997,7 +998,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1000,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1001,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
@@ -1005,7 +1006,7 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(108,'info',app.label + ' schedule has ended.')
+    putLog(1009,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1025,10 +1026,10 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1028,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1029,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
-    atomicState.startTime = null
+    atomicState.startTime = null        // Set to null to prevent runIncremental from running
     atomicState.stopTime = null
 }
 
@@ -1057,11 +1058,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(1060,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(1061,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(1064,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(1065,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['device'], app.label)
 
@@ -1072,8 +1073,10 @@ def runIncrementalSchedule(){
 }
 
 def getLevelMap(type,level){
-    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime, app.label)
-    if(stopTime < now()) stopTime += parent.CONSTDayInMilli()
+    if(atomicState.stopTime) {
+        stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime, app.label)
+        if(stopTime < now()) stopTime += parent.CONSTDayInMilli()
+    }
     return parent.getLevelMap(type,level,app.id,stopTime,app.label)
 }
 
@@ -1141,7 +1144,7 @@ def systemBootActivate(){
 def setTime(){      // Should NOT be run from Incremental
     atomicState.startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
     atomicState.stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
-
+log.debug 'setTime ' + atomicState.stopTime
 }
 
 // Sets atomicState.start and atomicState.stop variables
