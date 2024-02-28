@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.22
+*  Version: 0.4.1.23
 *
 ***********************************************************************************************************************/
 
@@ -522,7 +522,7 @@ def settingHiRezHue(){
 // Minimum incremental cycle for an "active" schedule (people home, right mode, device is on)
 // Must be greater than CONSTDeviceActionDelayMillis * 4, or else app won't complete fast enough
 def CONSTScheduleMinimumActiveFrequencyMilli(){
-    return 8000        //CHANGE THIS
+    return 8000
 }
 
 // Minimum incremental cycle for an "active" schedule (people not home, wrong mode, device is off)
@@ -574,7 +574,7 @@ def getTimeOfDayInMillis(time,childLabel = 'Master'){
 
 def getDatetimeFromTimeInMillis(time,childLabel = 'Master'){
     if(!time) return
-    timeAtMidnight = new Date(time).clearTime().getTime()
+    timeAtMidnight = new Date(now()).clearTime().getTime()
     return time + timeAtMidnight
 }
 
