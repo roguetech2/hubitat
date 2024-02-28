@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.10
+*  Version: 0.7.2.11
 *
 ***********************************************************************************************************************/
 
@@ -896,6 +896,7 @@ def initialize() {
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     unschedule()
+    setTime()
     clearScheduleFromTable()    // Clear schedule from table, to avoid stale settings
 
     if(settings['disable']) return
@@ -903,13 +904,9 @@ def initialize() {
     subscribeDevices()
 
     setStartSchedule()
+    if(parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) runDailyStartSchedule()
 
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
-    stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
-
-    if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) runDailyStartSchedule()
-
-    putLog(912,'info',app.label + ' initialized.')
+    putLog(909,'info',app.label + ' initialized.')
     return true
 }
 
@@ -938,9 +935,9 @@ def handleSatChange(event){
 
 // Creates the schedule for start and stop
 def setStartSchedule(){
-    startTime = getBaseStartStopTimes('start')
-    if(!startTime) return
-    timeMillis = startTime - now()
+    setTime()
+    if(!atomicState.startTime) return
+    timeMillis = atomicState.startTime - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
     
@@ -948,7 +945,7 @@ def setStartSchedule(){
 }
 
 def setStopSchedule(){
-    stopTime = getBaseStartStopTimes('stop')
+    setTime()
     if(!stopTime) return
     timeMillis = stopTime - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
@@ -960,7 +957,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(963,'info',app.label + ' schedule has started.')
+    putLog(960,'info',app.label + ' schedule has started.')
     if(settings['disabled']) return
     
     if(!parent.checkNowInDayList(settings['days'],app.Label)) {
@@ -1004,7 +1001,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1007,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1004,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
@@ -1012,7 +1009,7 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1015,'info',app.label + ' schedule has ended.')
+    putLog(1012,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1032,7 +1029,7 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1035,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1032,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
     atomicState.startTime = null
@@ -1049,8 +1046,6 @@ def runIncrementalSchedule(){
 
     if(!getActive()) {
         // Remove table entries, to be re-added if schedule becomes active again
-        // Should it wipe "manual" changes too?
-        // If so, add new function - clearScheduleFromTable is used on initialize and stop
         clearScheduleFromTable()
         parent.scheduleChildEvent(parent.CONSTScheduleMinimumInactiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
         return
@@ -1066,11 +1061,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(1069,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(1064,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(1073,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(1068,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['device'], app.label)
 
@@ -1081,7 +1076,7 @@ def runIncrementalSchedule(){
 }
 
 def getLevelMap(type,level){
-    if(settings['stop_' + type]) return parent.getLevelMap(type,level,app.id,parent.getDatetimeFromTimeInMillis(atomicState.stopTime),app.label)
+    if(settings['stop_' + type]) return parent.getLevelMap(type,level,app.id,parent.getDatetimeFromTimeInMillis(atomicState.stopTime, app.label),app.label)
     return parent.getLevelMap(type,level,app.id,'',app.label)
 }
 
@@ -1125,7 +1120,7 @@ def clearTableKey(singleDeviceId,type){
         // Perhaps should only be done with settings used by this schedule
         // However, runIncremental does not check times (to maximize run speed)
         if(levelAppId == 'manual') {
-            if(levelTime < getDatetimeFromTimeInMillis(atomicState.startTime)) clearKey = true
+            if(levelTime < parent.getDatetimeFromTimeInMillis(atomicState.startTime,app.label)) clearKey = true
         }
         if(levelAppId != app.id){
             if(levelTime + parent.CONSTDayInMilli() < now()) clearKey = true    // If not this schedule but not today, prune it
