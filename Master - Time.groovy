@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.12
+*  Version: 0.7.2.13
 *
 ***********************************************************************************************************************/
 
@@ -303,7 +303,7 @@ def displayScheduleSection(){
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+        if(validateTimes('start') && validateTimes('stop') && getBaseStartStopTimes('start') == getBaseStartStopTimes('stop')) displayError('You can\'t have the same time to start and stop.')
 
         displayTypeOption('start')
         displayTimeOption('start')
@@ -313,6 +313,9 @@ def displayScheduleSection(){
         displaySunriseTypeOption('stop')
         displayDaysOption()
         displayMonthsOption()
+        if(validateTimes('start') && validateTimes('stop') && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop')) displayInfo('Stop time is before start time, which is perfectly fine, but stop time will be assumed to be the next day (i.e. the duration of this schedule will be approximately ' + Math.round((getBaseStartStopTimes('stop') + parent.CONSTDayInMilli() - getBaseStartStopTimes('start')) / parent.CONSTHourInMilli()) + ' hours).')
+        if(validateTimes('start') && validateTimes('stop') && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop') && settings['days']) displayInfo('Every schedule that starts will stop, even if the stop day falls on a day not permitted. For instance, if scheduled for only Mondays and the stop time falls on the next day, stop actions/levels will still be set.')
+        if(validateTimes('start') && validateTimes('stop') && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop') && settings['months']) displayInfo('Every schedule that starts will stop, even if the stop day is in a month not permitted. For instance, if scheduled starts on the last day of an allowed month and the stop time falls in the next month, stop actions/levels will still be set.')
     }
 }
 
@@ -348,7 +351,7 @@ def getTimeSectionTitle(){
         if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
         if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
         if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
-        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+        if(validateTimes('stop')) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
     }
 
     if(settings['start_timeType']) return sectionTitle + '</b>'
@@ -593,7 +596,7 @@ def getLevelsMessage(levelType){
         typeRange = '1 to 100' + typeUnit
     }
     if(levelType == 'temp') {
-        typeString = 'temperature color'
+        typeString = 'color temperature'
         typeUnit = 'K'
         typeRange = '1800 to 5400' + typeUnit
     }
@@ -601,23 +604,23 @@ def getLevelsMessage(levelType){
         if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
         if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
         //Both entered
-        message = typeString.capitalize() + ' is percentage from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        message = typeString.capitalize() + ' is percentage from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
         //Neither entered
-        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter the percentage of ' + typeString + ' when turning on, from ' + typeRange + ' where 0' + typeUnit + ' is off, and 100' + typeUnit + ' is maximum.'
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter the percentage of ' + typeString + ' from ' + typeRange + ' where 0' + typeUnit + ' is off, and 100' + typeUnit + ' is maximum.'
         //One entered
-        if(!settings['start_' + levelType] && settings['stop_' + levelType]) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
-        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from start level to ' + settings['stop_' + levelType] + typeUnit + ' over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop level over the duration of the schedule.'
     }
     if(levelType == 'temp'){
         if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
         if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
         //Both entered
-        message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
         //Neither entered
-        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = 'Enter Kelvin of ' + typeString + ' when turning on, from ' + typeRange  + ' where 5000' + typeUnit + ' is daylight, 4000' + typeUnit + ' is cool white, and 3000' + typeUnit + ' is warm white.'
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue; 3000' + typeUnit + ' is warm white, 4000' + typeUnit + ' is cool white, and 5000' + typeUnit + ' is daylight.'
         //One entered
-        if(!settings['start_' + levelType] && settings['stop_' + levelType]) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
-        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is Kelvin from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop amount over the duration of the schedule.'
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. If entering both starting and stopping ' + typeString + ', it will transition from start level to ' + settings['stop_' + levelType] + typeUnit + ' over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && settings['stop_timeType'] != 'none')) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop level over the duration of the schedule.'
     }
     return message
 }
@@ -796,6 +799,9 @@ def displayPeopleOption(){
         fieldTitle = 'Only if all these people are NOT home (Optional)'
         fieldTitle = addFieldName(fieldTitle,fieldName)
         input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
+        
+        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message = 'Schedules will resume/pause based on people present/away. If requirements are met at start time, any stop actions/levels will be applied.'
+        displayInfo(message)
     }
 }
 
@@ -814,14 +820,16 @@ def displayIfModeOption(){
         fieldTitle = addFieldName(fieldTitle,fieldName)
         input fieldName, 'mode', title: fieldTitle, width: 12, submitOnChange:true
 
-        message = 'This will limit the schedule from running while Hubitat\'s Mode is as selected.'
-        if(settings[fieldName]) message = 'This will limit the schedule from running while Hubitat\'s Mode is ' + settings[fieldName] + '.'
+        message = 'This will limit the schedule from running while Hubitat\'s Mode is as selected'
+        if(settings[fieldName]) message = 'This will prevent the schedule from running unless Hubitat\'s Mode is ' + settings[fieldName]
+        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += '. Schedules will resume/pause based on Mode. If the Mode matches at start time, any stop actions/levels will be applied'
+        message += '.'
         displayInfo(message)
     }
 }
 
 def compareDeviceLists(list1,list2){
-   list1.each{first->
+    list1.each{first->
         list2.each{second->
             if(first.id == second.id) returnValue = true
         }
@@ -879,7 +887,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(882,'trace',app.label + ' initializing.')
+    putLog(890,'trace',app.label + ' initializing.')
     if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
     if(settings['stop_temp'] == 0) settings['stop_temp'] = null
     if(settings['stop_hue'] == 0) settings['stop_hue'] = null
@@ -906,7 +914,7 @@ def initialize() {
 
     if(parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) runDailyStartSchedule()
 
-    putLog(909,'info',app.label + ' initialized.')
+    putLog(917,'info',app.label + ' initialized.')
     return true
 }
 
@@ -954,7 +962,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(957,'info',app.label + ' schedule has started.')
+    putLog(965,'info',app.label + ' schedule has started.')
     if(settings['disabled']) return
     
     if(!parent.checkNowInDayList(settings['days'],app.Label)) {
@@ -998,7 +1006,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1001,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1009,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
@@ -1006,7 +1014,7 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1009,'info',app.label + ' schedule has ended.')
+    putLog(1017,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1026,7 +1034,7 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1029,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1037,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
     atomicState.startTime = null        // Set to null to prevent runIncremental from running
@@ -1058,11 +1066,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(1061,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(1069,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(1065,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(1073,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['device'], app.label)
 
@@ -1144,7 +1152,7 @@ def systemBootActivate(){
 def setTime(){      // Should NOT be run from Incremental
     atomicState.startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
     atomicState.stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
-log.debug 'setTime ' + atomicState.stopTime
+    if(atomicState.startTime == atomicState.stopTime) atomicState.stopTime -= atomicState.stopTime
 }
 
 // Sets atomicState.start and atomicState.stop variables
