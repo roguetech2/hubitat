@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.13
+*  Version: 0.7.2.14
 *
 ***********************************************************************************************************************/
 
@@ -342,8 +342,8 @@ def getTimeSectionTitle(){
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
     sectionTitle += '</br>'
-    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(validateTimes('stop') && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
     if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
     if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
     if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
@@ -351,7 +351,7 @@ def getTimeSectionTitle(){
         if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
         if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
         if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
-        if(validateTimes('stop')) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+        if(validateTimes('stop') && settings['stop_timeType'] != 'none') sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
     }
 
     if(settings['start_timeType']) return sectionTitle + '</b>'
@@ -380,9 +380,9 @@ def displayTypeOption(type){
         highlightText(fieldTitle)
     }
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fiedlList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fieldList, submitOnChange:true
     if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
 }
 
@@ -661,7 +661,7 @@ def displayColorOption(){
         }
         if(!settings['start_hue'] || !settings['stop_hue']){
             message = 'Hue is degrees from 1 to 360 around a color wheel, where red is 1 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
-            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
+            if(validateTimes('stop') && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
             message += ' Optional.'
         }
         if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
@@ -675,7 +675,7 @@ def displayColorOption(){
         if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
         if(!settings['start_sat'] || !settings['stop_sat']){
             message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
-            if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+            if(validateTimes('stop') && settings['stop_timeType'] != 'none') message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
             message += ' Optional.'
         }
         displayInfo(message)
@@ -765,7 +765,7 @@ def displayPeopleOption(){
     if(!settings['start_action']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
+    if(validateTimes('stop') && settings['stop_timeType'] != 'none' && !settings['stop_action']) return
 
     List peopleList1=[]
     settings['personHome'].each{
@@ -800,7 +800,7 @@ def displayPeopleOption(){
         fieldTitle = addFieldName(fieldTitle,fieldName)
         input fieldName, 'capability.presenceSensor', title: fieldTitle, multiple: true, submitOnChange:true
         
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message = 'Schedules will resume/pause based on people present/away. If requirements are met at start time, any stop actions/levels will be applied.'
+        if(validateTimes('stop') && settings['stop_timeType'] != 'none') message = 'Schedules will resume/pause based on people present/away. If requirements are met at start time, any stop actions/levels will be applied.'
         displayInfo(message)
     }
 }
@@ -822,7 +822,7 @@ def displayIfModeOption(){
 
         message = 'This will limit the schedule from running while Hubitat\'s Mode is as selected'
         if(settings[fieldName]) message = 'This will prevent the schedule from running unless Hubitat\'s Mode is ' + settings[fieldName]
-        if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') message += '. Schedules will resume/pause based on Mode. If the Mode matches at start time, any stop actions/levels will be applied'
+        if(validateTimes('stop') && settings['stop_timeType'] != 'none') message += '. Schedules will resume/pause based on Mode. If the Mode matches at start time, any stop actions/levels will be applied'
         message += '.'
         displayInfo(message)
     }
