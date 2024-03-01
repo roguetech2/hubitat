@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.15
+*  Version: 0.7.2.16
 *
 ***********************************************************************************************************************/
 
@@ -920,10 +920,12 @@ def initialize() {
 
     subscribeDevices()
     setStartSchedule()
+    startTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime)
+    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime)
+    if(stopTime < startTime) stopTime += parent.CONSTDayInMilli()
+    if(parent.checkNowBetweenScheduledStartStopTimes(parent.getDatetimeFromTimeInMillis(startTime),parent.getDatetimeFromTimeInMillis(stopTime),app.label)) runDailyStartSchedule()
 
-    if(parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) runDailyStartSchedule()
-
-    putLog(926,'info',app.label + ' initialized.')
+    putLog(928,'info',app.label + ' initialized.')
     return true
 }
 
@@ -952,7 +954,8 @@ def handleSatChange(event){
 
 // Creates the schedule for start and stop
 def setStartSchedule(){
-    timeMillis = getBaseStartStopTimes('start') - now()
+    setTime()
+    timeMillis = parent.getDatetimeFromTimeInMillis(atomicState.startTime) - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
     
@@ -960,8 +963,9 @@ def setStartSchedule(){
 }
 
 def setStopSchedule(){
+    setTime()
     if(!atomicState.stopTime) return
-    timeMillis = getBaseStartStopTimes('stop') - now()
+    timeMillis = parent.getDatetimeFromTimeInMillis(atomicState.stopTime) - now()
     if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
     parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
 
@@ -971,7 +975,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(974,'info',app.label + ' schedule has started.')
+    putLog(978,'info',app.label + ' schedule has started.')
     if(settings['disabled']) return
     
     if(!parent.checkNowInDayList(settings['days'],app.Label)) {
@@ -983,6 +987,7 @@ def runDailyStartSchedule(){
         return
     }
 
+    setStartSchedule()
     setStopSchedule()
     clearScheduleFromTable() // clear out any "manual overrides"
     
@@ -1015,7 +1020,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1018,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1023,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
@@ -1023,10 +1028,11 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1026,'info',app.label + ' schedule has ended.')
+    putLog(1031,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
+    setStopSchedule()
     atomicState.scheduleFrequency = null
 
     if(settings['disabled']) return
@@ -1043,20 +1049,20 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1046,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1052,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
     atomicState.startTime = null        // Set to null to prevent runIncremental from running
     atomicState.stopTime = null
+    atomicState.stopDateTime = null
 }
 
 // Is unscheduled from runDailyStopSchedule
 def runIncrementalSchedule(){
     if(settings['disabled']) return
 
-    if(!atomicState.startTime) return
-    if(!atomicState.stopTime) return
-    if(!parent.checkNowBetweenScheduledStartStopTimes(atomicState.startTime,atomicState.stopTime,app.label)) return  // Unscheduled from runDailyStopSchedule
+    setStopDateTime()
+    if(atomicState.stopDateTime < now()) return
 
     if(!getActive()) {
         // Remove table entries, to be re-added if schedule becomes active again
@@ -1075,14 +1081,13 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(1078,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(1084,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(1082,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(1088,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['device'], app.label)
-
     if(anyDevicesChanged) {
         if(timeMillis < parent.CONSTScheduleMinimumActiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumActiveFrequencyMilli()
     }
@@ -1159,22 +1164,30 @@ def systemBootActivate(){
 }
 
 def setTime(){      // Should NOT be run from Incremental
-    atomicState.startTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('start'),app.label)
-    atomicState.stopTime = parent.getTimeOfDayInMillis(getBaseStartStopTimes('stop'),app.label)
-    if(atomicState.startTime == atomicState.stopTime) atomicState.stopTime -= atomicState.stopTime
+    atomicState.startTime = getBaseStartStopTimes('start')
+    atomicState.stopTime = getBaseStartStopTimes('stop')
+    if(atomicState.startTime == atomicState.stopTime) atomicState.stopTime -= 1 // If start and stop are the same, stop needs to be smaller, to be seen as next day
+}
+def setStopDateTime(){      // Should only be run from Incremental
+    if(atomicState.startDateTime) return
+    if(atomicState.stopDateTime) return
+    startDateTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime)
+    stopDateTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime)
+    if(stopDateTime < startDateTime) stopDateTime += parent.CONSTDayInMilli()
+    atomicState.stopDateTime = stopDateTime
 }
 
-// Sets atomicState.start and atomicState.stop variables
-// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
+// Returns 'start' or 'stop' time (of day) in millis
+// Must be converted with getDatetimeFromTimeInMillis if compared to now()
 def getBaseStartStopTimes(type){
     if(type == 'stop' && settings['stop_timeType'] == 'none') return
     if(settings[type + '_timeType'] == 'time') {
         if(!settings[type + '_time']) return
-        return timeToday(settings[type + '_time']).getTime()
+        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime())
     }
     if(!settings[type + '_sunType']) return
-    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
-    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
+    if(settings[type + '_timeType'] == 'sunrise') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label)))
+    if(settings[type + '_timeType'] == 'sunset') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label)))
 }
 
 // type expects 'brightness', 'temp', 'hue', 'sat'
@@ -1187,7 +1200,7 @@ def getIncrementalLevelSingle(singleDevice,type){
     if(!settings['start_' + type]) return
     if(!settings['stop_' + type]) return
 
-    // need to check if time was before schedule started?
+    // need to check if time was before schedule started
     //if(parent.getAppIdForDeviceFromTable(singleDevice,type,app.label) != app.id) return
 
     totalMillis = atomicState.stopTime - atomicState.startTime
