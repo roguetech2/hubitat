@@ -926,7 +926,7 @@ def initialize() {
     setStartSchedule()
     if(parent.checkNowBetweenScheduledStartStopTimes(parent.getDatetimeFromTimeInMillis(startTime),parent.getDatetimeFromTimeInMillis(stopTime),app.label)) runDailyStartSchedule()
     if(parent.checkNowBetweenScheduledStartStopTimes(parent.getDatetimeFromTimeInMillis(startTime),parent.getDatetimeFromTimeInMillis(stopTime),app.label)) setStartSchedule()
-    if(stopTime > now()) setStopSchedule()
+    setStopSchedule()
 
     putLog(931,'info',app.label + ' initialized.')
     return true
