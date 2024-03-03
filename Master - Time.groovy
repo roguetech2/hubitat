@@ -921,7 +921,7 @@ def initialize() {
     subscribeDevices()
     startTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime,app.label)
     stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime,app.label)
-    if(stopTime &&stopTime < startTime) stopTime += parent.CONSTDayInMilli()
+    if(stopTime && stopTime < startTime) stopTime += parent.CONSTDayInMilli()
     setStartSchedule()
     setStopSchedule()
     if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) runDailyStartSchedule()
