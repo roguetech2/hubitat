@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.23
+*  Version: 0.4.1.24
 *
 ***********************************************************************************************************************/
 
@@ -625,21 +625,20 @@ def checkNowInMonthList(months,childLabel='Master'){
     if(months.contains(monthToday.toString())) return true
 }
 
-// Checks if current time in Millis from midnight is bewteen two times (both in millis from midnight)
+// Checks if current datetime is beteeen two datetimes
 def checkNowBetweenScheduledStartStopTimes(startTime, stopTime,childLabel='Master'){
     if(!startTime) return
     if(!stopTime) return
-    currentTime = getTimeOfDayInMillis(now())
     if(startTime > stopTime) {
-        if(currentTime < startTime) {
+        if(now() < startTime) {
             startTime -= CONSTDayInMilli()
         } else {
             stopTime += CONSTDayInMilli()
         }
     }
  
-    if(currentTime < startTime) return
-    if(currentTime > stopTime) return
+    if(now() < startTime) return
+    if(now() > stopTime) return
 
     return true
 }
@@ -715,7 +714,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(718,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(717,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -791,14 +790,14 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(794,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(793,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
 
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)) return
 
     singleDevice.setLevel(newLevel)
-    putLog(801,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(800,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -819,14 +818,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     if(!newLevel) {
-        putLog(822,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(821,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(829,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(828,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -848,7 +847,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(851,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(850,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -873,7 +872,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(876,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(875,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -888,13 +887,13 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(891,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(890,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         if(singleDevice.currentValue('switch') == 'off') return
         singleDevice.off()
-        putLog(897,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(896,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -956,7 +955,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(959, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(958, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -967,12 +966,11 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel') return
     if(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' == _getDeviceCurrentLevel(singleDevice,type,childLabel)) return
     if(type == 'hue' && !settings['hiRezHue']) {
-
         if(Math.round(atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' * 3.6) == _getDeviceCurrentLevel(singleDevice,type,childLabel)) return
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(975,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(973,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1041,7 +1039,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1044,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1042,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1055,12 +1053,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1058,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1056,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1063,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1061,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1069,7 +1067,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1072,'debug',message + mode,childLabel,'True')
+    putLog(1070,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1078,14 +1076,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1081,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1079,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1088,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1086,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1094,7 +1092,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1097,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1095,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
