@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.17
+*  Version: 0.7.2.18
 *
 ***********************************************************************************************************************/
 
@@ -919,13 +919,13 @@ def initialize() {
     if(settings['disable']) return
 
     subscribeDevices()
-    startTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime)
-    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime)
-    if(stopTime < startTime) stopTime += parent.CONSTDayInMilli()
+    startTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime,app.label)
+    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime,app.label)
+    if(stopTime &&stopTime < startTime) stopTime += parent.CONSTDayInMilli()
     setStartSchedule()
-    setStartSchedule()
-    if(parent.checkNowBetweenScheduledStartStopTimes(parent.getDatetimeFromTimeInMillis(startTime),parent.getDatetimeFromTimeInMillis(stopTime),app.label)) runDailyStartSchedule()
-    if(parent.checkNowBetweenScheduledStartStopTimes(parent.getDatetimeFromTimeInMillis(startTime),parent.getDatetimeFromTimeInMillis(stopTime),app.label)) setStartSchedule()
+    setStopSchedule()
+    if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) runDailyStartSchedule()
+    if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) setStartSchedule()
     setStopSchedule()
 
     putLog(931,'info',app.label + ' initialized.')
