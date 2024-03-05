@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.2.4
+*  Version: 0.4.2.5
 *
 ***********************************************************************************************************************/
 
@@ -80,7 +80,6 @@ def displayWarning(text,noDisplayIcon = null, width=12){
 
 def highlightText(text, width=12){
     if(!text) return
-    log.debug text
     return paragraph('<div style="background-color:Wheat">' + text + '</div>',width:width)
 }
 
@@ -133,9 +132,7 @@ preferences {
             }
             displayControlDeviceOption()
             displayThresholdOption()
-            //displayThresholdOption('temp')
             displayLevelRelativeChangeOption()
-            //displayLevelRelativeChangeOption('temp')
             displayRunTimeOption()
             displayAlertOptions()
             displayPeopleOption()
@@ -655,6 +652,7 @@ def displayThresholdOption(){
     if(tempActive && settings['tempThreshold']) sectionTitle += '<b>Run while: Temperature ' + direction + ' ' + settings['tempThreshold'] + tempTypeUnit + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
+ // needs to be split into functions
         if(humidityActive){
             direction = 'under'
             directionReverse = 'over'
@@ -1311,13 +1309,13 @@ def compareDeviceLists(firstDevices,secondDevices){
 
 
 def installed() {
-    putLog(1255,'trace','Installed')
+    putLog(1312,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1261,'trace','Updated')
+    putLog(1319,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1346,7 +1344,7 @@ def initialize() {
     if(tempActive && settings['tempControlSensor']) subscribe(settings['tempControlSensor'], 'temperature', temperatureHandler)
     subscribe(settings['device'], 'switch', handleStateChange)
     
-    putLog(1290,'trace','Initialized')
+    putLog(1347,'trace','Initialized')
 }
 
 def handleSensorUpdate(event) {
@@ -1389,7 +1387,7 @@ def turnOn(){
     
     if(checkOffConditions()) {
         atomicState.startTime = null
-        putLog(1333,'error','Both on and off conditions met.')
+        putLog(1390,'error','Both on and off conditions met.')
         return
     }
     
@@ -1400,7 +1398,7 @@ def turnOn(){
         stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
     }
-    putLog(1344,'warn','Turning devices on.')
+    putLog(1401,'warn','Turning devices on.')
     parent.setDeviceMulti(settings['device'],app.label)
     unschedule()
     scheduleMaximumRunTime()
@@ -1552,11 +1550,11 @@ def checkOnConditions(){
     
     if(settings['multiStartTrigger']) {
         allOnConditions = checkAllOnConditions()
-        putLog(1496,'trace','All on conditions is ' + allOnConditions)
+        putLog(1553,'trace','All on conditions is ' + allOnConditions)
         return allOnConditions
     }
     anyOnConditions = checkAnyOnConditions()
-    putLog(1500,'trace','Any on condition is ' + anyOnConditions)
+    putLog(1557,'trace','Any on condition is ' + anyOnConditions)
     return anyOnConditions
 }
 
@@ -1566,12 +1564,12 @@ def checkOffConditions(){
     
     if(settings['multiStopTrigger']) {
         allOffConditions = checkAllOffConditions()
-        putLog(1510,'trace','All off conditions is ' + allOffConditions)
+        putLog(1567,'trace','All off conditions is ' + allOffConditions)
         return allOffConditions
     }
     if(!settings['multiStopTrigger']) {
         anyOffConditions = checkAnyOffConditions()
-        putLog(1515,'trace','Any off conditions is ' + anyOffConditions)
+        putLog(1572,'trace','Any off conditions is ' + anyOffConditions)
         return anyOffConditions
     }
 }
@@ -1696,7 +1694,7 @@ def checkRunTimeMaximum(){
     if(!atomicState.startTime) return true
     
     if(now() - atomicState.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1640,'trace','Maximum runtime exceeded.')
+        putLog(1697,'trace','Maximum runtime exceeded.')
         return true
     }
 }
@@ -1708,7 +1706,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1652,'trace','Minimum wait time exceeded.')
+    putLog(1709,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1764,42 +1762,9 @@ def setTime(){
         unschedule('setTime')
         timeMillis = now() + parent.CONSTDayInMilli()
         parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
-        putLog(1708,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+        putLog(1765,'info','Scheduling update subrise/sunset start and/or stop time(s).')
     }
     return true
-}
-
-// DEPRECATED
-def setStartTime(){
-    if(!settings['start_timeType']) return
-    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
-    setTime = setStartStopTime('start')
-    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    atomicState.start  = setTime
-    putLog(1721,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-// DEPRECATED
-def setStopTime(){
-    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
-    if(atomicState.stop > atomicState.start) return
-    setTime = setStartStopTime('stop')
-    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
-    atomicState.stop = setTime
-    putLog(1732,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-// DEPRECATED
-// Sets atomicState.start and atomicState.stop variables
-// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
-def setStartStopTime(type){
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
-    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
 }
 
 // Return true if disabled
