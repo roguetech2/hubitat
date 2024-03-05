@@ -13,12 +13,15 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.2.3
+*  Version: 0.4.2.4
 *
 ***********************************************************************************************************************/
 
 // Need to add lux, maybe energy/power
 // And acceleration, wet/dry, motion, smoke, CO2? Or build separate app for binary states?
+
+// Need to add allowing control of brightness/color/CT, and have time offsets for on/off
+// Add state change option, with time delays, ala Contact
 
 definition(
     name: "Master - Humidity",
@@ -77,7 +80,8 @@ def displayWarning(text,noDisplayIcon = null, width=12){
 
 def highlightText(text, width=12){
     if(!text) return
-    return '<div style="background-color:Wheat">' + text + '</div>'
+    log.debug text
+    return paragraph('<div style="background-color:Wheat">' + text + '</div>',width:width)
 }
 
 def addFieldName(text,fieldName){
@@ -119,18 +123,19 @@ preferences {
 
             section(){
                 displayNameOption()
-                displayDeviceTypeOption()
                 if(install) displayDisableOption()
+                displayAdvancedOption()
+                displayDeviceTypeOption()
                 displayHumidityDeviceOption()
                 displayTempDeviceOption()
                 displayDeviceOption()
                 displayMultiTrigger()
             }
             displayControlDeviceOption()
-            displayAbsoluteThresholdOption('humidity')
-            displayAbsoluteThresholdOption('temp')
-            displayLevelRelativeChangeOption('humidity')
-            displayLevelRelativeChangeOption('temp')
+            displayThresholdOption()
+            //displayThresholdOption('temp')
+            displayLevelRelativeChangeOption()
+            //displayLevelRelativeChangeOption('temp')
             displayRunTimeOption()
             displayAlertOptions()
             displayPeopleOption()
@@ -361,6 +366,15 @@ def displayNameOption(){
     }
 }
 
+def displayAdvancedOption(){
+    fieldName = 'advanced'
+    fieldTitle = 'Display advanced options'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+
+    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
+
+}
+
 def displayDeviceTypeOption(){
     fieldName = 'sensorType'
     fieldTitle = addFieldName('Use humidity and/or temperature?',fieldName)
@@ -413,6 +427,11 @@ def displayTempDeviceOption(){
 
 def displayHumidityAverageOption(){
     if(!humidityActive) return
+    if(!advanced){
+        settings['humiditySensorAverage'] = true
+        return
+    }
+    
     if(humiditySensorCount <= 1) return
     
     fieldName = 'humiditySensorAverage'
@@ -430,6 +449,10 @@ def displayHumidityAverageOption(){
 
 def displayTempAverageOption(){
     if(!tempActive) return
+    if(!advanced){
+        settings['tempSensorAverage'] = true
+        return
+    }
     if(tempSensorCount <= 1) return
     
     fieldName = 'tempSensorAverage'
@@ -481,6 +504,7 @@ def displayMultiTrigger(){
 }
 
 def displayControlDeviceOption(){
+    if(!advanced) return
     if(!settings['device']) return
 
     duplicateDevice = compareDeviceLists(settings['humiditySensor'],settings['humidityControlSensor'])
@@ -606,74 +630,103 @@ def displayControlHelpTip(){
     if(helpTip) displayInfo(helpTip)
 }
 
-def displayAbsoluteThresholdOption(type){
+def displayThresholdOption(){
     if(!settings['device']) return
-    if(type == 'humidity' && !humidityActive) return
-    if(type == 'temp' && !tempActive) return
     
-    typeString = 'humidity'
-    typeUnit = '%'
-    if(type == 'temp') {
-        typeString = 'temperature'
-        typeUnit = '°' + getTemperatureScale()
-    }
+    humidityTypeUnit = '%'
+    tempTypeUnit = '°' + getTemperatureScale()
 
     hidden = true
-    if(type == 'humidity' && validateHumidity(settings[type + 'Threshold'])) hidden = false
-    if(type == 'temp' && validateTemp(settings[type + 'Threshold'])) hidden = false
+    if(validateHumidity(settings['humidityThreshold'])) hidden = false
+    if(validateTemp(settings['tempThreshold'])) hidden = false
 
     sectionTitle = ''
     
+    if(!settings['humidityThreshold'] && !settings['tempThreshold']) sectionTitle = 'Click to set specific threshold (optional)'
+    
     direction = 'under'
-    directionReverse = 'over'
-    if(settings[type + 'Direction']){
-        direction = 'over'
-        directionReverse = 'under'
-    }
-    if(!settings[type + 'Threshold']) sectionTitle = 'Click to set threshold for absolute ' + type + ' (optional)'
-    if(settings[type + 'Threshold'] && settings[type + 'Direction']) sectionTitle = '<b>Run while: ' + typeString.capitalize() + ' ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + '</b>'
-    if(settings[type + 'Threshold'] && !settings[type + 'Direction']) sectionTitle = '<b>Run while: ' + typeString.capitalize() + ' ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + '</b>'
+    if(settings['humidityDirection']) direction = 'over'
+    if(humidityActive && settings['humidityThreshold']) sectionTitle = '<b>Run while: Humidity ' + direction + ' ' + settings['humidityThreshold'] + humidityTypeUnit + '</b>'
+    
+    if(humidityActive && tempActive && settings['humidityThreshold'] && settings['tempThreshold']) sectionTitle += '<br>'
+    
+    direction = 'under'
+    if(settings['tempDirection']) direction = 'over'
+    if(tempActive && settings['tempThreshold']) sectionTitle += '<b>Run while: Temperature ' + direction + ' ' + settings['tempThreshold'] + tempTypeUnit + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(type == 'humidity') displayError(validateHumidity(settings[type + 'Threshold']))
-        if(type == 'temp'){
-            displayError(validateMinTemp(settings[type + 'Threshold']))
-            displayError(validateMaxTemp(settings[type + 'Threshold']))
-        }
-        
-        displayDirection(type, typeString, typeUnit, 'threshold')
-        displayAbsoluteThresholdField(type, typeString, typeUnit)
+        if(humidityActive){
+            direction = 'under'
+            directionReverse = 'over'
+            if(settings['humidityDirection']){
+                direction = 'over'
+                directionReverse = 'under'
+            }
+            highlightText('Humidity')
+            displayError(validateHumidity(settings['humidityThreshold']))
 
-        if(settings[type + 'Threshold']) {
-            helpTip = 'Device will turn on if ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + ' and not turn off until ' + directionReverse + ' ' + settings[type + 'Threshold'] + typeUnit
-            if(settings['runTimeMaximum']) helpTip += ' (or after the maximum run time of ' + settings['runTimeMaximum'] + ' minutes have elapsed)'
-            helpTip += '.'
+            displayDirection('humidity', 'humidity', humidityTypeUnit, 'threshold')
+            displayThresholdField('humidity', 'humidity', humidityTypeUnit)
+
+            if(settings['humidityThreshold']) {
+                helpTip = 'Device will turn on if ' + direction + ' ' + settings['humidityThreshold'] + humidityTypeUnit + ' and not turn off until ' + directionReverse + ' ' + settings['humidityThreshold'] + humidityTypeUnit
+                if(settings['runTimeMaximum']) helpTip += ' (or after the maximum run time of ' + settings['runTimeMaximum'] + ' minutes have elapsed)'
+                helpTip += '.'
+            }
+            if(!settings['humidityThreshold']) helpTip = 'Enter humidity percent at which to turn on the ' + pluralFan + '. It will run until lower than threshold (or enter maximum run time below).'
+            helpTip += ' (Current humidity is ' + humidityAverage(settings['humiditySensor'],settings['tempSensor']) + humidityTypeUnit + '.)'
+            displayInfo(helpTip)
+            displayError(errorMessage)
+
+            displayThresholdManualStop('humidity', 'humidity', humidityTypeUnit)
         }
-        if(!settings[type + 'Threshold']) helpTip = 'Enter ' + typeString + typeUnit + ' at which to turn on the ' + pluralFan + '. It will run until lower than threshold (or enter maximum run time below).'
-        if(type == 'humidity') helpTip += ' (Current ' + typeString + ' is ' + humidityAverage(settings['humiditySensor'],settings['tempSensor']) + '.)'
-        if(type == 'temp') helpTip += ' (Current ' + typeString + ' is ' + tempAverage(settings['humiditySensor'],settings['tempSensor']) + typeUnit + '.)'
-        displayInfo(helpTip)
-        displayError(errorMessage)
-    
-        displayAbsoluteThresholdManualStop(type, typeString, typeUnit)
+                         
+        if(tempActive){
+            direction = 'under'
+            directionReverse = 'over'
+            if(settings['tempDirection']){
+                direction = 'over'
+                directionReverse = 'under'
+            }
+            highlightText('Temperature')
+            
+            displayError(validateMinTemp(settings['tempThreshold']))
+            displayError(validateMaxTemp(settings['tempThreshold']))
+            
+            displayDirection('temp', 'temperature', tempTypeUnit, 'threshold')
+            displayThresholdField('temp', 'temperature', tempTypeUnit)
+
+            if(settings['tempThreshold']) {
+                helpTip = 'Device will turn on if ' + direction + ' ' + settings['tempThreshold'] + tempTypeUnit + ' and not turn off until ' + directionReverse + ' ' + settings['tempThreshold'] + tempTypeUnit
+                if(settings['runTimeMaximum']) helpTip += ' (or after the maximum run time of ' + settings['runTimeMaximum'] + ' minutes have elapsed)'
+                helpTip += '.'
+            }
+            if(!settings['tempThreshold']) helpTip = 'Enter temperature degrees at which to turn on the ' + pluralFan + '. It will run until lower than threshold (or enter maximum run time below).'
+            helpTip += ' (Current temperature is ' + tempAverage(settings['humiditySensor'],settings['tempSensor']) + tempTypeUnit + '.)'
+            displayInfo(helpTip)
+            displayError(errorMessage)
+
+            displayThresholdManualStop('temp', 'temperature', tempTypeUnit)
+        }
     }
 }
 
-def displayAbsoluteThresholdField(type, typeString, typeUnit){
+def displayThresholdField(type, typeString, typeUnit){
     if(type == 'humidity'){
         if(validateHumidity(settings[type + 'Threshold'])) return
     }
     if(type == 'temp'){
         if(validateTemp(settings[type + 'Threshold'])) return
     }
-    fieldName = type + 'Threshold'
-    fieldTitle = ''
+    fieldName = type.capitalize() + ' threshold'
+    if(type == 'temp') fieldName = 'Temperature threshold'
+    fieldTitle = 'Threshold: '
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    displayLabel('To start ' + pluralFan)
+
     input fieldName, 'number', title: fieldTitle, submitOnChange:true
 }
 
-def displayAbsoluteThresholdManualStop(type, typeString, typeUnit){
+def displayThresholdManualStop(type, typeString, typeUnit){
     if(!settings[type + 'Threshold']) return
     if(type == 'humidity'){
         if(validateHumidity(settings[type + 'Threshold'])) return
@@ -688,9 +741,9 @@ def displayAbsoluteThresholdManualStop(type, typeString, typeUnit){
         direction = 'under'
         directionReverse = 'over'
     }
-    fieldName = type + 'AbsoluteThresholdManualStop'
+    fieldName = type + 'ThresholdManualStop'
     fieldTitle = 'If manually turned on, ignore this threshold - do not turn off when ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + '.'
-    if(settings[type + 'AbsoluteThresholdManualStop']){
+    if(settings[type + 'ThresholdManualStop']){
         fieldTitle = 'If manually turned on, turn off if ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + '.'
         helpTip = 'If manually turned on, the ' + pluralFan + ' will turn off if ' + typeString + ' is ' + direction + ' ' + settings[type + 'Threshold'] + typeUnit + ' (if it is already under, it will immediately turn off). Click to not turn off based on ' + typeString + '.'
     }
@@ -723,52 +776,63 @@ def displayDirection(type, typeString, typeUnit, field){
     input fieldName, 'bool', title: fieldTitle, submitOnChange:true
 }
 
-def displayLevelRelativeChangeOption(type){
+def displayLevelRelativeChangeOption(){
     if(!settings['device']) return
-    if(type == 'humidity' && !humidityActive) return
-    if(type == 'temp' && !tempActive) return
 
-    typeString = 'humidity'
-    typeUnit = '%'
-    if(type == 'temp') {
-        typeString = 'temperature'
-        typeUnit = '°' + getTemperatureScale()
-    }
+    humidityTypeUnit = '%'
+    tempTypeUnit = '°' + getTemperatureScale()
 
     minutes = settings['relativeMinutes']
     if(!settings['relativeMinutes']) minutes = 'the specified number of'
 
     hidden = true
-    if(settings['relativeMinutes'] != 5 && !settings[type + 'Delta']) hidden = false
+    if(settings['relativeMinutes'] != 5 && !settings['humidityDelta'] && !settings['tempDelta']) hidden = false
     if(validateMinutes(settings['relativeMinutes'])) hidden = false
 
     startIncrease = 'decrease'
-    if(settings[type + 'Direction']) startIncrease = 'increase'
+    if(settings['humidityDirection']) startIncrease = 'increase'
 
-    sectionTitle = 'Click to set ' + typeString + ' ' + startIncrease + ' (optional)'
-    if(!settings[type + 'Delta']) sectionTitle = 'Click to set ' + typeString + ' ' + startIncrease + ' (optional)'
-    if(settings[type + 'Delta'] && settings['relativeMinutes']) sectionTitle = '<b>Run after: ' + typeString.capitalize() + ' ' + startIncrease + 's ' + settings[type + 'Delta'] + typeUnit + ' in ' + minutes + ' min.</b>'
-    if(settings[type + 'Delta'] && !settings['relativeMinutes']) sectionTitle = '<b>Run after: ' + typeString.capitalize() + '  ' + startIncrease + 's ' + settings[type + 'Delta'] + typeUnit + '</b>'
+    sectionTitle = 'Click to set amount ' + startIncrease + ' over time (optional)'
+    if(settings['humidityDelta']) sectionTitle = '<b>Run after: Humidity ' + startIncrease + 's ' + settings['humidityDelta'] + humidityTypeUnit + ' in ' + minutes + ' min.</b>'
+    
+    if(settings['humidityDelta'] && settings['tempyDelta']) sectionTitle += '<br>'
+    
+    startIncrease = 'decrease'
+    if(settings['tempDirection']) startIncrease = 'increase'
+    if(settings['tempDelta']) sectionTitle = '<b>Run after: Temperature ' + startIncrease + 's ' + settings['tempDelta'] + tempTypeUnit + ' in ' + minutes + ' min.</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(type == 'humidity') currentLevel = humidityAverage
-        if(type == 'temp') currentLevel = tempAverage
-        //Validate humidity (as percent change)?
         displayError(validateMinutes(settings['relativeMinutes']))
-
-        displayDirection(type, typeString, typeUnit,'delta')
         displayRelativeMinutes()
-        displayDeltaAmountField(type)
+        
+        currentLevel = humidityAverage
 
-        if(!settings[type + 'Delta']) displayInfo('Enter percentage of ' + typeString + ' ' + startIncrease + ' within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level. (It will continue to run until back to original value.)')
+        highlightText('Humidity')
+        displayDirection('humidity', 'humidity', humidityTypeUnit,'delta')
+        displayDeltaAmountField('humidity')
 
-        if(settings[type + 'Delta']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + currentLevel + typeUnit + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + (currentLevel + settings[type + 'Delta']) + typeUnit + ' (and turn off only when back to ' + currentLevel + typeUnit + ').'
+        if(!settings['humidityDelta']) displayInfo('Enter percentage of humidity ' + startIncrease + ' within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level. (It will continue to run until back to original value.)')
+
+        if(settings['humidityDelta']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + currentLevel + humidityTypeUnit + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + (currentLevel + settings['humidityDelta']) + humidityTypeUnit + ' (and turn off only when back to ' + currentLevel + humidityTypeUnit + ').'
         displayInfo(helpTip)
-        if(type == 'humidity' && settings[type + 'Delta']){
-         //   if(settings['humidityDirection'] && (settings[type + 'Delta'] + humidityAverage > 100)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so an increase of ' + settings[type + 'Delta'] + typeUnit + ' (to ' + (settings[type + 'Delta'] + humidityAverage) + typeUnit + ') is not possible with the current conditions.'
-         //   if(!settings['humidityDirection'] && (humidityAverage - settings[type + 'Delta'] < 0)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so a decrease of ' + settings[type + 'Delta'] + typeUnit + ' (to ' + (humidityAverage - settings[type + 'Delta']) + typeUnit + ') is not possible with the current conditions.'
+        if(settings['humidityDelta']){
+         //   if(settings['humidityDirection'] && (settings['humidityDelta'] + humidityAverage > 100)) warnMessage = 'The current humidity is ' + humidityAverage + humidityTypeUnit + ' so an increase of ' + settings['humidityDelta'] + humidityTypeUnit + ' (to ' + (settings['humidityDelta'] + humidityAverage) + humidityTypeUnit + ') is not possible with the current conditions.'
+         //   if(!settings['humidityDirection'] && (humidityAverage - settings['humidityDelta'] < 0)) warnMessage = 'The current humidity is ' + humidityAverage + humidityTypeUnit + ' so a decrease of ' + settings['humidityDelta'] + humidityTypeUnit + ' (to ' + (humidityAverage - settings['humidityDelta']) + humidityTypeUnit + ') is not possible with the current conditions.'
         }
         displayWarning(warnMessage)
+
+        
+        
+        currentLevel = tempAverage
+
+        highlightText('Temperature')
+        displayDirection('temp', 'temperature', tempTypeUnit,'delta')
+        displayDeltaAmountField('temp')
+
+        if(!settings['tempDelta']) displayInfo('Enter percentage of temperature ' + startIncrease + ' within ' + minutes + ' minutes to start the ' + pluralFan + ', relative to original level. (It will continue to run until back to original value.)')
+
+        if(settings['tempDelta']) helpTip = 'The ' + pluralTemp + ' is currently at ' + currentLevel + tempTypeUnit + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + (currentLevel + settings['tempDelta']) + tempTypeUnit + ' (and turn off only when back to ' + currentLevel + tempTypeUnit + ').'
+        displayInfo(helpTip)
     }
 }
 
@@ -787,19 +851,10 @@ def displayDeltaAmountField(type){
     if(settings[type + 'Direction']) direction = 'increase'
 
     fieldName = type + 'Delta'
-    fieldTitle = type.capitalize() + ' ' + startIncrease
-    if(type == 'temp') fieldTitle = 'Temperature ' + startIncrease
+    fieldTitle = type.capitalize() + ' change'
+    if(type == 'temp') fieldTitle = 'Temperature change'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    displayLabel('To start ' + pluralFan)
-    input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
-}
-
-def displayTempDelta(){
-    if(validateMinutes(settings['relativeMinutes'])) return
-    fieldName = 'tempDelta'
-    fieldTitle = 'Temperature increase'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    displayLabel('To start ' + pluralFan)
+    //displayLabel('To start ' + pluralFan)
     input fieldName, 'decimal', title: fieldTitle, required: false, submitOnChange:true
 }
 
@@ -883,6 +938,7 @@ def validateSunriseMinutes(type){
 }
 
 def displayScheduleSection(){
+    if(!advanced) return
     if(!settings['device']) return
     
     List dayList=[]
@@ -1073,6 +1129,7 @@ def displayMonthsOption(){
 }
 
 def displayIfModeOption(){
+    if(!advanced) return
     if(!settings['device']) return
     if(!humidityActive && !tempActive) return
 
@@ -1090,6 +1147,7 @@ def displayIfModeOption(){
 }
 
 def displayAlertOptions(){
+    if(!advanced) return
     if(!settings['device']) return
     if(!humidityActive && !tempActive) return
     if(!parent.pushNotificationDevice && !parent.speechDevice) return
@@ -1166,6 +1224,7 @@ def displayAlertOptions(){
 }
 
 def displayPeopleOption(){
+    if(!advanced) return
     if(!settings['device']) return
     if(!humidityActive && !tempActive) return
 
