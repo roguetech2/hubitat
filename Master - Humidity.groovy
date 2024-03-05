@@ -13,7 +13,7 @@
 *
 *  Name: Master - Humidity
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Humidity.groovy
-*  Version: 0.4.2.2
+*  Version: 0.4.2.3
 *
 ***********************************************************************************************************************/
 
@@ -530,7 +530,7 @@ def displayControlDeviceOption(){
     }
     section(hideable: true, hidden: hidden, sectionTitle){
         if(!duplicateDevice) duplicateDevice = compareDeviceLists(settings['tempSensor'],settings['tempControlSensor'])
-        if(duplicateDevice) displayError('A control sensor iThe control ' + pluralControl + ' can\'t be a primary sensor.')
+        if(duplicateDevice) displayError('The control device is a comparision sensor, so can not be the same as the primary sensor.')
 
         displayHumidityControlSensor()
         displayTempControlSensor()
@@ -819,8 +819,8 @@ def displayLevelRelativeChangeOption(type){
         if(settings[type + 'StartDelta']) helpTip = 'The ' + pluralHumidity + ' is currently at ' + currentLevel + typeUnit + ', so it would turn the ' + pluralFan + ' on if, within ' + minutes + ' minutes, it were to ' + startIncrease + ' to ' + (currentLevel + settings[type + 'StartDelta']) + typeUnit + ' (and turn off only when back to ' + currentLevel + typeUnit + ').'
         displayInfo(helpTip)
         if(type == 'humidity' && settings[type + 'StartDelta']){
-            if(settings['humidityDirection'] && (settings[type + 'StartDelta'] + humidityAverage > 100)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so an increase of ' + settings[type + 'StartDelta'] + typeUnit + ' (to ' + (settings[type + 'StartDelta'] + humidityAverage) + typeUnit + ') is not possible with the current conditions.'
-            if(!settings['humidityDirection'] && (humidityAverage - settings[type + 'StartDelta'] < 0)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so a decrease of ' + settings[type + 'StartDelta'] + typeUnit + ' (to ' + (humidityAverage - settings[type + 'StartDelta']) + typeUnit + ') is not possible with the current conditions.'
+         //   if(settings['humidityDirection'] && (settings[type + 'StartDelta'] + humidityAverage > 100)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so an increase of ' + settings[type + 'StartDelta'] + typeUnit + ' (to ' + (settings[type + 'StartDelta'] + humidityAverage) + typeUnit + ') is not possible with the current conditions.'
+         //   if(!settings['humidityDirection'] && (humidityAverage - settings[type + 'StartDelta'] < 0)) warnMessage = 'The current humidity is ' + humidityAverage + typeUnit + ' so a decrease of ' + settings[type + 'StartDelta'] + typeUnit + ' (to ' + (humidityAverage - settings[type + 'StartDelta']) + typeUnit + ') is not possible with the current conditions.'
         }
         displayWarning(warnMessage)
     }
@@ -1590,7 +1590,7 @@ def checkOffConditions(){
 def checkAnyOnConditions(){
     if(checkControlStartDifference()) return true
     if(checkStartThreshold('humidity')) return true
-    if(checkTempStartThreshold('temp')) return true
+    if(checkStartThreshold('temp')) return true
     if(checkStartDelta('humidity')) return true
     if(checkStartDelta('temp')) return true
     return false    // used for log
@@ -1639,6 +1639,7 @@ def checkControlStopDifference(){
 //if(!settings['humidityAbsoluteThresholdManualStop']) return
 
 def checkStartThreshold(type){
+    if(type != 'humidity' && type != 'temp') return
     if(!atomicState[type + 'Active']) return
     if(!settings[type + 'StartThreshold']) return
     if(settings[type + 'Direction'] && atomicState[type + 'Average'] > settings[type + 'StartThreshold']) return true
@@ -1646,6 +1647,7 @@ def checkStartThreshold(type){
 }
 
 def checkStopThreshold(type){
+    if(type != 'humidity' && type != 'temp') return
     if(!atomicState[type + 'Active']) return
     if(!settings[type + 'StartThreshold']) return
     if(settings[type + 'Direction'] && atomicState[type + 'Average'] < settings[type + 'StartThreshold']) return true
@@ -1655,6 +1657,7 @@ def checkStopThreshold(type){
 // start/stopHumdity/Temp are never set
 def checkStartDelta(type){
     if(!atomicState[type + 'Active']) return
+    if(type != 'humidity' && type != 'temp') return
     if(!settings[type + 'StartDelta']) return
     if(!settings['relativeMinutes']) return
     if(!atomicState[type + 'Humidity']) return
@@ -1673,7 +1676,8 @@ def checkStartDelta(type){
     return startDelta
 }
 
-def checkStopDelta(type){        
+def checkStopDelta(type){   
+    if(type != 'humidity' && type != 'temp') return     
     if(!settings[type + 'Delta']) return
     if(!settings['relativeMinutes']) return
     if(!atomicState[type + 'Humidity']) return
@@ -1681,7 +1685,7 @@ def checkStopDelta(type){
     if(settings[type + 'Direction']){
         if(atomicState[type + 'Average'] <= atomicState[type + 'Start'] - settings[type + 'Delta']) return true
     }
-    if(!settings['humidityDirection']){
+    if(!settings[type + 'Direction']){
         if(atomicState[type + 'Average'] >= atomicState[type + 'Start'] + settings[type + 'Delta']) return true
     }
 }
