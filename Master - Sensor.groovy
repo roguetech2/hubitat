@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.1
+*  Version: 0.4.3.2
 *
 ***********************************************************************************************************************/
 
@@ -1019,6 +1019,7 @@ def getSensorsMapEntry(sensorsMap){
 }
 
 def buildSensorTypeOptionsMap(listMap){
+    if(!sensorsMap) return
     newMap = [:]
     listMap.each{capabilityOption->
         sensorsMap.find { it ->
@@ -1029,11 +1030,13 @@ def buildSensorTypeOptionsMap(listMap){
 }
 
 def getStartText(){
+    if(!state.sensorTypeMap) return
     if(state.sensorTypeMap['type'] == 'bool') return 'start (' + state.sensorTypeMap['start'] + ')'
     return 'start'
 }
 
 def getStopText(){
+    if(!state.sensorTypeMap) return
     if(state.sensorTypeMap['type'] == 'bool') return 'stop (' + state.sensorTypeMap['stop'] + ')'
     return 'stop'
 
@@ -1041,6 +1044,7 @@ def getStopText(){
 
 def getSensorCount(){
     if(!settings['sensor']) return
+    if(!state.sensorTypeMap) return
     count = 0
 
     settings['sensor'].each{singleDevice->
@@ -1072,6 +1076,7 @@ def getPluralDevice(){
 }
 
 def getSensorAverage(){
+    if(!state.sensorTypeMap) return
     if(!settings['sensor']) return
     if(sensorCount == 0) return
     if(state.sensorTypeMap['type'] == 'bool') return
@@ -1175,13 +1180,13 @@ def validateSunriseMinutes(type){
 
 
 def installed() {
-    putLog(1178,'trace','Installed')
+    putLog(1183,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1184,'trace','Updated')
+    putLog(1189,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1211,7 +1216,7 @@ def initialize() {
     if(settings['deviceType'] == 'lock') subscribe(settings['device'], 'lock', handleStateChange)
     if(settings['deviceType'] == 'fan') subscribe(settings['device'], 'switch', handleStateChange)
     
-    putLog(1214,'trace','Initialized')
+    putLog(1219,'trace','Initialized')
 }
 
 def handleSensorUpdate(event) {
@@ -1250,7 +1255,7 @@ def start(){
     
     if(checkStopConditions()) {
         atomicState.startTime = null
-        putLog(1253,'error','Both start and stop conditions met.')
+        putLog(1258,'error','Both start and stop conditions met.')
         return
     }
     
@@ -1264,7 +1269,7 @@ def start(){
             stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
             parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
         }
-        putLog(1267,'warn','Setting devices to ' + settings['startAction'] + '.')
+        putLog(1272,'warn','Setting devices to ' + settings['startAction'] + '.')
         parent.setDeviceMulti(settings['device'],app.label)
     }
     unschedule()
@@ -1287,7 +1292,7 @@ def startAction(event){
             stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
             parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
         }
-        putLog(1290,'warn','Setting devices to ' + settings['startAction'] + '.')
+        putLog(1295,'warn','Setting devices to ' + settings['startAction'] + '.')
         parent.setDeviceMulti(settings['device'],app.label)
     }
     unschedule()
@@ -1381,11 +1386,11 @@ def checkStartConditions(){
 // check time
     //if(settings['multiStartTrigger']) {
     //    allOnConditions = checkAllOnConditions()
-    //    putLog(1384,'trace','All on conditions is ' + allOnConditions)
+    //    putLog(1389,'trace','All on conditions is ' + allOnConditions)
     //    return allOnConditions
     //}
     anyStartConditions = checkAnyStartConditions()
-    putLog(1388,'trace','Any on condition is ' + anyStartConditions)
+    putLog(1393,'trace','Any on condition is ' + anyStartConditions)
     return anyStartConditions
 }
 
@@ -1397,11 +1402,11 @@ def checkStopConditions(){
     
     //if(settings['multiStopTrigger']) {
     //    allOffConditions = checkAllOffConditions()
-     //   putLog(1400,'trace','All off conditions is ' + allOffConditions)
+     //   putLog(1405,'trace','All off conditions is ' + allOffConditions)
      //   return allOffConditions
     //}
     anyStopConditions = checkAnyStopConditions()
-    putLog(1404,'trace','Any stop conditions is ' + anyStopConditions)
+    putLog(1409,'trace','Any stop conditions is ' + anyStopConditions)
     return anyStopConditions
 }
 
@@ -1497,7 +1502,7 @@ def checkRunTimeMaximum(){
     if(!atomicState.startTime) return true
     
     if(now() - atomicState.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1500,'trace','Maximum runtime exceeded.')
+        putLog(1505,'trace','Maximum runtime exceeded.')
         return true
     }
 }
@@ -1509,7 +1514,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1512,'trace','Minimum wait time exceeded.')
+    putLog(1517,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1565,7 +1570,7 @@ def setTime(){
         unschedule('setTime')
         timeMillis = now() + parent.CONSTDayInMilli()
         parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
-        putLog(1568,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+        putLog(1573,'info','Scheduling update subrise/sunset start and/or stop time(s).')
     }
     return true
 }
