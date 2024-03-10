@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.25
+*  Version: 0.4.1.26
 *
 ***********************************************************************************************************************/
 
@@ -39,6 +39,7 @@ definition(
     iconX2Url: 'http://cdn.device-icons.smartthings.com/home2-icn@2x.png'
 )
 
+
 infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
 errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
 warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
@@ -58,7 +59,7 @@ def getLogLevel(){
 
 def displayLabel(text, width = 12){
     if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
 }
 
 def displayInfo(text,noDisplayIcon = null, width=12){
@@ -87,54 +88,202 @@ def highlightText(text, width=12){
     return '<div style="background-color:Wheat">' + text + '</div>'
 }
 
-def addFieldName(text,fieldName){
-    if(!fieldName) return
-    if(getLogLevel() != 5) return text
-    return text + ' [' + fieldName + ']'
-}
-
 preferences {
-    page(name: 'mainPage')
+    page(name: 'mainPage', install: true, uninstall: true){
+        section(){
+            getAppCounts()
+            if(!atomicState?.masterInstalled) displayInfo ('Click "Done" to save.')
+
+            if(!allDevices) displayAllDevicesOption()
+            displayHiRezHue()
+        }
+        displayHideTips()
+        displaySchedules()
+        displaySensors()
+        displayPicos()
+        displayMagicCubes()
+        displayContactSensors()
+        displayPresence()
+        if(allDevices) displayAllDevicesOption()
+    }
 }
 
-def mainPage() {
-    
-    return dynamicPage(name: 'mainPage', title: '', install: true, uninstall: true) {
-        if(!atomicState.masterInstalled) {
-            section('Click Done.') {
-            }
+def getAppCounts(){
+    scheduleCount = 0
+    presenceCount = 0
+    picoCount = 0
+    magicCubeCount = 0
+    contactCount = 0
+    sensorCount = 0
+    childApps.each {Child->
+        if(Child.label.startsWith('Time - ')) scheduleCount++
+        if(Child.label.startsWith('Presence - ')) presenceCount++
+        if(Child.label.startsWith('Pico - ')) picoCount++
+        if(Child.label.startsWith('MagicCube - ')) magicCubeCount++
+        if(Child.label.startsWith('Contact - ')) contactCount++
+        if(Child.label.startsWith('Sensor - ')) sensorCount++
+    }
+}
 
+def displayAllDevicesOption(){
+    fieldName = 'allDevices'
+    fieldTitle = 'Select all devices:'
+    if(allDevices){
+        section(){
+    displayInfo('All devices should be selected. This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
+    input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
+        }
+    }
+    if(!allDevices) {
+        
+    input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
+    displayInfo('Select all devices ("Toggle All On"). This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
+    }
+}
+
+def displayHiRezHue(){
+    input name: 'hiRezHue', type: 'bool', title: 'Enable Hue in degrees (0-360)', defaultValue: false, submitOnChange:true
+    displayInfo('Select if light devices have been set to degrees. Leave unselected by default, but failure to match device settings may result in hue settings not working correctly.')
+}
+
+def displayHideTips(){
+    section(){
+        fieldName = 'hideTips'
+        fieldTitle = 'Hide tips'
+        input name: fieldName, title: fieldTitle, type: 'bool', submitOnChange:true
+    }
+}
+
+def displaySchedules(){
+    title = 'Click to add a <b>schedule</b>'
+    if(scheduleCount != 0) title = 'Click to add or edit <b>schedules</b> (' + scheduleCount + ' total)'
+
+        displayScheduleTip()
+    section(hideable: true, hidden: true, title) {
+        app(name: 'childApps', appName: 'Master - Time', namespace: 'master', title: 'New Schedule', multiple: true)
+    }
+}
+
+def displayPicos(){
+    section(){
+        displayPicoTip()
+        title = 'Click to add '
+        if(picoCount == 0) title += 'a <b>Pico</b>'
+        if(picoCount != 0) title += 'or edit <b>Picos</b> (' + picoCount + ' total)'
+        section(hideable: true, hidden: true, title) {
+            app(name: 'childApps', appName: 'Master - Pico', namespace: 'master', title: 'New Pico', multiple: true)
+        }
+    }
+}
+
+def displayMagicCubes(){
+    section(){
+        displayMagicCubeTip()
+        title = 'Click to add '
+        if(magicCubeCount == 0) title += 'a <b>MagicCube</b>'
+        if(magicCubeCount != 0) title += 'or edit <b>MagicCubes</b> (' + magicCubeCount + ' total)'
+        section(hideable: true, hidden: true, title) {
+            app(name: 'childApps', appName: 'Master - MagicCube', namespace: 'master', title: 'New MagicCube', multiple: true)
+        }
+    }
+}
+
+def displaySensors(){
+    section(){
+        title = 'Click to add '
+        if(sensorCount == 0) title += 'a <b>Sensor</b>'
+        if(sensorCount != 0) title += 'or edit <b>sensors</b> (' + sensorCount + ' total)'
+        section(hideable: true, hidden: true, title) {
+            app(name: 'childApps', appName: 'Master - Sensor', namespace: 'master', title: 'New Sensor', multiple: true)
+        }
+    }
+}
+def displayContactSensors(){
+    section(){
+        title = 'Click to add '
+        if(contactCount == 0) title += 'a <b>contact/door sensor</b>'
+        if(contactCount != 0) title += "or edit <b>contact/door sensors</b> ($contactCount total)"
+        section(hideable: true, hidden: true, title) {
+            app(name: 'childApps', appName: 'Master - Contact', namespace: 'master', title: 'New Contact Sensor', multiple: true)
+        }
+    }
+}
+
+def displayPresence(){
+    section(){
+        title = 'Click to add '
+        if(presenceCount == 0) {
+            title += 'a <b>presence</b> setting'
         } else {
-            if(presenceDevice || pushNotificationDevice || speechDevice || hiRezHue || colorStaging) hidden = true
-            title = 'Device Settings'
-            if(hidden && (!presenceDevice || !pushNotificationDevice || !speechDevice)) title += moreOptions
-                section(hideable: true, hidden: hidden, title) {
-                    input 'presenceDevice', 'capability.presenceSensor', title: 'Select all people:', multiple: true, required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These people will be used for \"anyone\" and \"everyone\" conditions in any presence-based condition, and allow birthday options.</div>"
-                    input 'pushNotificationDevice', 'capability.notification', title: 'Select push notification device(s):', multiple: true, required: false, submitOnChange:true
+            title += "or edit <b>presence</b> settings ($presenceCount total)"
+        }
+        section(hideable: true, hidden: true, title) {
+            app(name: 'childApps', appName: 'Master - Presence', namespace: 'master', title: 'New Presence', multiple: true)
+        }
+    }
+}
 
-                    input 'speechDevice', 'capability.speechSynthesis', title: 'Select text-to-speech notification device(s):', multiple: true, required: false, submitOnChange:true
-                    paragraph "<div style=\"background-color:AliceBlue\">$infoIcon This will be used for voice alerts.</div>"
-                    input name: 'hiRezHue', type: 'bool', title: 'Enable Hue in degrees (0-360)', defaultValue: false, submitOnChange:true
-                    displayInfo('Select if light devices have been set to degrees. Leave unselected by default, but failure to match device settings may result in hue settings not working correctly.')
-                    
-                }
-            section(){}
+def displayScheduleTip(){
+    if(hideTips) return
+    section(){
+        scheduleText = 'Schedules allow performing actions on switches and lights (e.g. turn on, off, dim, set color, etc.) at specific times, \
+and will run daily. Devices can be set to progressively change by setting both start and stop values for brightness or color. If a \
+device is turned off, the schedule continues to run, so <i>when it is</i> turned on, it will do so at the correct level(s). You \
+can also select specific days and months, and other factors like Mode. Schedules also support sunrise and sunset. Use cases:<br>\
+        • Set a porch light to turn on at sunset and off at sunrise<br>\
+        • Set room lights to turn on and get dimmer as it gets later in the evening<br>\
+        • Set room lights to be dimmer as it gets later in the evening, when and if they are turned on<br>\
+        • Set lights to turn off at night<br>\
+        • Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)<br>\
+        • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those months)<br>\
+        • Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)<br>\
+        • Turn on certain devices when someone arrives, within a certain time (or any time, by setting start time the same as stop time)<br>\
+        • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
+        • Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).'
+        displayInfo(scheduleText)
+    }
+}
 
-                    /*
-// Used for flash-alerts; nothing else
-input "colorLights", "capability.switchLevel", title: "Select all color lights:", multiple: true, required: false, submitOnChange:true
-paragraph "<div style=\"background-color:AliceBlue\">$infoIcon These color lights will be used for flashing alerts.</div>"
-*/
+def displayPicoTip(){
+    if(hideTips) return
+    section(){
+        picoText = 'The Pico app is designed for Lutron Caseta switches and Pico remotes. It may or may not work for other 2, 4 or 5 button devices. \
+Actions include on, off, toggle, dim, brighten, and "resume schedule" (more on that below). It supports push, and hold (no double tap yet). \
+It allows quickly setting up remotes to work (select a Pico, set a device, and save), or more advanced options of defining specific actions for each button, \
+and/or defining different devices per button. It allows scheduling, such that a remote can do different things at different times, as well as presence. \
+The "resume" option resets back to a schedule. For instance, if the brightness set by a schedule is overridden, selecting resume has the schedule take \
+back over. Use cases:<br>\
+        • Control a light or group of lights<br>\
+        • Control any (smart) switched device (i. e. blinds, irrigation, fans, etc.)<br>\
+        • With 5-button Picos, set center button to toggle the ceiling fan (and other buttons control the lights)<br>\
+        • Using a 2 button Pico, control two bedside lamps by setting both as "toggle"<br>\
+        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
+        • Set push to control one light, but hold to control lights in an adjacent room<br>\
+        • Set push to dim, but hold to progressively dim<br>\
+        • Set light switch to send a notification during the day as a honeypot for would be intruders (notifications aren\'t yet a feature, but soon)<br>\
+        • Set switches for a pool pump or irrigation for pool cleaner/landscaper for their time and day, but repurpose the switch for outdoor lighting at other times<br>\
+        • Schedule a porch light to be dim, but set the "on" button to set it to full brightness, and "off" button has it go back to dim per the schedule.'
+        displayInfo(picoText)
+    }
+}
 
-
-                }
-                /* ********************************************* */
-                /* TO-DO: Finish BDay code. Not complete.        */
-                /* Try to move it to child app, using this code: */
-                /* https://community.hubitat.com/t/parent-function-to-return-settings-state-data-to-child-app/2261/3 */
-                /* ********************************************* */
-                /*
+def displayMagicCubeTip(){
+    if(hideTips) return
+    section(){
+        magicCubeText = 'MagicCubes are sold by Xiaomi under the Aqara brand. They are, aptly, cubes (and perhaps magic). Actions supported are flip 90, flip 180, shake, \
+rotate left, and rotate right. (Support for side up number to be added.) Each action can be set to control different devices and/or perform different actions. Actions include on, off, dim, \
+brighten, and resum schedule. The "resume" option grants control back to a schedule if the schedule is overridden (see Pico app note for more info).\
+Use cases:<br>\
+        • Control a light by flipping the Cube.<br>\
+        • Control multiple devices, such as having a lamp toggle with flip 90, another lamp toggle with flip 180, and a ceiling fan toggle with shake.<br>\
+        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
+        • Control light brightness with rotate right (brighten) and left (dim) (like a volume knob)<br>\
+        • Control a (smart) media player volume... like a volume knob, as well as power, skip track, etc.<br>\
+        • Train a pet to flip it to indicate to be let outside (notifications not yet supported).'
+        displayInfo(magicCubeText)
+    }
+}
+/*
 if(notificationDevice && people){
 section(""){
 def i = 0
@@ -163,128 +312,6 @@ input "timeStop", "time", title: "and stop time", required: true, width: 6, subm
 }
 */
 
-        scheduleCount = 0
-        presenceCount = 0
-        picoCount = 0
-        magicCubeCount = 0
-        contactCount = 0
-        sensorCount = 0
-        childApps.each {Child->
-            if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Time - ') {
-                scheduleCount++
-                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Presence - ') {
-                presenceCount++
-                    } else if(Child.label.length() > 6 && Child.label.substring(0,7) == 'Pico - ') {
-                picoCount++
-                    } else if(Child.label.length() > 11 && Child.label.substring(0,12) == 'MagicCube - ') {
-                magicCubeCount++
-                    } else if(Child.label.length() > 9 && Child.label.substring(0,10) == 'Contact - ') {
-                contactCount++
-                    } else if(Child.label.length() > 10 && Child.label.substring(0,11) == 'Sensor - ') {
-                sensorCount++
-                    }
-        }
-        section(){
-            scheduleText = 'Schedules allow performing actions on switches and lights (e.g. turn on, off, dim, set color, etc.) at specific times, \
-and will run daily. Devices can be set to progressively change by setting both start and stop values for brightness or color. If a \
-device is turned off, the schedule continues to run, so if the light <i>is</i> turned on, it will do so at the correct level(s). You \
-can also select specific days and months, and other factors. Schedules also support sunrise and sunset. Use cases:<br>\
-    • Set a porch light to turn on at sunset and off at sunrise<br>\
-    • Set room lights to turn on and get dimmer as it gets later in the evening<br>\
-    • Set room lights to be dimmer as it gets later in the evening, when and if they are turned on.<br>\
-    • Set lights to turn off at night<br>\
-    • Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)<br>\
-    • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those months)<br>\
-    • Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)<br>\
-    • Turn on certain devices when someone arrives all devices when everyone leaves, regardless of the time (by setting start time the same as stop time)<br>\
-    • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
-    • Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).<br>'
-  
-            displayInfo(scheduleText)
-                }
-                title = 'Click to add '
-                if(scheduleCount == 0) {
-                    title += 'a <b>schedule</b>'
-                } else {
-                    title += "or edit <b>schedules</b> ($scheduleCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Time', namespace: 'master', title: 'New Schedule', multiple: true)
-                }
-section(){
-    presenceText = 'Presence was planned to handle all actions based on arrivals or departures, but is not currently functional.'
-    displayInfo(presenceText)
-}
-                title = 'Click to add '
-                if(presenceCount == 0) {
-                    title += 'a <b>presence</b> setting'
-                } else {
-                    title += "or edit <b>presence</b> settings ($presenceCount total)"
-                }
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Presence', namespace: 'master', title: 'New Presence', multiple: true)
-                }
-section(){
-    picoText = 'The Pico app is designed for Lutron Caseta switches and Pico remotes. It may or may not work for other 2, 4 or 5 button devices. \
-Actions include on, off, toggle, dim, brighten, and "resume schedule" (more on that below). It supports push, and hold (no double tap yet). \
-It allows quickly setting up remotes to work (select a Pico, set a device, and save), or more advanced options of defining actions for each button, \
-and/or defining different devices per button. It allows scheduling, such that a remote can do different things at different times, as well as presence. \
-The "resume" option resets back to a schedule. For instance, if the brightness set by a schedule is overridden, selecting resume has the schedule take \
-back over. Use cases:<br>\
-    • Control a light or group of lights<br>\
-    • Control any (smart) switched device (i. e. blinds, irrigation, fans, etc.)<br>\
-    • With 5-button Picos, set center button to toggle the ceiling fan (and other buttons control the lights)<br>\
-    • Using a 2 button Pico, control two bedside lamps by setting both as "toggle"<br>\
-    • When turning on a bedroom light, turn off the porch light<br>\
-    • Set push to control one light, but hold to control lights in an adjacent room<br>\
-    • Set push to dim, but hold to progressively dim<br>\
-    • Set light switch to send a notification during the day as a honeypot for would be intruders (notifications aren\'t yet a feature, but soon)<br>\
-    • Set switches for a pool pump or irrigation for pool cleaner/landscaper for their time and day, but repurpose the switch for outdoor lighting at other times<br>\
-    • Using a schedule, set the porch light to be dim, but set to full brightness with the "on" button, and "off" button has it go back to dim per the schedule'
-    displayInfo(picoText)
-}
-                title = 'Click to add '
-                if(picoCount == 0) title += 'a <b>Pico</b>'
-                if(picoCount != 0) title += 'or edit <b>Picos</b> (' + picoCount + ' total)'
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Pico', namespace: 'master', title: 'New Pico', multiple: true)
-                }
-section(){
-        magicCubeText = 'MagicCubes are sold by Xiaomi under the Aqara brand. They are, aptly, cubes (and perhaps magic). Actions supported are flip 90, flip 180, shake, \
-    rotate left, and rotate right. Each action can be set to control different devices and/or perform different actions. Actions include on, off, dim, \
-    brighten, and resum schedule. The "resume" option grants control back to a schedule if the schedule is overridden (see Pico app note for more info).\
-    Use cases:<br>\
-    • Control a light by flipping the Cube.<br>\
-    • Control multiple devices, such as having a lamp toggle with flip 90, another lamp toggle with flip 180, and a ceiling fan toggle with shake.<br>\
-    • Control light brightness with rotate right (brighten) and left (dim), like a volume knob<br>\
-    • Control a (smart) media player volume... like a volume knob, as well as power, skip track, etc.<br>\
-    • Set each action to trigger to control a playlist - play next, skip playlists/station, etc.<br>\
-    • Train a pet to flip it to indicate to be let outside (notifications not yet supported).'
-    displayInfo(magicCubeText)
-}
-                title = 'Click to add '
-                if(magicCubeCount == 0) title += 'a <b>MagicCube</b>'
-                if(magicCubeCount != 0) title += 'or edit <b>MagicCubes</b> (' + magicCubeCount + ' total)'
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - MagicCube', namespace: 'master', title: 'New MagicCube', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(contactCount == 0) title += 'a <b>contact/door sensor</b>'
-                if(contactCount != 0) title += "or edit <b>contact/door sensors</b> ($contactCount total)"
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Contact', namespace: 'master', title: 'New Contact Sensor', multiple: true)
-                }
-
-                title = 'Click to add '
-                if(sensorCount == 0) title += 'a <b>Sensor</b>'
-                if(sensorCount != 0) title += 'or edit <b>sensors</b> (' + sensorCount + ' total)'
-                section(hideable: true, hidden: true, title) {
-                    app(name: 'childApps', appName: 'Master - Sensor', namespace: 'master', title: 'New Sensor', multiple: true)
-                }
-
-    }
-}
 
 /* ************************************************************************ */
 /*                                                                          */
@@ -361,9 +388,9 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(364,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
+        putLog(391,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
     }
-    putLog(366,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(393,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 
@@ -408,7 +435,7 @@ def validateSat(value, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(411,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
+            putLog(438,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
             return
         }
     }
@@ -592,7 +619,7 @@ def CONSTMinuteInMilli(){
 
 def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
     returnValue = 200
-    putLog(595,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
+    putLog(622,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
     return returnValue
 }
 
@@ -644,6 +671,34 @@ def _getChildAppIdFromLabel(childLabel = 'Master'){
         if(Child.label == childLabel) returnValue = Child.id
     }
     return returnValue
+}
+
+// Creates a list of devices capabilities for the sensor app
+// by matching the abilities of any device in the allDevices setting
+// against a list of all supported sensor types provided in matchMap
+// matchMap is a list of maps [[attribute: 'motion', name: 'Motion Sensor'], [attribute: 'contact', name: 'Contact Sensor']] etc (with other key:values)
+// It could return attribute:name pairs
+def getInstalledCapabilitiesList(fullList){
+    if(!allDevices) return
+
+    deviceCount = 0
+    matchList = []
+    completedList = []
+    allDevices.each {singleDevice ->
+        deviceMatch = false
+        singleDevice.capabilities.each {capability ->   // Capabilities are capitalized for the device, NOT in the fullList
+            if(!completedList.contains(capability.name)) {
+                fullList.find { it ->
+                    if (it.capability == capability.name.uncapitalize()) {
+                        matchList.add(it.capability)
+                    }
+                }
+                completedList.add(capability.name)
+            }
+        }
+        deviceCount++
+    }
+    return matchList
 }
 
 // Returns true if today is in $days map
@@ -755,7 +810,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(758,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(814,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -831,14 +886,14 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(834,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(889,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
 
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)) return
 
     singleDevice.setLevel(newLevel)
-    putLog(841,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(896,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -859,14 +914,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     if(!newLevel) {
-        putLog(862,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(917,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(869,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(924,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -888,7 +943,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(891,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(946,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -913,7 +968,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(916,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(971,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -928,13 +983,13 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(931,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(986,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         if(singleDevice.currentValue('switch') == 'off') return
         singleDevice.off()
-        putLog(937,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(992,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -996,7 +1051,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(999, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(1054, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -1011,7 +1066,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(1014,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(1069,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1080,7 +1135,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1083,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1138,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1094,12 +1149,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1097,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1152,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1102,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1157,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1108,7 +1163,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1111,'debug',message + mode,childLabel,'True')
+    putLog(1166,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1117,14 +1172,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1120,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1175,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1127,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1182,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1133,7 +1188,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1136,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1191,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
