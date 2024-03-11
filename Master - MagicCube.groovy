@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.1.3
+*  Version: 0.4.1.4
 * 
 ***********************************************************************************************************************/
 
@@ -211,7 +211,7 @@ def displaySingleDeviceSetup(){
     
     displayAdvancedOptions()
     displayLabel('Select what to do for each MagicCube action')
-
+// Need to add summary field titles
     fieldName = 'clockwise'
     fieldTitle = 'When <b>rotating clockwise</b>, what to do with lights/switches?'
     fieldTitle = addFieldName(fieldTitle,fieldName)
@@ -451,26 +451,11 @@ def initialize() {
     subscribe(buttonDevice, "pushed.6", buttonEvent)
     
     //doubleTapped, release and hold used by kkossev's driver
-    subscribe(buttonDevice, "doubleTapped.1", buttonEvent)
-    subscribe(buttonDevice, "doubleTapped.2", buttonEvent)
-    subscribe(buttonDevice, "doubleTapped.3", buttonEvent)
-    subscribe(buttonDevice, "doubleTapped.4", buttonEvent)
-    subscribe(buttonDevice, "doubleTapped.5", buttonEvent)
-    subscribe(buttonDevice, "doubleTapped.6", buttonEvent)
+    subscribe(buttonDevice, "doubleTapped", buttonEvent)
     
-    subscribe(buttonDevice, "release.1", buttonEvent)
-    subscribe(buttonDevice, "release.2", buttonEvent)
-    subscribe(buttonDevice, "release.3", buttonEvent)
-    subscribe(buttonDevice, "release.4", buttonEvent)
-    subscribe(buttonDevice, "release.5", buttonEvent)
-    subscribe(buttonDevice, "release.6", buttonEvent)
+    subscribe(buttonDevice, "released", buttonEvent)
     
-    subscribe(buttonDevice, "hold.1", buttonEvent)
-    subscribe(buttonDevice, "hold.2", buttonEvent)
-    subscribe(buttonDevice, "hold.3", buttonEvent)
-    subscribe(buttonDevice, "hold.4", buttonEvent)
-    subscribe(buttonDevice, "hold.5", buttonEvent)
-    subscribe(buttonDevice, "hold.6", buttonEvent)
+    subscribe(buttonDevice, "held", buttonEvent)
 }
 
 def buttonEvent(evt){
@@ -498,14 +483,17 @@ def buttonEvent(evt){
 
 def doActions(device,action){
     if(!device) return
-    putLog(501,'trace','Set ' + device + ' as ' + action)
+    putLog(486,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
+        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
+        levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
+
         stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
+        if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         
-        level = parent._getNextLevelDimmable(singleDevice, action, app.label)
-        levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
         fullMap = parent.addMaps(stateMap,levelMap)
+        if(fullMap) putLog(496,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -524,7 +512,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(527,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(515,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
     //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
@@ -536,11 +524,11 @@ def convertDriver(evt){
         if(evt.value == '5' && atomicState.priorSide == '2') atomicState.actionType = cubeActions[2]
         if(evt.value == '6' && atomicState.priorSide == '1') atomicState.actionType = cubeActions[2]
     }
-    if(evt.name == 'doubleTap') atomicState.actionType = cubeActions[0]
-    if(evt.name == 'release') atomicState.actionType = cubeActions[5]
-    if(evt.name == 'hold') atomicState.actionType = cubeActions[6]
+    if(evt.name == 'doubleTapped') atomicState.actionType = cubeActions[0]
+    if(evt.name == 'released') atomicState.actionType = cubeActions[5]
+    if(evt.name == 'held') atomicState.actionType = cubeActions[6]
 
-    putLog(543,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + '.')
+    putLog(531,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
     atomicState.priorSide = evt.value
 }
 
