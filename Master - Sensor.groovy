@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.3
+*  Version: 0.4.3.4
 *
 ***********************************************************************************************************************/
 
@@ -246,6 +246,7 @@ def displaySensorDeviceOption(){
 def displayDevicesTypesOption(){
     if(!settings['sensorType']) return
     if(!settings['sensor']) return
+    if(!state.sensorTypeMap) return
 
     width = 10
     fieldName = 'deviceType'
@@ -265,6 +266,7 @@ def displayDeviceOption(){
     if(!settings['sensorType']) return
     if(!settings['sensor']) return
     if(!settings['deviceType']) return
+    if(!state.sensorTypeMap) return
 
     fieldName = 'device'
     fieldTitle = devicePlural.capitalize() + ' being controlled:'
@@ -355,7 +357,7 @@ def displayThresholdOption(){
     
     hidden = true
     if(!settings['levelThreshold']) sectionTitle = 'Click to set threshold</b> (Optional)'
-    if(settings['levelThreshold']) sectionTitle = '<b>Run while: ' + state.sensorTypeMap.name + ' ' + forwardDirection + ' ' + settings['levelThreshold'] + unitType + '</b>'
+    if(settings['levelThreshold']) sectionTitle = '<b>Run while: ' + state.sensorTypeMap.name + ' ' + forwardDirection + ' ' + settings['levelThreshold'] + state.sensorTypeMap.unitType + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
         //display error if !validate
@@ -415,9 +417,9 @@ def displayLevelDeltaOption(){
             if(!settings['direction']) startLevel = sensorAverage - settings['levelDelta']
             if(settings['direction']) stopLevel = sensorAverage + Math.round(settings['levelDelta'] / 10)
             if(!settings['direction']) stopLevel = sensorAverage - Math.round(settings['levelDelta'] / 10)
-            helpTip = 'The ' + sensorPlural + ' is currently at ' + sensorAverage + state.sensorTypeMap.unitType + ', so it would turn the ' + devicePlural + ' on if, within ' + minutes + ' minutes, it were to ' + forwardDirection2 + ' to ' + startLevel + state.sensorTypeMap.unitType + ' (and turn off only when back to at least ' + stopLevel + unitType + ').'
+            helpTip = 'The ' + sensorPlural + ' is currently at ' + sensorAverage + state.sensorTypeMap.unitType + ', so it would turn the ' + devicePlural + ' on if, within ' + minutes + ' minutes, it were to ' + forwardDirection2 + ' to ' + startLevel + state.sensorTypeMap.unitType + ' (and turn off only when back to at least ' + stopLevel + state.sensorTypeMap.unitType + ').'
         }
-        if(!settings['levelDelta']) displayInfo('Enter the number of ' + state.sensorTypeMap['unitType'] + ' for ' + state.sensorTypeMap.name + ' must ' + forwardDirection2 + ' within ' + minutes + ' minutes to start the ' + devicePlural + ', relative to original level (currently ' + sensorAverage + state.sensorTypeMap['unitType'] + '). (It will continue to run until back within 10% of the original value.)')
+        if(!settings['levelDelta']) displayInfo('Enter the number of ' + state.sensorTypeMap.unitType + ' for ' + state.sensorTypeMap.name + ' must ' + forwardDirection2 + ' within ' + minutes + ' minutes to start the ' + devicePlural + ', relative to original level (currently ' + sensorAverage + state.sensorTypeMap.unitType + '). (It will continue to run until back within 10% of the original value.)')
 
         displayInfo(helpTip)
         if(settings['levelDelta']){
@@ -456,6 +458,7 @@ def displayChangeModeOption(){
     if(!settings['sensor']) return
     if(!settings['deviceType']) return
     if(!settings['device']) return
+    if(!state.sensorTypeMap) return
 
     hidden = true
     if(settings['startMode'] || settings['stopMode']) hidden = false
@@ -478,6 +481,7 @@ def displayRunTimeOption(){
     if(!settings['sensor']) return
     if(!settings['deviceType']) return
     if(!settings['device']) return
+    if(!state.sensorTypeMap) return
     
     hidden = true
     if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] >= settings['runTimeMaximum']) hidden = false
@@ -552,6 +556,7 @@ def displayScheduleSection(){
     if(!settings['sensor']) return
     if(!settings['deviceType']) return
     if(!settings['device']) return
+    if(!state.sensorTypeMap) return
     
     List dayList=[]
     settings['days'].each{
@@ -1000,7 +1005,7 @@ def buildSensorMap(){
     if(settings['advanced']) newMap.add([name:'Sound Volume',attribute:'soundPressureLevel',capability:'soundPressureLevel',type:'range',start:0,stop:200,unitType:'dB'])
     if(settings['advanced']) newMap.add([name:'Steps',attribute:'steps',capability:'stepSensor',type:'range',start:0,stop:100000,unitType:'steps'])
     newMap.add([name:'Switch',attribute:'switch',capability:'switch',type:'bool',start:'on',stop:'off'])
-    newMap.add([name:'Temperature',attribute:'temperature',capability:'temperatureMeasurement',type:'range',start:-100,stop:250,unitType:'°']) //Add unitType
+    newMap.add([name:'Temperature',attribute:'temperature',capability:'temperatureMeasurement',type:'range',start:-100,stop:250,unitType:'°' + location.temperatureScale])
     if(settings['advanced']) newMap.add([name:'Ultraviolet Index',attribute:'ultravioletIndex',capability:'ultravioletIndex',type:'range',start:0,stop:100,unitType:'']) //range?
     if(settings['advanced']) newMap.add([name:'Valve',attribute:'valve',capability:'valve',type:'bool',start:'open',stop:'closed'])
     if(settings['advanced']) newMap.add([name:'Voltage',attribute:'voltage',capability:'voltageMeasurement',type:'range',start:0,stop:1000,unitType:'V'])
@@ -1183,13 +1188,13 @@ def validateSunriseMinutes(type){
 
 
 def installed() {
-    putLog(1186,'trace','Installed')
+    putLog(1191,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1192,'trace','Updated')
+    putLog(1197,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1208,10 +1213,10 @@ def initialize() {
     sensorsMap = buildSensorMap()
     state.sensorTypeMap = getSensorsMapEntry(sensorsMap)
     if(state.sensorTypeMap['type'] == 'bool') {
-        subscribe(sensor, state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['start'], startAction)
-        subscribe(sensor, state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['stop'], stopAction)  
+        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['start'], handleSensorUpdate)
+        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['stop'], handleSensorUpdate)  
     }
-    if(state.sensorTypeMap['type'] == 'range') subscribe(settings['sensor'], settings['sensorType'], handleSensorUpdate)
+    if(state.sensorTypeMap['type'] == 'range') subscribe(settings['sensor'], state.sensorTypeMap['attribute'], handleSensorUpdate)
     
     if(settings['deviceType'] == 'switch') subscribe(settings['device'], 'switch', handleStateChange)
     if(settings['deviceType'] == 'light') subscribe(settings['device'], 'switch', handleStateChange)
@@ -1219,7 +1224,7 @@ def initialize() {
     if(settings['deviceType'] == 'lock') subscribe(settings['device'], 'lock', handleStateChange)
     if(settings['deviceType'] == 'fan') subscribe(settings['device'], 'switch', handleStateChange)
     
-    putLog(1222,'trace','Initialized')
+    putLog(1227,'trace','Initialized')
 }
 
 def handleSensorUpdate(event) {
@@ -1232,9 +1237,9 @@ def updateStatus(){
         //atomicState.controlSensorAverage = 
         updateSensorDeltaArray()
     }
-    
-    start()
-    stop()
+    scheduleRunTimeMaximum()
+    checkStartOptions()
+    checkStopOptions()
 }
 
 def handleStateChange(event) {
@@ -1247,107 +1252,107 @@ def handleStateChange(event) {
     if(event.value == 'off') atomicState.startTime = null
 }
 
-def start(){
-    if(atomicState.startTime) return // Already on
-    if(getDisabled()) return
+def checkStartOptions(){
+    if(atomicState.startTime) return // Already on - would we want it to reset??
+    if(settings['disabled']) return
+    
+    if(!getActive()) return
+
+// need to check minimum inactive time
+    
     if(state.sensorTypeMap['type'] == 'range') atomicState.sensorStart = atomicState.sensorAverage
-    if(!checkStartConditions()) return
+    if(!checkStartLevelConditions()) return
     
-    atomicState.startTime = now()
-    atomicState.stopTime = null
-    
-    if(checkStopConditions()) {
+    if(checkStopLevelConditions()) {
         atomicState.startTime = null
-        putLog(1261,'error','Both start and stop conditions met.')
+        putLog(1268,'error','Both start and stop conditions met.')
         return
     }
-    
+    if(!checkMinimumWaitTime) {
+        putLog(1272,'debug','Sensor would activate, but for minimum wait time from last execution.')
+        return
+    }
     atomicState.startTime = now()
     atomicState.stopTime = null
+
+    scheduleStartDelay() // With on, and setting levels, wouldn't we expect the levels to be attached to turning it on?!
+    performStartResults()
+}
+
+def performStartResults(){ // Would we want all "results" to be delayed if we're delaying the Actions
 // Set locks
 // Set levels
-    if(settings['startAction'] == 'on' || settings['startAction'] == 'off' || settings['startAction'] == 'toggle') {
-        settings['device'].each{singleDevice->
-    // set levels
-            stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
-            parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        }
-        putLog(1275,'warn','Setting devices to ' + settings['startAction'] + '.')
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
-    unschedule()
-    scheduleMaximumRunTime()
+
 // set Mode
     //parent.sendPushNotification('',app.label + ' turned on at ' + now.format('h:mm a', location.timeZone),app.label)
     //parent.sendVoiceNotification(settings['speechDevice'],settings['speech'],app.label)
 }
 
-def startAction(event){
-    if(atomicState.startTime) return // Already on
-    if(getDisabled()) return
-
-    atomicState.startTime = now()
-    atomicState.stopTime = null
+def performStartAction(){
+    if(settings['startAction'] != 'on' && settings['startAction'] != 'off' || settings['startAction'] != 'toggle') return
     
-    if(settings['startAction'] == 'on' || settings['startAction'] == 'off' || settings['startAction'] == 'toggle') {
-        settings['device'].each{singleDevice->
-    // set levels
-            stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
-            parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        }
-        putLog(1298,'warn','Setting devices to ' + settings['startAction'] + '.')
-        parent.setDeviceMulti(settings['device'],app.label)
+    settings['device'].each{singleDevice->
+        // set levels
+        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
+        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
     }
-    unschedule()
-    scheduleMaximumRunTime()
+    putLog(199,'warn','Setting devices to ' + settings['startAction'] + '.')
+    parent.setDeviceMulti(settings['device'],app.label)
+
 }
 
-def stop(){
+def scheduleStartDelay(){
+    if(!atomicState.startTime) return
+    if(!settings['startDelay']) return
+    
+    timeMillis = (atomicState.startTime + (settings['startDelay'] * parent.CONSTMinuteInMilli())) - now()
+    parent.scheduleChildEvent(timeMillis,'','performStartAction','',app.id)
+}
+
+def checkStopOptions(){
+    if(settings['disabled']) return
+    
     if(!atomicState.startTime) return // Already off
-    if(getDisabled()) return
-    if(!checkStopConditions()) return
-    if(checkStartConditions()) return
+    
+    if(!checkStopLevelConditions()) return
+    if(checkStartLevelConditions()) return
 
     if(!checkRunTimeMinimum()) {
         scheduleMinimumRunTime()
         return
     }
 
-// check minimum runtime (remove check for checkStopConditions) then schedule for remaining time
     atomicState.startTime = null
     atomicState.stopTime = now()
+
+    scheduleStopDelay()
+    performStopResults()
+}
+
+def performStopResults(){
 // set locks
 // set levels
-    if(settings['stopAction'] == 'on' || settings['stopAction'] == 'off' || settings['stopAction'] == 'toggle') {
-        settings['device'].each{singleDevice->
-            stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
-            parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        }
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
+
     unschedule()
 // Set mode
 }
 
-def stopAction(event){
-    if(!atomicState.startTime) return // Already off
-    if(getDisabled()) return
-    if(!checkRunTimeMinimum()) {
-        scheduleMinimumRunTime()
-        return
+def performStopAction(){
+    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' || settings['stopAction'] != 'toggle') return
+    
+    settings['device'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
+        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
     }
-// check minimum runtime (remove check for checkStopConditions) then schedule for remaining time
-    atomicState.startTime = null
-    atomicState.stopTime = now()
-    if(settings['stopAction'] == 'on' || settings['stopAction'] == 'off' || settings['stopAction'] == 'toggle') {
-        settings['device'].each{singleDevice->
-            stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
-            parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        }
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
-    unschedule()
-// Set mode
+    parent.setDeviceMulti(settings['device'],app.label)
+}
+
+def scheduleStopDelay(){
+    if(!atomicState.stopTime) return
+    if(!settings['stopDelay']) return
+    
+    timeMillis = (atomicState.startTime + (settings['stopDelay'] * parent.CONSTMinuteInMilli())) - now()
+    parent.scheduleChildEvent(timeMillis,'','performStopAction','',app.id)
 }
 
 def updateSensorDeltaArray(){
@@ -1382,48 +1387,19 @@ def updateSensorDeltaArray(){
     atomicState.sensorChanges = newArray
 }
 
-def checkStartConditions(){
-    if(!checkMinimumWaitTime()) return
-// check people
-// check mode
-// check time
-    //if(settings['multiStartTrigger']) {
-    //    allOnConditions = checkAllOnConditions()
-    //    putLog(1392,'trace','All on conditions is ' + allOnConditions)
-    //    return allOnConditions
-    //}
-    anyStartConditions = checkAnyStartConditions()
-    putLog(1393,'trace','Any on condition is ' + anyStartConditions)
-    return anyStartConditions
-}
-
-def checkStopConditions(){
-// check people
-// check mode
-// check time
-    if(checkRunTimeMaximum()) return true
-    
-    //if(settings['multiStopTrigger']) {
-    //    allOffConditions = checkAllOffConditions()
-     //   putLog(1408,'trace','All off conditions is ' + allOffConditions)
-     //   return allOffConditions
-    //}
-    anyStopConditions = checkAnyStopConditions()
-    putLog(1412,'trace','Any stop conditions is ' + anyStopConditions)
-    return anyStopConditions
-}
-
-def checkAnyStartConditions(){
+def checkStartLevelConditions(){
+    if(state.sensorTypeMap['type'] == 'bool') return true
+    // no multi-conditions?
     if(checkControlDifference()) return true
     if(checkThreshold()) return true
     if(checkDelta()) return true
     return false    // used for log
 }
 
-
 // controlStopManual is not checked
 
-def checkAnyStopConditions(){
+def checkStopLevelConditions(){
+    if(state.sensorTypeMap['type'] == 'bool') return true
     if(checkControlStopDifference()) return true
     if(checkStopThreshold()) return true
     if(checkStopDelta()) return true
@@ -1505,9 +1481,18 @@ def checkRunTimeMaximum(){
     if(!atomicState.startTime) return true
     
     if(now() - atomicState.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1508,'trace','Maximum runtime exceeded.')
+        putLog(1484,'trace','Maximum runtime exceeded.')
         return true
     }
+}
+
+def scheduleRunTimeMaximum(){
+    if(!settings['runTimeMaximum']) return
+    if(!atomicState.startTime) return
+    unschedule('scheduleMaximumRunTime')
+    
+    timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
+    parent.scheduleChildEvent(timeMillis,'','performStopActions','',app.id)
 }
 
 def checkMinimumWaitTime(){
@@ -1517,42 +1502,17 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1520,'trace','Minimum wait time exceeded.')
+    putLog(1505,'trace','Minimum wait time exceeded.')
     return true
 }
 
-def scheduleMaximumRunTime(){
-    if(!settings['runTimeMaximum']) return
-    if(!parent.checkAnyOnMulti(settings['device'])) return
-    unschedule('scheduleMaximumRunTime')
-    
-    timeMillis = settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()
-    
-    parent.scheduleChildEvent(timeMillis,'','stop','',app.id)
-}
-
 def scheduleMinimumRunTime(){
-    if(!settings['runTimeMinimum']) return
+    if(!settings['runTimeMinimum']) return true
     unschedule('scheduleMinimumRunTime')
     
     timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
-    
-    parent.scheduleChildEvent(timeMillis,'','stop','',app.id)
-}
-
-def performMaximumRunTime(){     // is called from maximumTime schedule, if parameters added, need to update scheduleMaximumRunTime
-    atomicState.sensorAverage = sensorAverage()
-    //atomicState.sensorControlAverage = 
-
-    updateSensorDeltaArray()
-    // Why not just call stop()?
-    if(settings['stopAction'] == 'on' || settings['stopAction'] == 'off' || settings['stopAction'] == 'toggle') {
-        settings['device'].each{singleDevice->
-            stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
-            parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        }
-        parent.setDeviceMulti(settings['device'],app.label)
-    }
+    if(timeMillis < 0) return true
+    parent.scheduleChildEvent(timeMillis,'','checkStartConditions','',app.id)
 }
 
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
@@ -1573,29 +1533,27 @@ def setTime(){
         unschedule('setTime')
         timeMillis = now() + parent.CONSTDayInMilli()
         parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
-        putLog(1576,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+        putLog(1536,'info','Scheduling update subrise/sunset start and/or stop time(s).')
     }
     return true
 }
 
 // Return true if disabled
-def getDisabled(){
-    if(settings['disable']) return true
-
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return true
+def getActive(){
+    if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
     if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return true
+        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
     }
 
     if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return true
+        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
     }
     if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return true
+        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
     }
 
-    return false
+    return true
 }
 
 //lineNumber should be a number, but can be text
