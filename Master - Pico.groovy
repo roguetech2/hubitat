@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.7
+*  Version: 0.6.2.8
 *
 ***********************************************************************************************************************/
 
@@ -1057,12 +1057,16 @@ def buttonPushed(evt){
     switchActions.each { switchAction ->
         device = getControlDeviceFromButton(switchAction,buttonNumber)
         device.each{singleDevice->
-            stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
             
             // need to get nextLevel here
             if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
-            levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
+            levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
+            
+            stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
+            if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
+
             fullMap = parent.addMaps(stateMap, levelMap)
+            putLog(1069,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1081,22 +1085,18 @@ def buttonHeld(evt){
 
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
-    log.debug buttonNumber
 
-        putLog(1085,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
-        unschedule()
+    putLog(1089,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    unschedule()
 }
 
 def assignButtonNumber(originalButton){
     numberOfButtons = getButtonNumbers()
-    log.debug numberOfButtons + ' ' + originalButton
     // Treat 2nd button of 2-button Pico as "off" (eg button 5)
     if(originalButton == 2 && numberOfButtons == 2) return 5
     if(originalButton == 4 && numberOfButtons == 4) return 5
     if(originalButton == 3 && numberOfButtons == 4) return 4
     return originalButton
-
-
 }
 
 def getControlDeviceFromButton(action,buttonNumber){
@@ -1130,7 +1130,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1129,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1133,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1191,7 +1191,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1190,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1194,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1201,7 +1201,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1200,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1204,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
