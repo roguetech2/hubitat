@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.8
+*  Version: 0.6.2.9
 *
 ***********************************************************************************************************************/
 
@@ -168,23 +168,23 @@ def displaySingleDevice(){
     if(!settings['customActionsSetup']) displaySingleDeviceSimple()
 
     if(!settings['customActionsSetup']){
-        displayMultiplierOption()
+        displayDimmingProgressionOption()
         return
     }
     if(button_1_push == 'dim' || button_2_push == 'dim' || button_3_push == 'dim' || button_4_push == 'dim' || button_5_push == 'dim'){
-        displayMultiplierOption()
+        displayDimmingProgressionOption()
         return
     }
     if(button_1_hold == 'dim' || button_2_hold == 'dim' || button_3_hold == 'dim' || button_4_hold == 'dim' || button_5_hold == 'dim'){
-        displayMultiplierOption()
+        displayDimmingProgressionOption()
         return
     }
     if(button_1_push == 'brighten' || button_2_push == 'brighten' || button_3_push == 'brighten' || button_4_push == 'brighten' || button_5_push == 'brighten'){
-        displayMultiplierOption()
+        displayDimmingProgressionOption()
         return
     }
     if(button_1_hold == 'brighten' || button_2_hold == 'brighten' || button_3_hold == 'brighten' || button_4_hold == 'brighten' || button_5_hold == 'brighten'){
-        displayMultiplierOption()
+        displayDimmingProgressionOption()
         return
     }
 }
@@ -284,17 +284,18 @@ def displayMultiDeviceSimple(){
         input 'button_5_hold_off', 'capability.switch', title: addFieldName('Holding Bottom ("Off") button turns off?','button_5_hold_off'), multiple: true, submitOnChange:true
     }
 
-    if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim){
-        displayMultiplierOption()
-    }
+    if(button_2_push_brighten || button_4_push_dim || button_2_hold_brighten || button_4_hold_dim) displayDimmingProgressionOption()
 }
 
 def displayMultiDeviceAdvanced(){
     if(!settings['device']) return
     hidden = true
-    if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_1_push_resume) {
-        hidden = false
-    }
+    if(button_1_push_on) hidden = false
+    if(button_1_push_off) hidden = false
+    if(button_1_push_dim) hidden = false
+    if(button_1_push_brighten) hidden = false
+    if(button_1_push_toggle) hidden = false
+    if(button_1_push_resume) hidden = false
 
     section(hideable: true, hidden: hidden, 'Top button ("On")' + expandText) {
         buttonMap = ['on','off','resume','toggle','dim','brighten']
@@ -410,14 +411,13 @@ def displayMultiDeviceAdvanced(){
 
     if(!error && (button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten || button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten)){
         section(){
-            displayMultiplierOption(true)
+            displayDimmingProgressionOption(true)
         }
     }
     section(){
         if(error) paragraph error + '</div>'
     }
 }
-// Display functions
 
 def formComplete(){
     if(!app.label) return false
@@ -437,7 +437,6 @@ def formComplete(){
     return true
 }
 
-// Display functions
 def getDeviceCount(device){
     if(!settings['device']) return false
     return settings['device'].size()
@@ -636,36 +635,37 @@ def displaySelectActionsButtonOption(number,text,action = 'push'){
 /* TO-DO: Convert from a "multiplier" to using a "percentage", for user     */
 /* ease.                                                                    */
 /* ************************************************************************ */
-def displayMultiplierOption(hold = false){
+def displayDimmingProgressionOption(hold = false){
     displayLabel('Set dim and brighten speed')
-    displayMultiplierMessage()
-    pushedFieldName = 'pushMultiplier'
-    pushedFieldTitle = '<b>Push multiplier.</b> (Optional. Default 1.2.)'
-    heldFieldName = 'holdMultiplier'
-    heldFieldTitle = '<b>Hold multiplier.</b> (Optional. Default 1.4.)'
+    displayDimmingProgressionMessage()
+    pushedFieldName = 'pushedDimmingProgressionSteps'
+    pushedFieldTitle = '<b>Dim/brighten steps.</b> (Optional. Default 8.)'
+    heldFieldName = 'heldDimmingProgressionSteps'
+    heldFieldTitle = '<b>Hold steps.</b> (Optional. Default 20.)'
+    
     if(hold){
         if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
             if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-                input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
-                input heldFieldName, 'decimal', title: addFieldName(heldFieldTitle,heldFieldName), width: 6
+                input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
+                input heldFieldName, 'number', title: addFieldName(heldFieldTitle,heldFieldName), width: 6
             } else {
-                input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
+                input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
             }
         } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input heldFieldName, 'decimal', title: addFieldName(heldFieldTitle,heldFieldName), width: 12
+            input heldFieldName, 'number', title: addFieldName(heldFieldTitle,heldFieldName), width: 12
         }
     } else {
-        pushedFieldTitle = 'Multiplier? (Optional. Default 1.2.)'
+        pushedFieldTitle = 'Progressive brighten/dim steps? (Optional. Default 8.)'
         if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
+            input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
         } else {
-            input pushedFieldName, 'decimal', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
+            input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
         }
     }
 }
 
-def displayMultiplierMessage(){
-    displayInfo('Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%).')
+def displayDimmingProgressionMessage(){
+    displayInfo('Number of brighten button presses required to brighten from 1 to 100, where higher is faster.')
 }
 
 def compareDeviceLists(values,compare){
@@ -1030,10 +1030,17 @@ def initialize() {
     subscribe(settings['device'], 'pushed', buttonPushed)
     subscribe(settings['device'],, 'held', buttonPushed)
     subscribe(settings['device'],, 'released', buttonReleased)
+    
+    pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(8)
+    heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(20)
+    pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(settings['pushedDimmingProgressionSteps'])
+    heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(settings['heldDimmingProgressionSteps'])
+    atomicState.heldDimmingProgressionFactor = heldDimmingProgressionFactor
+    putLog(1039,'info','Brightening/dimming progression factor set: held = ' + atomicState.heldDimmingProgressionFactor + '; push ' + pushedDimmingProgressionFactor + 'settings[dimmingProgressionSteps].')
 
     setTime()
 
-    putLog(1036,'trace','Initialized')
+    putLog(1043,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1050,7 +1057,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1053,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1060,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1066,7 +1073,7 @@ def buttonPushed(evt){
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            putLog(1069,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(1069,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1086,7 +1093,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1089,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1096,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1130,7 +1137,7 @@ def getDimSpeed(){
 def runSetProgressiveLevel(data){
     if(!settings['multiDevice']) return settings['controlDevice']
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1133,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1140,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1191,7 +1198,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1194,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1201,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1201,7 +1208,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1204,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1211,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
