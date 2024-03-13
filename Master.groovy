@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.28
+*  Version: 0.4.1.29
 *
 ***********************************************************************************************************************/
 
@@ -626,6 +626,15 @@ def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
 def CONSTProgressiveDimmingDelayTimeMillis(){
     return 750
 }
+
+def CONSTPushDimmingTotalSteps(){
+    return 10
+}
+
+def CONSTHoldDimmingTotalSteps(){
+    return 15
+}
+                                                                                                       
 def CONSTDeviceDefaultBrightness(){
     return 100
 }
@@ -999,7 +1008,7 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
 def _getDeviceCurrentLevel(singleDevice,type,childLabel = 'Master'){
     if(type == 'brightness') {
         if(checkIsFan(singleDevice)) return singleDevice.currentSpeed
-        if(checkIsFan(singleDevice)) return singleDevice.currentLevel as Integer
+        if(!checkIsFan(singleDevice)) return singleDevice.currentLevel as Integer
     }
     if(type == 'temp') return singleDevice.currentColorTemperature as Integer
     if(type == 'hue') return singleDevice.currentHue as Integer
@@ -1088,7 +1097,6 @@ def _getNextLevelDimmable(singleDevice, action, childLabel='Master'){
     if(level > 100) level = 100
     if(action == 'dim' && level < 2) return
     if(action ==  'brighten' && level > 99) return
-
     childApps.find {Child->
         if(Child.id == appId) dimSpeed = Child.getDimSpeed()
     }
@@ -1127,6 +1135,53 @@ def _getNextLevelFan(singleDevice, action, childLabel='Master'){
     if(level == 'medium-high') return 'medium'
     if(level == 'medium') return 'low'
     if(level == 'medium-low') return 'low'
+}
+
+def computeOptiomalGeometricProgressionFactor(numberOfSteps){   
+    if(!numberOfSteps) return                                                                                         
+    currentTotal = 1
+    factor = 1.5
+    factorTestSteps = computeGeometricProgressionSteps(factor)
+
+    if(factorTestSteps < numberOfSteps){
+        while (factorTestSteps < numberOfSteps){
+            factor -= 0.1
+            factorTestSteps = computeGeometricProgressionSteps(factor)
+        }
+        factorTestSteps = numberOfSteps
+    }
+    
+    if(factorTestSteps > numberOfSteps){
+        while (factorTestSteps > numberOfSteps){
+            factor += 0.1
+            factorTestSteps = computeGeometricProgressionSteps(factor)
+        }
+        factorTestSteps = numberOfSteps
+    }
+    
+    if(factorTestSteps == numberOfSteps){
+        factorTestSteps = 0
+        while (factorTestSteps != numberOfSteps){
+            factor += 0.01
+            factorTestSteps = computeGeometricProgressionSteps(factor)
+        }
+    }
+    return factor
+}
+                                                                                                       
+// computes the number of steps to get from 1 to 100 by x * 1.y
+def computeGeometricProgressionSteps(factor){
+    if(factor < 1) return
+    if(factor > 2) return
+    priorStep = 1
+    count = 0
+    while (priorStep < 100) {
+        thisStep = Math.round(factor * priorStep)
+        if(thisStep > priorStep) priorStep = thisStep
+        if(thisStep == priorStep) priorStep++
+        count++
+    }
+    return count
 }
 
 // Sets cron string based on:
