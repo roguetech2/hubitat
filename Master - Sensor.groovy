@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.4
+*  Version: 0.4.3.5
 *
 ***********************************************************************************************************************/
 
@@ -1237,7 +1237,7 @@ def updateStatus(){
         //atomicState.controlSensorAverage = 
         updateSensorDeltaArray()
     }
-    scheduleRunTimeMaximum()
+    scheduleMaximumRunTime()
     checkStartOptions()
     checkStopOptions()
 }
@@ -1269,7 +1269,8 @@ def checkStartOptions(){
         return
     }
     if(!checkMinimumWaitTime) {
-        putLog(1272,'debug','Sensor would activate, but for minimum wait time from last execution.')
+        scheduleMinimumWaitTime()
+        putLog(1273,'debug','Sensor would activate, but for minimum wait time from last execution.')
         return
     }
     atomicState.startTime = now()
@@ -1296,7 +1297,7 @@ def performStartAction(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
     }
-    putLog(199,'warn','Setting devices to ' + settings['startAction'] + '.')
+    putLog(1300,'warn','Setting devices to ' + settings['startAction'] + '.')
     parent.setDeviceMulti(settings['device'],app.label)
 
 }
@@ -1317,7 +1318,7 @@ def checkStopOptions(){
     if(!checkStopLevelConditions()) return
     if(checkStartLevelConditions()) return
 
-    if(!checkRunTimeMinimum()) {
+    if(!checkMinimumRunTime()) {
         scheduleMinimumRunTime()
         return
     }
@@ -1469,30 +1470,10 @@ def checkStopDelta(type){
     }
 }
 
-def checkRunTimeMinimum(){
+def checkMinimumRunTime(){
     if(!settings['runTimeMinimum']) return true
     if(!state.startTime) return true //??
     if((now() - atomicState.startTime) > settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return true
-}
-
-//Returns true if condition is met
-def checkRunTimeMaximum(){
-    if(!settings['runTimeMaximum']) return true
-    if(!atomicState.startTime) return true
-    
-    if(now() - atomicState.startTime > settings['runTimeMaximum'] * parent.CONSTMinuteInMilli()){
-        putLog(1484,'trace','Maximum runtime exceeded.')
-        return true
-    }
-}
-
-def scheduleRunTimeMaximum(){
-    if(!settings['runTimeMaximum']) return
-    if(!atomicState.startTime) return
-    unschedule('scheduleMaximumRunTime')
-    
-    timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
-    parent.scheduleChildEvent(timeMillis,'','performStopActions','',app.id)
 }
 
 def checkMinimumWaitTime(){
@@ -1502,8 +1483,17 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1505,'trace','Minimum wait time exceeded.')
+    putLog(1486,'trace','Minimum wait time exceeded.')
     return true
+}
+
+def scheduleMaximumRunTime(){
+    if(!settings['runTimeMaximum']) return
+    if(!atomicState.startTime) return
+    unschedule('scheduleMaximumRunTime')
+    
+    timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
+    parent.scheduleChildEvent(timeMillis,'','performStopActions','',app.id)
 }
 
 def scheduleMinimumRunTime(){
@@ -1511,6 +1501,15 @@ def scheduleMinimumRunTime(){
     unschedule('scheduleMinimumRunTime')
     
     timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
+    if(timeMillis < 0) return true
+    parent.scheduleChildEvent(timeMillis,'','checkStartConditions','',app.id)
+}
+
+def scheduleMinimumWaitTime(){
+    if(!settings['runTimeMinimum']) return true
+    unschedule('scheduleMinimumRunTime')
+    
+    timeMillis = (atomicState.startTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
     if(timeMillis < 0) return true
     parent.scheduleChildEvent(timeMillis,'','checkStartConditions','',app.id)
 }
@@ -1533,7 +1532,7 @@ def setTime(){
         unschedule('setTime')
         timeMillis = now() + parent.CONSTDayInMilli()
         parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
-        putLog(1536,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+        putLog(1535,'info','Scheduling update subrise/sunset start and/or stop time(s).')
     }
     return true
 }
