@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.1.4
+*  Version: 0.4.1.5
 * 
 ***********************************************************************************************************************/
 
@@ -50,7 +50,7 @@ def getLogLevel(){
 
 def displayLabel(text, width = 12){
     if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
 }
 
 def displayInfo(text,noDisplayIcon = null, width=12){
@@ -93,103 +93,210 @@ preferences {
                 displayNameOption()
             }
         } else {
+            actionsMap = getActionsMap()
             section(){
                 displayNameOption()
                 displayMagicCubeOption()
                 displayMultiDeviceOption()
-                if(settings['multiDevice']) displayAdvancedOptions()
+                if(settings['multiDevice']) displayAdvancedActionsOption()
                 displayDeviceOption()
+            }
                 displaySingleDeviceSetup()
-            }
-        }
-        if(app.label && buttonDevice && multiDevice){
-
-            section(hideable: true, hidden: true, 'Rotating clockwise' + expandText) {
-                getButton('clockwise','dimmer')
-            }
-            section(hideable: true, hidden: true, 'Rotating counter clockwise' + expandText) {
-                getButton('counterClockwise','dimmer')
-            }
-            section(hideable: true, hidden: true, '90° flipping' + expandText) {
-                getButton('flip90','switch')
-            }
-            section(hideable: true, hidden: true, '180° flipping' + expandText) {
-                getButton('flip180','switch')
-            }
-
-            if(advancedSetup){
-                section(hideable: true, hidden: true, 'Shaking' + expandText) {
-                    getButton('shake','switch')
-                }
-                //section(hideable: true, hidden: true, 'Sliding' + expandText) {
-                //    getButton('slide','dimmer')
-                //}
-                //section(hideable: true, hidden: true, 'Knocking' + expandText) {
-                //    getButton('knock','switch')
-                //}
-            }
-			if(button_clockwise_dim || button_clockwise_brighten || button_counterClockwise_dim || button_counterClockwise_brighten || button_flip90_dim || button_flip90_brighten || button_flip180_dim || button_flip180_brighten || button_shake_dim || button_shake_brighten || button_slide_dim || button_slide_brighten || button_knock_dim || button_knock_brighten){
-				section(){
-					paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-					paragraph "$infoIcon Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%)."
-					input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
-				}
-			}
+                displayMultiDeviceSetup()
+        
 		}
     }
 }
 
+def getActionsMap(){
+    actionsMap = [:]
+    actionsMap['clockwise'] = [name:'rotate clockwise',action:'rotating clockwise',defaultType:'dimmer',advanced:false,active:true]
+    actionsMap['counterClockwise'] = [name:'rotate counter-clockwise',action:'rotating counter-clockwise',defaultType:'dimmer',advanced:false,active:true]
+    actionsMap['flip90'] = [name:'flip 90°',action:'flipping 90°',defaultType:'switch',advanced:false,active:true]
+    actionsMap['flip180'] = [name:'flip 180°',action:'flipping 180°',defaultType:'switch',advanced:false,active:true]
+    actionsMap['shake'] = [name:'shake',action:'shaking',defaultType:'switch',advanced:true,active:true]
+    actionsMap['knock'] = [name:'knock',action:'knocking',defaultType:'switch',advanced:true,active:false]
+    actionsMap['slide'] = [name:'slide',action:'sliding',defaultType:'dimmer',advanced:true,active:false]
+    return actionsMap
+}
+
 def displayNameOption(){
-    if(app.label){
-        displayLabel('MagicCube setup name',2)
-        label title: '', required: false, width: 10,submitOnChange:true
-    } else {
-        displayLabel('Set name for this MagicCube setup')
-        label title: '', required: false, submitOnChange:true
-        displayInfo('Name this MagicCube setup. Each MagicCube setup must have a unique name.')
-    }
+    displayNameOptionComplete()
+    displayNameOptionIncomplete()
+}
+def displayNameOptionComplete(){
+    if(!app.label) return
+    displayLabel('MagicCube name:',2)
+    label title: '', required: false, width: 10,submitOnChange:true
+}
+def displayNameOptionIncomplete(){
+    if(app.label) return
+    fieldTitle = 'Set name for this MagicCube app:'
+    displayLabel(highlightText(fieldTitle))
+    label title: '', width:12, submitOnChange:true
+    displayInfo('Name this MagicCube setup. Each MagicCube setup must have a unique name.')
 }
 
 def displayMagicCubeOption(){
     if(!app.label) return
-    displayLabel('Select MagicCube device(s) to setup')
-
     fieldName = 'buttonDevice'
-    fieldTitle = 'MagicCube(s)?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'capability.pushableButton', title: fieldTitle, multiple: true, submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Select which MagicCube(s) to control. You can select multiple MagicCubes devices.')
+    displayMagicCubeOptionComplete(fieldName)
+    displayMagicCubeOptionIncomplete(fieldName)
+}
+def displayMagicCubeOptionComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'MagicCube(s):'
+    displayDeviceSelectionField(fieldName,fieldTitle,'capability.pushableButton',true)
+}
+def displayMagicCubeOptionIncomplete(fieldName){
+    if(settings[fieldName]) return
+    fieldTitle = 'Select MagicCube device(s) to setup:'
+    displayDeviceSelectionField(fieldName,fieldTitle,'capability.pushableButton',true)
+    displayInfo('Select which MagicCube(s) to control. You can select multiple MagicCubes devices.')
+    
 }
 
 def displayMultiDeviceOption(){
     if(!settings['buttonDevice']) return
     fieldName = 'multiDevice'
-    fieldTitle = highlightText('MagicCube actions do same thing for all devices') + ' Click to do different things with different devices. (If only controlling one device, leave off.)'
-    if(!settings[fieldName]) highlightText('MagicCube actions unique per device') + '  Click for buttons to do the same thing across all devices.'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
+    displayMultiDeviceOptionComplete(fieldName)
+    displayMultiDeviceOptionIncomplete(fieldName)
 }
-
-def displayAdvancedOptions(){
-    if(!settings['buttonDevice']) return
-    fieldName = 'advancedSetup'
-    //fieldTitle = '<b>Advanced actions.</b> Click to hide slide, knock and shake, and less used functions.'
-    fieldTitle = '<b>Advanced actions.</b> Click to hide  less used functions like "shake".'
-    //if(!settings[fieldName]) fieldTitle = '<b>Simple actions.</b> Click to show slide, knock and shake, and less used functions.'
-    if(!settings[fieldName]) fieldTitle = '<b>Simple actions.</b> Click to show less used functions like "shake".'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
-    if(settings['multiDevice']) displayInfo('Select each MagicCube action, and assign devices for the outcome.')
+def displayMultiDeviceOptionComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'MagicCube actions unique per device'
+    fieldTitleFalse = 'Click for buttons to do the same thing across all devices.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse)
+}
+def displayMultiDeviceOptionIncomplete(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'MagicCube actions does the same thing for all devices'
+    fieldTitleFalse = 'Click to assign devices for each action. (If only controlling one device, leave off.)'
+    fieldTitle = 'MagicCube(s):'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse)
 }
 
 def displayDeviceOption(){
     if(!settings['buttonDevice']) return
     if(settings['multiDevice']) return
     fieldName = 'controlDevice'
-    fieldTitle = 'Device(s) to control'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'capability.switch', title: fieldTitle, multiple: true, submitOnChange:true
+    displayDeviceOptionComplete(fieldName)
+    displayDeviceOptionInomplete(fieldName)
 }
+def displayDeviceOptionComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Device(s) to control:'
+    displayDeviceSelectionField(fieldName,fieldTitle,'capability.switch',true)
+}
+def displayDeviceOptionInomplete(fieldName){
+    if(settings[fieldName]) return
+    fieldTitle = 'Select which device(s) to control with the MagicCube:'
+    displayDeviceSelectionField(fieldName,fieldTitle,'capability.switch',true)
+    
+}
+
+def displayAdvancedActionsOption(){
+    if(!settings['buttonDevice']) return
+    fieldName = 'advancedSetup'
+    displayAdvancedActionsOptionComplete(fieldName)
+    displayAdvancedActionsOptionIncomplete(fieldName)
+    if(settings['multiDevice']) displayInfo('Select each MagicCube action, and assign devices for the outcome.')
+}
+def displayAdvancedActionsOptionComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'Advanced actions.'
+    fieldTitleFalse = 'Click to hide slide, knock and shake, and less used functions.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse)
+}
+def displayAdvancedActionsOptionIncomplete(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'Simple actions.'
+    fieldTitleFalse = 'Click to show less used functions like "shake".'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse)
+}
+
+def displaySingleDeviceSetup(){
+    if(settings['multiDevice']) return
+    if(!settings['controlDevice']) return
+    
+// set title as settings, and moreOptions
+    sectionTitle = ''
+    actionsMap.each{key,value->
+        if(settings[key] && value['active']) {
+            if(settings['advancedSetup'] || !value['advanced']) {
+            if(sectionTitle) sectionTitle += '<br>'
+            sectionTitle += '<b>' + value['name'].capitalize() + ': ' + settings[key].capitalize() + '</b>'
+            }
+        }
+    }
+    if(!sectionTitle) sectionTitle = 'Select what to do for each MagicCube action' + expandText
+    section(hideable: true, hidden: false, sectionTitle){
+        displayAdvancedActionsOption()
+        actionsMap.each{key,value->
+            displaySingleIndividualDeviceOption(key)
+        }
+        displayDimmingProgressionOption()
+    }
+}
+def displaySingleIndividualDeviceOption(type){
+    fieldName = type
+    if(!actionsMap[fieldName].'active') return
+    if(actionsMap[fieldName].'advanced' && !settings['advancedSetup']) return
+    fieldTitle = 'When <b>' + actionsMap[fieldName].'name' + '</b>?'
+    if(settings[fieldName]) fieldTitle = '<b>' + actionsMap[fieldName].'name'.capitalize() + '</b>:'
+    fieldOptions = getActionsEnum('dimmer')
+    displaySelectField(fieldName,fieldTitle,fieldOptions,false,false)
+}
+
+def displayMultiDeviceSetup(){
+    if(!settings['multiDevice']) return
+    if(!settings['controlDevice']) return
+
+    actionsMap.each{key,value->
+        displayMultiIndividualDeviceOption(key)
+    }
+    section(){
+        displayDimmingProgressionOption()
+    }
+}
+def displayMultiIndividualDeviceOption(type){
+    fieldName = type
+    if(!actionsMap[fieldName].'active') return
+    if(actionsMap[fieldName].'advanced' && !settings['advancedSetup']) return
+    section(hideable: true, hidden: true, actionsMap[fieldName].'action'.capitalize() + expandText) {
+        getButton(fieldName,actionsMap[fieldName].defaultType)
+    }
+}
+
+def displayTextField(fieldName,fieldTitle,type,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: fieldType, title: fieldTitle, width:width, submitOnChange:true
+}
+def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
+}
+def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true){
+    if(required) fieldTitle = highlightText(fieldTitleTrue) + ' ' + fieldTitleFalse
+    if(!required) fieldTitle = fieldTitleTrue + '<br> ' + fieldTitleFalse
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input name: fieldName, type: 'bool', title:fieldTitle, submitOnChange:true
+}
+def displayDeviceSelectionField(fieldName,fieldTitle,capability,multiple){
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true
+}
+
 
 def getActionsEnum(type){
     sliderAdvancedOptions = ['brighten':'Brighten','dim':'Dim','on':'Turn on', 'off':'Turn off', 'toggle':'Toggle']
@@ -203,69 +310,6 @@ def getActionsEnum(type){
     }
     if(settings['advancedSetup']) return switchAdvancedOptions
     return switchSimpleOptions
-}
-
-def displaySingleDeviceSetup(){
-    if(settings['multiDevice']) return
-    if(!settings['controlDevice']) return
-    
-    displayAdvancedOptions()
-    displayLabel('Select what to do for each MagicCube action')
-// Need to add summary field titles
-    fieldName = 'clockwise'
-    fieldTitle = 'When <b>rotating clockwise</b>, what to do with lights/switches?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldOptions = getActionsEnum('dimmer')
-    input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-
-    fieldName = 'counterClockwise'
-    fieldTitle = 'When <b>rotating counter-clockwise</b>, what to do with lights/switches?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-
-    fieldName = 'flip90'
-    fieldTitle = 'When <b>flipping 90°</b>, what to do with lights/switches?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldOptions = getActionsEnum('switch')
-    input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-
-    fieldName = 'flip180'
-    fieldTitle = 'When <b>flipping 180°</b>, what to do with lights/switches?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldOptions = getActionsEnum('switch')
-    input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-
-    if(settings['advancedSetup']){
-        fieldName = 'shake'
-        fieldTitle = 'When <b>shaking</b>, what to do with lights/switches?'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        fieldOptions = getActionsEnum('switch')
-        input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-
-        /*
-        fieldName = 'knock'
-        fieldTitle = 'When <b>knocking</b>, what to do with lights/switches?'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        fieldOptions = getActionsEnum('switch')
-        input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-*/
-
-        /*
-        fieldName = 'slide'
-        fieldTitle = 'When <b>sliding</b>, what to do with lights/switches?'
-        fieldTitle = addFieldName(fieldTitle,fieldName)
-        fieldOptions = getActionsEnum('dimmer')
-        input fieldName, 'enum', title: fieldTitle, required: false, multiple: false, width: 6, options: fieldOptions, submitOnChange:true
-*/
-    }
-    if(clockwise == "dim" || clockwise == "brighten" || flip90 == "dim" || flip90 == "brighten" || flip180 == "dim" || flip180 == "brighten" || shake == "dim" || shake == "brighten" || knock == "dim" || knock == "brighten"){
-        paragraph "<div style=\"background-color:BurlyWood\"><b> Set dim and brighten speed:</b></div>"
-        displayInfo('Multiplier/divider for dimming and brightening, from 1.01 to 99, where higher is faster. For instance, a value of 2 would double (eg from 25% to 50%, then 100%), whereas a value of 1.5 would increase by half each time (eg from 25% to 38% to 57%).')
-        input "multiplier", "decimal", required: false, title: "Mulitplier? (Optional. Default 1.2.)", width: 6
-    }
-    if(button_1_push_on || button_1_push_off || button_1_push_dim || button_1_push_brighten || button_1_push_toggle || button_2_push_on || button_2_push_off || button_2_push_dim || button_2_push_brighten || button_2_push_toggle || button_3_push_on || button_3_push_off || button_3_push_dim || button_3_push_brighten || button_3_push_toggle || button_4_push_on || button_4_push_off || button_4_push_dim || button_4_push_brighten || button_4_push_toggle || button_5_push_on || button_5_push_off || button_5_push_dim || button_5_push_brighten || button_5_push_toggle || button_1_hold_on || button_1_hold_off || button_1_hold_dim || button_1_hold_brighten || button_1_hold_toggle || button_2_hold_on || button_2_hold_off || button_2_hold_dim || button_2_hold_brighten || button_2_hold_toggle || button_3_hold_on || button_3_hold_off || button_3_hold_dim || button_3_hold_brighten || button_3_hold_toggle || button_4_hold_on || button_4_hold_off || button_4_hold_dim || button_4_hold_brighten || button_4_hold_toggle || button_5_hold_on || button_5_hold_off || button_5_hold_dim || button_5_hold_brighten || button_5_hold_toggle){
-        paragraph "<div style=\"background-color:LightCyan\"><b> Click \"Done\" to continue.</b></div>"
-    }
 }
 
 def getButton(buttonAction,type){
@@ -335,61 +379,64 @@ def getButton(buttonAction,type){
     }
 }
 
+def displayDimmingProgressionOption(hold = false){
+    if(!button_clockwise_dim && !button_counterClockwise_brighten && !button_flip90_brighten && !button_flip180_brighten && !button_shake_brighten && !button_clockwise_dim && 
+        !button_counterClockwise_dim && !button_flip90_dim && !button_flip180_dim && !button_shake_dim && clockwise != 'brighten' && counterClockwise != 'brighten' && flip90 != 'brighten' &&
+        flip180 != 'brighten' && shake != 'brighten' && clockwise != 'dim' && counterClockwise != 'dim' && flip90 != 'dim' && flip180 != 'dim' && shake != 'dim') return
+
+    width = 10
+    fieldName = 'pushedDimmingProgressionSteps'
+    fieldTitle = 'Enter dimming steps for pushed (optional, default 8):'
+    if(settings[fieldName]) fieldTitle = 'Pushed dimming steps:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(!settings[fieldName]) {
+        displayLabel(highlightText(fieldTitle))
+        width = 12
+    }
+    input fieldName, 'number', title: '', width:width,submitOnChange:true
+
+    displayInfo('This sets how many steps it takes to brighten from 1 to 100% (or vice versa), using a geometric progression. For instance, 10 steps would be: 2, 4, 7, 11, 17, 25, 36, 52, 74, 100.')
+}
+
 // values sent as list
 // values.0 = number
 // values.1 = on/off/toggle/dim/brighten
 // populated = value of the input
 def getAdvancedSwitchInput(values,populated = null){
     if(error) return
-    text = ""
-    if(populated) text += "<b>"
-    if(values[1] == "on"){
-        text += "Turns On"
-    } else if(values[1] == "off"){
-        text += "Turns Off"
-    } else if(values[1] == "toggle"){
-        text += "Toggles (if on, turn off; if off, turn on)"
-    } else if(values[1] == "dim"){
-        text += "Dims"
-    } else if(values[1] == "brighten"){
-        text += "Brightens"
-    } else if(values[1] == "resume"){
-        text += "Resume schedule(s) (if none, turn off)"
-    }	
-    if(populated) {
-        text += "</b>"
-    } else {
-        text += " <font color=\"gray\">(Select devices)</font>"
-    }
-    if(values[1] == "dim" || values[1] == "brighten"){
-        switchType = "switch"
-    } else {
-        switchType = "switchLevel"
-    }
-    input "button_" + values[0] + "_" + values[1], "capability.$switchType", title: text, multiple: true, submitOnChange:true
+    fieldName = 'button_' + values[0] + '_' + values[2] + '_' + values[1]
+    fieldTitle = ''
+    if(populated) text += '<b>'
+    if(values[1] == 'on') fieldTitle += 'Turns On'
+    if(values[1] == 'off') fieldTitle += 'Turns Off'
+    if(values[1] == 'toggle') fieldTitle += 'Toggles (if on, turn off; if off, turn on)'
+    if(values[1] == 'dim') fieldTitle += 'Dims'
+    if(values[1] == 'brighten') fieldTitle += 'Brightens'
+    if(values[1] == 'resume') fieldTitle += 'Resume schedule(s) (if none, turn off)'
+
+    if(populated) fieldTitle += '</b>'
+    if(!populated) fieldTitle += ' <font color="gray">(Select devices)</font>'
+
+    if(values[1] == 'dim' || values[1] == 'brighten') switchType = 'switchLevel'
+    if(values[1] != 'dim' && values[1] != 'brighten') switchType = 'switch'
+    input fieldName, 'capability.' + switchType, title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
 }
 
 def compareDeviceLists(values,compare){
     // Be sure we have original button and comparison button values (odds are, we don't)
     // eg if(!button_1_push_on)
-    if(!settings["button_" + values[0] + "_" + values[2] + "_" + values[1]]) return
-    if(!settings["button_" + values[0] + "_" + values[2] + "_" + compare]) return
-    if(error) return
+    if(!settings['button_' + values[0] + '_' + values[2] + '_' + values[1]]) return
+    if(!settings['button_' + values[0] + '_' + values[2] + '_' + compare]) return
 
-    settings["button_" + values[0] + "_" + values[2] + "_" + values[1]].each{first->
-        settings["button_" + values[0] + "_" + values[2] + "_" + compare].each{second->
+    settings['button_' + values[0] + '_' + values[2] + '_' + values[1]].each{first->
+        settings['button_' + values[0] + '_' + values[2] + '_' + compare].each{second->
             if(first.id == second.id) {
-                if(compare == "on" || compare == "off"){
-                    text1 = "turn $compare"
-                } else {
-                    text1 = compare
-                }
-                if(values[1] == "on" || values[1] == "off"){
-                    text2 = "turn " + values[1]
-                } else {
-                    text2 = values[1]
-                }
-                returnText = "Can't set same button to $text1 and $text2 the same device."
+                if(compare == 'on' || compare == 'off') text1 = 'turn ' + compare
+                if(compare != 'on' && compare != 'off') text1 = compare
+                if(values[1] == 'on' || values[1] == 'off') text2 = 'turn ' + values[1]
+                if(values[1] != 'on' && values[1] != 'off') text2 = values[1]
+                returnText = 'Can\'t set same button to ' + text1 + ' and ' + text2 + ' the same device.'
             }
         }
     }
@@ -427,19 +474,19 @@ def compareDeviceLists(values,compare){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(430,'trace','Installed')
+    putLog(477,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(436,'trace','Updated')
+    putLog(483,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(442,'trace','Initialized')
+    putLog(489,'trace','Initialized')
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
@@ -483,7 +530,7 @@ def buttonEvent(evt){
 
 def doActions(device,action){
     if(!device) return
-    putLog(486,'trace','Set ' + device + ' as ' + action)
+    putLog(533,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
@@ -493,7 +540,7 @@ def doActions(device,action){
         if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         
         fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(496,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+        if(fullMap) putLog(543,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -512,7 +559,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
     cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(515,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(562,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
     //flip90 - look at which side it's going from and landing on
     if(evt.name == 'pushed'){
@@ -528,7 +575,7 @@ def convertDriver(evt){
     if(evt.name == 'released') atomicState.actionType = cubeActions[5]
     if(evt.name == 'held') atomicState.actionType = cubeActions[6]
 
-    putLog(531,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
+    putLog(578,'debug','' + buttonDevice + ' action captured as ' + atomicState.actionType + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
     atomicState.priorSide = evt.value
 }
 
