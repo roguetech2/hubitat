@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.18
+*  Version: 0.7.2.19
 *
 ***********************************************************************************************************************/
 
@@ -959,7 +959,7 @@ def handleSatChange(event){
 def setStartSchedule(){
     setTime()
     timeMillis = parent.getDatetimeFromTimeInMillis(atomicState.startTime) - now()
-    if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
+    if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli() + 5000   // Add seconds to allow stop schedule(s) to run
     parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
     
     return true
@@ -1042,7 +1042,7 @@ def runDailyStopSchedule(){
     if(atomicState.startDisabled) return
     
     clearScheduleFromTable()    // Remove start/incremental table entries - all that should be left after schedule ends is stop settings (with a stopTime)
-    
+
     if(!settings['start_brightness']) brightnessMap = getLevelMap('brightness',settings['stop_brightness'])
     if(!settings['start_temp']) tempMap = getLevelMap('temp',settings['stop_temp'])
     if(!settings['start_hue']) hueMap = getLevelMap('hue',settings['stop_hue'])
@@ -1129,6 +1129,7 @@ def subscribeDevices(){
 }
 
 def clearScheduleFromTable(){
+    if(settings['stopTime'] == settings['startTime']) return    // Prevents lights returning to default settings (and flickering)
     settings['device'].each{singleDevice->
         clearTableKey(singleDevice.id,'brightness')
         clearTableKey(singleDevice.id,'temp')
