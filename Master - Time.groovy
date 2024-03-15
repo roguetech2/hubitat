@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.19
+*  Version: 0.7.2.20
 *
 ***********************************************************************************************************************/
 
@@ -1187,7 +1187,7 @@ def getBaseStartStopTimes(type){
     if(type == 'stop' && settings['stop_timeType'] == 'none') return
     if(settings[type + '_timeType'] == 'time') {
         if(!settings[type + '_time']) return
-        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime())
+        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime()) + 1   // Add 1 so midnight isn't "empty" as zero
     }
     if(!settings[type + '_sunType']) return
     if(settings[type + '_timeType'] == 'sunrise') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label)))
