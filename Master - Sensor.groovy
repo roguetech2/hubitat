@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.5
+*  Version: 0.4.3.6
 *
 ***********************************************************************************************************************/
 
@@ -149,6 +149,7 @@ def formComplete(){
     if(!settings['sensor']) return false
     if(!settings['deviceType']) return false
     if(!settings['device']) return false
+    if(settings['startDelay'] && settings['stopDelay'] && settings['startDelay'] > settings['stopDelay']) return false
 
     return true
 }
@@ -156,12 +157,12 @@ def formComplete(){
 def displayNameOption(){
     if(app.label){
         displayLabel('Sensor app name',2)
-        label title: '', required: false, width: 10,submitOnChange:true
-    } else {
-        displayLabel('Set name for this sensor app')
-        label title: '', required: false, submitOnChange:true
-        displayInfo('Name this sensor app. Each sensor app must have a unique name.')
+        label title: '',  width: 10,submitOnChange:true
+        return
     }
+    displayLabel('Set name for this sensor app')
+    label title: '', submitOnChange:true
+    displayInfo('Name this sensor app. Each sensor app must have a unique name.')
 }
 
 def displayDisableOption(){
@@ -169,7 +170,7 @@ def displayDisableOption(){
 
     fieldName = 'disable'
     fieldTitle = '<b><font color="#000099">This sensor is disabled.</font></b> Reenable it?'
-    fieldTitle = 'This sensor is enabled. Disable it?'
+    if(!fieldName) fieldTitle = 'This sensor is enabled. Disable it?'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, 'bool', title: fieldTitle, submitOnChange:true
 }
@@ -284,6 +285,7 @@ def displayDeviceOption(){
     input fieldName, capability, title: fieldTitle, multiple: true, submitOnChange:true
 }
 
+// Move delay to it's own section, to apply to everything (Mode, notifications, etc.)
 def displayActionOption(){
     if(!settings['sensorType']) return
     if(!settings['sensor']) return
@@ -292,19 +294,24 @@ def displayActionOption(){
     if(!state.sensorTypeMap) return
 
     hidden = true
+    if(settings['startDelay'] == settings['stopDelay']) hidden = false
+    if(settings['startDelay'] > settings['stopDelay']) hidden = false
     sectionTitle = 'Click to set ' + startText + ' and ' + stopText + ' action(s)</b> (Optional)'
     if(settings['startAction']) {
-        sectionTitle = '<b>On ' + startText + ': ' + getPlainAction(settings['startAction']).capitalize() + '</b>'
-        if(settings['startWait'] && settings['startWait'] > 0)  sectionTitle = '<b>' + settings['startWait'] + ' minutes after ' + startText + ': ' +  getPlainAction(settings['startAction']).capitalize() + '</b>'
+        startSectionTitle = '<b>On ' + startText + ': ' + getPlainAction(settings['startAction']).capitalize() + '</b>'
+        if(settings['startDelay'] && settings['startDelay'] > 0) startSectionTitle = ' <b>' + settings['startDelay'] + ' minutes after ' + startText + ': ' +  getPlainAction(settings['startAction']).capitalize() + '</b>'
     }
-    if(settings['startAction'] && settings['stopAction']) sectionTitle += '</b><br>'
+    if(settings['startAction'] && settings['stopAction']) startSectionTitle += '</b><br>'
     if(settings['stopAction']) {
-        sectionTitle += '<b>On ' + stopText + ': ' +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
-        if(settings['stopWait'] && settings['stopWait'] > 0)  sectionTitle = '<b>' + settings['stopWait'] + ' minutes after ' + startText + ': ' +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
+        stopSectionTitle += '<b>On ' + stopText + ': ' +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
+        if(settings['stopDelay'] && settings['stopDelay'] > 0)  stopSectionTitle = ' <b>' + settings['stopDelay'] + ' minutes after ' + stopText + ': ' +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
     }
+    sectionTitle = startSectionTitle + stopSectionTitle
     if(settings['startAction'] && !settings['stopAction']) sectionTitle += moreOptions
     if(!settings['startAction'] && settings['stopAction']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
+        if(settings['startDelay'] == settings['stopDelay']) displayWarning('The Start Delay and Stop Delay times are set as the same. The Stop action will be automatically delayed a few seconds longer to prevent Start and Stop events from conflicting.')
+        if(settings['startDelay'] > settings['stopDelay']) displayError('Start Delay must be equal to or less than Stop Delay. This is to prevent them from conflicting, if Stop activates within the ' + (settings['startDelay'] - settings['stopDelay']) + ' minutes() of potential overlap with Start.')
         displayActionFields('start')
         displayActionFields('stop')
     }
@@ -326,25 +333,30 @@ def displayActionFields(type){
     if(state.sensorTypeMap.type != 'bool') infoStartText = 'start'
     if(!settings['startAction'] && !settings['stopAction']) displayInfo('Select what action to take when the ' + state.sensorTypeMap.name + ' reading meets the requirement (as "' + infoStartText + '"), or no longer meets it ("stop"). You will enter the start and stop actions below.')
 
-    displayActionWaitOption(type)
+    displayActionDelayOption(type)
 
 }
 
-def displayActionWaitOption(type){
+def displayActionDelayOption(type){
     if(!settings[type + 'Action']) return
     if(settings[type + 'Action'] == 'none') return
     if(!settings['advanced']) return
 
-    displayError(getMinutesValidationError(settings[type + 'Wait']))
+    displayError(getMinutesValidationError(settings[type + 'Delay']))
 
     width = 10
-    fieldName = type + 'Wait'
-    fieldTitle = 'Wait minutes: (Optional)'
+    fieldName = type + 'Delay'
+    fieldTitle = 'Delay minutes: (Optional)'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     displayLabel(fieldTitle,2)
  
     input fieldName, 'number', title: '', defaultValue: false, width:width, submitOnChange:true
-    if(type == 'stop') displayInfo('This sets it to wait before performing the ' + startText + ' or ' + stopText + ' action.')
+    if(type == 'stop') {
+        helpTip = 'This sets it to wait before performing the ' + startText + ' or ' + stopText + ' action.'
+        if(settings['startDelay'] || settings['stopDelay']) helpTip += ' Note that if the device activates (' + state.sensorTypeMap.start + ') or re-activates within the Stop Delay time, the Stop Delay will be reset.<br>1) If a sensor activates and then deactivates within the Start Delay period, the deactivation will be ignored. (The Stop conditions will be rechecked when the Start Delay expires, without the sensor needing to update. So, the Stop Actions may <i>immediately</i> follow the Start Actions.)<br>2) If a sensor deactivates (stops) and then reactivates (starts again) within the Stop Delay period, then a) If allowed by Run Times (not Delay Times), a new Start event will be triggered, b) If Wait Times prevent a new Start event, then Stop Delay timer will continue (every Start event should allow an Stop event, with the assumption of a sensor providing only one update per Start/Stop event).' // conditions performed in handleSensorUpdate
+        //if(state.sensorTypeMap.type == 'range' && settings['stopDelay']) helpTip += ' Note that if the device re-activates (the Start condition(s) are met) within the Stop Delay time, the Stop sequence will be aborted.'
+        displayInfo(helpTip)
+    }
 }
 
 def displayThresholdOption(){
@@ -563,12 +575,6 @@ def displayScheduleSection(){
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    List monthList=[]
-    settings['months'].each{
-        monthList.add(Date.parse('MM',it).format('MMMM'))
-
-    }
-    monthText = monthList.join(', ')
     
     hidden = true
     if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
@@ -587,12 +593,12 @@ def displayScheduleSection(){
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
         displayDaysOption()
-        displayMonthsOption()
+        displayDatesOptions()
     }
 }
 
 def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to constrain by schedule (optional)'
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to constrain by schedule (optional)'
 
     if(settings['start_timeType']) sectionTitle = '<b>Only between: '
     if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
@@ -606,11 +612,9 @@ def getTimeSectionTitle(){
     }
 
     if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
-    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
-    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(settings['start_timeType'] || settings['stop_timeType'] || settings['days'] || settings['months']) {
-        if(!settings['start_timeType'] || !settings['stop_timeType'] || !settings['days'] || !settings['months']) sectionTitle += moreOptions
+    if(settings['start_timeType'] || settings['stop_timeType'] || settings['days']) {
+        if(!settings['start_timeType'] || !settings['stop_timeType'] || !settings['days']) sectionTitle += moreOptions
     }
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
@@ -718,15 +722,46 @@ def displayDaysOption(){
     input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
-def displayMonthsOption(){
-    if(!settings['start_timeType']) return
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-    
-    fieldName = 'months'
-    fieldTitle = 'In these months (optional; defaults to all months):'
+def displayDatesOptions(){
+    displayIncludeDates()
+    displayExcludeDates()
+}
+
+def displayIncludeDates(){
+    displayWarning(parent.getDateProcessingErrors(app.id))
+    displayInfo(dateList)
+    fieldName = 'includeDates'
+    fieldTitle = 'Dates on which to run ("include"):'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+
+}
+
+def displayExcludeDates(){
+    fieldName = 'excludeDates'
+    fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+    infoTip = 'Enter which date(s) to limit or exclude. Included dates are when the routine will run, for instance only on certain holidays. Excluded dates will prevent it from running, for instance \
+every day <i>except</i> holidays. Rules:\n\
+	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
+<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur, because it already has.</i>\n\
+	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas can be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years].</i>\n\
+	• Separate multiple dates with a comma (or semicolon). \
+<i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
+	• Use a hyphen to indicate a range of dates. \
+<i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
+    	• The "days" options above will combine with the dates. \
+<i>Example: Selecting Monday and entering "12/25" as an included date would only trigger if Christmas is on a Monday.</i>\n\
+	• Leap years count. \
+<i>Example: Entering "2/29" (or "366") would only trigger on leap years.</i>\n\
+	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with rangesranges. And the order doesn\'t matter. \
+<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '".</i>\n\
+	• If a date is listed as both Included and Excluded, it will be treated as Excluded.\n\
+	• To do Feb. 29, ignore the warning (on non-leap years). To do all of Febraury, enter "2/1-2/28, 2/29".'
+
+displayInfo(infoTip)
 }
 
 def displayIfModeOption(){
@@ -1202,19 +1237,20 @@ def updated() {
 def initialize() {
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     setTime()
-// If manual on, need to reset maximum runtime schedule
-	unschedule()  
 
-    // If date/time for last notification not set, initialize it to 5 minutes ago
-    if(!atomicState.contactLastNotification) atomicState.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli() //Wtf?
+	unschedule()        // Reset here or in updated? Would installed also do updated?
+    atomicState.remove("startTime")
+    atomicState.remove("stopTime")
+
+    if(!atomicState.contactLastNotification) atomicState.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli() // Why set this? Just test if blank when sending.
     
     setTime()
-    scheduleMaximumRunTime()
     sensorsMap = buildSensorMap()
     state.sensorTypeMap = getSensorsMapEntry(sensorsMap)
+
     if(state.sensorTypeMap['type'] == 'bool') {
-        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['start'], handleSensorUpdate)
-        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['stop'], handleSensorUpdate)  
+        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['start'], handleSensorStart)
+        subscribe(settings['sensor'], state.sensorTypeMap['attribute'] + '.' + state.sensorTypeMap['stop'], handleSensorStop)  
     }
     if(state.sensorTypeMap['type'] == 'range') subscribe(settings['sensor'], state.sensorTypeMap['attribute'], handleSensorUpdate)
     
@@ -1227,29 +1263,72 @@ def initialize() {
     putLog(1227,'trace','Initialized')
 }
 
-def handleSensorUpdate(event) {
-    updateStatus()
+def handleSensorStart(event) {
+    if(atomicState.startTime) return
+    if(settings['disabled']) return
+    if(atomicState.startDelayActive) return
+    if(!getActive()) return
+    unschedule('performStopAction')
+    log.debug 'unscheduled stop'
+    putLog(1236,'debug','Sensor is ' + event.value + '.')
+    if(scheduleDelay('start')) return        // if repeadedly triggered (as Start), need to know if delayed schedule; maybe another state var?
+    performStartAction()
 }
 
-def updateStatus(){
-    if(state.sensorTypeMap['type'] == 'range') {
-        atomicState.sensorAverage = getSensorAverage()
-        //atomicState.controlSensorAverage = 
-        updateSensorDeltaArray()
+def handleSensorStop(event) {
+    if(settings['disabled']) return
+    if(!atomicState.startTime) return
+    if(atomicState.stopDelayActive) return
+    unschedule('performStartAction')
+    log.debug 'unscheduled start'
+    putLog(1243,'debug','Sensor is ' + event.value + '.')
+    if(scheduleDelay('stop')) return        // if repeadedly triggered (as Stop), need to know if delayed schedule; maybe another state var?
+    performStopAction()
+}
+
+def handleSensorUpdate(event) {
+    if(settings['disabled']) return
+    atomicState.sensorAverage = getSensorAverage()
+    updateSensorDeltaArray()
+    if(!checkStartOptions()) return
+    if(checkStopOptions()) {
+        putLog(1268,'error','Both start and stop conditions met.')
+        return
     }
-    scheduleMaximumRunTime()
-    checkStartOptions()
-    checkStopOptions()
+    startConditionsMet = checkStartOptions()
+    stopConditionsMet = checkStartOptions()
+    if(startConditionsMet && stopConditionsMet) {
+        putLog(1268,'error','Both start and stop conditions met.')
+        return
+    }
+    if(startConditionsMet) {
+        if(atomicState.startDelayActive) return
+        unschedule('performStopAction')
+        if(!scheduleDelay('start')) performStartAction()
+        return
+    }
+    if(stopConditionsMet) {
+        if(atomicState.stopDelayActive) return    // If startDelay... return? If it hasn't yet started but already stopped, pretend like it never happened, or ignore any stop until after the delay?
+        unschedule('performStartAction')
+        if(!scheduleDelay('stop')) performStopAction()
+        return
+    }
 }
 
 def handleStateChange(event) {
+    return
+    if(settings['disabled']) return
     lastChangeAddId = parent.getStateChangeAppId(event.device,app.id,app.label)
     currentState = parent.checkIsOn(event.device,app.label)
-    if(lastChangeAddId == app.id && currentState == event.value) return
+    log.debug '1 handleStateChange lastChangeAddId ' + lastChangeAddId + '== app.id ' +  app.id + ' && currentState ' + currentState + ' == event.value ' + event.value
+    if(lastChangeAddId == app.id && (currentState && event.value == 'on' || !currentState && event.value == 'off')) return
+    log.debug '2 handleStateChange'
+    
     parent.updateTableCapturedState(event.device,event.value,app.label)
     atomicState.startTime = now()
     if(event.value == 'on') scheduleMaximumRunTime()	
-    if(event.value == 'off') atomicState.startTime = null
+    if(event.value == 'off') atomicState.remove("startTime")
+    
 }
 
 def checkStartOptions(){
@@ -1257,14 +1336,13 @@ def checkStartOptions(){
     if(settings['disabled']) return
     
     if(!getActive()) return
-
-// need to check minimum inactive time
     
     if(state.sensorTypeMap['type'] == 'range') atomicState.sensorStart = atomicState.sensorAverage
     if(!checkStartLevelConditions()) return
     
-    if(checkStopLevelConditions()) {
+    if(state.sensorTypeMap['type'] == 'range' && checkStopLevelConditions()) {
         atomicState.startTime = null
+        atomicState.remove("startTime")    // Clear stopTime too?
         putLog(1268,'error','Both start and stop conditions met.')
         return
     }
@@ -1273,41 +1351,7 @@ def checkStartOptions(){
         putLog(1273,'debug','Sensor would activate, but for minimum wait time from last execution.')
         return
     }
-    atomicState.startTime = now()
-    atomicState.stopTime = null
-
-    scheduleStartDelay() // With on, and setting levels, wouldn't we expect the levels to be attached to turning it on?!
-    performStartResults()
-}
-
-def performStartResults(){ // Would we want all "results" to be delayed if we're delaying the Actions
-// Set locks
-// Set levels
-
-// set Mode
-    //parent.sendPushNotification('',app.label + ' turned on at ' + now.format('h:mm a', location.timeZone),app.label)
-    //parent.sendVoiceNotification(settings['speechDevice'],settings['speech'],app.label)
-}
-
-def performStartAction(){
-    if(settings['startAction'] != 'on' && settings['startAction'] != 'off' || settings['startAction'] != 'toggle') return
-    
-    settings['device'].each{singleDevice->
-        // set levels
-        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
-        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-    }
-    putLog(1300,'warn','Setting devices to ' + settings['startAction'] + '.')
-    parent.setDeviceMulti(settings['device'],app.label)
-
-}
-
-def scheduleStartDelay(){
-    if(!atomicState.startTime) return
-    if(!settings['startDelay']) return
-    
-    timeMillis = (atomicState.startTime + (settings['startDelay'] * parent.CONSTMinuteInMilli())) - now()
-    parent.scheduleChildEvent(timeMillis,'','performStartAction','',app.id)
+    return true
 }
 
 def checkStopOptions(){
@@ -1316,44 +1360,53 @@ def checkStopOptions(){
     if(!atomicState.startTime) return // Already off
     
     if(!checkStopLevelConditions()) return
-    if(checkStartLevelConditions()) return
+    if(state.sensorTypeMap['type'] == 'range' && checkStartLevelConditions()) return
 
     if(!checkMinimumRunTime()) {
         scheduleMinimumRunTime()
         return
     }
 
-    atomicState.startTime = null
-    atomicState.stopTime = now()
-
-    scheduleStopDelay()
-    performStopResults()
+    return true
 }
 
-def performStopResults(){
-// set locks
-// set levels
-
-    unschedule()
-// Set mode
+def performStartAction(){
+    if(atomicState.startTime) return
+    atomicState.startTime = now()
+    atomicState.remove('stopTime')
+    atomicState.remove('startDelayActive')
+    if(settings['startAction'] != 'on' && settings['startAction'] != 'off' && settings['startAction'] != 'toggle') return    // still need to resume. And lock/unlock
+    settings['device'].each{singleDevice->
+        // set levels
+        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
+        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
+        putLog(1347,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
+    }
+    parent.setDeviceMulti(settings['device'],app.label)
+    scheduleMaximumRunTime()
 }
 
 def performStopAction(){
-    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' || settings['stopAction'] != 'toggle') return
-    
+    if(!atomicState.startTime) return
+    atomicState.remove('startTime')
+    atomicState.remove('stopDelayActive')
+    atomicState.stopTime = now()
+    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
     settings['device'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
+        putLog(1361,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
 
-def scheduleStopDelay(){
-    if(!atomicState.stopTime) return
-    if(!settings['stopDelay']) return
-    
-    timeMillis = (atomicState.startTime + (settings['stopDelay'] * parent.CONSTMinuteInMilli())) - now()
-    parent.scheduleChildEvent(timeMillis,'','performStopAction','',app.id)
+def scheduleDelay(type){
+    if(!settings[type + 'Delay']) return
+    timeMillis = settings[type + 'Delay'] * parent.CONSTMinuteInMilli()
+    if(type == 'stop' && settings['startDelay'] == settings['stopDelay']) timeMillis += 2000        // Add delay for if start and stop trigger at the same "minute" (if allowing second units, change this to a fraction of a second)
+    parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Action','',app.id)
+    atomicState[type + 'DelayActive'] = true
+    return true
 }
 
 def updateSensorDeltaArray(){
@@ -1492,7 +1545,7 @@ def scheduleMaximumRunTime(){
     if(!atomicState.startTime) return
     unschedule('scheduleMaximumRunTime')
     
-    timeMillis = (atomicState.startTime + (settings['runTimeMinimum'] * parent.CONSTMinuteInMilli())) - now()
+    timeMillis = (atomicState.startTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
     parent.scheduleChildEvent(timeMillis,'','performStopActions','',app.id)
 }
 
@@ -1555,6 +1608,19 @@ def getActive(){
     return true
 }
 
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
+    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+}
+def processDates(){
+    atomicState.remove('includeDates')
+    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    includeDatesValue = settings['includeDates']
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
