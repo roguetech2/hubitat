@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.29
+*  Version: 0.4.1.30
 *
 ***********************************************************************************************************************/
 
@@ -79,7 +79,7 @@ def displayError(text,noDisplayIcon = null, width=12){
 def displayWarning(text,noDisplayIcon = null, width=12){
     if(!text) return
     if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
     warningMessage = ''
 }
 
@@ -229,13 +229,13 @@ def displayScheduleTip(){
         scheduleText = 'Schedules allow performing actions on switches and lights (e.g. turn on, off, dim, set color, etc.) at specific times, \
 and will run daily. Devices can be set to progressively change by setting both start and stop values for brightness or color. If a \
 device is turned off, the schedule continues to run, so <i>when it is</i> turned on, it will do so at the correct level(s). You \
-can also select specific days and months, and other factors like Mode. Schedules also support sunrise and sunset. Use cases:<br>\
+can also select specific weekdays and dates, and other factors like Mode. Schedules also support sunrise and sunset. Use cases:<br>\
         • Set a porch light to turn on at sunset and off at sunrise<br>\
         • Set room lights to turn on and get dimmer as it gets later in the evening<br>\
         • Set room lights to be dimmer as it gets later in the evening, when and if they are turned on<br>\
         • Set lights to turn off at night<br>\
         • Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)<br>\
-        • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those months)<br>\
+        • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those dates)<br>\
         • Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)<br>\
         • Turn on certain devices when someone arrives, within a certain time (or any time, by setting start time the same as stop time)<br>\
         • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
@@ -442,42 +442,7 @@ def validateMultiplier(value, childLabel='Master'){
     return value
 }
 
-/* ************************************************************************ */
-/* TO-DO: Clean it up, and schedule it every day, with an alert.            */
-/* ************************************************************************ */
-def test(){
-    // Get current time
-    varNow = now()
-    sensors.each{
-        // lastCheckin only available for Xiaomi drivers
-        // Could use it.lastUpdate, but maybe it's just not used much
-        // So ... maybe subscribe and create state variable??
-        if(it.currentLastCheckin){
-            // Covert lastCheckin to Unix epoch timestamp
-            //		long epoch = it.currentLastCheckin.getTime()
 
-            diff = (varNow - it.currentLastCheckin.toBigInteger()) / 1000 / 60 / 60
-            if(diff > 24) {
-                numDays = Math.round(diff / 24)
-                if(!phone){
-                    if($numDays > 1){
-                        log.debug "$it hasn't done anything in $numDays days."
-                    } else {
-                        log.debug "$it hasn't done anything in $numDays day."
-                    }
-                } else {
-                    if($numDays > 1){
-                        sendText(phone,"$it hasn't done anything in $numDay days.")
-                    } else {
-                        sendText(phone,"$it hasn't done anything in $numDay day.")
-                    }
-                }
-            }
-        } else {
-            log.debug "$it not tested."
-        }
-    }
-}
 
 
 
@@ -619,7 +584,7 @@ def CONSTMinuteInMilli(){
 
 def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
     returnValue = 200
-    putLog(622,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
+    putLog(587,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
     return returnValue
 }
 
@@ -710,6 +675,189 @@ def getInstalledCapabilitiesList(fullList){
     return matchList
 }
 
+def processDates(includeDates, excludeDates, days, appId, processErrors = false){
+// Need to figure out how to have error message
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    daysInYear = new Date(currentYear, 11, 31).format('D').toInteger()
+    includeList = []
+    excludeList = []
+
+    if(!includeDates){
+        for (int day = 1; day <= daysInYear; day++) {
+            if(days){
+                def date = new Date(currentYear, 0, day)
+                def weekday = date.format('EEEE')
+                if (days.contains(weekday)) includeList.add(day)
+            }
+            if(!days) includeList.add(day)
+        }
+       //if(includeList.size() == new Date(currentYear, 11, 31).format('D').toInteger()) return    // If all days, return
+        //return includeList
+    }
+    includeDates = cleanDateString(includeDates)
+    excludeDates = cleanDateString(excludeDates)
+    
+    if(includeDates){
+        includeDateStrings = includeDates.split(",|;")
+        includeDateStrings.each { dateString ->
+            if(!dateString.contains('-')) {
+                dateValue = processDateStringIndividual(dateString,appId, processErrors)
+                if(!dateValue) return
+                if (dateValue.format('yyyy') == String.valueOf(currentYear)) includeList.add(dateValue.format('D').toInteger())
+            }
+            if(dateString.contains('-')) includeList += processDateStringRange(dateString, appId, processErrors)
+        }
+    }
+    if(excludeDates){
+        excludeDateStrings = excludeDates.split(",|;")
+        excludeDateStrings.each { dateString ->
+            if(!dateString.contains('-')) {
+                dateValue = processDateStringIndividual(dateString,appId, processErrors)
+                if(dateValue.format('yyyy') == String.valueOf(currentYear)) excludeList.add(dateValue.format('D').toInteger())
+            }
+            if(dateString.contains('-')) excludeList += processDateStringRange(dateString, appId, processErrors)
+        }
+    }
+    finalList = includeList.findAll { !excludeList.contains(it) }
+    finalList = cleanCompleteDateList(finalList)
+    if(finalList.size() == daysInYear) return    // If all days, return
+    
+    return finalList
+}
+
+def cleanDateString(dateString){
+    if(!dateString) return
+    dateString = dateString.replaceAll("\\\\", "/")
+    dateString = dateString.replaceAll("\\s","")
+    return dateString
+}
+
+def processDateStringIndividual(dateString, appId, processErrors){
+    if(dateString.contains('-')) return
+    
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    // Check for ddd format
+    if (dateString.matches('\\d{1,3}')) {
+        returnDate = Date.parse('D yyyy', dateString + ' ' + currentYear)
+        if(dateString.toInteger() == returnDate.format('D').toInteger()) return returnDate
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid date dateString = ' + dateString + ' resolves to ' + dateValue + '<br>'
+        return
+    }
+    if(!dateString.contains('/') && !dateString.contains('.')){
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid2 date "' + dateString + '".<br>'
+        return
+    }
+    // Convert m/d, d.m/yy, etc to mm/dd/yyyy
+    dateValueParts = dateString.split('/').toList()
+    if(dateValueParts.size() > 3) {
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid3 date "' + dateString + '".<br>'
+        return
+    }
+    if(dateValueParts.size() < 2) {
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid4 date "' + dateString + '".<br>'
+        return
+    }
+    dateValueParts[0] = ('0' + dateValueParts[0])[-2..-1]
+    dateValueParts[1] = ('0' + dateValueParts[1])[-2..-1]
+    if (dateValueParts.size() > 2) dateValueParts[2] = dateValueParts[2][-4..-1]
+    if(dateValueParts.size() < 3){
+        [dateValueParts].flatten().findAll { it != null }       // Convert array to list
+        dateValueParts.add(2)           // Add another element (do we need this with a list?)
+        dateValueParts[2] = currentYear
+    }
+    if(dateString.contains('/')) returnDate = dateValueParts[0] + '/' + dateValueParts[1] + '/' + dateValueParts[2]
+    if(dateString.contains('.')) returnDate = dateValueParts[1] + '/' + dateValueParts[0] + '/' + dateValueParts[2]
+
+    if(returnDate == Date.parse('MM/dd/yyyy', returnDate).format('MM/dd/yyyy')) return Date.parse('MM/dd/yyyy', returnDate)
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid5 date "' + dateString + '".<br>'
+    return returnDate
+}
+
+def processDateStringRange(dateString, appId, processErrors){
+    if(!dateString.contains('-')) return
+    
+    dates = dateString.split('-')
+    if(dates.size() != 2) {
+        if(processErrors) atomicState.dateProcessingErrors += 'WARNING: Invalid1 date "' + dateString + '".<br>'
+        return
+    }
+
+    listOfDays = []
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    firstDate = processDateStringIndividual(dates[0], appId, processErrors)
+    secondDate = processDateStringIndividual(dates[1], appId, processErrors)
+    if(dates[0].length() < 6 && dates[1].length() < 6) {
+        if(firstDate > secondDate) {
+            numberDaysInYear = new Date(currentYear, 11, 31).format('D').toInteger()
+            start = firstDate.format('D').toInteger()
+            end = numberDaysInYear
+            while (start <= end) {
+                listOfDays.add(start)
+                start++
+            }
+            start = 1
+            end = secondDate.format('D').toInteger()
+            while (start <= end) {
+                listOfDays.add(start)
+                start++
+            }
+            return listOfDays
+        }
+    }
+
+    if(dates[0].length() > 5 && dates[1].length() < 6) {
+        firstYear = processDateStringIndividual(dates[0], appId, processErrors).format('yyyy').toInteger()
+        secondYear = processDateStringIndividual(dates[1], appId, processErrors).format('yyyy').toInteger()
+        yearDifference = secondYear - firstYear
+        firstDate = Date.parse('MM/dd/yyyy', firstDate.format('MM/dd/yyyy').replaceAll('\\d{4}$', (firstDate.format('yyyy').toInteger() + yearDifference).toString()))
+    }
+    if(dates[0].length() < 6 && dates[1].length() > 5) {
+        firstYear = processDateStringIndividual(dates[0], appId, processErrors).format('yyyy').toInteger()
+        secondYear = processDateStringIndividual(dates[1], appId, processErrors).format('yyyy').toInteger()
+        yearDifference = firstYear - secondYear
+        secondDate = Date.parse('MM/dd/yyyy', secondDate.format('MM/dd/yyyy').replaceAll('\\d{4}$', (secondDate.format('yyyy').toInteger() + yearDifference).toString()))
+    }
+    if(firstDate > secondDate){
+        if(processErrors) state.dateProcessingErrors += 'Error: firstDate is greater than secondDate with "' + dateString + '".</br>'
+        return
+    }
+    // here, change years if dates[0].length() < 6 && dates[1].length() < 6 and firstDate > secondDate
+    while (firstDate <= secondDate) {
+        if(firstDate.format('yyyy').toInteger() == currentYear) listOfDays.add(firstDate.format('D').toInteger())
+        firstDate = firstDate.plus(1)
+    }
+    
+    return listOfDays
+}
+
+def getDateProcessingErrors(appId){
+    returnValue = atomicState.dateProcessingErrors     // Need to add appId to the atomicState
+    atomicState.remove('dateProcessingErrors')
+    return returnValue
+}
+
+def checkDateInDayList(dateValue,childLabel='Master'){
+    if(!settings['days']) return true
+    
+    dateFormat = new java.text.SimpleDateFormat('EEEE')
+    dateFormat.setTimeZone(location.timeZone)
+    testDay = dateFormat.format(Date.parse('D', dateValue.toString()))
+    if(settings['days'].contains(testDay)) return true
+}
+
+def cleanCompleteDateList(dateList){
+    if(!dateList) return
+    filteredDateList = []
+    dateList.each { value ->
+        if(value){
+            if (checkDateInDayList(value)) filteredDateList.add(value)
+        }
+    }
+    if(!filteredDateList) return
+    dateList = filteredDateList.unique().sort()
+    return dateList
+}
+
 // Returns true if today is in $days map
 // Returns true for null values
 def checkNowInDayList(days,childLabel='Master'){
@@ -719,15 +867,6 @@ def checkNowInDayList(days,childLabel='Master'){
     dateFormat.setTimeZone(location.timeZone)
     dayToday = dateFormat.format(new Date())
     if(days.contains(dayToday)) return true
-}
-
-// Returns true if today is in $months map
-// Returns true for null values
-def checkNowInMonthList(months,childLabel='Master'){
-    if(!months) return true
-
-    monthToday = new Date().getMonth() + 1
-    if(months.contains(monthToday.toString())) return true
 }
 
 // Checks if current datetime is beteeen two datetimes
@@ -819,7 +958,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(813,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(961,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -895,7 +1034,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(889,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(1037,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
     oldLevel = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
@@ -903,7 +1042,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
 
     if(checkIsFan(singleDevice)) singleDevice.setSpeed(newLevel)
     if(!checkIsFan(singleDevice)) singleDevice.setLevel(newLevel)
-    putLog(896,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(1045,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -924,14 +1063,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
         if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime' < now()) newLevel = null    //If from expired schedule, it doesn't count
     }
     if(!newLevel) {
-        putLog(918,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(1066,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(925,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(1073,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -953,7 +1092,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(946,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(1095,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -978,7 +1117,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(972,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(1120,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -995,12 +1134,12 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(989,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(1137,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         singleDevice.off()
-        putLog(994,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(1142,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -1065,7 +1204,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(1059, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(1207, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -1080,12 +1219,12 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(1074,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(1222,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
 
-def _getNextLevelDimmable(singleDevice, action, childLabel='Master'){
+def _getNextLevelDimmable(singleDevice, action, dimFactor = 1.61,childLabel='Master'){
     if(checkIsFan(singleDevice,childLabel)) return _getNextLevelFan(singleDevice,action,childLabel)
     if(!checkIsDimmable(singleDevice,childLabel)) return
     if(action != 'dim' && action != 'brighten') return
@@ -1093,26 +1232,18 @@ def _getNextLevelDimmable(singleDevice, action, childLabel='Master'){
     if(!atomicState.'devices'."${singleDevice.id}"?.'brightness'?.'currentLevel') level = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
 
     newLevel = level
-    if(level < 1) level = 1
-    if(level > 100) level = 100
     if(action == 'dim' && level < 2) return
     if(action ==  'brighten' && level > 99) return
-    childApps.find {Child->
-        if(Child.id == appId) dimSpeed = Child.getDimSpeed()
-    }
-    if(!dimSpeed){
-        dimSpeed = 1.2
-    }
 
     oldLevel = level
     if (action == 'dim'){
-        newLevel = Math.round(convertToInteger(level) / dimSpeed)
-        if (newLevel == level) newLevel = newLevel - 1
+        newLevel = Math.round(convertToInteger(level) / dimFactor)
+        if (newLevel == level) newLevel -= 1
         if(newLevel < 1) newLevel = 1
     }
     if (action == 'brighten'){
-        newLevel = Math.round(convertToInteger(level) * dimSpeed)
-        if (newLevel == level) newLevel = newLevel + 1
+        newLevel = Math.round(convertToInteger(level) * dimFactor)
+        if (newLevel == level) newLevel++
         if(newLevel > 100) newLevel = 100
     }
 
@@ -1195,7 +1326,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1143,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1329,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1209,12 +1340,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1157,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1343,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1162,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1348,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1223,7 +1354,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1171,'debug',message + mode,childLabel,'True')
+    putLog(1357,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1232,14 +1363,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1180,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1366,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1187,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1373,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1248,7 +1379,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1196,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1382,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
