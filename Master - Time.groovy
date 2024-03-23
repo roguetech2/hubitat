@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.20
+*  Version: 0.7.2.21
 *
 ***********************************************************************************************************************/
 
@@ -66,9 +66,10 @@ def displayError(text,noDisplayIcon = null, width=12){
 }
 
 def displayWarning(text,noDisplayIcon = null, width=12){
+
     if(!text) return
     if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
     warningMessage = ''
 }
 
@@ -94,10 +95,14 @@ preferences {
     page(name: 'setup', install: install, uninstall: true) {
         if(!app.label){
             section(){
+                //displayTutorialModeOption()
                 displayNameOption()
+                //displayPresetsOption()
             }
         } else {
             if(!settings) settings = [:]
+
+            processDates()
 
             deviceCount = getDeviceCount(device)
             peopleError = compareDeviceLists(personHome,personNotHome)
@@ -109,17 +114,22 @@ preferences {
             
             section(){
                 displayNameOption()
+                displayTutorialModeOption()
+                displayPresetsOption()
                 displayDevicesTypes()
                 displayDevicesOption()
                 displayDisableOption()
             }
             
             displayScheduleSection()
+            displayDaysAndDatesSection()
+            section(){}
             displayActionOption()
             displayLevelsOption('brightness')
             displayLevelsOption('temp')
             displayColorOption()
             displayChangeModeOption()
+            section(){}
             displayPeopleOption()
             displayIfModeOption()
         }
@@ -203,6 +213,14 @@ def getDevicePlural(){
     if(settings['deviceType'] == 'fan') return 'fan'
 }
 
+def displayTutorialModeOption(){
+    fieldName = 'tutorialMode'
+    fieldTitle = '<b>Tutorial Mode is off.</b> Click to turn it on.'
+    if(!fieldName) fieldTitle = '<b>Tutorial Mode is on.</b> Click to turn it off.'
+    if(!app.label) fieldTitle = highlightText('Enable Tutorial Mode?')
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'bool', title: fieldTitle, submitOnChange:true
+}
 def displayNameOption(){
     labelText = 'Schedule name'
     labelWidth = 2
@@ -214,8 +232,27 @@ def displayNameOption(){
     if(app.label) label title: '', required: false, width: labelWidth,submitOnChange:true
     if(!app.label) {
         label title: '', required: false, width: labelWidth, submitOnChange:true
-        displayInfo('Name this schedule. Each schedule must have a unique name.')
+        if(tutorialMode) displayInfo('Name this schedule. Each schedule must have a unique name, but it non-unique names will <u>not</u> generate an explicite error. Note: It will be appended with "Time -", so "testing" will become "Time - testing".')
     }
+}
+
+def displayPresetsOption(){
+    if(!tutorialMode) return
+    if(deviceType) return
+    fieldName = 'preset'
+    fieldTitle = 'For instructions, select a preset (optional):'
+    fieldOptions = ['1':'Set a porch light to turn on at sunset and off at sunrise',
+        '2':'Set room lights to turn on and get dimmer as it gets later in the evening',
+        '3':'Set room lights to be dimmer as it gets later in the evening, when and if they are turned on',
+        '4':'Set lights to turn off at night',
+        '5':'Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)',
+        '6':'Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those dates)',
+        '7':'Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)',
+        '8':'Turn on certain devices when someone arrives, within a certain time (or any time, by setting start time the same as stop time)',
+        '9':'Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)',
+        '10':'Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).']
+        
+    input fieldName, 'enum', title: fieldTitle, options: fieldOptions, multiple: false, submitOnChange:true
 }
 
 def displayDevicesTypes(){
@@ -235,7 +272,7 @@ def displayDevicesTypes(){
 def displayDevicesOption(){
     if(!settings['deviceType']) return
 
-    capability = 'capability.switchLevel'
+    capability = 'capability.switch'
     if(settings['deviceType'] == 'light') capability = 'capability.switchLevel'
     if(settings['deviceType'] == 'fan') capability = 'capability.fanControl'
     if(settings['deviceType'] == 'lock') capability = 'capability.lock'
@@ -244,7 +281,7 @@ def displayDevicesOption(){
     fieldTitle = pluralDevice.capitalize() + ' to schedule (click to select)?'
     if(settings[fieldName]) fieldTitle = pluralDevice.capitalize() + ' being scheduled:'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldCapability = 'capability.switchLevel'
+    fieldCapability = 'capability.switch'
     if(settings['deviceType'] == 'light') fieldCapability = 'capability.switchLevel'
     if(settings['deviceType'] == 'fan') fieldCapability = 'capability.fanControl'
     if(settings['deviceType'] == 'lock') fieldCapability = 'capability.lock'
@@ -254,7 +291,7 @@ def displayDevicesOption(){
 def displayDisableOption(){
     if(!install) return
     fieldName = 'disable'
-    fieldTitle = fieldTitle = 'This schedule is disabled. Reenable it?'
+    fieldTitle = 'This schedule is disabled. Reenable it?'
     if(!settings[fieldName]) fieldTitle = 'This schedule is enabled. Disable it?'
     if(settings[fieldName]) displayError(fieldTitle,'True')
     fieldTitle = addFieldName(fieldTitle,fieldName)
@@ -294,12 +331,6 @@ def displayScheduleSection(){
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    List monthList=[]
-    settings['months'].each{
-        monthList.add(Date.parse('MM',it).format('MMMM'))
-
-    }
-    monthText = monthList.join(', ')
     hidden = true
 
     if(!settings['stop_timeType']) hidden = false
@@ -317,16 +348,16 @@ def displayScheduleSection(){
         displayTypeOption('stop')
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
-        displayDaysOption()
-        displayMonthsOption()
+        //displayDaysOption()
+        //displayDatesOptions()
         if(validateTimes('start') && checkIfStopTimeEnetered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop')) displayInfo('Stop time is before start time, which is perfectly fine, but stop time will be assumed to be the next day (i.e. the duration of this schedule will be approximately ' + Math.round((getBaseStartStopTimes('stop') + parent.CONSTDayInMilli() - getBaseStartStopTimes('start')) / parent.CONSTHourInMilli()) + ' hours).')
         if(validateTimes('start') && checkIfStopTimeEnetered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop') && settings['days']) displayInfo('Every schedule that starts will stop, even if the stop day falls on a day not permitted. For instance, if scheduled for only Mondays and the stop time falls on the next day, stop actions/levels will still be set.')
-        if(validateTimes('start') && checkIfStopTimeEnetered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop') && settings['months']) displayInfo('Every schedule that starts will stop, even if the stop day is in a month not permitted. For instance, if scheduled starts on the last day of an allowed month and the stop time falls in the next month, stop actions/levels will still be set.')
+        if(validateTimes('start') && checkIfStopTimeEnetered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop')) displayInfo('Every schedule that starts will stop, even if the stop day is in a month not permitted. For instance, if scheduled starts on the last day of an allowed month and the stop time falls in the next month, stop actions/levels will still be set.')
     }
 }
 
 def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set times (optional)'
 
     if(settings['start_timeType']) sectionTitle = '<b>Starting: '
     if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
@@ -339,11 +370,9 @@ def getTimeSectionTitle(){
         if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
     }
 
-    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
-    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
-    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + displayTextField
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
+    if(!settings['days']) sectionTitle += moreOptions
     
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
@@ -457,6 +486,24 @@ def displaySunriseOffsetOption(startType){
     if(!validateSunriseMinutes(startType)) displayWarning(message)
 }
 
+def displayDaysAndDatesSection()
+{
+
+        hidden = true
+
+    if(!settings['stop_timeType']) hidden = false
+    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(settings['disable']) hidden = true
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
+
+    sectionTitle = 'Click to set days/dates (optional)'
+    section(hideable: true, hidden: hidden, sectionTitle){
+
+    displayDaysOption()
+    displayDatesOptions()
+    }
+}
 def displayDaysOption(){
     if(!settings['start_timeType']) return
     if(!validateTimes('start')) return
@@ -469,15 +516,48 @@ def displayDaysOption(){
     input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
-def displayMonthsOption(){
-    if(!settings['start_timeType']) return
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-    
-    fieldName = 'months'
-    fieldTitle = 'In these months (optional; defaults to all months):'
+def displayDatesOptions(){
+    displayIncludeDates()
+    displayExcludeDates()
+}
+
+def displayIncludeDates(){
+    displayWarning(parent.getDateProcessingErrors(app.id))
+    displayInfo(dateList)
+    fieldName = 'includeDates'
+    fieldTitle = 'Dates on which to run ("include"):'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+
+}
+
+def displayExcludeDates(){
+    fieldName = 'excludeDates'
+    fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+    infoTip = 'Enter which date(s) to limit or exclude. Included dates are when the routine will run, for instance only on certain holidays. Excluded dates will prevent it from running, for instance \
+every day <i>except</i> holidays. Rules:\n\
+	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
+<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur, because it already has.</i>\n\
+	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas can be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years].</i>\n\
+	• Separate multiple dates with a comma (or semicolon). \
+<i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
+	• Use a hyphen to indicate a range of dates. \
+<i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
+    	• The "days" options above will combine with the dates. \
+<i>Example: Selecting Monday and entering "12/25" as an included date would only trigger if Christmas is on a Monday.</i>\n\
+	• Leap years count. \
+<i>Example: Entering "2/29" (or "366") would only trigger on leap years.</i>\n\
+	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with rangesranges. And the order doesn\'t matter. \
+<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '".</i>\n\
+	• If a date is listed as both Included and Excluded, it will be treated as Excluded.\n\
+	• To do Feb. 29, ignore the warning (on non-leap years). To do all of Febraury, enter "2/1-2/28, 2/29".'
+
+displayInfo(infoTip)
+    
+// Add error message for no dates
 }
 
 def displayActionOption(){
@@ -896,7 +976,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(899,'trace',app.label + ' initializing.')
+    putLog(979,'trace',app.label + ' initializing.')
     if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
     if(settings['stop_temp'] == 0) settings['stop_temp'] = null
     if(settings['stop_hue'] == 0) settings['stop_hue'] = null
@@ -928,7 +1008,7 @@ def initialize() {
     if(parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)) setStartSchedule()
     setStopSchedule()
 
-    putLog(931,'info',app.label + ' initialized.')
+    putLog(1011,'info',app.label + ' initialized.')
     return true
 }
 
@@ -978,14 +1058,10 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(981,'info',app.label + ' schedule has started.')
+    putLog(1061,'info',app.label + ' schedule has started.')
     if(settings['disabled']) return
     
-    if(!parent.checkNowInDayList(settings['days'],app.Label)) {
-        setStartSchedule()
-        return
-    }
-    if(!parent.checkNowInMonthList(settings['months'],app.Label)) {
+    if(!checkIncludeDates()) {
         setStartSchedule()
         return
     }
@@ -1023,7 +1099,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1026,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1102,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
 }
@@ -1031,7 +1107,7 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(1034,'info',app.label + ' schedule has ended.')
+    putLog(1110,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -1052,7 +1128,7 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(1055,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(1131,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['device'],app.label)
     atomicState.startTime = null        // Set to null to prevent runIncremental from running
@@ -1084,11 +1160,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(1087,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(1163,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(1091,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(1167,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['device'], app.label)
     if(anyDevicesChanged) {
@@ -1228,6 +1304,14 @@ def getIncrementalLevelSingle(singleDevice,type){
     
     return resultLevel
 }
+def processDates(){
+    atomicState.remove('includeDates')
+    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    includeDatesValue = settings['includeDates']
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
 
 def getActive(){
     if(settings['disabled']) return
@@ -1243,6 +1327,11 @@ def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null)
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
+    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+}
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
