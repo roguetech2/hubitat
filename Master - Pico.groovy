@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.9
+*  Version: 0.6.2.10
 *
 ***********************************************************************************************************************/
 
@@ -53,7 +53,7 @@ def getLogLevel(){
 
 def displayLabel(text, width = 12){
     if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + ':</b></div>',width:width)
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
 }
 
 def displayInfo(text,noDisplayIcon = null, width=12){
@@ -73,7 +73,7 @@ def displayError(text,noDisplayIcon = null, width=12){
 def displayWarning(text,noDisplayIcon = null, width=12){
     if(!text) return
     if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
     warningMessage = ''
 }
 
@@ -125,6 +125,7 @@ preferences {
                 displayNameOption()
             }
         } else {
+            processDates()
             //if(device) numberOfButtons = getButtonNumbers()
             // Multi + advanced needs section closed
             if(settings['multiDevice'] && settings['customActionsSetup']){
@@ -593,29 +594,18 @@ def getAdvancedSwitchInput(values,populated = null){
     fieldName = 'button_' + values[0] + '_' + values[2] + '_' + values[1]
     fieldTitle = ''
     if(populated) text += '<b>'
-    if(values[1] == 'on'){
-        fieldTitle += 'Turns On'
-    } else if(values[1] == 'off'){
-        fieldTitle += 'Turns Off'
-    } else if(values[1] == 'toggle'){
-        fieldTitle += 'Toggles (if on, turn off; if off, turn on)'
-    } else if(values[1] == 'dim'){
-        fieldTitle += 'Dims'
-    } else if(values[1] == 'brighten'){
-        fieldTitle += 'Brightens'
-    } else if(values[1] == 'resume'){
-        fieldTitle += 'Resume schedule(s) (if none, turn off)'
-    }
-    if(populated) {
-        fieldTitle += '</b>'
-    } else {
-        fieldTitle += ' <font color="gray">(Select devices)</font>'
-    }
-    if(values[1] == 'dim' || values[1] == 'brighten'){
-        switchType = 'switchLevel'
-    } else {
-        switchType = 'switch'
-    }
+    if(values[1] == 'on') fieldTitle += 'Turns On'
+    if(values[1] == 'off') fieldTitle += 'Turns Off'
+    if(values[1] == 'toggle') fieldTitle += 'Toggles (if on, turn off; if off, turn on)'
+    if(values[1] == 'dim') fieldTitle += 'Dims'
+    if(values[1] == 'brighten') fieldTitle += 'Brightens'
+    if(values[1] == 'resume') fieldTitle += 'Resume schedule(s) (if none, turn off)'
+
+    if(populated) fieldTitle += '</b>'
+    if(!populated) fieldTitle += ' <font color="gray">(Select devices)</font>'
+
+    if(values[1] == 'dim' || values[1] == 'brighten') switchType = 'switchLevel'
+    if(values[1] != 'dim' && values[1] != 'brighten') switchType = 'switch'
     input fieldName, 'capability.' + switchType, title: addFieldName(fieldTitle,fieldName), multiple: true, submitOnChange:true
 }
 
@@ -631,37 +621,41 @@ def displaySelectActionsButtonOption(number,text,action = 'push'){
     input fieldName, 'enum', title: addFieldName(fieldTitle,fieldName), multiple: false, options: ['brighten':'brighten','dim':'dim','on':'Turn on', 'off':'Turn off', 'resume': 'Resume schedule (if none, turn off)', 'resume':'resume'], submitOnChange:true
 }
 
-/* ************************************************************************ */
-/* TO-DO: Convert from a "multiplier" to using a "percentage", for user     */
-/* ease.                                                                    */
-/* ************************************************************************ */
 def displayDimmingProgressionOption(hold = false){
-    displayLabel('Set dim and brighten speed')
-    displayDimmingProgressionMessage()
-    pushedFieldName = 'pushedDimmingProgressionSteps'
-    pushedFieldTitle = '<b>Dim/brighten steps.</b> (Optional. Default 8.)'
-    heldFieldName = 'heldDimmingProgressionSteps'
-    heldFieldTitle = '<b>Hold steps.</b> (Optional. Default 20.)'
+    if(!button_1_push_dim && !button_1_push_brighten && !button_2_push_dim && !button_2_push_brighten && !button_3_push_dim && !button_3_push_brighten && !button_4_push_dim && 
+        !button_4_push_brighten && !button_5_push_dim && !button_5_push_brighten && !button_1_hold_dim && !button_1_hold_brighten && !button_2_hold_dim && !button_2_hold_brighten && 
+        !button_3_hold_dim && !button_3_hold_brighten && !button_4_hold_dim && !button_4_hold_brighten && !button_5_hold_dim && !button_5_hold_brighten) return
     
-    if(hold){
-        if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
-            if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-                input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
-                input heldFieldName, 'number', title: addFieldName(heldFieldTitle,heldFieldName), width: 6
-            } else {
-                input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
-            }
-        } else if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input heldFieldName, 'number', title: addFieldName(heldFieldTitle,heldFieldName), width: 12
+
+    if(button_1_push_dim || button_1_push_brighten || button_2_push_dim || button_2_push_brighten || button_3_push_dim || button_3_push_brighten || button_4_push_dim || button_4_push_brighten || button_5_push_dim || button_5_push_brighten){
+        width = 10
+        fieldName = 'pushedDimmingProgressionSteps'
+        fieldTitle = 'Enter dimming steps for pushed (optional, default 8):'
+        if(settings[fieldName]) fieldTitle = 'Pushed dimming steps:'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        if(settings[fieldName]) displayLabel(fieldTitle,2)
+        if(!settings[fieldName]) {
+            displayLabel(highlightText(fieldTitle))
+            width = 12
         }
-    } else {
-        pushedFieldTitle = 'Progressive brighten/dim steps? (Optional. Default 8.)'
-        if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
-            input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 6
-        } else {
-            input pushedFieldName, 'number', title: addFieldName(pushedFieldTitle,pushedFieldName), width: 12
-        }
+        input fieldName, 'number', title: '', width:width,submitOnChange:true
     }
+
+    if(button_1_hold_dim || button_1_hold_brighten || button_2_hold_dim || button_2_hold_brighten || button_3_hold_dim || button_3_hold_brighten || button_4_hold_dim || button_4_hold_brighten || button_5_hold_dim || button_5_hold_brighten){
+        width = 10
+        fieldName = 'heldDimmingProgressionSteps'
+        fieldTitle = 'Enter dimming steps for held (optional, default 20):'
+        if(settings[fieldName]) fieldTitle = 'Help dimming steps:'
+        fieldTitle = addFieldName(fieldTitle,fieldName)
+        if(settings[fieldName]) displayLabel(fieldTitle,2)
+        if(!settings[fieldName]) {
+            displayLabel(highlightText(fieldTitle))
+            width = 12
+        }
+        input fieldName, 'number', title: '', width:width,submitOnChange:true
+    }
+
+    displayInfo('This sets how many steps it takes to brighten from 1 to 100% (or vice versa), using a geometric progression. For instance, 10 steps would be: 2, 4, 7, 11, 17, 25, 36, 52, 74, 100.')
 }
 
 def displayDimmingProgressionMessage(){
@@ -677,16 +671,10 @@ def compareDeviceLists(values,compare){
     settings['button_' + values[0] + '_' + values[2] + '_' + values[1]].each{first->
         settings['button_' + values[0] + '_' + values[2] + '_' + compare].each{second->
             if(first.id == second.id) {
-                if(compare == 'on' || compare == 'off'){
-                    text1 = 'turn ' + compare
-                } else {
-                    text1 = compare
-                }
-                if(values[1] == 'on' || values[1] == 'off'){
-                    text2 = 'turn ' + values[1]
-                } else {
-                    text2 = values[1]
-                }
+                if(compare == 'on' || compare == 'off') text1 = 'turn ' + compare
+                if(compare != 'on' && compare != 'off') text1 = compare
+                if(values[1] == 'on' || values[1] == 'off') text2 = 'turn ' + values[1]
+                if(values[1] != 'on' && values[1] != 'off') text2 = values[1]
                 returnText = 'Can\'t set same button to ' + text1 + ' and ' + text2 + ' the same device.'
             }
         }
@@ -720,12 +708,6 @@ def displayScheduleSection(){
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    List monthList=[]
-    settings['months'].each{
-        monthList.add(Date.parse('MM',it).format('MMMM'))
-
-    }
-    monthText = monthList.join(', ')
     
     hidden = true
     if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
@@ -744,12 +726,12 @@ def displayScheduleSection(){
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
         displayDaysOption()
-        displayMonthsOption()
+        displayDatesOptions()
     }
 }
 
 def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days'] && !settings['months']) return 'Click to set schedule (optional)'
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set schedule (optional)'
 
     if(settings['start_timeType']) sectionTitle = '<b>Starting: '
     if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
@@ -763,10 +745,8 @@ def getTimeSectionTitle(){
     }
 
     if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
-    if(settings['start_timeType'] && settings['months'] && settings['days']) sectionTitle += ';'
-    if(settings['start_timeType'] && settings['months']) sectionTitle += ' in ' + monthText
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days'] || !settings['months']) sectionTitle += moreOptions
+    if(!settings['days']) sectionTitle += moreOptions
     
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
@@ -891,15 +871,46 @@ def displayDaysOption(){
     input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
-def displayMonthsOption(){
-    if(!settings['start_timeType']) return
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-    
-    fieldName = 'months'
-    fieldTitle = 'In these months (optional; defaults to all months):'
+def displayDatesOptions(){
+    displayIncludeDates()
+    displayExcludeDates()
+}
+
+def displayIncludeDates(){
+    displayWarning(parent.getDateProcessingErrors(app.id))
+    displayInfo(dateList)
+    fieldName = 'includeDates'
+    fieldTitle = 'Dates on which to run ("include"):'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May', '6': 'June', '7': 'July', '8': 'August', '9': 'September', '10': 'October', '11': 'November', '12': 'December'], submitOnChange:true
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+
+}
+
+def displayExcludeDates(){
+    fieldName = 'excludeDates'
+    fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+    infoTip = 'Enter which date(s) to limit or exclude. Included dates are when the routine will run, for instance only on certain holidays. Excluded dates will prevent it from running, for instance \
+every day <i>except</i> holidays. Rules:\n\
+	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
+<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur, because it already has.</i>\n\
+	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas can be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years].</i>\n\
+	• Separate multiple dates with a comma (or semicolon). \
+<i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
+	• Use a hyphen to indicate a range of dates. \
+<i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
+    	• The "days" options above will combine with the dates. \
+<i>Example: Selecting Monday and entering "12/25" as an included date would only trigger if Christmas is on a Monday.</i>\n\
+	• Leap years count. \
+<i>Example: Entering "2/29" (or "366") would only trigger on leap years.</i>\n\
+	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with rangesranges. And the order doesn\'t matter. \
+<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '".</i>\n\
+	• If a date is listed as both Included and Excluded, it will be treated as Excluded.\n\
+	• To do Feb. 29, ignore the warning (on non-leap years). To do all of Febraury, enter "2/1-2/28, 2/29".'
+
+displayInfo(infoTip)
 }
 
 def displayIfModeOption(){
@@ -1013,13 +1024,13 @@ def displayChangeModeOption(){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1016,'trace', 'Installed')
+    putLog(1027,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1022,'trace','Updated')
+    putLog(1033,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1036,17 +1047,17 @@ def initialize() {
     pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(settings['pushedDimmingProgressionSteps'])
     heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(settings['heldDimmingProgressionSteps'])
     atomicState.heldDimmingProgressionFactor = heldDimmingProgressionFactor
-    putLog(1039,'info','Brightening/dimming progression factor set: held = ' + atomicState.heldDimmingProgressionFactor + '; push ' + pushedDimmingProgressionFactor + 'settings[dimmingProgressionSteps].')
+    atomicState.pushedDimmingProgressionFactor = pushedDimmingProgressionFactor
+    putLog(1051,'info','Brightening/dimming progression factor set: held = ' + atomicState.heldDimmingProgressionFactor + '; push ' + pushedDimmingProgressionFactor + 'settings[dimmingProgressionSteps].')
 
     setTime()
 
-    putLog(1043,'trace','Initialized')
+    putLog(1055,'trace','Initialized')
 }
 
 def buttonPushed(evt){
     // If not correct day, return nulls
-    if(!parent.checkNowInDayList(settings['days'],app.label)) return
-    if(!parent.checkNowInMonthList(settings['months'],app.label)) return
+    if(!checkIncludeDates()) return
 
     // if not between start and stop time, return nulls
     if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
@@ -1057,7 +1068,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') atomicState.action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1060,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1071,'trace',atomicState.action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     switchActions = ['on', 'brighten', 'dim', 'off', 'resume', 'toggle']
 
@@ -1066,14 +1077,14 @@ def buttonPushed(evt){
         device.each{singleDevice->
             
             // need to get nextLevel here
-            if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, app.label)
+            if(atomicState.action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction, atomicState.pushDimmingProgressionFactor, app.label)
             levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
             
             stateMap = parent.getStateMapSingle(singleDevice,switchAction,app.id,app.label)       // on, off, toggle
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(1069,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(1087,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1093,7 +1104,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1096,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1107,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1120,17 +1131,6 @@ def getControlDeviceFromButton(action,buttonNumber){
     if(settings['customActionsSetup'] && settings['button_' + buttonNumber + '_' + atomicState.action] == action) return settings['controlDevice']
     if(!switchActionToButtonNumber[action]) return
     if(!settings['customActionsSetup'] && buttonNumber == switchActionToButtonNumber[action]) return settings['controlDevice']
-}
-/* ************************************************************************ */
-/* TO-DO: Retest "multiplier" functionality (also in MagicCube). Make sure  */
-/* it's implemented in the UI, and it carries through in the logic. Also    */
-/* rename the variables. "Multiplier" is just stupid. And change it to a    */
-/* "percentage" for user ease.                                                */
-/* ************************************************************************ */
-def getDimSpeed(){
-    if(atomicState.action == 'push') return pushMultiplier
-    if(atomicState.action == 'hold' &&  holdMultiplier) return holdMultiplier
-    if(atomicState.action == 'hold' &&  pushMultiplier) return pushMultiplier
 }
 
 // This is the schedule function that sets the level for progressive dimming
@@ -1172,7 +1172,7 @@ def holdNextLevelMulti(multiDevice,action){
 // Has to be in child app for schedule
 def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.label)) return
-    level = parent._getNextLevelDimmable(singleDevice, action, app.label)
+    level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
     if(!level) return
     levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
     parent.mergeMapToTable(singleDevice.id,levelMap,app.label)
@@ -1235,6 +1235,19 @@ def getDisabled(){
     return false
 }
 
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
+    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+}
+def processDates(){
+    atomicState.remove('includeDates')
+    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    includeDatesValue = settings['includeDates']
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
