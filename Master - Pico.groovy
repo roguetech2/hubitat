@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.12
+*  Version: 0.6.2.13
 *
 ***********************************************************************************************************************/
 
@@ -981,7 +981,6 @@ def checkAnyDeviceSet(){
 }
 
 def resetDevices(){
-    newVar = []
     // Repeat for push/hold
     for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){
         pushType = 'push'
@@ -990,10 +989,12 @@ def resetDevices(){
             actionMap.each{it->
                 app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action')
                 if(!checkIfShowButton(buttonNumber)) return true
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == it.'action' && settings['controlDevice'].size() < 2){
+                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == it.'action'){
                     app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', [type: "capability.switch", value: settings['controlDevice']])
                 }
-                if(settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action'] && settings['controlDevice'].size() > 1){
+
+                if(settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']){
+                    newVar = []
                     settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action'].each{buttonId->
                         settings['controlDevice'].find{singleDevice->
                             if(singleDevice.id == buttonId){
@@ -1001,7 +1002,7 @@ def resetDevices(){
                             }
                         }
                     }
-                   // app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', [type: "capability.switch", value: newVar])
+                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', [type: "capability.switch", value: newVar])
                 }
             }
         }
@@ -1096,13 +1097,13 @@ def displayDeviceSelectionField(fieldName,fieldTitle,capability,multiple){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1099,'trace', 'Installed')
+    putLog(1100,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1105,'trace','Updated')
+    putLog(1106,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1121,11 +1122,11 @@ setControlDevice()
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1124,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(1125,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1128,'trace','Initialized')
+    putLog(1129,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1141,7 +1142,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') action = 'push'
     if(evt.name == 'held') atomicState.action = 'hold'
     
-    putLog(1144,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1145,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap()
 
@@ -1157,7 +1158,7 @@ def buttonPushed(evt){
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(1160,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(1161,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1174,7 +1175,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1177,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1178,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1202,7 +1203,7 @@ def setControlDevice(){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1205,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1206,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1261,7 +1262,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1264,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1265,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1271,7 +1272,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1274,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1275,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
