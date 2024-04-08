@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.13
+*  Version: 0.6.2.14
 *
 ***********************************************************************************************************************/
 
@@ -103,10 +103,12 @@ preferences {
     if(device) numberOfButtons = getButtonNumbers()
     buttonMap = buildButtonMap()
     actionMap = buildActionMap()
+    resetDevices()
+    anyErrors = checkAnyErrors()
     install = formComplete()
+    appDescription = 'Pico'        // Used with schedule, people, ifMode
 
     page(name: 'setup', install: install, uninstall: true) {
-        // display Name
         if(!app.label){
             section(){
                 displayNameOption()
@@ -117,6 +119,7 @@ preferences {
                 displayNameOption()
                 displayPicoOption()
                 displayAdvancedOption()
+                displayControlDeviceTypeOption()
                 displayControlDeviceOption()
                 displayCustomActionsOption()
             }
@@ -131,7 +134,6 @@ preferences {
     }
 }
 
-
 def formComplete(){
     if(!app.label) return false
     if(!settings['device']) return false
@@ -144,8 +146,37 @@ def formComplete(){
     if((inputStopType == 'sunrise' || inputStopType == 'sunset') && !inputStopSunriseType) return false
     if((inputStartSunriseType == 'before' || inputStartSunriseType == 'after') && !inputStartBefore) return false
     if((inputStopSunriseType == 'before' || inputStopSunriseType == 'after') && !inputStopBefore) return false
-
+    if(anyErrors) return false
     return true
+}
+
+def checkAnyErrors(){
+    anyErrors = false
+        fieldOptions = [:]
+        actionMap.each{it->
+            fieldOptions[it.'action'] = it.'actionText'.capitalize()
+    }
+    for(int buttonMapNumber = 0; buttonMapNumber < buttonMap.size(); buttonMapNumber++){
+        if(anyErrors) continue
+        if(!checkIfShowButton(buttonMapNumber)) continue
+        
+        actionMap.any{it->
+            setErrors = displayCustomizeActionsAndDevicesErrors(buttonMapNumber,fieldOptions, it.'action', 'push')
+            if(!anyErrors && setErrors) {
+                anyErrors = true
+                return true
+            }
+        }
+        fieldOptions = setActionsPerButton(buttonMapNumber,'hold')
+        actionMap.any{it->
+            setErrors = displayCustomizeActionsAndDevicesErrors(buttonMapNumber,fieldOptions, it.'action', 'hold')
+            if(!anyErrors && setErrors) {
+                anyErrors = true
+                return true
+            }
+        }
+    }
+    return anyErrors
 }
 
 def displayNameOption(){
@@ -168,29 +199,62 @@ def displayNameOptionIncomplete(){
 def displayPicoOption(){
     if(!app.label) return
     fieldName = 'device'
-    displayPicoOptionComplete(fieldName)
-    displayPicoOptionIncomplete(fieldName)
-    if(settings[fieldName] && !numberOfButtons) {
-        if(settings[fieldName].size() == 1) displayWarning('The ' + settings[device] + ' does not have the attribute numberOfButtons. Check to make sure it is a Caseta Lutron switch or Caseta Pico. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
-        if(settings[fieldName].size() > 1) displayWarning('At least one of the selected controllers does not have the attribute numberOfButtons. Check to make sure they are Lutron Caseta switches or Picos. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
+    resetPicoDevices(fieldName)
+    fieldOptions = picoOptionProcessParentDeviceList()
+    if(fieldOptions) fieldName += 'Id'
+    displayPicoOptionComplete(fieldName,fieldOptions)
+    displayPicoOptionIncomplete(fieldName,fieldOptions)
+    if(settings['device'] && !numberOfButtons) {
+        if(settings['device'].size() == 1) displayWarning('The ' + settings['device'] + ' does not have the attribute numberOfButtons. Check to make sure it is a Caseta Lutron switch or Caseta Pico. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
+        if(settings['device'].size() > 1) displayWarning('At least one of the selected controllers does not have the attribute numberOfButtons. Check to make sure they are Lutron Caseta switches or Picos. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
     }
+
 // Need warning for if Picos with different # buttons, but maybe not flag thosee without numberOfButtons (ie straight average won't work)
 }
-def displayPicoOptionComplete(fieldName){
+def displayPicoOptionComplete(fieldName,fieldOptions){
     if(!settings[fieldName]) return
-    fieldTitle = 'Pico'
-    if(settings[fieldName].size() > 1) fieldTitle = 'Controllers:'
-    displayDeviceSelectionField(fieldName, fieldTitle, 'capability.pushableButton', true)
+    fieldTitle = 'Pico controller:'
+    if(settings[fieldName].size() > 1) fieldTitle = 'Pico controllers:'
+    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true)
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true)
 }
-def displayPicoOptionIncomplete(fieldName){
+def displayPicoOptionIncomplete(fieldName,fieldOptions){
     if(settings[fieldName]) return
-    displayInfo('Select which Lutron Caserta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
+    displayInfo('Select which Lutron Caseta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
+    if(fieldOptions) displayInfo('If you don\'t see the device you want, make sure you have it selected in the Master app.')
     fieldTitle = 'Select button device(s) to setup:'
-    displayDeviceSelectionField(fieldName, fieldTitle, 'capability.pushableButton', true)
+    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true)
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true)
+}
+def picoOptionProcessParentDeviceList(){
+    parentDeviceList = parent.getDeviceList()
+    if(!parentDeviceList) return
+    picoList = [:]
+    fullList = [:]
+    parentDeviceList.each{singleDevice->
+        if(singleDevice.hasCapability('PushableButton')){
+            if(singleDevice.currentValue('numberOfButtons') != 2 && singleDevice.currentValue('numberOfButtons') != 4 && singleDevice.currentValue('numberOfButtons') != 5) return
+            //picoMatch = checkDeviceMatchesPico(singleDevice)        // This would do keyword match, and sort them to the top
+            if(picoMatch) picoList.put([singleDevice.'id',singleDevice.'label'])
+            if(!picoMatch) fullList.put([singleDevice.'id',singleDevice.'label'])
+        }
+    }
+    return picoList.sort{it.value.toLowerCase()} + fullList.sort{it.value.toLowerCase()}
+}
+// DISABLED
+def checkDeviceMatchesPico(singleDevice){
+    if(!singleDevice) return
+    if(singleDevice.label.toUpperCase().contains('PICO')) return true
+    if(singleDevice.name.toUpperCase().contains('PICO')) return true
+    if(singleDevice.label.toUpperCase().contains('CASETA')) return true
+    if(singleDevice.name.toUpperCase().contains('CASETA')) return true
+    if(singleDevice.label.toUpperCase().contains('LUTRON')) return true
+    if(singleDevice.name.toUpperCase().contains('LUTRON')) return true
 }
 
 def displayAdvancedOption(){
     if(settings['disable']) return
+    if(anyErrors) return
     fieldName = 'advancedSetup'
     if(!settings['device'] && !settings[fieldName]) return
     if(!settings['customActionsSetup'] && !settings[fieldName]) return
@@ -212,38 +276,70 @@ def displayAdvancedOptionDisabled(fieldName){
     displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
 }
 
+def displayControlDeviceTypeOption(){
+    if(!settings['device']) return
+    if(settings['controlDevice']) return
+    fieldName = 'controlDeviceType'
+    fieldOptions = ['switch':'All switches','switchLevel':'Only lights','colorMode':'Only color lights']
+    displayControlDeviceTypeOptionComplete(fieldName, fieldOptions)
+    displayControlDeviceTypeOptionIncomplete(fieldName, fieldOptions)
+}
+def displayControlDeviceTypeOptionComplete(fieldName, fieldOptions){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Type of devices to control:'
+    displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
+}
+def displayControlDeviceTypeOptionIncomplete(fieldName, fieldOptions){
+    if(settings[fieldName]) return
+    fieldTitle = 'Select the type of device(s) to control with the Pico:'
+    displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
+    displayInfo('This just filters the device selection option shown in the next step. If in doubt, select "All switches."')
+}
+
 def displayControlDeviceOption(){
     if(!settings['device']) return
+    if(anyErrors) return
     fieldName = 'controlDevice'
-    displayControlDeviceOptionComplete(fieldName)
-    displayControlDeviceOptionIncomplete(fieldName)
+    if(!settings[fieldName] && !settings['controlDeviceType']) return
+    fieldOptions = getControlDeviceList()
+    displayControlDeviceOptionComplete(fieldName, fieldOptions)
+    displayControlDeviceOptionIncomplete(fieldName, fieldOptions)
 }
-def displayControlDeviceOptionComplete(fieldName){
+def displayControlDeviceOptionComplete(fieldName, fieldOptions){
     if(!settings[fieldName]) return
     fieldTitle = 'Device to control:'
     if(settings['controlDevice'].size() > 1) fieldTitle = 'Devices to control:'
-    displayDeviceSelectionField(fieldName,fieldTitle,'capability.switch',true)
+    if(fieldOptions) displaySelectField(fieldName,fieldTitle,fieldOptions,true,true)
+    if(!fieldOptions) {
+        capabilitiesType = 'capability.' + settings['controlDeviceType']
+        if(!settings['controlDeviceType']) capabilitiesType = 'capability.switch'
+
+        displayDeviceSelectField(fieldName,fieldTitle,capabilitiesType,true)
+    }
 }
-def displayControlDeviceOptionIncomplete(fieldName){
+def displayControlDeviceOptionIncomplete(fieldName, fieldOptions){
     if(settings[fieldName]) return
     fieldTitle = 'Select all device(s) to control with the Pico:'
     if(settings['device'].size() > 1) fieldTitle = 'Select all device(s) to control with the Picos:'
-    displayDeviceSelectionField(fieldName,fieldTitle,'capability.switch',true)
+    if(fieldOptions) displaySelectField(fieldName,fieldTitle,fieldOptions,true,true)
+    if(!fieldOptions) displayDeviceSelectField(fieldName,fieldTitle,'capability.' + settings['controlDeviceType'],true)
 }
 
 def displayCustomActionsOption(){
     if(!settings['device']) return
     if(!settings['controlDevice']) return
     if(!numberOfButtons) return
+    if(anyErrors) return
     fieldName = 'customActionsSetup'
     options = ['automap':'Automap actions','actions':'Assign action and devices to each button','actionsAndDevices':'Customize actions and devices for each button']
-    if(settings['controlDevice'].size() < 2 && settings[fieldName] != 'actionsAndDevices') options = ['automap':'Automap actions','actions':'Assign action and devices to each button']
+    if(settings['controlDevice'].size() == 1 && settings[fieldName] != 'actionsAndDevices') options = ['automap':'Automap actions','actions':'Assign action and devices to each button']
     displayCustomActionsOptionComplete(fieldName,options)
     displayCustomActionsOptionIncomplete(fieldName,options)
     devicesText = 'device'
     if(settings['controlDevice'].size() > 1) devicesText = 'devices'
-    if(settings['customActionsSetup'] == 'automap') displayInfo('This option will automap what each button does, and will be applied to the ' + devicesText + ' selected.')
-    if(settings['customActionsSetup'] == 'actions') displayInfo('This option allows setting what each button does, and will be applied to the ' + devicesText + ' selected.')
+    if(settings['customActionsSetup'] == 'automap') displayInfo('This option will automap what each button does (click "Automapped buttons" below for details), and will be applied to the ' + devicesText + ' selected.')
+    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() == 1) displayInfo('This option allows setting what each button does.')
+    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() > 1) displayInfo('This option allows setting what each button does, then assign ' + devicesText + ' to it.')
     if(settings['customActionsSetup'] == 'actionsAndDevices') displayInfo('This option allows setting what each button does, and which devices for each button/action.')
 }
 def displayCustomActionsOptionComplete(fieldName,options){
@@ -265,7 +361,7 @@ def displayAutoMappingMessage(){
     if(settings['disable']) return
     
     sectionTitle = '<b>Automapped buttons</b>'
-    if(setHold) sectionTitle = '<b>Automapped buttons for Push and Hold</b>'
+    if(setFset) sectionTitle = '<b>Automapped buttons for Push and Hold</b>'
     
     section(hideable: true, hidden: true, sectionTitle + expandText) {
         pushAutoMappingText = ''
@@ -295,9 +391,17 @@ def displayDefineActions(){
     if(settings['customActionsSetup'] != 'actions') return
     if(!settings['controlDevice']) return
     if(settings['disable']) return
-    resetDevices()
     section(hideable: true, hidden: false, getDefineActionsSectionTitle('push')) {
-        if(settings['controlDevice'].size() > 1) displayInfo('If you want assign different devices to different buttons, select "Assign actions and devices for each button" as Selection Type.')
+        if(settings['controlDevice'].size() > 1){
+            warningValue = getDefineActionsWarningValue()
+            if(warningValue) displayWarning('Select the device(s) for ' + warningValue + '.')
+            if(!checkAnyDeviceSet()) {
+                if(!warningValue) {
+                    displayInfo('If you want assign different actions to individual buttons, select "Customize actions and devices for each button" as Selection Type.')
+                    displayInfo('Select the button action, then select device(s).')
+                }
+            }
+        }
         for(int i = 0; i < buttonMap.size(); i++){
             if(!checkIfShowButton(i)) continue
             displayDefineActionsButton(i,'push')
@@ -315,6 +419,27 @@ def displayDefineActions(){
             if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
         }
     }
+}
+def getDefineActionsWarningValue(){
+    returnValue = ''
+    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
+        if(returnValue) continue
+        if(settings['button_' + buttonNumber + '_push'] && !settings['button_' + buttonNumber + '_push_' + settings['button_' + buttonNumber + '_push']]){
+            actionMap.find{it->
+                if(it.'action' == settings['button_' + buttonNumber + '_push']){
+                    returnValue = it.'description'
+                }
+            }
+        }
+        if(settings['button_' + buttonNumber + '_hold'] && !settings['button_' + buttonNumber + '_hold_' + settings['button_' + buttonNumber + '_hold']]){
+            actionMap.find{it->
+                if(it.'action' == settings['button_' + buttonNumber + '_hold']){
+                    returnValue = it.'description'
+                }
+            }
+        }
+    }
+    return returnValue
 }
 def getDefineActionsSectionTitle(pushType){
     sectionTitle = ''
@@ -344,8 +469,8 @@ def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
     actionMap.find{it->
         if(it.'action' == buttonAction) fieldText = it.'description'
     }
-    if(settings['controlDevice'].size() < 2) return
-    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + fieldText
+    if(settings['controlDevice'].size() == 1) return
+    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction
     fieldTitle = ' '
     if(!settings[fieldName]) fieldTitle = 'Device to ' + fieldText + ':'
     deviceOptions = [:]
@@ -355,20 +480,6 @@ def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
     newVar = []
 
     displaySelectField(fieldName,fieldTitle,deviceOptions,true,true)
-    displayDefineActionsErrors(buttonNumber,fieldOptions, buttonAction,pushType)
-}
-def displayDefineActionsErrors(buttonNumber,fieldOptions, action, pushType){
-    if(!fieldOptions) return
-    if(buttonNumber == 0) return
-    if(!settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + action]) return
-    for(int i = 0; i < buttonNumber; i++){
-        if(!settings['button_' + (i + 1) + '_' + pushType]) continue
-        if(!settings['button_' + (i + 1) + '_' + pushType + '_' + settings['button_' + (i + 1) + '_' + pushType]]) continue
-        if(compareDeviceLists(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + action],settings['button_' + (i + 1) + '_' + pushType + '_' + settings['button_' + (i + 1) + '_' + pushType]],action,settings['button_' + (i + 1) + '_' + pushType])){
-            displayError('Can\'t set the same device to both ' + settings['button_' + (i + 1) + '_' + pushType] + ' and ' + action + ' with the same button.')
-        }
-    }
-    return
 }
 
 def displayCustomizeActionsAndDevices(){
@@ -376,57 +487,57 @@ def displayCustomizeActionsAndDevices(){
     if(!settings['controlDevice']) return
     if(!settings['device']) return
     if(settings['disable']) return
-    resetDevices()
     
-    if(setHold){
-        section(){
-            paragraph('<b>Push:</b>')
-        }
-    }
-    for(int buttonMapNumber = 0; buttonMapNumber < buttonMap.size(); buttonMapNumber++){
-        if(!checkIfShowButton(buttonMapNumber)) continue
-        hidden = true
-        actionMap.each{it->
-            if(!settings['button_' + (buttonMapNumber + 1) + '_push_' + it.'action']) return        // continue
-            hidden = false
-            return true            // break
-        }
-        section(hideable: true, hidden: hidden, buttonMap[buttonMapNumber].'fullName' + expandText) {
-            displayCustomizeActionsAndDevicesButtons(buttonMapNumber, 'push')
-        }
-    }
-
-    if(setHold){
-        section(){
-            paragraph('<b>Push and hold:</b>')
-        }
-        for(int buttonMapNumber = 0; buttonMapNumber < buttonMap.size(); buttonMapNumber++){
-            if(!checkIfShowButton(buttonMapNumber)) continue
-            hidden = true
-            actionMap.each{it->
-                if(settings['button_' + (buttonMapNumber + 1) + '_hold_' + it.'action']) {
-                    hidden = false
-                    return true        // break
-                }
-            }
-            section(hideable: true, hidden: hidden, buttonMap[buttonMapNumber].'fullName' + expandText) {
-                displayCustomizeActionsAndDevicesButtons(buttonMapNumber, 'hold')
-            }
-        }
-    }
+    displayCustomizeActionsAndDevicesSections('push')
+    displayCustomizeActionsAndDevicesSections('hold')
 
     section(){
         displaySetHoldOption()
     }
 }
-def displayCustomizeActionsAndDevicesButtons(buttonNumber, pushType = 'push') {
-    fieldOptions = setActionsPerButton(buttonNumber,pushType)
-
+def displayCustomizeActionsAndDevicesSections(pushType) {
+    if(pushType == 'hold' && !setHold) return
+    if(setHold){
+        section(){
+            if(pushTye == 'push') paragraph('<b>Push:</b>')
+            if(pushTye == 'hold') paragraph('<b>Push and hold:</b>')
+        }
+    }
+    for(int buttonMapNumber = 0; buttonMapNumber < buttonMap.size(); buttonMapNumber++){
+        sectionLabel = ''
+        if(!checkIfShowButton(buttonMapNumber)) continue
+        fieldOptions = setActionsPerButton(buttonMapNumber,pushType)
+        hidden = false
+        actionMap.any{it->
+            setErrors = displayCustomizeActionsAndDevicesErrors(buttonMapNumber,fieldOptions, it.'action', pushType)
+            if(setErrors) {
+                hidden = false
+                return true            // break
+            }
+            if(anyErrors) {
+                hidden = true
+                return
+            }
+            if(settings['button_' + (buttonMapNumber + 1) + '_' + pushType + '_' + it.'action']) {
+                if(sectionLabel) sectionLabel += '\n'
+                sectionLabel += it.'descriptionActive' + ' ' + settings['button_' + (buttonMapNumber + 1) + '_' + pushType + '_' + it.'action']
+                hidden = true
+                return true            // break
+            }
+        }
+        if(sectionLabel) sectionLabel = '\n' + sectionLabel
+        sectionLabel = buttonMap[buttonMapNumber].'fullName' + expandText + sectionLabel
+        section(hideable: true, hidden: hidden, sectionLabel) {
+            displayCustomizeActionsAndDevicesButtons(buttonMapNumber,fieldOptions, pushType)
+        }
+    }
+}
+def displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions, pushType) {
     fieldOptions.eachWithIndex{fieldAction, fieldOptionNumber ->
         actionMap.each{it->
             if(it.'action' == fieldAction.key){
                 displayDefineActionsAndDeviceField(buttonNumber, it, pushType, true)
-                displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, fieldAction.key,pushType)
+                if(anyErrors) displayError(displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, fieldAction.key,pushType))
             }
         }
     }
@@ -434,7 +545,6 @@ def displayCustomizeActionsAndDevicesButtons(buttonNumber, pushType = 'push') {
 
 def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,populated = null){
     if(error) return
-// If device is selected, use it rather than buttonId?
     fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionLine.'action'
     fieldTitle = '<b>' + actionLine.'descriptionActive' + '</b>:'
     if(!settings[fieldName]) fieldTitle = actionLine.'description' + ' <font color="gray">(Select devices)</font>'
@@ -447,23 +557,22 @@ def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,popula
 }
 
 def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action, pushType){
+    if(customActionsSetup == 'automap') return
     if(!fieldOptions) return
     firstActionNumber = fieldOptions.findIndexOf{it.key==action}
     if(firstActionNumber == 0) return
-    
+    errorMessage = ''
     firstDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + action
     if(!settings[firstDeviceName]) return
     fieldOptions.find{it->
-        if(it.key == action) return true
+        if(it.key == action) return
         secondDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.key
         if(compareDeviceLists(settings[firstDeviceName],settings[secondDeviceName],action,it.key)) {
-            errorMessage = 'Can\'t set the same device to both ' + action + ' and ' + it.key + ' with the same button.'
-            displayError(errorMessage)
+            if(errorMessage) errorMessage += '\n'
+            errorMessage += 'Can\'t set the same device to both ' + action + ' and ' + it.key + ' with the same button.'
         }
     }
-// Need to track error messages for saving
-    if(errorMessage) return true
-    return
+    return errorMessage
 }
 
 def displaySetHoldOption(){
@@ -472,6 +581,15 @@ def displaySetHoldOption(){
     if(!settings['advancedSetup'] && !settings['setHold']) return
     if(settings['disable']) return
     fieldName = 'setHold'
+    holdAvailable = false
+    settings['device'].each{singleDevice->
+        if(singleDevice.currentHeld) holdAvailable = true
+    }
+    if(!holdAvailable) {
+        if(settings['device'].size() == 1) displayInfo('The Pico ' + settings['device'] + ' does not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
+        if(settings['device'].size() > 1) displayInfo('The Picos do not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
+        return
+    }
     displaySetHoldOptionEnabled(fieldName)
     displaySetHoldOptionDisabled(fieldName)
 }
@@ -493,6 +611,7 @@ def displaySetHoldOptionDisabled(fieldName){
 def displayDimmingProgressionOption(){
     if(!settings['advancedSetup']) return
     if(!checkAnyDeviceSet()) return
+    if(anyErrors) return
     dimmingSet = false
     if(customActionsSetup == 'automap') dimmingSet = true
     if(customActionsSetup == 'actions' || customActionsSetup == 'actionsAndDevices'){
@@ -514,8 +633,8 @@ def displayDimmingProgressionOption(){
     if(!sectionTitle) sectionTitle = '<b>Set dimming steps:</b>'
     
     section(hideable: true, hidden: true, sectionTitle + expandText) {
-        infoTip = 'Number of steps it takes to brighten from 1 to 100% (or vice versa).'
-        if(!settings['pushedDimmingProgressionSteps'] && !settings['pushedDimmingProgressionSteps']) infoTip = 'This sets how many steps it takes to brighten from 1 to 100% (or vice versa), using a geometric progression. For instance, 10 steps would be: 2, 4, 7, 11, 17, 25, 36, 52, 74, 100.'
+        infoTip = 'Number of steps it takes to brighten (or dim) from 1 to 100%.'
+        if(!settings['pushedDimmingProgressionSteps'] && !settings['pushedDimmingProgressionSteps']) infoTip = 'This is the number of button pushes it takes to brighten (or dim) from 1 to 100% brightness. It uses a geometric progression. For instance, with 10 steps, pressing the brighten button would go from 1% to 2%, and then to 4, 7, 11, 17, 25, 36, 52, 74, and finally 100%.'
         displayInfo(infoTip)
         fieldName = 'pushedDimmingProgressionSteps'
         displayDimmingProgressionOptionComplete(fieldName, 'push')
@@ -570,51 +689,6 @@ def displayDimmingProgressionOptionIncomplete(fieldName, pushType){
 // Need to figure out how to display this for either Push or Hold, not both
 }
 
-// Returns true if showing button (ie 2 button has not Middle button)
-def checkIfShowButton(number){
-    if(number == 0) return true
-    if(number == 1 && numberOfButtons > 3) return true
-    if(number == 2 && numberOfButtons == 5) return true
-    if(number == 3 && numberOfButtons > 3) return true
-    if(number == 4) return true
-}
-
-def getButtonNumbers(){
-    if(!settings['device']) return
-    settings['device'].each{
-        if(!it.currentValue('numberOfButtons')) numberOfButtons = 5
-        if(it.currentValue('numberOfButtons')) {
-            if(numberOfButtons){
-                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
-            }
-            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
-        }
-    }
-    return numberOfButtons
-}
-
-def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondAction){
-    if(!firstDeviceMulti) return
-    if(!secondDeviceMulti) return
-
-    if(firstAction == 'on' && !['off', 'toggle'].contains(secondAction)) return
-    if(firstAction == 'off' && !['on', 'resume'].contains(secondAction)) return
-    if(firstAction == 'toggle' && !['off', 'on'].contains(secondAction)) return
-    if(firstAction == 'dim' && !['brighten', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'brighten' && !['dim', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'resume' && !['dim', 'brighten', 'off'].contains(secondAction)) return
-    returnValue = false
-    firstDeviceMulti.each{firstDevice->
-        secondDeviceMulti.each{secondDevice->
-            if(firstDevice.id == secondDevice.id){
-                returnValue = true
-            }
-        }
-        if(returnValue) return returnValue
-    }
-    return returnValue
-}
-
 def validateTimes(type){
     if(settings['start_timeType'] && !settings['stop_timeType']) return false
     if(type == 'stop' && settings['stop_timeType'] == 'none') return true
@@ -638,12 +712,9 @@ def displayScheduleSection(){
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
     if(!checkAnyDeviceSet()) return
+    if(anyErrors) return
+    
     section(){}
-    List dayList=[]
-    settings['days'].each{
-        dayList.add(it)
-    }
-    dayText = dayList.join(', ')
     
     hidden = true
     if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
@@ -653,6 +724,7 @@ def displayScheduleSection(){
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
+        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + appDescription + ' is active. You can create another ' + appDescription + ' "app" to do something else for opposite times/days.')
         if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
 
         displayTypeOption('start')
@@ -680,6 +752,12 @@ def getTimeSectionTitle(){
         if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
     }
 
+    List dayList=[]
+    settings['days'].each{
+        dayList.add(it)
+    }
+    dayText = dayList.join(', ')
+    
     if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
     if(settings['start_timeType']) sectionTitle += '</b>'
     if(!settings['days']) sectionTitle += moreOptions
@@ -703,7 +781,7 @@ def getTimeSectionTitle(){
 }
 
 def displayTypeOption(type){
-    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && (!settings['start_timeType'] || !validateTimes('start'))) return
     
     ingText = type
     if(type == 'stop') ingText = 'stopp'
@@ -725,9 +803,9 @@ def displayTypeOption(type){
         highlightText(fieldTitle)
     }
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    fielList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    if(type == 'stop') fielList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fielList, submitOnChange:true
+    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop') fieldList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fieldList, submitOnChange:true
     if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
 }
 
@@ -786,17 +864,18 @@ def displaySunriseOffsetOption(type){
     if(settings[type + '_sunType'] == 'at') return
 
     fieldName = type + '_sunOffset'
-    fieldTitle = 'Minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    timeUnits = 'minutes'
+    if(advancedSetup) timeUnits = 'seconds'
+    fieldTitle = timeUnits.capitalize() + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
 
-    message = 'Enter the number of minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
+    message = 'Enter the number of ' + timeUnits + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
     if(!settings[type + '_sunOffset']) displayInfo(message)
     if(!validateSunriseMinutes(type)) displayWarning(message)
 }
 
 def displayDaysOption(){
-    if(!settings['start_timeType']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
 
@@ -804,7 +883,9 @@ def displayDaysOption(){
     fieldTitle = 'On these days (optional; defaults to all days):'
     if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
     fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+    options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
+    displaySelectField(fieldName,fieldTitle,options,true,false)
+    //input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
 def displayDatesOptions(){
@@ -816,34 +897,34 @@ def displayIncludeDates(){
     displayWarning(parent.getDateProcessingErrors(app.id))
     displayInfo(dateList)
     fieldName = 'includeDates'
-    fieldTitle = 'Dates on which to run ("include"):'
+    fieldTitle = 'Only on dates:'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, "textarea", title: fieldTitle, submitOnChange:true
 }
 
 def displayExcludeDates(){
     fieldName = 'excludeDates'
-    fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
+    fieldTitle = 'Not on dates:'
     fieldTitle = addFieldName(fieldTitle,fieldName)
 input fieldName, "textarea", title: fieldTitle, submitOnChange:true
-    infoTip = 'Enter which date(s) to limit or exclude. Included dates are when the routine will run, for instance only on certain holidays. Excluded dates will prevent it from running, for instance \
-every day <i>except</i> holidays. Rules:\n\
+    deviceText = 'it'
+    if(settings['device'].size() > 1) deviceText = 'them'
+    infoTip = 'Enter which date(s) to restrict or exclude this ' + appDescription + ' routine. "Only on dates" are when this ' + appDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
+"Not on" dates are when this ' + appDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
 	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
-<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur, because it already has.</i>\n\
+<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
 	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
-<i>Example: Christmas can be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years].</i>\n\
+<i>Example: Christmas could be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years, otherwise 360].</i>\n\
 	• Separate multiple dates with a comma (or semicolon). \
 <i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
 	• Use a hyphen to indicate a range of dates. \
 <i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
     	• The "days" options above will combine with the dates. \
-<i>Example: Selecting Monday and entering "12/25" as an included date would only trigger if Christmas is on a Monday.</i>\n\
-	• Leap years count. \
-<i>Example: Entering "2/29" (or "366") would only trigger on leap years.</i>\n\
-	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with rangesranges. And the order doesn\'t matter. \
-<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '".</i>\n\
-	• If a date is listed as both Included and Excluded, it will be treated as Excluded.\n\
-	• To do Feb. 29, ignore the warning (on non-leap years). To do all of Febraury, enter "2/1-2/28, 2/29".'
+<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + appDescription + ' if Christmas is on a Monday.</i>\n\
+	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
+<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
+	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
+	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
 
     displayInfo(infoTip)
 }
@@ -855,27 +936,39 @@ def displayIfModeOption(){
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
     if(!checkAnyDeviceSet()) return
-
+    if(anyErrors) return
+    
+    fieldName = 'ifMode'
     sectionTitle = 'Click to select with what Mode (optional)'
-    if(settings['ifMode']) sectionTitle = '<b>Only with Mode: ' + settings['ifMode'] + '</b>'
+    if(settings[fieldName]) sectionTitle = '<b>Only with Mode: ' + settings[fieldName] + '</b>'
 
     section(hideable: true, hidden: true, sectionTitle){
-        input 'ifMode', 'mode', title: 'Only run if Mode is already?', width: 12, submitOnChange:true
-
-        message = 'This will limit the ' + pluralContact + ' from running to only when Hubitat\'s Mode is as selected.'
-        if(settings['ifMode']) message = 'This will limit the ' + pluralContact + ' from running to only when Hubitat\'s Mode is ' + settings['ifMode'] + '.'
-
-        displayInfo(message)
+        displayIfModeFieldComplete(fieldName)
+        displayIfModeFieldIncomplete(fieldName)
     }
+}
+def displayIfModeFieldComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only with Mode:'
+    displayModeSelectField(fieldName,fieldTitle,options,true,false)
+}
+def displayIfModeFieldIncomplete(fieldName){
+    if(settings[fieldName]) return
+    displayInfo('This will limit the ' + appDescription + ' from being active to only when Hubitat\'s Mode is as selected. You can create another ' + appDescription + ' "app" to do something else for other Modes.')
+    fieldTitle = 'Only when the Mode is:'
+    displayModeSelectField(fieldName,fieldTitle,options,true,false)
 }
 
 def displayPeopleOption(){
+// Use devices selected in Master app
+// Add check for if no presense devices
     if(!settings['device']) return
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
     if(!checkAnyDeviceSet()) return
+    if(anyErrors) return
 
     List peopleList1=[]
     settings['personHome'].each{
@@ -893,16 +986,101 @@ def displayPeopleOption(){
     if(peopleError) hidden = false
     
     if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (optional)'
-    if(settings['personHome']) sectionTitle = '<b>With: ' + withPeople + '</b>'
+    if(settings['personHome']) sectionTitle = '<b>Only if home: ' + withPeople + '</b>'
     if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
-    if(settings['personNotHome']) sectionTitle += '<b>Without: ' + withoutPeople + '</b>'
+    if(settings['personNotHome']) sectionTitle += '<b>Only if away: ' + withoutPeople + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(peopleError) displayError('You can\'t include and exclude the same person.')
-
-        input 'personHome', 'capability.presenceSensor', title: 'Only if any of these people are home (Optional)', multiple: true, submitOnChange:true
-        input 'personNotHome', 'capability.presenceSensor', title: 'Only if all these people are NOT home (Optional)', multiple: true, submitOnChange:true
+        fieldName = 'personHome'
+        displayPersonHomeComplete(fieldName, 'capability.presenceSensor')
+        displayPersonHomeIncomplete(fieldName, 'capability.presenceSensor')
+        fieldName = 'personNotHome'
+        displayPersonNotHomeComplete(fieldName, 'capability.presenceSensor')
+        displayPersonNotHomeIncomplete(fieldName, 'capability.presenceSensor')
     }
+}
+def displayPersonHomeComplete(fieldName, fieldCapability){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only if home:'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonHomeIncomplete(fieldName, fieldCapability){
+    if(settings[fieldName]) return
+    if(!settings['personNotHome']) displayInfo('This will limit the ' + appDescription + ' from being active to only when those selected are home and/or away. They can be combined (as if Person A is home AND Person B is away). You can create another ' + appDescription + ' "app" to do something else for the opposite.')
+    fieldTitle = 'Only if any of these people are home (Optional)'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonNotHomeComplete(fieldName, fieldCapability){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only if away:'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
+    if(settings[fieldName]) return
+    fieldTitle = 'Only if any of these people are not home (Optional)'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+
+// Returns true if showing button (ie 2 button has not Middle button)
+def checkIfShowButton(number){
+    if(number == 0) return true
+    if(number == 1 && numberOfButtons > 3) return true
+    if(number == 2 && numberOfButtons == 5) return true
+    if(number == 3 && numberOfButtons > 3) return true
+    if(number == 4) return true
+}
+
+//Build list of control devices from Master app selection list
+def getControlDeviceList(){
+}
+                                     
+def getButtonNumbers(){
+    if(!settings['device']) return
+    settings['device'].each{
+        if(!it.currentValue('numberOfButtons')) numberOfButtons = 5
+        if(it.currentValue('numberOfButtons')) {
+            if(numberOfButtons){
+                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
+            }
+            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
+        }
+    }
+    return numberOfButtons
+}
+
+def checkDefineActionButNoDevice(){
+    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
+        if(settings['button_' + buttonNumber + '_push']){
+            if(!settings['button_' + buttonNumber + '_push_' + settings['button_' + buttonNumber + '_push']]) return settings['button_' + buttonNumber + '_push']
+        }
+        if(settings['button_' + buttonNumber + '_hold']){
+            if(settings['button_' + buttonNumber + '_hold_' + settings['button_' + buttonNumber + '_hold']]) return settings['button_' + buttonNumber + '_hold']
+        }
+    }
+    return false
+}
+                                     
+def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondAction){
+    if(!firstDeviceMulti) return
+    if(!secondDeviceMulti) return
+
+    if(firstAction == 'on' && !['off', 'toggle'].contains(secondAction)) return
+    if(firstAction == 'off' && !['on', 'resume'].contains(secondAction)) return
+    if(firstAction == 'toggle' && !['off', 'on'].contains(secondAction)) return
+    if(firstAction == 'dim' && !['brighten', 'off', 'resume'].contains(secondAction)) return
+    if(firstAction == 'brighten' && !['dim', 'off', 'resume'].contains(secondAction)) return
+    if(firstAction == 'resume' && !['dim', 'brighten', 'off'].contains(secondAction)) return
+    returnValue = false
+    firstDeviceMulti.each{firstDevice->
+        secondDeviceMulti.each{secondDevice->
+            if(firstDevice.id == secondDevice.id){
+                returnValue = true
+            }
+        }
+        if(returnValue) return returnValue
+    }
+    return returnValue
 }
 
 // Returns an ordered map of actions per button
@@ -966,44 +1144,56 @@ def setActionsPerButtonProcess(fieldOptions,actionMapLine,fieldValue){
 }
 
 def checkAnyDeviceSet(){
-    if(settings['customActionsSetup'] == 'automap') return true
+    if(customActionsSetup == 'automap') return true
     returnValue = false
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(returnValue) continue
-        actionMap.each{it->
-            if(settings['button_' + (buttonNumber + 1) + '_push_' + it.'action']) {
-                returnValue = true
-                return true        // break
+    for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){        // Repeat for push/hold
+        pushType = 'push'
+        if(pushActionLoop == 1) pushType = 'hold'
+        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
+            if(!checkIfShowButton(buttonNumber)) continue
+            actionMap.any{it->
+                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == it.'action' && settings['controlDevice'].size() == 1) returnValue = true
+                if(settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']) returnValue = true
+                return true
             }
         }
     }
     return returnValue
 }
 
+
+def resetPicoDevices(deviceName){
+    if(!deviceName) return
+    app.removeSetting(deviceName)
+    setDeviceById(deviceName + 'Id', deviceName,'pushableButton')
+}
+def setDeviceById(deviceIdName, deviceName,capability){
+    if(!settings[deviceIdName]) return
+    if(!(parentDeviceList = parent.getDeviceList())) return
+    newVar = []
+    settings[deviceIdName].each{deviceId->
+        parentDeviceList.find{singleDevice->
+            if(singleDevice.id == deviceId){
+                newVar.add(singleDevice)
+            }
+        }
+    }
+    app.updateSetting(deviceName, [type: 'capability.' + capability, value: newVar])
+}
+
 def resetDevices(){
-    // Repeat for push/hold
-    for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){
+    for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){        // Repeat for push/hold
         pushType = 'push'
         if(pushActionLoop == 1) pushType = 'hold'
         for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
             actionMap.each{it->
                 app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action')
+                if(customActionsSetup == 'automap') return true
                 if(!checkIfShowButton(buttonNumber)) return true
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == it.'action'){
+                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == it.'action' && settings['controlDevice'].size() == 1){
                     app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', [type: "capability.switch", value: settings['controlDevice']])
                 }
-
-                if(settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']){
-                    newVar = []
-                    settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action'].each{buttonId->
-                        settings['controlDevice'].find{singleDevice->
-                            if(singleDevice.id == buttonId){
-                                newVar.add(singleDevice)
-                            }
-                        }
-                    }
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', [type: "capability.switch", value: newVar])
-                }
+                setDeviceById('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action', 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action','capability.switch')
             }
         }
     }
@@ -1042,15 +1232,6 @@ def displayTextField(fieldName,fieldTitle,fieldType,required = true){
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
     input name: fieldName, type: fieldType, title: '', width:width, submitOnChange:true
 }
-def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true){
-    width = 10
-    if(!settings[fieldName]) width = 12
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
-    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
-    input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
-}
 def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,defaultValue = false){
     if(!fieldTitleTrue) fieldTitleTrue = ''
     if(!fieldTitleFalse) fieldTitleFalse = ''
@@ -1061,9 +1242,27 @@ def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,de
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue,submitOnChange:true
 }
-def displayDeviceSelectionField(fieldName,fieldTitle,capability,multiple){
+def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
+}
+def displayDeviceSelectField(fieldName,fieldTitle,capability,multiple){
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true
+}
+def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: 'mode', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
 }
 
 /* ************************************************************************ */
@@ -1097,13 +1296,13 @@ def displayDeviceSelectionField(fieldName,fieldTitle,capability,multiple){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1100,'trace', 'Installed')
+    putLog(1299,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1106,'trace','Updated')
+    putLog(1305,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1122,11 +1321,11 @@ setControlDevice()
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1125,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(1324,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1129,'trace','Initialized')
+    putLog(1328,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1140,9 +1339,9 @@ def buttonPushed(evt){
 
     // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
     if(evt.name == 'pushed') action = 'push'
-    if(evt.name == 'held') atomicState.action = 'hold'
+    if(evt.name == 'held') action = 'hold'
     
-    putLog(1145,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1344,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap()
 
@@ -1158,7 +1357,7 @@ def buttonPushed(evt){
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(1161,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(1360,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1175,7 +1374,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1178,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1377,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1203,7 +1402,7 @@ def setControlDevice(){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1206,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1405,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1262,7 +1461,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1265,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1464,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1272,7 +1471,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1275,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1474,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
