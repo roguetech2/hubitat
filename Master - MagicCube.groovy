@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2
+*  Version: 0.4.2.1
 * 
 ***********************************************************************************************************************/
 
@@ -1015,6 +1015,7 @@ def resetDevices(){
                 if(settings['button_' + (buttonNumber + 1)] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
                     app.updateSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action', [type: "capability.switch", value: settings['controlDevice']])
                 }
+                if(settings['button_' + (buttonNumber + 1)] != actionMap[actionMapItem].'action') app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action')
                 setDeviceById('buttonId_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action', 'button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action','switch')
             }
         }
@@ -1169,19 +1170,19 @@ def displayFilterButton(buttonName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1172,'trace','Installed')
+    putLog(1173,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1178,'trace','Updated')
+    putLog(1179,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1184,'trace','Initialized')
+    putLog(1185,'trace','Initialized')
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
@@ -1203,11 +1204,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1206,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(1207,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1210,'trace','Initialized')
+    putLog(1211,'trace','Initialized')
 }
 
 def buttonEvent(evt){
@@ -1222,14 +1223,14 @@ def buttonEvent(evt){
 
     for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(1225,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
+        putLog(1226,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
         doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
     }
 }
 
 def doActions(device,action){
     if(!device) return
-    putLog(1232,'trace','Set ' + device + ' as ' + action)
+    putLog(1233,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
@@ -1239,7 +1240,7 @@ def doActions(device,action){
         if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         
         fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(1242,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+        if(fullMap) putLog(1243,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -1258,7 +1259,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(1261,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(1262,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
 // Could be mutliple priors sices (if multiple cubes) - need to make it a map
     priorSide = atomicState.priorSide
@@ -1292,7 +1293,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1295,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1296,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1302,7 +1303,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1305,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1306,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
