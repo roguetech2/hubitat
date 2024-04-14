@@ -120,7 +120,6 @@ preferences {
                 displayNameOption()
                 displayControllerOption()
                 displayAdvancedOption()
-                //displayControlDeviceTypeOption()
                 displayControlDeviceOption()
                 displayCustomActionsOption()
             }
@@ -260,27 +259,6 @@ def displayAdvancedOptionDisabled(fieldName){
     fieldTitleTrue = 'Keeping it simple.'
     fieldTitleFalse = 'Click to show advanced options.'
     displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
-}
-
-def displayControlDeviceTypeOption(){
-    if(!settings['device']) return
-    if(settings['controlDevice']) return
-    fieldName = 'controlDeviceType'
-    fieldOptions = ['switch':'All switches','switchLevel':'Only lights','colorMode':'Only color lights']
-    displayControlDeviceTypeOptionComplete(fieldName, fieldOptions)
-    displayControlDeviceTypeOptionIncomplete(fieldName, fieldOptions)
-}
-def displayControlDeviceTypeOptionComplete(fieldName, fieldOptions){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Type of devices to control:'
-    displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
-}
-def displayControlDeviceTypeOptionIncomplete(fieldName, fieldOptions){
-    if(settings[fieldName]) return
-    fieldTitle = 'Select the type of device(s) to control with the MagicCube:'
-    if(settings['device'].size() > 1) fieldTitle = 'Select the type of device(s) to control with the MagicCubes:'
-    displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
-    displayInfo('This just filters the device selection option shown in the next step. If in doubt, select "All switches."')
 }
 
 def displayControlDeviceOption(){
@@ -1011,6 +989,7 @@ def resetDevices(){
             for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
             //actionMap.each{it->
                 app.removeSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action')
+                if(!settings['controlDevice']) continue
                 if(!checkIfShowButton(buttonNumber)) continue
                 if(settings['button_' + (buttonNumber + 1)] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
                     app.updateSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action', [type: "capability.switch", value: settings['controlDevice']])
@@ -1244,7 +1223,7 @@ def doActions(device,action){
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
-    if(multiDevice) parent.setDeviceMulti(device,app.label)
+    parent.setDeviceMulti(device,app.label)
 }
 
 // Sets atomicState.buttonNumber to string of action
