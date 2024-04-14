@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.16
+*  Version: 0.6.2.17
 *
 ***********************************************************************************************************************/
 
@@ -95,7 +95,7 @@ def addFieldName(text,fieldName){
 
 preferences {
     if(!settings) settings = [:]
-    if(device) numberOfButtons = getButtonNumbers()
+    numberOfButtons = getButtonNumbers()
     buttonMap = buildButtonMap()
     actionMap = buildActionMap()
     resetDevices()
@@ -110,9 +110,12 @@ preferences {
             }
         }
         if(app.label){
-            if(parent.getDeviceList() && !controllerOptionProcessParentDeviceList()) {
+            allDeviceOptions = parent.getDeviceList()
+            controllerDeviceOptions = controllerOptionProcessParentDeviceList()
+            if(allDeviceOptions && !controllerDeviceOptions) {
                 section(){
-                    displayError('You don\'t have any MagicCube devices selected in the Master app. Update the device selection in the Master app to include Caseta or Pico switche(s).')
+                    displayError('You don\'t have any Caseta or Pico devices selected in the Master app. Update the device selection in the Master app to include Caseta(s)/Pico(s).')
+                    displayInfo('Caseta/Pico devices are identified by having a "pushableButton" setting, and 2, 4 or 5 buttons. If you have a Caseta/Picos installed, check the device status page.') 
                 }
             }
             processDates()
@@ -193,12 +196,16 @@ def displayControllerOption(){
     if(!app.label) return
     fieldName = 'device'
     resetControllerDevices(fieldName)
-    fieldOptions = controllerOptionProcessParentDeviceList()
+    fieldOptions = ''
+    if(settings['controllerButtonValue'] == null) app.updateSetting('controllerButtonValue', [type: 'bool', value: 'true'])
+    if(settings['controllerButtonValue']){
+        fieldOptions = controllerDeviceOptions
+        if(parent.getDeviceList() && !fieldOptions) return
+    }
     if(fieldOptions) fieldName += 'Id'
     displayControllerOptionComplete(fieldName,fieldOptions)
     displayControllerOptionIncomplete(fieldName,fieldOptions)
-    if(settings['device'] && !numberOfButtons) {
-//This always shows until refresh
+    if(settings['device'] && !getButtonNumbers()) {
         if(settings['device'].size() == 1) displayWarning('The ' + settings['device'] + ' does not have the attribute numberOfButtons. Check to make sure it is a Caseta Lutron switch or Caseta Pico. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
         if(settings['device'].size() > 1) displayWarning('At least one of the selected controllers does not have the attribute numberOfButtons. Check to make sure they are Lutron Caseta switches or Picos. This app will assume it has 5-buttons, and <i>should</i> otherwise work.')
     }
@@ -1311,13 +1318,13 @@ def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,require
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1314,'trace', 'Installed')
+    putLog(1321,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1320,'trace','Updated')
+    putLog(1327,'trace','Updated')
     unsubscribe()
     initialize()
 }
@@ -1335,11 +1342,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1338,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(1345,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1342,'trace','Initialized')
+    putLog(1349,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -1356,7 +1363,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') action = 'push'
     if(evt.name == 'held') action = 'hold'
     
-    putLog(1359,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(1366,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap()
 
@@ -1372,7 +1379,7 @@ def buttonPushed(evt){
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(1375,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(1382,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1389,7 +1396,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1392,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1399,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1405,7 +1412,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1408,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1415,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1464,7 +1471,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1467,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1474,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1474,7 +1481,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1477,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1484,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
