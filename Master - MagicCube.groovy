@@ -13,11 +13,12 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.1
+*  Version: 0.4.2.2
 * 
 ***********************************************************************************************************************/
 
 // TO-DO: Allow actions per side (rather than flip90 or flip180)
+// TO-DO: Check control device capabilities as to showing dim/brighten
 
 definition(
     name: 'Master - MagicCube',
@@ -265,9 +266,6 @@ def displayControlDeviceOption(){
     if(!settings['device']) return
     if(anyErrors) return
     fieldName = 'controlDevice'
-   // if(!settings[fieldName] && !settings['controlDeviceType']) return
-   // if(!settings[fieldName] && !settings['controlButtonValue']) return
-    
     displayControlDeviceOptionComplete(fieldName)
     displayControlDeviceOptionIncomplete(fieldName)
 }
@@ -278,7 +276,6 @@ def displayControlDeviceOptionComplete(fieldName){
     capabilitiesType = 'switch'
     if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
     if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
-   // capabilitiesType = 'capability.' + controlTypeValueString
 
     displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
 }
@@ -289,7 +286,6 @@ def displayControlDeviceOptionIncomplete(fieldName){
     capabilitiesType = 'switch'
     if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
     if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
-    //capabilitiesType = 'capability.' + settings['controlDeviceType']
     displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
 }
 
@@ -863,8 +859,9 @@ def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
 
 // Returns true if showing button (ie 2 button has not Middle button)
 def checkIfShowButton(number){
-    if(!buttonMap[number].'advanced') return true
-    if(settings['advancedSetup']) return true
+    if(buttonMap[number].'advanced' && !settings['advancedSetup']) return false
+    if(!parent.checkIsColorMulti(settings['controlDevice']) && buttonMap[number].'type' == 'dim') return false
+    return true
 }
 
 def checkDefineActionButNoDevice(){
@@ -1149,19 +1146,19 @@ def displayFilterButton(buttonName){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1173,'trace','Installed')
+    putLog(1149,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1179,'trace','Updated')
+    putLog(1155,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1185,'trace','Initialized')
+    putLog(1161,'trace','Initialized')
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
@@ -1183,11 +1180,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1207,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(1183,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1211,'trace','Initialized')
+    putLog(1187,'trace','Initialized')
 }
 
 def buttonEvent(evt){
@@ -1202,14 +1199,14 @@ def buttonEvent(evt){
 
     for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(1226,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
+        putLog(1205,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
         doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
     }
 }
 
 def doActions(device,action){
     if(!device) return
-    putLog(1233,'trace','Set ' + device + ' as ' + action)
+    putLog(1209,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
@@ -1219,7 +1216,7 @@ def doActions(device,action){
         if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         
         fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(1243,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+        if(fullMap) putLog(1219,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -1238,7 +1235,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(1262,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(1238,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
 // Could be mutliple priors sices (if multiple cubes) - need to make it a map
     priorSide = atomicState.priorSide
@@ -1272,7 +1269,7 @@ def setStartTime(){
     if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
     atomicState.start  = setTime
-    putLog(1296,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1272,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
@@ -1282,7 +1279,7 @@ def setStopTime(){
     setTime = setStartStopTime('stop')
     if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
     atomicState.stop  = setTime
-    putLog(1306,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
+    putLog(1282,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
     return true
 }
 
