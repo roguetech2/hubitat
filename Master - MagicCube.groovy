@@ -18,7 +18,8 @@
 ***********************************************************************************************************************/
 
 // TO-DO: Allow actions per side (rather than flip90 or flip180)
-// TO-DO: Check control device capabilities as to showing dim/brighten
+// TO-DO: Allow selecting rooms??
+// TO-DO: Add support for Hubitat Package Manager? https://community.hubitat.com/t/beta-hubitat-package-manager/38016
 
 definition(
     name: 'Master - MagicCube',
@@ -32,17 +33,6 @@ definition(
     iconX2Url: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png'
 )
 
-infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
-errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
-warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
-filterYesIcon = '<img src="http://emily-john.love/icons/filterEnable.png" width=20 height=20>'
-filterNoIcon = '<img src="http://emily-john.love/icons/filterDisable.png" width=20 height=20>'
-filterLightIcon = '<img src="http://emily-john.love/icons/light.png" width=20 height=20>'
-filterColorIcon = '<img src="http://emily-john.love/icons/color.png" width=20 height=20>'
-filterSwitchIcon = '<img src="http://emily-john.love/icons/switch.png" width=20 height=20>'
-moreOptions = ' (click for more options)'
-expandText = ' (Click to expand/collapse)'
-
 // logLevel sets number of log messages
 // 0 for none
 // 1 for errors only
@@ -54,43 +44,6 @@ def getLogLevel(){
     return 4
 }
 
-def displayLabel(text, width = 12){
-    if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
-}
-
-def displayInfo(text,noDisplayIcon = null, width=12){
-    if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
-    helpTip = ''
-}
-
-def displayError(text,noDisplayIcon = null, width=12){
-    if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
-    errorMessage = ''
-}
-
-def displayWarning(text,noDisplayIcon = null, width=12){
-    if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
-    warningMessage = ''
-}
-
-def highlightText(text, width=12){
-    if(!text) return
-    return '<div style="background-color:Wheat">' + text + '</div>'
-}
-
-def addFieldName(text,fieldName){
-    if(!fieldName) return
-    if(getLogLevel() != 5) return text
-    return text + ' [' + fieldName + ']'
-}
-
 preferences {
     if(!settings) settings = [:]
     buttonMap = buildButtonMap()
@@ -98,16 +51,17 @@ preferences {
     resetDevices()
     anyErrors = checkAnyErrors()
     install = formComplete()
-    appDescription = 'MagicCube'        // Used with schedule, people, ifMode
+    thisType = 'cube'
+    thisDescription = 'MagicCube'        // Used with schedule, people, ifMode
 
     page(name: 'setup', install: install, uninstall: true) {
-        
         if(!app.label){
             section(){
                 displayNameOption()
             }
         }
         if(app.label){
+setUILinks()
             allDeviceOptions = parent.getDeviceList()
             controllerDeviceOptions = controllerOptionProcessParentDeviceList()
             if(allDeviceOptions && !controllerDeviceOptions) {
@@ -171,123 +125,10 @@ def checkAnyErrors(){
     return anyErrors
 }
 
-def displayNameOption(){
-    displayNameOptionComplete()
-    displayNameOptionIncomplete()
-}
-def displayNameOptionComplete(){
-    if(!app.label) return
-    displayLabel('MagicCube name:',2)
-    label title: '', required: false, width: 10,submitOnChange:true
-}
-def displayNameOptionIncomplete(){
-    if(app.label) return
-    fieldTitle = 'Set name for this button setup:'
-    displayLabel(highlightText(fieldTitle))
-    label title: '', width:12, submitOnChange:true
-    displayInfo('Name this button setup. Each button setup must have a unique name.')
+def controllerOptionProcessParentDeviceListMatch(singleDevice){
+            if(singleDevice.hasAttribute('sideUp')) return true
 }
 
-def displayControllerOption(){
-    if(!app.label) return
-    fieldName = 'device'
-    resetControllerDevices(fieldName)
-    fieldOptions = ''
-    if(settings['controllerButtonValue'] == null) app.updateSetting('controllerButtonValue', [type: 'bool', value: 'true'])
-    if(settings['controllerButtonValue']){
-        fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList() && !fieldOptions) return
-    }
-    if(fieldOptions) fieldName += 'Id'
-    
-    displayControllerOptionComplete(fieldName,fieldOptions)
-    displayControllerOptionIncomplete(fieldName,fieldOptions)
-}
-def displayControllerOptionComplete(fieldName,fieldOptions){
-// If just one MagicCube, add it
-    if(!settings[fieldName]) return
-    fieldTitle = 'MagicCube:'
-    if(settings[fieldName].size() > 1) fieldTitle = 'MagicCubes:'
-    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
-    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
-}
-def displayControllerOptionIncomplete(fieldName,fieldOptions){
-    if(settings[fieldName]) return
-    //displayInfo('Select which MagicCube(s) to control. You can select multiple devices.')
-    if(fieldOptions) displayInfo('If you don\'t see the device you want, make sure you have it selected in the Master app.')
-    fieldTitle = 'Select MagicCube(s) to setup:'
-    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
-    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
-}
-def controllerOptionProcessParentDeviceList(){
-    if(!allDeviceOptions) return
-    controllerList = [:]
-    fullList = [:]
-    allDeviceOptions.each{singleDevice->
-        if(singleDevice.hasCapability('PushableButton')){
-            if(singleDevice.hasAttribute('sideUp')){
-                if(controllerMatch) controllerList.put([singleDevice.'id',singleDevice.'label'])
-                if(!controllerMatch) fullList.put([singleDevice.'id',singleDevice.'label'])
-            }
-        }
-    }
-    return fullList.sort{it.value.toLowerCase()}
-}
-// DISABLED
-def checkDeviceMatchesController(singleDevice){
-    if(!singleDevice) return
-    if(singleDevice.label.toUpperCase().contains('CUBE')) return true
-}
-
-def displayAdvancedOption(){
-    if(settings['disable']) return
-    if(anyErrors) return
-    fieldName = 'advancedSetup'
-    if(!settings['device'] && !settings[fieldName]) return
-    if(!settings['customActionsSetup'] && !settings[fieldName]) return
-    if(!settings['controlDevice']) return
-    
-    displayAdvancedOptionEnabled(fieldName)
-    displayAdvancedOptionDisabled(fieldName)
-}
-def displayAdvancedOptionEnabled(fieldName){
-    if(!settings[fieldName]) return
-    fieldTitleTrue = 'Showing advanced options.'
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
-}
-def displayAdvancedOptionDisabled(fieldName){
-    if(settings[fieldName]) return
-    fieldTitleTrue = 'Keeping it simple.'
-    fieldTitleFalse = 'Click to show advanced options.'
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
-}
-
-def displayControlDeviceOption(){
-    if(!settings['device']) return
-    if(anyErrors) return
-    fieldName = 'controlDevice'
-    displayControlDeviceOptionComplete(fieldName)
-    displayControlDeviceOptionIncomplete(fieldName)
-}
-def displayControlDeviceOptionComplete(fieldName){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Device to control:'
-    if(settings[fieldName].size() > 1) fieldTitle = 'Devices to control:'
-    capabilitiesType = 'switch'
-    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
-    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
-
-    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
-}
-def displayControlDeviceOptionIncomplete(fieldName){
-    if(settings[fieldName]) return
-    fieldTitle = 'Select all device(s) to control with the MagicCube:'
-    if(settings['device'].size() > 1) fieldTitle = 'Select all device(s) to control with the MagicCubes:'
-    capabilitiesType = 'switch'
-    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
-    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
-    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
-}
 
 def displayCustomActionsOption(){
     if(!settings['device']) return
@@ -321,7 +162,6 @@ def displayCustomActionsOptionIncomplete(fieldName,options){
 def displayDefineActions(){
     if(settings['customActionsSetup'] != 'actions') return
     if(!settings['controlDevice']) return
-    if(settings['disable']) return
     section(hideable: true, hidden: false, getDefineActionsSectionTitle()) {
         if(settings['controlDevice'].size() > 1){
             warningValue = getDefineActionsWarningValue()
@@ -401,7 +241,6 @@ def displayCustomizeActionsAndDevices(){
     if(settings['customActionsSetup'] != 'actionsAndDevices') return
     if(!settings['controlDevice']) return
     if(!settings['device']) return
-    if(settings['disable']) return
     
     displayCustomizeActionsAndDevicesSections()
 }
@@ -524,24 +363,6 @@ def displayDimmingProgressionOptionIncomplete(fieldName){
     displayTextField(fieldName,fieldTitle,'number',false)
 }
 
-def validateTimes(type){
-    if(settings['start_timeType'] && !settings['stop_timeType']) return false
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return true
-    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
-    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
-    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
-    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
-    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
-    if(!validateSunriseMinutes(type)) return false
-    return true
-}
-
-def validateSunriseMinutes(type){
-    if(!settings[type + '_sunOffset']) return true
-    if(settings[type + '_sunOffset'] > 719) return false
-    return true
-}
-
 def displayScheduleSection(){
     if(!settings['device']) return
     if(!settings['controlDevice']) return
@@ -553,308 +374,23 @@ def displayScheduleSection(){
     
     hidden = true
     if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
-    if(settings['disable']) hidden = true
     if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
     if(!validateTimes('start')) hidden = false
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + appDescription + ' is active. You can create another ' + appDescription + ' "app" to do something else for opposite times/days.')
+        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + thisDescription + ' is active. You can create another ' + thisDescription + ' "app" to do something else for opposite times/days.')
         if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
 
-        displayTypeOption('start')
+        displayTimeTypeOption('start')
         displayTimeOption('start')
         displaySunriseTypeOption('start')
-        displayTypeOption('stop')
+        displayTimeTypeOption('stop')
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
         displayDaysOption()
         displayDatesOptions()
     }
-}
-
-def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (optional)'
-
-    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
-    if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
-    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
-    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
-        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
-        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
-        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
-        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
-        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
-    }
-
-    List dayList=[]
-    settings['days'].each{
-        dayList.add(it)
-    }
-    dayText = dayList.join(', ')
-    
-    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
-    if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days']) sectionTitle += moreOptions
-    
-    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
-
-    sectionTitle += '</br>'
-    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
-    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
-    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
-    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
-    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
-        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
-        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
-        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
-        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
-        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
-    }
-
-    if(settings['start_timeType']) return sectionTitle + '</b>'
-}
-
-def displayTypeOption(type){
-    if(type == 'stop' && (!settings['start_timeType'] || !validateTimes('start'))) return
-    
-    ingText = type
-    if(type == 'stop') ingText = 'stopp'
-    
-    labelText = 'Schedule ' + type
-    if(validateTimes('start')) labelText = ''
-    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
-    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
-    
-    if(labelText) displayLabel(labelText)
-
-    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
-    
-    fieldName = type + '_timeType'
-    fieldTitle = type.capitalize() + ' time option:'
-    if(!settings[type + '_timeType']){
-        fieldTitle = type.capitalize() + ' time?'
-        if(type == 'stop') fieldTitle += ' (Select "Don\'t stop" for none)'
-        highlightText(fieldTitle)
-    }
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    if(type == 'stop') fieldList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fieldList, submitOnChange:true
-    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
-}
-
-def displayTimeOption(type){
-    if(type == 'stop' && !validateTimes('start')) return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(settings[type + '_timeType'] != 'time') return
-
-    fieldName = type + '_time'
-    fieldTitle = type.capitalize() + ' time:'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
-    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
-}
-
-def getTypeOptionWidth(type){
-    if(!settings[type + '_timeType']) return 12
-    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
-    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
-    return 6
-}
-
-def displaySunriseTypeOption(type){
-    if(!settings[type + '_timeType']) return
-    if(settings[type + '_timeType'] == 'time') return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(type == 'stop' && !validateTimes('start')) return
-    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
-    
-    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
-
-    fieldName = type + '_sunType'
-    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
-    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
-    
-    if(!settings[fieldName]) displayInfo('Select whether to start exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
-    displaySunriseOffsetOption(type)
-}
-
-def getSunriseTime(type,sunOffset,sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
-}
-
-def displaySunriseOffsetOption(type){
-    if(type == 'stop' && !validateTimes('start')) return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(!settings[type + '_sunType']) return
-    if(settings[type + '_sunType'] == 'at') return
-
-    fieldName = type + '_sunOffset'
-    timeUnits = 'minutes'
-    if(advancedSetup) timeUnits = 'seconds'
-    fieldTitle = timeUnits.capitalize() + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
-
-    message = 'Enter the number of ' + timeUnits + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' to start the schedule. Required.'
-    if(!settings[type + '_sunOffset']) displayInfo(message)
-    if(!validateSunriseMinutes(type)) displayWarning(message)
-}
-
-def displayDaysOption(){
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-
-    fieldName = 'days'
-    fieldTitle = 'On these days (optional; defaults to all days):'
-    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
-    displaySelectField(fieldName,fieldTitle,options,true,false)
-    //input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
-}
-
-def displayDatesOptions(){
-    displayIncludeDates()
-    displayExcludeDates()
-}
-
-def displayIncludeDates(){
-    displayWarning(parent.getDateProcessingErrors(app.id))
-    displayInfo(dateList)
-    fieldName = 'includeDates'
-    fieldTitle = 'Only on dates:'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input fieldName, "textarea", title: fieldTitle, submitOnChange:true
-}
-
-def displayExcludeDates(){
-    fieldName = 'excludeDates'
-    fieldTitle = 'Not on dates:'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-input fieldName, "textarea", title: fieldTitle, submitOnChange:true
-    deviceText = 'it'
-    if(settings['device'].size() > 1) deviceText = 'them'
-    infoTip = 'Enter which date(s) to restrict or exclude this ' + appDescription + ' routine. "Only on dates" are when this ' + appDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
-"Not on" dates are when this ' + appDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
-	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
-<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
-	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
-<i>Example: Christmas could be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years, otherwise 360].</i>\n\
-	• Separate multiple dates with a comma (or semicolon). \
-<i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
-	• Use a hyphen to indicate a range of dates. \
-<i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
-    	• The "days" options above will combine with the dates. \
-<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + appDescription + ' if Christmas is on a Monday.</i>\n\
-	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
-<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
-	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
-	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
-
-    displayInfo(infoTip)
-}
-
-def displayIfModeOption(){
-    if(!settings['device']) return
-    if(!settings['controlDevice']) return
-    if(!settings['advancedSetup']) return
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
-    
-    fieldName = 'ifMode'
-    sectionTitle = 'Click to select with what Mode (optional)'
-    if(settings[fieldName]) sectionTitle = '<b>Only with Mode: ' + settings[fieldName] + '</b>'
-
-    section(hideable: true, hidden: true, sectionTitle){
-        displayIfModeFieldComplete(fieldName)
-        displayIfModeFieldIncomplete(fieldName)
-    }
-}
-def displayIfModeFieldComplete(fieldName){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Only with Mode:'
-    displayModeSelectField(fieldName,fieldTitle,options,true,false)
-}
-def displayIfModeFieldIncomplete(fieldName){
-    if(settings[fieldName]) return
-    displayInfo('This will limit the ' + appDescription + ' from being active to only when Hubitat\'s Mode is as selected. You can create another ' + appDescription + ' "app" to do something else for other Modes.')
-    fieldTitle = 'Only when the Mode is:'
-    displayModeSelectField(fieldName,fieldTitle,options,true,false)
-}
-
-def displayPeopleOption(){
-// Use devices selected in Master app
-// Add check for if no presense devices
-    if(!settings['device']) return
-    if(!settings['controlDevice']) return
-    if(!settings['advancedSetup']) return
-    if(!validateTimes('start')) return
-    if(!validateTimes('stop')) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
-
-    List peopleList1=[]
-    settings['personHome'].each{
-        peopleList1.add(it)
-    }
-    withPeople = peopleList1.join(', ')
- 
-    List peopleList2 = []
-    settings['personNotHome'].each{
-        peopleList2.add(it)
-    }
-    withoutPeople = peopleList2.join(', ')
-    
-    hidden = true
-    if(peopleError) hidden = false
-    
-    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (optional)'
-    if(settings['personHome']) sectionTitle = '<b>Only if home: ' + withPeople + '</b>'
-    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
-    if(settings['personNotHome']) sectionTitle += '<b>Only if away: ' + withoutPeople + '</b>'
-
-    section(hideable: true, hidden: hidden, sectionTitle){
-        if(peopleError) displayError('You can\'t include and exclude the same person.')
-        fieldName = 'personHome'
-        displayPersonHomeComplete(fieldName, 'capability.presenceSensor')
-        displayPersonHomeIncomplete(fieldName, 'capability.presenceSensor')
-        fieldName = 'personNotHome'
-        displayPersonNotHomeComplete(fieldName, 'capability.presenceSensor')
-        displayPersonNotHomeIncomplete(fieldName, 'capability.presenceSensor')
-    }
-}
-def displayPersonHomeComplete(fieldName, fieldCapability){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Only if home:'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
-}
-def displayPersonHomeIncomplete(fieldName, fieldCapability){
-    if(settings[fieldName]) return
-    if(!settings['personNotHome']) displayInfo('This will limit the ' + appDescription + ' from being active to only when those selected are home and/or away. They can be combined (as if Person A is home AND Person B is away). You can create another ' + appDescription + ' "app" to do something else for the opposite.')
-    fieldTitle = 'Only if any of these people are home (Optional)'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
-}
-def displayPersonNotHomeComplete(fieldName, fieldCapability){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Only if away:'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
-}
-def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
-    if(settings[fieldName]) return
-    fieldTitle = 'Only if any of these people are not home (Optional)'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
 }
 
 // Returns true if showing button (ie 2 button has not Middle button)
@@ -984,7 +520,6 @@ def setDeviceById(deviceIdName, deviceName,capability){
 def resetDevices(){
         for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
             for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-            //actionMap.each{it->
                 app.removeSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action')
                 if(!settings['controlDevice']) continue
                 if(!checkIfShowButton(buttonNumber)) continue
@@ -1003,14 +538,6 @@ def buildButtonMap(){
     ['fullName':'rotate counter-clockwise', 'shortName':'counterClockwise', 'type':'dim','eventType':'held','advanced':false],
         ['fullName':'shake', 'shortName':'shake', 'type':'on','eventType':'doubleTapped','advanced':true]]
 }
-def buildActionMap(){
-    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'advanced':false],
-        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'advanced':false],
-        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'advanced':false],
-        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'advanced':false],
-        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'advanced':false],
-        ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true]]
-}
 
 def getActionFromButtonNumber(buttonNumber){
      actionMap.find{it->
@@ -1019,129 +546,34 @@ def getActionFromButtonNumber(buttonNumber){
      returnValue
 }
 
-def displayTextField(fieldName,fieldTitle,fieldType,required = true){
-    width = 10
-    if(!settings[fieldName]) width = 12
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
-    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
-    input name: fieldName, type: fieldType, title: '', width:width, submitOnChange:true
-}
-def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,defaultValue = false){
-    if(!fieldTitleTrue) fieldTitleTrue = ''
-    if(!fieldTitleFalse) fieldTitleFalse = ''
-    if(required && fieldTitleTrue) fieldTitleTrue = highlightText(fieldTitleTrue)
-    if(fieldTitleTrue) fieldTitle = fieldTitleTrue
-    if(required) fieldTitle += ' ' + fieldTitleFalse
-    if(!required) fieldTitle += '<br> ' + fieldTitleFalse
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue,submitOnChange:true
-}
-def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true, button = ''){
-    width = 12
-    if(!settings[fieldName] && button) width = 11
-    if(settings[fieldName]){
-        width = 10
-        if(button) width = 9
-    }
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
-    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
-    input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
-    if(button) displayFilterButton(button)
-}
-def displayDeviceSelectField(fieldName,fieldTitle,capability,multiple, button = ''){
-    width = 12
-    if(button) width = 11
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true, width: width
-    if(button) displayFilterButton(button)
-}
-def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,required = true){
-    width = 10
-    if(!settings[fieldName]) width = 12
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
-    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
-    input name: fieldName, type: 'mode', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
-}
-
-def appButtonHandler(buttonValue){
-      switch(buttonValue) {
-          case 'controllerButton':
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'true'])
-              break
-          }
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'false'])
-          break
-          case 'controlButton':
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 1])
-              break
-          }
-          if(settings[buttonValue + 'Value'] == 1){
-              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 2])
-              break
-          }
-          app.removeSetting(buttonValue + 'Value')
-          break
-      }
-}
-
-def displayFilterButton(buttonName){
-    if(buttonName == 'controllerButton'){
-        if(settings[buttonName + 'Value']) {
-            input buttonName, 'button', title: filterYesIcon + ' Filter', width:1
-        }
-        if(!settings[buttonName + 'Value']){
-            input buttonName, 'button', title: filterNoIcon + ' Filter', width:1
-        }
-        return
-    }
-    if(buttonName == 'controlButton'){
-        if(!settings[buttonName + 'Value']) {
-            input buttonName, 'button', title: filterSwitchIcon + ' Filter', width:1
-        }
-        if(settings[buttonName + 'Value'] == 1){
-            input buttonName, 'button', title: filterLightIcon + ' Filter', width:1
-        }
-        if(settings[buttonName + 'Value'] == 2){
-            input buttonName, 'button', title: filterColorIcon + ' Filter', width:1
-        }
-    }
-}
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                          End display functions.                          */
+/*                                 End UI.                                  */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                          End display functions.                          */
+/*                                 End UI.                                  */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                          End display functions.                          */
+/*                                 End UI.                                  */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                          End display functions.                          */
+/*                                 End UI.                                  */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                          End display functions.                          */
+/*                                 End UI.                                  */
 /*                                                                          */
 /* ************************************************************************ */
 
@@ -1324,6 +756,653 @@ def getActive(){
     return true
 }
 
+/* ************************************************************************ */
+/*                                                                          */
+/*                         Begin common functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                         Begin common functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                         Begin common functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                         Begin common functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+
+/* ************************************************************************ */
+/*                                                                          */
+/*                         Begin common functions.                          */
+/*                                                                          */
+/* ************************************************************************ */
+// Copy/paste between all child apps
+
+// Not used by schedule or sensor (yet)
+def buildActionMap(){
+    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'advanced':false],
+        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'advanced':false],
+        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'advanced':false],
+        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'advanced':false],
+        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'advanced':false],
+        ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true]]
+}
+                                     
+def setUILinks(){
+    infoIcon = '<img src="http://emily-john.love/icons/information.png" width=20 height=20>'
+    errorIcon = '<img src="http://emily-john.love/icons/error.png" width=20 height=20>'
+    warningIcon = '<img src="http://emily-john.love/icons/warning.png" width=20 height=20>'
+    filterYesIcon = '<img src="http://emily-john.love/icons/filterEnable.png" width=20 height=20>'
+    filterNoIcon = '<img src="http://emily-john.love/icons/filterDisable.png" width=20 height=20>'
+    filterLightIcon = '<img src="http://emily-john.love/icons/light.png" width=20 height=20>'
+    filterColorIcon = '<img src="http://emily-john.love/icons/color.png" width=20 height=20>'
+    filterSwitchIcon = '<img src="http://emily-john.love/icons/switch.png" width=20 height=20>'
+    moreOptions = ' (click for more options)'
+    expandText = ' (Click to expand/collapse)'
+}
+
+def displayLabel(text, width = 12){
+    if(!text) return
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
+}
+
+def displayInfo(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    helpTip = ''
+}
+
+def displayError(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    errorMessage = ''
+}
+
+def displayWarning(text,noDisplayIcon = null, width=12){
+    if(!text) return
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    warningMessage = ''
+}
+
+def highlightText(text, width=12){
+    if(!text) return
+    return '<div style="background-color:Wheat">' + text + '</div>'
+}
+
+def addFieldName(text,fieldName){
+    if(!fieldName) return
+    if(getLogLevel() != 5) return text
+    return text + ' [' + fieldName + ']'
+}
+                                     
+def displayNameOption(){
+    displayNameOptionComplete()
+    displayNameOptionIncomplete()
+}
+def displayNameOptionComplete(){
+    if(!app.label) return
+    displayLabel(thisDescription.capitalize() + ' name:',2)
+    label title: '', required: false, width: 10,submitOnChange:true
+}
+def displayNameOptionIncomplete(){
+    if(app.label) return
+    fieldTitle = 'Set name for this ' + thisDescription + ' setup:'
+    displayLabel(highlightText(fieldTitle))
+    label title: '', width:12, submitOnChange:true
+    displayInfo('Name this ' + thisDescription + ' setup. Each ' + thisDescription + ' setup must have a unique name.')
+}
+
+// Not used by sensor app (yet)
+def displayControllerOption(){
+    if(thisApp == 'schedule') return
+    if(!app.label) return
+    fieldName = 'device'
+    resetControllerDevices(fieldName)
+    fieldOptions = ''
+    if(settings['controllerButtonValue'] == null) app.updateSetting('controllerButtonValue', [type: 'bool', value: 'true'])
+    if(settings['controllerButtonValue']){
+        fieldOptions = controllerDeviceOptions
+        if(parent.getDeviceList() && !fieldOptions) return
+    }
+    if(fieldOptions) {
+        fieldName += 'Id'
+        newValue = []
+        if(fieldOptions.size() == 1) {
+            app.updateSetting(fieldName, [type: 'enum', value: fieldOptions.keySet()])
+            return
+        }
+    }
+    
+    displayControllerOptionComplete(fieldName,fieldOptions)
+    displayControllerOptionIncomplete(fieldName,fieldOptions)
+}
+def displayControllerOptionComplete(fieldName,fieldOptions){
+    if(!settings[fieldName]) return
+    if(thisType == 'cube'){
+        fieldTitle = 'MagicCube:'
+        if(settings[fieldName].size() > 1) fieldTitle = 'MagicCubes:'
+    }
+    if(thisType == 'pico'){
+        fieldTitle = 'Pico controller:'
+        if(settings[fieldName].size() > 1) fieldTitle = 'Pico controllers:'
+    }
+
+    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
+}
+def displayControllerOptionIncomplete(fieldName,fieldOptions){
+    if(settings[fieldName]) return
+            if(thisType == 'pico') displayInfo('Select which Lutron Caseta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
+    if(fieldOptions) displayInfo('If you don\'t see the device you want, make sure you have it selected in the Master app.')
+            if(thisType == 'pico') fieldTitle = 'Select button device(s) to setup:'
+            if(thisType == 'cube') fieldTitle = 'Select MagicCube(s) to setup:'
+    if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
+}
+def controllerOptionProcessParentDeviceList(){
+    if(!allDeviceOptions) return
+    controllerList = [:]
+    fullList = [:]
+    allDeviceOptions.each{singleDevice->
+        if(singleDevice.hasCapability('PushableButton')){
+            controllerMatch = controllerOptionProcessParentDeviceListMatch(singleDevice)
+            if(controllerMatch) controllerList.put([singleDevice.'id',singleDevice.'label'])
+            if(!controllerMatch) fullList.put([singleDevice.'id',singleDevice.'label'])
+        }
+    }
+    return fullList.sort{it.value.toLowerCase()}
+}
+
+def displayAdvancedOption(){
+    if(anyErrors) return        // Only pico or cube
+    fieldName = 'advancedSetup'
+    if((thisType != 'schedule' && thisType != 'sensor') && !settings['controllerDevice'] && !settings[fieldName]) return        // schedule doesn't have controllerDevice, and sensor needs advanced before controllerDevice
+    if(!settings['customActionsSetup'] && !settings[fieldName] && (thisType == 'pico' || thisType == 'cube')) return
+    if(thisType != 'sensor' && !settings['controlDevice']) return
+    if(thisType == 'schedule'){
+        if(!validateTimes('start')) return
+        if(!validateTimes('stop')) return
+        if(!settings['start_action']) return
+        if(!settings['stop_action']) return
+    }
+    
+    displayAdvancedOptionEnabled(fieldName)
+    displayAdvancedOptionDisabled(fieldName)
+}
+def displayAdvancedOptionEnabled(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'Showing advanced options.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+def displayAdvancedOptionDisabled(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'Keeping it simple.'
+    fieldTitleFalse = 'Click to show advanced options.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+
+def displayControlDeviceOption(){
+    if(thisType == 'sensor' && !settings['controllerType']) return
+    if(thisType != 'schedule' && !settings['controllerDevice']) return
+    if(anyErrors) return
+    fieldName = 'controlDevice'
+    displayControlDeviceOptionComplete(fieldName)
+    displayControlDeviceOptionIncomplete(fieldName)
+}
+def displayControlDeviceOptionComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Device to control:'
+    if(settings[fieldName].size() > 1) fieldTitle = 'Devices to control:'
+    capabilitiesType = 'switch'
+    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
+    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
+
+    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
+}
+def displayControlDeviceOptionIncomplete(fieldName){
+    if(settings[fieldName]) return
+    fieldTitle = 'Select all device(s) to control with the ' + thisDescription + ':'
+    if(thisType == 'sensor' && settings['controllerDevice'].size() == 1) fieldTitle = 'Select all device(s) to control with the sensor:'
+    if(thisType == 'sensor' && settings['controllerDevice'].size() > 1) fieldTitle = 'Select all device(s) to control with the sensors:'
+    capabilitiesType = 'switch'
+    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
+    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
+
+    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
+}
+
+def displayIfModeOption(){
+    if(!settings['controllerDevice'] && thisType != 'schedule') return
+    if(!settings['controlDevice']) return
+    if(!settings['advancedSetup']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if((thisType == 'pico' || thisType == 'cube') && !checkAnyDeviceSet()) return
+    if(anyErrors) return
+    
+    fieldName = 'ifMode'
+    sectionTitle = 'Click to select with what Mode (optional)'
+    if(settings[fieldName]) sectionTitle = '<b>Only with Mode: ' + settings[fieldName] + '</b>'
+
+    section(hideable: true, hidden: true, sectionTitle){
+        displayIfModeFieldComplete(fieldName)
+        displayIfModeFieldIncomplete(fieldName)
+    }
+}
+def displayIfModeFieldComplete(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only with Mode:'
+    displayModeSelectField(fieldName,fieldTitle,options,true,false)
+}
+def displayIfModeFieldIncomplete(fieldName){
+    if(settings[fieldName]) return
+    displayInfo('This will limit the ' + thisDescription + ' from being active to only when Hubitat\'s Mode is as selected. You can create another ' + thisDescription + ' "app" to do something else for other Modes.')
+    fieldTitle = 'Only when the Mode is:'
+    displayModeSelectField(fieldName,fieldTitle,options,true,false)
+}
+
+def displayPeopleOption(){
+// Use devices selected in Master app
+// Add check for if no presense devices
+    if(!settings['controllerDevice'] && thisType != 'schedule') return
+    if(!settings['controlDevice']) return
+    if(!settings['advancedSetup']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if((thisType == 'pico' || thisType == 'cube') && !checkAnyDeviceSet()) return
+    if(anyErrors) return
+
+    List peopleList1=[]
+    settings['personHome'].each{
+        peopleList1.add(it)
+    }
+    withPeople = peopleList1.join(', ')
+ 
+    List peopleList2 = []
+    settings['personNotHome'].each{
+        peopleList2.add(it)
+    }
+    withoutPeople = peopleList2.join(', ')
+    
+    hidden = true
+    if(peopleError) hidden = false
+    
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (optional)'
+    if(settings['personHome']) sectionTitle = '<b>Only if home: ' + withPeople + '</b>'
+    if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
+    if(settings['personNotHome']) sectionTitle += '<b>Only if away: ' + withoutPeople + '</b>'
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        if(peopleError) displayError('You can\'t include and exclude the same person.')
+        fieldName = 'personHome'
+        displayPersonHomeComplete(fieldName, 'capability.presenceSensor')
+        displayPersonHomeIncomplete(fieldName, 'capability.presenceSensor')
+        fieldName = 'personNotHome'
+        displayPersonNotHomeComplete(fieldName, 'capability.presenceSensor')
+        displayPersonNotHomeIncomplete(fieldName, 'capability.presenceSensor')
+        if(thisType == 'schedule') displayInfo('Schedules will resume/pause based on people present/away. If requirements are met at start time, any stop actions/levels will be applied.')
+    }
+}
+def displayPersonHomeComplete(fieldName, fieldCapability){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only if home:'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonHomeIncomplete(fieldName, fieldCapability){
+    if(settings[fieldName]) return
+    if(!settings['personNotHome']) displayInfo('This will limit the ' + thisDescription + ' from being active to only when those selected are home and/or away. They can be combined (as if Person A is home AND Person B is away). You can create another ' + thisDescription + ' "app" to do something else for the opposite.')
+    fieldTitle = 'Only if any of these people are home (Optional)'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonNotHomeComplete(fieldName, fieldCapability){
+    if(!settings[fieldName]) return
+    fieldTitle = 'Only if away:'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
+    if(settings[fieldName]) return
+    fieldTitle = 'Only if any of these people are not home (Optional)'
+    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+}
+
+def validateTimes(type){
+    if(type == 'stop' && settings['start_timeType'] && !settings['stop_timeType']) return false
+    if(thisType == 'schedule' && type == 'stop' && settings['stop_timeType'] == 'none') return true
+    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
+    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
+    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
+    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
+    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(!validateSunriseMinutes(type)) return false
+    return true
+}
+
+def validateSunriseMinutes(type){
+    if(!settings[type + '_sunOffset']) return true
+    if(settings[type + '_sunOffset'] > 719) return false
+    return true
+}
+
+def getTimeSectionTitle(){
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (optional)'
+
+    if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
+    if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
+    if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
+        if(!settings['start_sunType']) sectionTitle += 'Based on ' + settings['start_timeType']
+        if(settings['start_sunType'] == 'at') sectionTitle += 'At ' + settings['start_timeType']
+        if(settings['start_sunOffset']) sectionTitle += ' ' + settings['start_sunOffset'] + ' minutes '
+        if(settings['start_sunType'] && settings['start_sunType'] != 'at') sectionTitle += settings['start_sunType'] + ' ' + settings['start_timeType']
+        if(validateTimes('start')) sectionTitle += ' ' + getSunriseTime(settings['start_timeType'],settings['start_sunOffset'],settings['start_sunType'])
+    }
+
+    List dayList=[]
+    settings['days'].each{
+        dayList.add(it)
+    }
+    dayText = dayList.join(', ')
+    
+    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['start_timeType']) sectionTitle += '</b>'
+    if(!settings['days']) sectionTitle += moreOptions
+    
+    if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
+
+    sectionTitle += '</br>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] == 'none') return sectionTitle + '<b>No end</b>'
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') sectionTitle += '<b>Stopping: '
+    if(settings['stop_timeType'] == 'time' && settings['stop_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['stop_time']).format('h:mm a', location.timeZone)
+    if(settings['stop_timeType'] == 'time' && !settings['stop_time']) sectionTitle += 'At specific time '
+    if(settings['stop_timeType'] == 'sunrise' || settings['stop_timeType'] == 'sunset'){
+        if(!settings['stop_sunType']) sectionTitle += 'Based on ' + settings['stop_timeType']
+        if(settings['stop_sunType'] == 'at') sectionTitle += 'At ' + settings['stop_timeType']
+        if(settings['stop_sunOffset']) sectionTitle += settings['stop_sunOffset'] + ' minutes '
+        if(settings['stop_sunType'] && settings['stop_sunType'] != 'at') sectionTitle += settings['stop_sunType'] + ' ' + settings['stop_timeType']
+        if(stopTimeComplete) sectionTitle += ' ' + getSunriseTime(settings['stop_timeType'],settings['stop_sunOffset'],settings['stop_sunType'])
+    }
+
+    if(settings['start_timeType']) return sectionTitle + '</b>'
+}
+
+def displayTimeTypeOption(type){
+    if(type == 'stop' && (!settings['start_timeType'] || !validateTimes('start'))) return
+    ingText = type
+    if(type == 'stop') ingText = 'stopp'
+    
+    labelText = 'Schedule ' + type
+    if(validateTimes('start')) labelText = ''
+    if(type == 'start' && !validateTimes('start') || !settings[type + '_timeType']) labelText = ''
+    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    
+    if(labelText) displayLabel(labelText)
+
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    
+    fieldName = type + '_timeType'
+    fieldTitle = type.capitalize() + ' time:'
+    if(!settings[type + '_timeType']){
+        fieldTitle = type.capitalize() + ' time?'
+        if(type == 'stop' && thisType == 'schedule') fieldTitle += ' (Select "Don\'t stop" for none)'
+        if(type == 'stop' && thisType != 'schedule') fieldTitle += ' (Required with Start time.)'
+        highlightText(fieldTitle)
+    }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop' && thisType == 'schedule') fieldList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    if(type == 'stop' && thisType != 'schedule') fieldList = ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fieldList, submitOnChange:true
+    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
+}
+
+def displayTimeOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] != 'time') return
+
+    fieldName = type + '_time'
+    fieldTitle = type.capitalize() + ' time:'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+}
+                                     
+def getTypeOptionWidth(type){
+    if(!settings[type + '_timeType']) return 12
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
+    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    return 6
+}
+
+def displaySunriseTypeOption(type){
+    if(!settings[type + '_timeType']) return
+    if(settings[type + '_timeType'] == 'time') return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'stop' && !validateTimes('start')) return
+    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    
+    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
+
+    fieldName = type + '_sunType'
+    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    
+    if(!settings[fieldName]) displayInfo('Select whether scheduling starts exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    displaySunriseOffsetOption(type)
+}
+
+def getSunriseTime(type,sunOffset,sunriseType){
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+}
+
+def displaySunriseOffsetOption(type){
+    if(type == 'stop' && !validateTimes('start')) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_sunType'] == 'at') return
+
+    fieldName = type + '_sunOffset'
+    timeUnits = 'minutes'
+    if(advancedSetup) timeUnits = 'seconds'
+    fieldTitle = timeUnits.capitalize() + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
+
+    message = 'Enter the number of ' + timeUnits + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' for schedule to ' + type + '. Required.'
+    if(!settings[type + '_sunOffset']) displayInfo(message)
+    if(!validateSunriseMinutes(type)) displayWarning(message)
+}
+
+def displayDaysOption(){
+    if(thisType == 'schedule' && !settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+
+    fieldName = 'days'
+    fieldTitle = 'On these days (optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
+    displaySelectField(fieldName,fieldTitle,options,true,false)
+    //input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
+}
+
+def displayDatesOptions(){
+    displayIncludeDates()
+    displayExcludeDates()
+}
+
+def displayIncludeDates(){
+    displayWarning(parent.getDateProcessingErrors(app.id))
+    displayInfo(dateList)
+    fieldName = 'includeDates'
+    fieldTitle = 'Only on dates:'
+    if(thisType == 'schedule') fieldTitle = 'Dates on which to run ("include"):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+}
+
+       
+def displayTextField(fieldName,fieldTitle,fieldType,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: fieldType, title: '', width:width, submitOnChange:true
+}
+def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,defaultValue = false){
+    if(!fieldTitleTrue) fieldTitleTrue = ''
+    if(!fieldTitleFalse) fieldTitleFalse = ''
+    if(required && fieldTitleTrue) fieldTitleTrue = highlightText(fieldTitleTrue)
+    if(fieldTitleTrue) fieldTitle = fieldTitleTrue
+    if(required) fieldTitle += ' ' + fieldTitleFalse
+    if(!required) fieldTitle += '<br> ' + fieldTitleFalse
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue,submitOnChange:true
+}
+def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true, button = ''){
+    width = 12
+    if(!settings[fieldName] && button) width = 11
+    if(settings[fieldName]){
+        width = 10
+        if(button) width = 9
+    }
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
+    if(button) displayFilterButton(button)
+}
+def displayDeviceSelectField(fieldName,fieldTitle,capability,multiple, button = ''){
+    width = 12
+    if(button) width = 11
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true, width: width
+    if(button) displayFilterButton(button)
+}
+def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,required = true){
+    width = 10
+    if(!settings[fieldName]) width = 12
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(settings[fieldName]) displayLabel(fieldTitle,2)
+    if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
+    if(!required && !settings[fieldName]) displayLabel(fieldTitle)
+    input name: fieldName, type: 'mode', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
+}
+
+def appButtonHandler(buttonValue){
+      switch(buttonValue) {
+          case 'controllerButton':
+          if(!settings[buttonValue + 'Value']){
+              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'true'])
+              break
+          }
+              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'false'])
+          break
+          case 'controlButton':
+          if(!settings[buttonValue + 'Value']){
+              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 1])
+              break
+          }
+          if(settings[buttonValue + 'Value'] == 1){
+              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 2])
+              break
+          }
+          app.removeSetting(buttonValue + 'Value')
+          break
+          case 'controllerTypeButton':        //used only by sensor app
+          if(!settings[buttonValue + 'Value']){
+              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'true'])
+              break
+          }
+              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: 'false'])
+          break
+      }
+}
+
+def displayFilterButton(buttonName){
+    if(buttonName == 'controllerButton'){
+        if(settings[buttonName + 'Value']) {
+            input buttonName, 'button', title: filterYesIcon + ' Filter', width:1
+        }
+        if(!settings[buttonName + 'Value']){
+            input buttonName, 'button', title: filterNoIcon + ' Filter', width:1
+        }
+        return
+    }
+    if(buttonName == 'controlButton'){
+        if(!settings[buttonName + 'Value']) {
+            input buttonName, 'button', title: filterSwitchIcon + ' Filter', width:1
+        }
+        if(settings[buttonName + 'Value'] == 1){
+            input buttonName, 'button', title: filterLightIcon + ' Filter', width:1
+        }
+        if(settings[buttonName + 'Value'] == 2){
+            input buttonName, 'button', title: filterColorIcon + ' Filter', width:1
+        }
+    }
+    if(buttonName == 'controllerTypeButton'){
+        if(settings[buttonName + 'Value']) {
+            input buttonName, 'button', title: filterYesIcon + ' Filter', width:1
+        }
+        if(!settings[buttonName + 'Value']){
+            input buttonName, 'button', title: filterNoIcon + ' Filter', width:1
+        }
+        return
+    }
+}
+
+def displayExcludeDates(){
+    fieldName = 'excludeDates'
+    fieldTitle = 'Not on dates:'
+    if(appType == 'schedule') fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, "textarea", title: fieldTitle, submitOnChange:true
+    deviceText = 'the device'
+    if(thisType == 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
+    if(thisType != 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
+    infoTip = 'Enter which date(s) to restrict or exclude this ' + thisDescription + ' routine. "Only on dates" are when this ' + thisDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
+"Not on" dates are when this ' + thisDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
+	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
+<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
+	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas could be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years, otherwise 360].</i>\n\
+	• Separate multiple dates with a comma (or semicolon). \
+<i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
+	• Use a hyphen to indicate a range of dates. \
+<i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
+    	• The "days" options above will combine with the dates. \
+<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' if Christmas is on a Monday.</i>\n\
+	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
+<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
+	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
+	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
+
+    displayInfo(infoTip)
+}
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
