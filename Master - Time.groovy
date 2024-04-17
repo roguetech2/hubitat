@@ -11,976 +11,24 @@
 *  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 *  <http://www.gnu.org/licenses/> for more details.
 *
-*  Name: Master - Pico
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.18
+*  Name: Master - Time
+*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
+*  Version: 0.7.2.24
 *
 ***********************************************************************************************************************/
 
-// To-do: Change "Push" to pushed, and "Hold" to held
-// To-do: Add double-push
-// To-do: Add Held + Released ?
-// To-do: Add locks (and change device type selection to multi)
 // TO-DO: Allow selecting rooms??
-// TO-DO: Add support for Hubitat Package Manager? https://community.hubitat.com/t/beta-hubitat-package-manager/38016
 
 definition(
-    name: 'Master - Pico',
+    name: 'Master - Time',
     namespace: 'master',
     author: 'roguetech',
-    description: 'Pico and Caseta switches',
+    description: 'Schedules, times and default settings',
     parent: 'master:Master',
     category: 'Convenience',
-    importUrl: 'https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20Pico.groovy',
-    iconUrl: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png',
-    iconX2Url: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png'
-)
-// logLevel sets number of log messages
-// 0 for none
-// 1 for errors only
-// 2 for warnings + errors
-// 3 for info + errors + warnings
-// 4 for trace + info + errors + warnings
-// 5 for debug + trace + info + errors + warnings
-def getLogLevel(){
-    return 4
-}
-
-preferences {
-    if(!settings) settings = [:]
-    numberOfButtons = getButtonNumbers()
-    buttonMap = buildButtonMap()
-    actionMap = buildActionMap()
-    resetDevices()
-    anyErrors = checkAnyErrors()
-    install = formComplete()
-    thisType = 'pico'
-    thisDescription = 'Pico'        // Used with schedule, people, ifMode
-    thisDescriptionPlural = 'Picos'
-
-    page(name: 'setup', install: install, uninstall: true) {
-        if(!app.label){
-            section(){
-                displayNameOption()
-            }
-        }
-        if(app.label){
-            setUILinks()
-            allDeviceOptions = parent.getDeviceList()
-            controllerDeviceOptions = controllerOptionProcessParentDeviceList()
-            if(allDeviceOptions && !controllerDeviceOptions) {
-                section(){
-                    displayError('You don\'t have any Caseta or Pico devices selected in the Master app. Update the device selection in the Master app to include Caseta(s)/Pico(s).')
-                    displayInfo('Caseta/Pico devices are identified by having a "pushableButton" setting, and 2, 4 or 5 buttons. If you have a Caseta/Picos installed, check the device status page.') 
-                }
-            }
-            processDates()
-            section(){
-                displayNameOption()
-                displayControllerOption()
-                displayAdvancedOption()
-                displayControlDeviceOption()
-                displayCustomActionsOption()
-            }
-            displayAutoMappingMessage()
-            displayDefineActions()
-            displayCustomizeActionsAndDevices()
-            displayDimmingProgressionOption()
-            displayScheduleSection()
-            displayPeopleOption()
-            displayIfModeOption()
-        }
-    }
-}
-
-def formComplete(){
-    if(!app.label) return false
-    if(!settings['device']) return false
-    if(!numberOfButtons) return false
-    if(!controlDevice) return false
-    if(!checkAnyDeviceSet()) return false
-    if(inputStartType == 'time' && !inputStartTime) return false
-    if(inputStopType == 'time' && !inputStopTime) return false
-    if((inputStartType == 'sunrise' || inputStartType == 'sunset') && !inputStartSunriseType) return false
-    if((inputStopType == 'sunrise' || inputStopType == 'sunset') && !inputStopSunriseType) return false
-    if((inputStartSunriseType == 'before' || inputStartSunriseType == 'after') && !inputStartBefore) return false
-    if((inputStopSunriseType == 'before' || inputStopSunriseType == 'after') && !inputStopBefore) return false
-    if(anyErrors) return false
-    return true
-}
-
-def checkAnyErrors(){
-    if(settings['customActionsSetup'] != 'actionsAndDevices') return false
-    anyErrors = false
-    fieldOptions = [:]
-    actionMap.each{it->
-        fieldOptions[it.'action'] = it.'actionText'
-    }
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(!checkIfShowButton(buttonNumber)) continue
-        
-        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-        //actionMap.any{it->
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', 'push')
-            if(anyErrors) break
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', 'hold')
-            if(anyErrors) break
-        }
-        if(anyErrors) break
-    }
-    return anyErrors
-}
-
-def controllerOptionProcessParentDeviceListMatch(singleDevice){
-    if(!singleDevice.currentValue('numberOfButtons')) return false
-    if(singleDevice.currentValue('numberOfButtons') == 2) return true
-    if(singleDevice.currentValue('numberOfButtons') == 4) return true
-    if(singleDevice.currentValue('numberOfButtons') == 5) return true
-    
-}
-
-def displayCustomActionsOption(){
-    if(!settings['device']) return
-    if(!settings['controlDevice']) return
-    if(!numberOfButtons) return
-    if(anyErrors) return
-    fieldName = 'customActionsSetup'
-    options = ['automap':'Automap actions','actions':'Assign action and devices to each button','actionsAndDevices':'Customize actions and devices for each button']
-    if(settings['controlDevice'].size() == 1 && settings[fieldName] != 'actionsAndDevices') options = ['automap':'Automap actions','actions':'Assign action and devices to each button']
-    displayCustomActionsOptionComplete(fieldName,options)
-    displayCustomActionsOptionIncomplete(fieldName,options)
-    devicesText = 'device'
-    if(settings['controlDevice'].size() > 1) devicesText = 'devices'
-    if(settings['customActionsSetup'] == 'automap') displayInfo('This option will automap what each button does (click "Automapped buttons" below for details), and will be applied to the ' + devicesText + ' selected.')
-    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() == 1) displayInfo('This option allows setting what each button does.')
-    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() > 1) displayInfo('This option allows setting what each button does, then assign ' + devicesText + ' to it.')
-    if(settings['customActionsSetup'] == 'actionsAndDevices') displayInfo('This option allows setting what each button does, and which devices for each button/action.')
-}
-def displayCustomActionsOptionComplete(fieldName,options){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Selection type:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
-}
-def displayCustomActionsOptionIncomplete(fieldName,options){
-    if(settings[fieldName]) return
-    fieldTitle = 'Select how to assign devices and buttons actions:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
-}
-
-def displayAutoMappingMessage(){
-    if(!settings['device']) return
-    if(!numberOfButtons) return
-    if(settings['customActionsSetup'] != 'automap') return
-    if(!settings['controlDevice']) return
-    
-    sectionTitle = '<b>Automapped buttons</b>'
-    if(setHold) sectionTitle = '<b>Automapped buttons for Push and Hold</b>'
-    
-    section(hideable: true, hidden: true, sectionTitle + expandText) {
-        pushAutoMappingText = ''
-        holdAutoMappingText = ''
-        displayInfo('To change these, select "Assign actions to each button" as Selection Type.')
-        for(int i = 0; i < buttonMap.size(); i++) {
-            showButton = checkIfShowButton(i)
-            if(!showButton) continue
-            actionMapItem = getActionFromButtonNumber(i)
-            if(i != 0) pushAutoMappingText += '<br>'
-// Need to add devices on initialize
-            //app.updateSetting('button_' + (i + 1) + '_push',['type':'text','value':actionMapItem['action']])        // Set the button; uses stupid Hubitat way to access the settings dictionary
-            if(!setHold) pushAutoMappingText += ' ' + buttonMap[i]['fullName'].capitalize() + ' &nbsp; :: &nbsp; ' + actionMapItem['descriptionActive']
-            if(setHold) {
-                pushAutoMappingText += ' Push ' + buttonMap[i]['fullName'].capitalize() + ' &nbsp; :: &nbsp; ' + actionMapItem['descriptionActive']
-                if(i != 0) holdAutoMappingText += '<br>'
-                holdAutoMappingText += ' Long pushing ' + buttonMap[i]['fullName'].capitalize() + ' &nbsp; :: &nbsp; ' + actionMapItem['descriptionActive']
-            }
-        }
-        paragraph '<div style="background-color:GhostWhite">' + pushAutoMappingText + '</div><p><div style="background-color:GhostWhite">' + holdAutoMappingText + '</div>'
-        displaySetHoldOption()
-        if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
-    }
-}
-
-def displayDefineActions(){
-    if(settings['customActionsSetup'] != 'actions') return
-    if(!settings['controlDevice']) return
-    section(hideable: true, hidden: false, getDefineActionsSectionTitle('push')) {
-        if(settings['controlDevice'].size() > 1){
-            warningValue = getDefineActionsWarningValue('push')
-            if(warningValue) displayWarning('Select the device(s) for ' + warningValue + '.')
-            if(!checkAnyDeviceSet()) {
-                if(!warningValue) {
-                    displayInfo('If you want assign different actions to individual buttons, select "Customize actions and devices for each button" as Selection Type.')
-                    displayInfo('Select the button action, then select device(s).')
-                }
-            }
-        }
-        for(int i = 0; i < buttonMap.size(); i++){
-            if(!checkIfShowButton(i)) continue
-            displayDefineActionsButton(i,'push')
-        }
-        if(!setHold) displaySetHoldOption()
-        if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
-    }
-    if(setHold){
-        section(hideable: true, hidden: false, getDefineActionsSectionTitle('hold')) {
-            for(int i = 0; i < buttonMap.size(); i++){
-                if(!checkIfShowButton(i)) continue
-                displayDefineActionsButton(i, 'hold')
-            }
-            displaySetHoldOption()
-            if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
-        }
-    }
-}
-def getDefineActionsWarningValue(pushType){
-    returnValue = ''
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(returnValue) continue
-        if(settings['button_' + buttonNumber + '_' + pushType] && !settings['button_' + buttonNumber + '_' + pushType + '_' + settings['button_' + buttonNumber + '_' + pushType]]){
-            actionMap.find{it->
-                if(it.'action' == settings['button_' + buttonNumber + '_' + pushType]){
-                    returnValue = it.'description'
-                }
-            }
-        }
-    }
-    return returnValue
-}
-def getDefineActionsSectionTitle(pushType){
-    sectionTitle = ''
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(!checkIfShowButton(buttonNumber)) continue
-        if(!settings['button_' + (buttonNumber + 1) + '_' + pushType]) continue
-        if(sectionTitle) sectionTitle += '\n'
-        sectionTitle += buttonMap[buttonNumber]['fullName'].capitalize() + ': ' + getActionFromButtonNumber(buttonNumber)['descriptionActive'] + ''
-    }
-    pushText = 'pushing'
-    if(pushType == 'hold') pushText = 'pushing and holding'
-    if(sectionTitle && setHold) sectionTitle = 'When ' + pushText + ':' + '\n\n' + sectionTitle + '\n' + expandText + ''
-    if(!sectionTitle) sectionTitle = 'Select device(s) for each/any action:' + expandText
-    return sectionTitle
-}
-def displayDefineActionsButton(buttonNumber,pushType){
-    fieldName = 'button_' + (buttonNumber + 1) + '_' + pushType
-    fieldTitle = buttonMap[buttonNumber]['fullName'].capitalize() + ' action:'
-    fieldOptions = setActionsPerButton(buttonNumber,pushType,settings[fieldName], true)
-    displaySelectField(fieldName,fieldTitle,fieldOptions,false,false)
-    displayDefineActionsDevice(buttonNumber,fieldOptions,pushType) 
-}
-def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
-    buttonAction = settings['button_' + (buttonNumber + 1) + '_' + pushType]
-    if(!buttonAction) return
-    if(!settings['controlDevice']) return
-    actionMap.find{it->
-        if(it.'action' == buttonAction) fieldText = it.'description'
-    }
-    if(settings['controlDevice'].size() == 1) return
-    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction
-    fieldTitle = ' '
-    if(!settings[fieldName]) fieldTitle = 'Device to ' + fieldText + ':'
-    deviceOptions = [:]
-    settings['controlDevice'].each{it->
-        deviceOptions.put([it.'id',it.'label'])
-    }
-    newVar = []
-
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,true)
-}
-
-def displayCustomizeActionsAndDevices(){
-    if(settings['customActionsSetup'] != 'actionsAndDevices') return
-    if(!settings['controlDevice']) return
-    if(!settings['device']) return
-    
-    displayCustomizeActionsAndDevicesSections('push')
-    displayCustomizeActionsAndDevicesSections('hold')
-
-    section(){
-        displaySetHoldOption()
-    }
-}
-def displayCustomizeActionsAndDevicesSections(pushType) {
-    if(pushType == 'hold' && !setHold) return
-    if(setHold){
-        section(){
-            if(pushTye == 'push') paragraph('<b>Push:</b>')
-            if(pushTye == 'hold') paragraph('<b>Push and hold:</b>')
-        }
-    }
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        sectionLabel = ''
-        if(!checkIfShowButton(buttonNumber)) continue
-        fieldOptions = setActionsPerButton(buttonNumber,pushType)
-        hidden = false
-        setErrors = ''
-        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){ 
-            if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action']) {
-                if(sectionLabel) sectionLabel += '\n'
-                sectionLabel += '  ' + actionMap[actionMapItem].'descriptionActive' + ' ' + settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action']
-                hidden = true
-                
-                setErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', pushType)
-                if(setErrors) hidden = false
-            }
-        }
-        if(anyErrors && !setErrors) hidden = true
-        if(sectionLabel) sectionLabel = '\n' + sectionLabel
-        sectionLabel = buttonMap[buttonNumber].'fullName'.capitalize() + expandText + sectionLabel
-        section(hideable: true, hidden: hidden, sectionLabel) {
-            displayCustomizeActionsAndDevicesButtons(buttonNumber,fieldOptions, pushType)
-        }
-    }
-}
-def displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions, pushType) {
-    fieldOptions.eachWithIndex{fieldAction, fieldOptionNumber ->
-        actionMap.each{it->
-            if(it.'action' == fieldAction.key){
-                displayDefineActionsAndDeviceField(buttonNumber, it, pushType, true)
-                if(anyErrors) displayError(displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, fieldAction.key,pushType))
-            }
-        }
-    }
-}
-
-def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,populated = null){
-    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionLine.'action'
-    fieldTitle = '<b>' + actionLine.'descriptionActive' + '</b>:'
-    if(!settings[fieldName]) fieldTitle = actionLine.'description' + ' <font color="gray">(Select devices)</font>'
-
-    deviceOptions = [:]
-    settings['controlDevice'].each{it->
-        deviceOptions.put([it.'id',it.'label'])
-    }
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,false)
-}
-
-def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action, pushType){
-    if(customActionsSetup == 'automap') return
-    if(!fieldOptions) return
-    firstActionNumber = fieldOptions.findIndexOf{it.key==action}
-    if(firstActionNumber == 0) return
-    errorMessage = ''
-    firstDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + action
-    if(!settings[firstDeviceName]) return
-    fieldOptions.find{it->
-        if(it.key == action) return
-        secondDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.key
-        if(compareDeviceLists(settings[firstDeviceName],settings[secondDeviceName],action,it.key)) {
-            if(errorMessage) errorMessage += '\n'
-            errorMessage += 'Can\'t set the same device to both ' + action + ' and ' + it.key + ' with the same button.'
-        }
-    }
-    return errorMessage
-}
-
-def displaySetHoldOption(){
-    if(!settings['device']) return
-    if(!numberOfButtons) return
-    if(!settings['advancedSetup'] && !settings['setHold']) return
-    fieldName = 'setHold'
-    holdAvailable = false
-    settings['device'].each{singleDevice->
-        if(singleDevice.currentHeld) holdAvailable = true
-    }
-    if(!holdAvailable) {
-        if(settings['device'].size() == 1) displayInfo('The Pico ' + settings['device'] + ' does not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
-        if(settings['device'].size() > 1) displayInfo('The Picos do not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
-        return
-    }
-    displaySetHoldOptionEnabled(fieldName)
-    displaySetHoldOptionDisabled(fieldName)
-}
-def displaySetHoldOptionEnabled(fieldName){
-    if(!settings[fieldName]) return
-    fieldTitleTrue = 'Automapping Long Push to the same things. Click to disable.'
-    if(customActionsSetup != 'automap') fieldTitleTrue = 'Click to not set Long Push options.'
-    fieldTitleFalse = ''
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false,true)
-}
-def displaySetHoldOptionDisabled(fieldName){
-    if(settings[fieldName]) return
-    fieldTitleTrue = 'Click to automap Long Push to the same things.'
-    if(customActionsSetup != 'automap') fieldTitleTrue = 'Click to set Long Push options.'
-    fieldTitleFalse = ''
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false,true)
-}
-
-def displayDimmingProgressionOption(){
-    if(!settings['advancedSetup']) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
-    dimmingSet = false
-    if(customActionsSetup == 'automap') dimmingSet = true
-    if(customActionsSetup == 'actions' || customActionsSetup == 'actionsAndDevices'){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-            if(settings['button_' + (buttonNumber + 1) + '_push'] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_push_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1) + '_push'] == 'dim' && settings['button_' + (buttonNumber + 1) + '_push_dim']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1) + '_hold'] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_hold_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1) + '_hold'] == 'dim' && settings['button_' + (buttonNumber + 1) + '_hold' + '_dim']) dimmingSet = true
-        }
-    }
-    if(!dimmingSet) return
-    sectionTitle = 'Click to set dimming steps (Optional)'
-    if(settings['pushedDimmingProgressionSteps']) sectionTitle = 'Push dimming steps: ' + settings['pushedDimmingProgressionSteps']
-    if(settings['heldDimmingProgressionSteps']) {
-        if(sectionTitle) sectionTitle += '\n'
-        sectionTitle = 'Push and hold dimming steps: ' + settings['heldDimmingProgressionSteps']
-    }
-    if(!sectionTitle) sectionTitle = '<b>Set dimming steps:</b>'
-    
-    section(hideable: true, hidden: true, sectionTitle + expandText) {
-        infoTip = 'Number of steps it takes to brighten (or dim) from 1 to 100%.'
-        if(!settings['pushedDimmingProgressionSteps'] && !settings['heldDimmingProgressionSteps']) infoTip = 'This is the number of button pushes it takes to brighten (or dim) from 1 to 100% brightness. It uses a geometric progression. For instance, with 10 steps, pressing the brighten button would go from 1% to 2%, and then to 4, 7, 11, 17, 25, 36, 52, 74, and finally 100%.'
-        displayInfo(infoTip)
-        fieldName = 'pushedDimmingProgressionSteps'
-        displayDimmingProgressionOptionComplete(fieldName, 'push')
-        displayDimmingProgressionOptionIncomplete(fieldName, 'push')
-        fieldName = 'heldDimmingProgressionSteps'
-        displayDimmingProgressionOptionComplete(fieldName, 'hold')
-        displayDimmingProgressionOptionIncomplete(fieldName, 'hold')
-    }
-}
-def displayDimmingProgressionOptionComplete(fieldName, pushType){
-    if(!settings[fieldName]) return
-    if(pushType == 'hold' && !setHold) return
-    
-    dimmingSet = false
-    if(customActionsSetup == 'automap') dimmingSet = true
-    if(customActionsSetup == 'actions' || customActionsSetup == 'actionsAndDevices'){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-            if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == 'dim' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_dim']) dimmingSet = true
-        }
-    }
-    if(!dimmingSet) return
-    fieldTitle = 'Dimming steps for Push:'
-    if(pushType == 'hold') fieldTitle = 'Dimming steps for Long Push:'
-
-    displayTextField(fieldName,fieldTitle,'number',false)
-}
-def displayDimmingProgressionOptionIncomplete(fieldName, pushType){
-    if(settings[fieldName]) return
-    if(pushType == 'hold' && !setHold) return
-    dimmingSet = false
-    if(customActionsSetup == 'automap') dimmingSet = true
-    if(customActionsSetup == 'actions'){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-            if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == 'dim' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_dim']) dimmingSet = true
-        }
-    }
-// This doesn't look right
-    if(customActionsSetup == 'actionsAndDevices'){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-            actionMap.each{it->
-                if(actionMap.'type' == 'dim' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']) dimmingSet = true
-            }
-        }
-    }
-    if(!dimmingSet) return
-    fieldTitle = 'Enter dimming steps for Push (optional, default 8):'
-    if(pushType == 'hold') fieldTitle = 'Enter dimming steps for Long Push (optional, default 20):'
-    displayTextField(fieldName,fieldTitle,'number',false)
-// Need to figure out how to display this for either Push or Hold, not both
-}
-
-def displayScheduleSection(){
-    if(!settings['device']) return
-    if(!settings['controlDevice']) return
-    if(!settings['advancedSetup']) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
-    
-    section(){}
-    
-    hidden = true
-    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
-    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
-    if(!validateTimes('start')) hidden = false
-    if(!validateTimes('stop')) hidden = false
-
-    section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + appDescription + ' is active. You can create another ' + appDescription + ' "app" to do something else for opposite times/days.')
-        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
-
-        displayTimeTypeOption('start')
-        displayTimeOption('start')
-        displaySunriseTypeOption('start')
-        displayTimeTypeOption('stop')
-        displayTimeOption('stop')
-        displaySunriseTypeOption('stop')
-        displayDaysOption()
-        displayDatesOptions()
-    }
-}
-
-// Returns true if showing button (ie 2 button has no Middle button)
-def checkIfShowButton(number){
-    if(numberOfButtons == 2 && number == 1) return false
-    if(numberOfButtons == 2 && number == 2) return false
-    if(numberOfButtons == 2 && number == 3) return false
-    if(numberOfButtons == 4 && number == 2) return false
-    if(!parent.checkIsColorMulti(settings['controlDevice']) && buttonMap[number].'type' == 'dim') return false
-    return true
-}
-                                     
-def getButtonNumbers(){
-    if(!settings['device']) return
-    settings['device'].each{
-        if(!it.currentValue('numberOfButtons')) numberOfButtons = 5
-        if(it.currentValue('numberOfButtons')) {
-            if(numberOfButtons){
-                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
-            }
-            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
-        }
-    }
-    return numberOfButtons
-}
-
-def checkDefineActionButNoDevice(){
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(settings['button_' + (buttonNumber + 1) + '_push']){
-            if(!settings['button_' + (buttonNumber + 1) + '_push_' + settings['button_' + (buttonNumber + 1) + '_push']]) return settings['button_' + (buttonNumber + 1) + '_push']
-        }
-        if(settings['button_' + (buttonNumber + 1) + '_hold']){
-            if(settings['button_' + (buttonNumber + 1) + '_hold_' + settings['button_' + (buttonNumber + 1) + '_hold']]) return settings['button_' + (buttonNumber + 1) + '_hold']
-        }
-    }
-    return false
-}
-                                     
-def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondAction){
-    if(!firstDeviceMulti) return
-    if(!secondDeviceMulti) return
-
-    if(firstAction == 'on' && !['off', 'toggle'].contains(secondAction)) return
-    if(firstAction == 'off' && !['on', 'resume'].contains(secondAction)) return
-    if(firstAction == 'toggle' && !['off', 'on'].contains(secondAction)) return
-    if(firstAction == 'dim' && !['brighten', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'brighten' && !['dim', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'resume' && !['dim', 'brighten', 'off'].contains(secondAction)) return
-    returnValue = false
-    firstDeviceMulti.each{firstDevice->
-        secondDeviceMulti.each{secondDevice->
-            if(firstDevice.id == secondDevice.id){
-                returnValue = true
-            }
-        }
-        if(returnValue) return returnValue
-    }
-    return returnValue
-}
-
-// Returns an ordered map of actions per button
-def setActionsPerButton(buttonNumber,pushType,fieldValue = false, unique = false){
-    fieldOptions = [:]
-    fieldOptions = setActionsPerButtonPreset(fieldOptions,fieldValue)
-    fieldOptions = setActionsPerButtonDefault(fieldOptions,fieldValue,buttonNumber)
-    fieldOptions = setActionsPerButtonType(fieldOptions,fieldValue,buttonNumber)
-    fieldOptions = setActionsPerButtonOther(fieldOptions,fieldValue,buttonNumber)
-    
-    if(!settings['advancedSetup']) {        // Remove any already picked
-        for(int i = 0; i < buttonMap.size(); i++){
-            if(i != buttonNumber){
-                actionMap.each{it->
-                    if(settings['button_' + (i + 1) + '_' + pushType] == it.'action') fieldOptions.remove(it.'action')
-                }
-            }
-        }
-    }
-    return fieldOptions
-}
-// Return actionMap line of what it's set to
-def setActionsPerButtonPreset(fieldOptions,fieldValue){
-    if(!fieldValue) return
-    actionMap.find{it->      // 1) What fieldValue is
-        if(it.'action' == fieldValue) {
-            fieldOptions[it.'action'] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-def setActionsPerButtonDefault(fieldOptions,fieldValue,buttonNumber){
-    if(!fieldOptions) fieldOptions = [:]
-    it = getActionFromButtonNumber(buttonNumber)      // 2) Default
-    if(setActionsPerButtonProcess(fieldOptions,it,fieldValue)) fieldOptions[it.action] = it.'actionText'.capitalize()
-    return fieldOptions
-}
-def setActionsPerButtonType(fieldOptions,fieldValue,buttonNumber){
-    if(!fieldOptions) fieldOptions = [:]
-    actionMap.findAll{it->      // 3) Correct "type"
-        if(it.'type' == buttonMap[buttonNumber].'type') {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue)) fieldOptions[it.action] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-def setActionsPerButtonOther(fieldOptions,fieldValue,buttonNumber){
-    actionMap.findAll{it->      // 4) The rest
-        if(it.'type' != buttonMap[buttonNumber]['type'] && it.'defaultButton' != buttonNumber + 1) {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue)) fieldOptions[it.action] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-def setActionsPerButtonProcess(fieldOptions,actionMapLine,fieldValue){
-    if(!actionMapLine) return
-    if(actionMapLine?.'advanced' && !advancedSetup) return
-    if(actionMapLine.'actionText' == fieldValue) return
-
-    return true
-}
-
-def checkAnyDeviceSet(){
-    if(customActionsSetup == 'automap') return true
-
-    for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){        // Repeat for push/hold
-        pushType = 'push'
-        if(pushActionLoop == 1) pushType = 'hold'
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-            if(!checkIfShowButton(buttonNumber)) continue
-            for(int actionNumber = 0; actionNumber < actionMap.size(); actionNumber++){
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionNumber].'action' && settings['controlDevice'].size() == 1) return true
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionNumber].'action']) return true
-                return true
-            }
-        }
-    }
-    return false
-}
-
-def resetControllerDevices(deviceName){
-    if(!deviceName) return
-    app.removeSetting(deviceName)
-    setDeviceById(deviceName + 'Id', deviceName,'pushableButton')
-}
-def setDeviceById(deviceIdName, deviceName,capability){
-    if(!settings[deviceIdName]) return
-    if(!(parentDeviceList = parent.getDeviceList())) return
-    newVar = []
-    settings[deviceIdName].each{deviceId->
-        parentDeviceList.find{singleDevice->
-            if(singleDevice.id == deviceId){
-                newVar.add(singleDevice)
-            }
-        }
-    }
-    app.updateSetting(deviceName, [type: 'capability.' + capability, value: newVar])
-}
-
-def resetDevices(){
-    for(int pushActionLoop = 0; pushActionLoop < 2; pushActionLoop++){        // Repeat for push/hold
-        pushType = 'push'
-        if(pushActionLoop == 1) pushType = 'hold'
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-            for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-            //actionMap.each{it->
-                app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action')
-                if(!settings['controlDevice']) continue
-                if(!checkIfShowButton(buttonNumber)) continue
-                if(customActionsSetup == 'automap' && actionMap[actionMapItem].'defaultButton' == (buttonNumber + 1) && (setHold || pushType == 'push')){
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action', [type: "capability.switch", value: settings['controlDevice']])
-                }
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action', [type: "capability.switch", value: settings['controlDevice']])
-                }
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] != actionMap[actionMapItem].'action') app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action' + '_' + pushType)
-                setDeviceById('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action', 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action','switch')
-            }
-        }
-    }
-}
-
-def buildButtonMap(){
-    return [['fullName':'top ("On") button', 'shortName':'top', 'type':'on'],
-    ['fullName':'up button', 'shortName':'up', 'type':'dim'],
-        ['fullName':'middle button', 'shortName':'middle', 'type':'on'],
-        ['fullName':'down button', 'shortName':'down', 'type':'dim'],
-        ['fullName':'bottom ("Off") button', 'shortName':'bottom', 'type':'on']]
-}
-
-def getActionFromButtonNumber(buttonNumber){
-     actionMap.find{it->
-           if(it.'defaultButton' == (buttonNumber + 1)) returnValue = it
-     }
-     returnValue
-}
-
-/* ************************************************************************ */
-/*                                                                          */
-/*                      End display functions.                              */
-/*                                                                          */
-/* ************************************************************************ */
-
-/* ************************************************************************ */
-/*                                                                          */
-/*                      End display functions.                              */
-/*                                                                          */
-/* ************************************************************************ */
-
-/* ************************************************************************ */
-/*                                                                          */
-/*                      End display functions.                              */
-/*                                                                          */
-/* ************************************************************************ */
-
-/* ************************************************************************ */
-/*                                                                          */
-/*                      End display functions.                              */
-/*                                                                          */
-/* ************************************************************************ */
-
-/* ************************************************************************ */
-/*                                                                          */
-/*                      End display functions.                              */
-/*                                                                          */
-/* ************************************************************************ */
-
-def installed() {
-    putLog(743,'trace', 'Installed')
-    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
-    initialize()
-}
-
-def updated() {
-    putLog(749,'trace','Updated')
-    unsubscribe()
-    initialize()
-}
-
-def initialize() {
-    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
-
-    subscribe(settings['device'], 'pushed', buttonPushed)
-    subscribe(settings['device'],, 'held', buttonPushed)
-    subscribe(settings['device'],, 'released', buttonReleased)
-    
-    dimValue = 8
-    if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
-    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    dimValue = 20
-    if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
-    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(767,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
-
-    setTime()
-
-    putLog(771,'trace','Initialized')
-}
-
-def buttonPushed(evt){
-// check mode and people
-    // If not correct day, return nulls
-    if(!checkIncludeDates()) return
-    // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
-    if(!getActive()) return
-
-    buttonNumber = assignButtonNumber(evt.value.toInteger())
-
-    // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
-    if(evt.name == 'pushed') action = 'push'
-    if(evt.name == 'held') action = 'hold'
-    
-    putLog(788,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
-
-    if(!actionMap) switchActions = buildActionMap()
-
-    switchActions.each { switchAction ->
-        device = settings['button_' + buttonNumber + '_' + action + '_' + switchAction.'action']
-        device.each{singleDevice->
-            
-            // need to get nextLevel here
-            if(action == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.label)
-            levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
-            
-            stateMap = parent.getStateMapSingle(singleDevice,switchAction.'action',app.id,app.label)       // on, off, toggle
-            if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
-
-            fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(804,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
-            parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        }
-        if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
-        if(action == 'hold') holdNextLevelMulti(device,switchAction.'action')
-
-        parent.setDeviceMulti(device,app.label)
-    }
-}
-
-// place holder until I can redo my pico setups to not throw an error
-def buttonHeld(evt){
-}
-
-def buttonReleased(evt){
-    buttonNumber = assignButtonNumber(evt.value.toInteger())
-
-    putLog(821,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
-    unschedule()
-}
-
-def assignButtonNumber(originalButton){
-    numberOfButtons = getButtonNumbers()
-    // Treat 2nd button of 2-button Pico as "off" (eg button 5)
-    if(originalButton == 2 && numberOfButtons == 2) return 5
-    if(originalButton == 4 && numberOfButtons == 4) return 5
-    if(originalButton == 3 && numberOfButtons == 4) return 4
-    return originalButton
-}
-
-// This is the schedule function that sets the level for progressive dimming
-def runSetProgressiveLevel(data){
-    if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(837,'trace','Function runSetProgressiveLevel returning (no matching device)')
-        return
-    }
-    holdNextLevelSingle(singleDevice,action)
-}
-
-def getSetProgressiveLevelDevice(deviceId, action){
-    for(int i = 0; i < switchActions.size(); i++) {
-        if(action == 'dim'){
-            settings['button_' + (i + 1) + '_hold_dim'].each{
-                if (it.id == deviceId) returnValue = it
-            }
-        }
-        if(action == 'brighten'){
-            settings['button_' + (i + 1) + '_hold_brighten'].each{
-                if (it.id == deviceId) returnValue = it
-            }
-        }
-    }
-    return returnValue
-}
-// Has to be in child app for schedule
-def holdNextLevelMulti(multiDevice,action){
-    if(action != 'dim' && action != 'brighten') return
-
-    device.each{singleDevice->
-        holdNextLevelSingle(singleDevice,action)
-    }
-}
-
-// Has to be in child app for schedule
-def holdNextLevelSingle(singleDevice,action){
-    if(!parent.checkIsDimmable(singleDevice,app.label)) return
-    level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
-    if(!level) return
-    levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
-    parent.mergeMapToTable(singleDevice.id,levelMap,app.label)
-    
-    parameters = [device: singleDevice.id, action: action]
-    parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters,app.id)
-}
-
-def getDevices(){
-    return settings['controlDevice']
-}
-
-def setTime(){
-    if(!setStartTime()) return
-    setStopTime()
-    return true
-}
-
-def setStartTime(){
-    if(!settings['start_timeType']) return
-    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
-    setTime = setStartStopTime('start')
-    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    atomicState.start  = setTime
-    putLog(896,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-def setStopTime(){
-    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
-    if(atomicState.stop > atomicState.start) return
-    setTime = setStartStopTime('stop')
-    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
-    atomicState.stop  = setTime
-    putLog(906,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-// Sets atomicState.start and atomicState.stop variables
-// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
-def setStartStopTime(type){
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
-    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
-}
-
-def checkIncludeDates(){
-    if(!atomicState.includeDates) return true
-    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
-    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
-}
-def processDates(){
-    atomicState.remove('includeDates')
-    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
-    currentYear = new Date(now()).format('yyyy').toInteger()
-    includeDatesValue = settings['includeDates']
-    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
-}
-
-// Return true if disabled
-def getActive(){
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return
-    
-    if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
-    }
-
-    if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
-    }
-    if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
-    }
-
-    return true
-}
-/***********************************************************************************************************************
-*
-*  Copyright (C) 2024 roguetech
-*
-*  License:
-*  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
-*  General Public License as published by the Free Software Foundation, either version 3 of the License, or
-*  (at your option) any later version.
-*
-*  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
-*  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-*  <http://www.gnu.org/licenses/> for more details.
-*
-*  Name: Master - MagicCube
-*  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.2
-* 
-***********************************************************************************************************************/
-
-// TO-DO: Allow actions per side (rather than flip90 or flip180)
-// TO-DO: Allow selecting rooms??
-// TO-DO: Add support for Hubitat Package Manager? https://community.hubitat.com/t/beta-hubitat-package-manager/38016
-
-definition(
-    name: 'Master - MagicCube',
-    namespace: 'master',
-    author: 'roguetech',
-    description: 'MagicCubes',
-    parent: 'master:Master',
-    category: 'Convenience',
-    importUrl: 'https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20MagicCube.groovy',
-    iconUrl: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png',
-    iconX2Url: 'http://cdn.device-icons.smartthings.com/Lighting/light13-icn@2x.png'
+    importUrl: 'https://raw.githubusercontent.com/roguetech2/hubitat/master/Master%20-%20Time.groovy',
+    iconUrl: 'http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png',
+    iconX2Url: 'http://cdn.device-icons.smartthings.com/Office/office6-icn@2x.png'
 )
 
 // logLevel sets number of log messages
@@ -994,343 +42,133 @@ def getLogLevel(){
     return 4
 }
 
-preferences {
-    if(!settings) settings = [:]
-    buttonMap = buildButtonMap()
-    actionMap = buildActionMap()
-    resetDevices()
-    anyErrors = checkAnyErrors()
-    install = formComplete()
-    thisType = 'cube'
-    thisDescription = 'MagicCube'        // Used with schedule, people, ifMode
-
-    page(name: 'setup', install: install, uninstall: true) {
-        if(!app.label){
-            section(){
-                displayNameOption()
-            }
-        }
-        if(app.label){
 setUILinks()
-            allDeviceOptions = parent.getDeviceList()
-            controllerDeviceOptions = controllerOptionProcessParentDeviceList()
-            if(allDeviceOptions && !controllerDeviceOptions) {
-                section(){
-                    displayError('You don\'t have any MagicCube devices selected in the Master app. Update the device selection in the Master app to include MagicCube(s).')
-                    displayInfo('MagicCube devices are identified by having a "sideUp" setting. If you have a MagicCube installed, check the device status page under "Current States" (right side). If there is no "sideUp" value, and it\'s a new MagicCube, try flipping it (then refresh this page). Otherwise, check to make sure the driver is "Aqara Cube T1 Pro".') 
-                }
-            }
-            processDates()
+
+preferences {
+    if(!settings) settings = [:]
+    install = formComplete()
+    thisType = 'schedule'
+    thisDescription = 'schedule'        // Used with schedule, people, ifMode
+    thisDescriptionPlural = 'schedule'
+    
+    page(name: 'setup', install: install, uninstall: true) {
+        if(!app.label){
             section(){
                 displayNameOption()
-                displayControllerOption()
+            }
+        } else {
+            if(!settings) settings = [:]
+            processDates()
+
+            deviceCount = getDeviceCount(device)
+            peopleError = compareDeviceLists(personHome,personNotHome)
+            plainStartAction = getPlainAction(settings['start_action'])
+            plainStopAction = getPlainAction(settings['stop_action'])
+
+            peopleError = compareDeviceLists(personHome,personNotHome)
+            
+            section(){
+                displayNameOption()
                 displayAdvancedOption()
                 displayControlDeviceOption()
-                displayCustomActionsOption()
             }
-            displayDefineActions()
-            displayCustomizeActionsAndDevices()
-            displayDimmingProgressionOption()
+            
             displayScheduleSection()
+            displayDaysAndDatesSection()
+            section(){}
+            displayActionOption()
+            displayLevelsOption('brightness')
+            displayLevelsOption('temp')
+            displayColorOption()
+            displayChangeModeOption()
+            section(){}
             displayPeopleOption()
             displayIfModeOption()
         }
     }
 }
 
+/* ************************************************** */
+/* TO-DO: Test for schedule spanning two days, but    */
+/* scheduled for specific days;                       */
+/* Warn that progressive changes may not work as      */
+/* intended, and will not turn off on a non-scheduled */
+/* day.                                               */
+/* ************************************************** */
+/* ************************************************** */
+/* TO-DO: Add warning for if time span is small and   */
+/* changes are large, where change will not be        */
+/* smooth.                                            */
+/* ************************************************** */
+
+
+// Display functions
 def formComplete(){
     if(!app.label) return false
-    if(!settings['device']) return false
-    if(!controlDevice) return false
-    if(!checkAnyDeviceSet()) return false
-    if(inputStartType == 'time' && !inputStartTime) return false
-    if(inputStopType == 'time' && !inputStopTime) return false
-    if((inputStartType == 'sunrise' || inputStartType == 'sunset') && !inputStartSunriseType) return false
-    if((inputStopType == 'sunrise' || inputStopType == 'sunset') && !inputStopSunriseType) return false
-    if((inputStartSunriseType == 'before' || inputStartSunriseType == 'after') && !inputStartBefore) return false
-    if((inputStopSunriseType == 'before' || inputStopSunriseType == 'after') && !inputStopBefore) return false
-    if(anyErrors) return false
+    if(!settings['controlDevice']) return false
+    if(!settings['start_action']) return false
+    if(!settings['stop_action'] && settings['stop_timeType'] != 'none') return false
+    if(!validateTimes('start')) return false
+    if(!validateTimes('stop')) return false
+    if(!validateLevels('start')) return false
+    if(!validateLevels('stop')) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(compareDeviceLists(personHome,personNotHome)) return false
     return true
 }
 
-def checkAnyErrors(){
-    if(settings['customActionsSetup'] != 'actionsAndDevices') return false
-    anyErrors = false
-    fieldOptions = [:]
-    actionMap.each{it->
-        fieldOptions[it.'action'] = it.'actionText'
-    }
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(!checkIfShowButton(buttonNumber)) continue
-        
-        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-        //actionMap.any{it->
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action')
-            if(anyErrors) break
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action')
-            if(anyErrors) break
-        }
-        if(anyErrors) break
-    }
-    return anyErrors
+def validateLevels(type){
+    if(!parent.validateLevel(settings[type + '_brightness'])) return false
+    if(!parent.validateTemp(settings[type + '_temp'])) return false
+    if(!parent.validateHue(settings[type + '_hue'])) return false
+    if(!parent.validateSat(settings[type + '_sat'])) return false
+    return true
 }
 
-def controllerOptionProcessParentDeviceListMatch(singleDevice){
-            if(singleDevice.hasAttribute('sideUp')) return true
+def validateColor(){
+    if(!settings['start_hue'] && settings['stop_hue']) return false
+    if(!settings['start_sat'] && settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) return false
+    if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) return false
+    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(!parent.validateHue(settings['start_hue'])) return false
+    if(!parent.validateHue(settings['stop_hue'])) return false
+    if(!parent.validateSat(settings['start_sat'])) return false
+    if(!parent.validateSat(settings['stop_sat'])) return false
+    return true
 }
 
-
-def displayCustomActionsOption(){
-    if(!settings['device']) return
-    if(!settings['controlDevice']) return
-    if(anyErrors) return
-    fieldName = 'customActionsSetup'
-    options = ['actions':'Assign action and devices to each button','actionsAndDevices':'Customize actions and devices for each button']
-    if(settings['controlDevice'].size() == 1 && settings[fieldName] != 'actionsAndDevices') {
-        app.updateSetting('customActionsSetup', [type: 'enum', value: 'actions'])
-        return
-    }
-    displayCustomActionsOptionComplete(fieldName,options)
-    displayCustomActionsOptionIncomplete(fieldName,options)
-    devicesText = 'device'
-    if(settings['controlDevice'].size() > 1) devicesText = 'devices'
-    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() == 1) displayInfo('This option allows setting what each button does.')
-    if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() > 1) displayInfo('This option allows setting what each button does, then assign ' + devicesText + ' to it.')
-    if(settings['customActionsSetup'] == 'actionsAndDevices') displayInfo('This option allows setting what each button does, and which devices for each button/action.')
-}
-def displayCustomActionsOptionComplete(fieldName,options){
-    if(!settings[fieldName]) return
-    fieldTitle = 'Selection type:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
-}
-def displayCustomActionsOptionIncomplete(fieldName,options){
-    if(settings[fieldName]) return
-    fieldTitle = 'Select how to assign devices and buttons actions:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
+// Display functions
+def getDeviceCount(device){
+    if(!device) return 0
+    return device.size()
 }
 
-def displayDefineActions(){
-    if(settings['customActionsSetup'] != 'actions') return
-    if(!settings['controlDevice']) return
-    section(hideable: true, hidden: false, getDefineActionsSectionTitle()) {
-        if(settings['controlDevice'].size() > 1){
-            warningValue = getDefineActionsWarningValue()
-            if(warningValue) displayWarning('Select the device(s) for ' + warningValue + '.')
-            if(!checkAnyDeviceSet()) {
-                if(!warningValue) {
-                    displayInfo('If you want assign different actions to individual buttons, select "Customize actions and devices for each button" as Selection Type.')
-                    displayInfo('Select the button action, then select device(s).')
-                }
-            }
-        }
-        for(int i = 0; i < buttonMap.size(); i++){
-            if(!checkIfShowButton(i)) continue
-            displayDefineActionsButton(i)
-        }
-        if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
-    }
-}
-def getDefineActionsWarningValue(){
-    returnValue = ''
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(returnValue) continue
-        if(settings['button_' + buttonNumber] && !settings['button_' + buttonNumber + '_' + settings['button_' + buttonNumber]]){
-            actionMap.find{it->
-                if(it.'action' == settings['button_' + buttonNumber]){
-                    returnValue = it.'description'
-                }
-            }
-        }
-    }
-    return returnValue
-}
-def getDefineActionsSectionTitle(){
-    sectionTitle = ''
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(!checkIfShowButton(buttonNumber)) continue
-        if(!settings['button_' + (buttonNumber + 1)]) continue
-        if(sectionTitle) sectionTitle += '\n'
-        //sectionTitle += buttonMap[i]['fullName'] + ': ' + getActionFromButtonNumber(i)['descriptionActive'] + ''
-        actionMap.find{it->
-            if(it.'action' == settings['button_' + (buttonNumber + 1)]) actionText = it.'descriptionActive'
-        }
-        if(settings['controlDevice'].size() > 1) sectionDevice = settings['button_' + (buttonNumber + 1) + '_' + settings['button_' + (buttonNumber + 1)]]
-        sectionTitle += buttonMap[buttonNumber]['fullName'].capitalize() + ': ' + actionText.capitalize() + ' ' + sectionDevice
-    }
-    if(!sectionTitle) sectionTitle = 'Select device(s) for each/any action:' + expandText
-    return sectionTitle
-}
-def displayDefineActionsButton(buttonNumber){
-    fieldName = 'button_' + (buttonNumber + 1)
-    fieldTitle = buttonMap[buttonNumber]['fullName'].capitalize() + ' action:'
-    fieldOptions = setActionsPerButton(buttonNumber,settings[fieldName], true)
-    displaySelectField(fieldName,fieldTitle,fieldOptions,false,false)
-    displayDefineActionsDevice(buttonNumber,fieldOptions) 
-}
-def displayDefineActionsDevice(buttonNumber,fieldOptions){
-    buttonAction = settings['button_' + (buttonNumber + 1)]
-    if(!buttonAction) return
-    if(!settings['controlDevice']) return
-    actionMap.find{it->
-        if(it.'action' == buttonAction) fieldText = it.'description'
-    }
-    if(settings['controlDevice'].size() == 1) return
-    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + buttonAction
-    fieldTitle = ' '
-    if(!settings[fieldName]) fieldTitle = 'Device to ' + fieldText + ':'
-    deviceOptions = [:]
-    settings['controlDevice'].each{it->
-        deviceOptions.put([it.'id',it.'label'])
-    }
-    newVar = []
-
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,true)
-}
-
-def displayCustomizeActionsAndDevices(){
-    if(settings['customActionsSetup'] != 'actionsAndDevices') return
-    if(!settings['controlDevice']) return
-    if(!settings['device']) return
-    
-    displayCustomizeActionsAndDevicesSections()
-}
-def displayCustomizeActionsAndDevicesSections() {
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        sectionLabel = ''
-        if(!checkIfShowButton(buttonNumber)) continue
-        fieldOptions = setActionsPerButton(buttonNumber)
-        hidden = false
-        setErrors = ''
-        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){ 
-            if(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) {
-                if(sectionLabel) sectionLabel += '\n'
-                sectionLabel += '  ' + actionMap[actionMapItem].'descriptionActive' + ' ' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']
-                hidden = true
-                
-                setErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action')
-                if(setErrors) hidden = false
-            }
-        }
-        if(anyErrors && !setErrors) hidden = true
-        if(sectionLabel) sectionLabel = '\n' + sectionLabel
-        sectionLabel = buttonMap[buttonNumber].'fullName'.capitalize() + expandText + sectionLabel
-        section(hideable: true, hidden: hidden, sectionLabel) {
-            displayCustomizeActionsAndDevicesButtons(buttonNumber,fieldOptions)
-        }
-    }
-}
-def displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions) {
-    fieldOptions.eachWithIndex{fieldAction, fieldOptionNumber ->
-        actionMap.each{it->
-            if(it.'action' == fieldAction.key){
-                displayDefineActionsAndDeviceField(buttonNumber, it, true)
-                if(anyErrors) displayError(displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, fieldAction.key))
-            }
-        }
-    }
-}
-
-def displayDefineActionsAndDeviceField(buttonNumber, actionLine,populated = null){
-    fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + actionLine.'action'
-    fieldTitle = '<b>' + actionLine.'descriptionActive' + '</b>:'
-    if(!settings[fieldName]) fieldTitle = actionLine.'description' + ' <font color="gray">(Select devices)</font>'
-
-    deviceOptions = [:]
-    settings['controlDevice'].each{it->
-        deviceOptions.put([it.'id',it.'label'])
-    }
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,false)
-}
-
-def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action){
-    if(!fieldOptions) return
-    firstActionNumber = fieldOptions.findIndexOf{it.key==action}
-    if(firstActionNumber == 0) return
-    errorMessage = ''
-    firstDeviceName = 'button_' + (buttonNumber + 1) + '_' + action
-    if(!settings[firstDeviceName]) return
-    fieldOptions.find{it->
-        if(it.key == action) return
-        secondDeviceName = 'button_' + (buttonNumber + 1) + '_' + it.key
-        if(compareDeviceLists(settings[firstDeviceName],settings[secondDeviceName],action,it.key)) {
-            if(errorMessage) errorMessage += '\n'
-            errorMessage += 'Can\'t set the same device to both ' + action + ' and ' + it.key + ' with the same button.'
-        }
-    }
-    return errorMessage
-}
-
-def displayDimmingProgressionOption(){
-    if(!settings['advancedSetup']) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
-    dimmingSet = false
-    if(customActionsSetup == 'actions' || customActionsSetup == 'actionsAndDevices'){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-            if(settings['button_' + (buttonNumber + 1)] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1)] == 'dim' && settings['button_' + (buttonNumber + 1) + '_dim']) dimmingSet = true
-        }
-    }
-    if(!dimmingSet) return
-    sectionTitle = 'Click to set dimming steps (Optional)'
-    if(settings['dimmingProgressionSteps']) sectionTitle = 'Dimming steps: ' + settings['dimmingProgressionSteps']
-    if(!sectionTitle) sectionTitle = '<b>Set dimming steps:</b>'
-    
-    section(hideable: true, hidden: true, sectionTitle + expandText) {
-        infoTip = 'Number of steps it takes to brighten (or dim) from 1 to 100%.'
-        if(!settings['dimmingProgressionSteps']) infoTip = 'This is the number of steps it takes to brighten (or dim) from 1 to 100% brightness. It uses a geometric progression. For instance, with 10 steps, pressing the brighten button would go from 1% to 2%, and then to 4, 7, 11, 17, 25, 36, 52, 74, and finally 100%.'
-        displayInfo(infoTip)
-        fieldName = 'dimmingProgressionSteps'
-        displayDimmingProgressionOptionComplete(fieldName)
-        displayDimmingProgressionOptionIncomplete(fieldName)
-    }
-}
-def displayDimmingProgressionOptionComplete(fieldName){
-    if(!settings[fieldName]) return
-    
-    dimmingSet = false
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-        if(settings['button_' + (buttonNumber + 1)] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_brighten']) dimmingSet = true
-        if(settings['button_' + (buttonNumber + 1)] == 'dim' && settings['button_' + (buttonNumber + 1) + '_dim']) dimmingSet = true
-    }
-    if(!dimmingSet) return
-    fieldTitle = 'Dimming steps:'
-
-    displayTextField(fieldName,fieldTitle,'number',false)
-}
-def displayDimmingProgressionOptionIncomplete(fieldName){
-    if(settings[fieldName]) return
-    dimmingSet = false
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-// Replace with actionMap type = 'dim'
-            if(settings['button_' + (buttonNumber + 1)] == 'brighten' && settings['button_' + (buttonNumber + 1) + '_brighten']) dimmingSet = true
-            if(settings['button_' + (buttonNumber + 1)] == 'dim' && settings['button_' + (buttonNumber + 1) + '_dim']) dimmingSet = true
-        }
-    if(!dimmingSet) return
-    fieldTitle = 'Enter dimming steps (optional, default 8):'
-    displayTextField(fieldName,fieldTitle,'number',false)
+def checkIfStopTimeEntered(){
+    if(settings['stop_timeType'] == 'none') return false
+    if(!validateTimes('stop')) return false
+    if(!settings['stop_timeType']) return false
+    return true
 }
 
 def displayScheduleSection(){
-    if(!settings['device']) return
+// Add dislaimer that schedules started will end, even if disabled?
     if(!settings['controlDevice']) return
-    if(!settings['advancedSetup']) return
-    if(!checkAnyDeviceSet()) return
-    if(anyErrors) return
     
-    section(){}
-    
+    List dayList=[]
+    settings['days'].each{
+        dayList.add(it)
+    }
+    dayText = dayList.join(', ')
     hidden = true
-    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
+
+    if(!settings['stop_timeType']) hidden = false
     if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
     if(!validateTimes('start')) hidden = false
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + thisDescription + ' is active. You can create another ' + thisDescription + ' "app" to do something else for opposite times/days.')
-        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+        if(settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && getBaseStartStopTimes('start') == getBaseStartStopTimes('stop')) displayError('You can\'t have the same time to start and stop.')
 
         displayTimeTypeOption('start')
         displayTimeOption('start')
@@ -1338,346 +176,720 @@ def displayScheduleSection(){
         displayTimeTypeOption('stop')
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
-        displayDaysOption()
-        displayDatesOptions()
+        if(validateTimes('start') && checkIfStopTimeEntered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop')) displayInfo('Stop time is before start time, which is perfectly fine, but stop time will be assumed to be the next day (i.e. the duration of this schedule will be approximately ' + Math.round((getBaseStartStopTimes('stop') + parent.CONSTDayInMilli() - getBaseStartStopTimes('start')) / parent.CONSTHourInMilli()) + ' hours).')
+        if(validateTimes('start') && checkIfStopTimeEntered() && getBaseStartStopTimes('start') > getBaseStartStopTimes('stop') && settings['days']) displayInfo('Every schedule that starts will stop, even if the stop day falls on a day not permitted. For instance, if scheduled for only Mondays and the stop time falls on the next day, stop actions/levels will still be set.')
     }
 }
 
-// Returns true if showing button (ie 2 button has not Middle button)
-def checkIfShowButton(number){
-    if(buttonMap[number].'advanced' && !settings['advancedSetup']) return false
-    if(!parent.checkIsColorMulti(settings['controlDevice']) && buttonMap[number].'type' == 'dim') return false
-    return true
-}
+def displayDaysAndDatesSection(){
+    if(!settings['controlDevice']) return
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['advancedSetup']) return
+    hidden = true
 
-def checkDefineActionButNoDevice(){
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(settings['button_' + (buttonNumber + 1)]){
-            if(!settings['button_' + (buttonNumber + 1) + '_' + settings['button_' + (buttonNumber + 1)]]) return settings['button_' + (buttonNumber + 1)]
-        }
+    if(!settings['stop_timeType']) hidden = false
+    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(settings['disable']) hidden = true
+    if(!validateTimes('start')) hidden = false
+    if(!validateTimes('stop')) hidden = false
+
+    sectionTitle = 'Click to set days/dates (optional)'
+    section(hideable: true, hidden: hidden, sectionTitle){
+
+    displayDaysOption()
+    displayIncludeDates()
+    displayExcludeDates()
     }
-    return false
 }
-                                     
-def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondAction){
-    if(!firstDeviceMulti) return
-    if(!secondDeviceMulti) return
 
-    if(firstAction == 'on' && !['off', 'toggle'].contains(secondAction)) return
-    if(firstAction == 'off' && !['on', 'resume'].contains(secondAction)) return
-    if(firstAction == 'toggle' && !['off', 'on'].contains(secondAction)) return
-    if(firstAction == 'dim' && !['brighten', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'brighten' && !['dim', 'off', 'resume'].contains(secondAction)) return
-    if(firstAction == 'resume' && !['dim', 'brighten', 'off'].contains(secondAction)) return
-    returnValue = false
-    firstDeviceMulti.each{firstDevice->
-        secondDeviceMulti.each{secondDevice->
-            if(firstDevice.id == secondDevice.id){
-                returnValue = true
-            }
+def displayActionOption(){
+    if(!settings['controlDevice']) return
+    if(!settings['start_timeType']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+
+    hidden = true
+    if(!settings['start_action']) hidden = false
+    if(!settings['stop_action']) hidden = false
+    if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) hidden = true
+
+    section(hideable: true, hidden: hidden, getActionSectionTitle()){
+        displayActionField('start')
+        displayActionField('stop')
+    }
+}
+
+def getActionSectionTitle(){
+    if(!settings['start_action'] && !settings['stop_action']) return '<b>Set action to perform on start</b>'
+   // if(settings['start_action'] == 'none' && (settings['stop_action'] == 'none' || settings['stop_timeType'] == 'none')) return 'Doing nothing'
+    sectionTitle = ''
+    if(settings['start_action']) sectionTitle = '<b>When starting: ' + plainStartAction.capitalize() + '</b>'
+    if(!settings['stop_action']) return sectionTitle
+    if(settings['stop_action'] && checkIfStopTimeEntered()) sectionTitle += '<br><b>When stopping: ' + plainStopAction.capitalize() + '</b>'
+    return sectionTitle
+}
+
+def displayActionField(startType){
+    log.debug '1 ' + startType + ' displayActionField'
+    if(!validateTimes('start')) return
+    log.debug '2 ' + startType + ' displayActionField'
+    if(!validateTimes('stop')) return
+    log.debug '3 ' + startType + ' displayActionField'
+    if(startType == 'stop' && !checkIfStopTimeEntered()) return
+    log.debug '4 ' + startType + ' displayActionField'
+
+    fieldName = startType + '_action'
+    displayActionFieldComplete(startType,fieldName)
+    displayActionFieldIncomplete(startType,fieldName)
+ }
+ def displayActionFieldComplete(startType,fieldName){
+    if(!settings[fieldName]) return
+    fieldTitle = 'On ' + startType
+    fieldOptions = ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle']
+    displaySelectField(fieldName,fieldTitle,fieldOptions,false,required = true, '')
+
+ }
+ def displayActionFieldIncomplete(startType,fieldName){
+    if(settings[fieldName]) return
+    app.removeSetting(fieldName)
+    // if no action on start, default to none at stop (then call displayActionFieldComplete)
+   // if(startType == 'stop' && settings['start_action'] == 'none' && !settings[fieldName]) app.updateSetting(fieldName, [type: 'string', value: 'none'])
+    devicesText = 'device'
+    if(settings['controlDevice'].size() > 1) devicesText = 'devices'
+    fieldTitle = 'When starting, do what with the ' + devicesText + ' (click to select)?'
+    if(startType == 'stop') fieldTitle = 'When stopping, do what with the ' + devicesText + ' (click to select)?'
+    fieldOptions = ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle']
+    displaySelectField(fieldName,fieldTitle,fieldOptions,false,required = true, '')
+ }
+
+def displayLevelsOption(levelType){
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(!settings['stop_action']) return
+    if(settings['start_action'] == 'off') return
+    
+    hidden = true
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] && checkIfStopTimeEntered())) hidden = false
+    if(!settings['start_' + levelType] && (settings['stop_' + levelType] && checkIfStopTimeEntered())) hidden = false
+    if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) hidden = false
+    
+    if(levelType == 'brightness') {
+        if(!parent.checkIsDimmableMulti(settings['controlDevice'])) return
+        if(!parent.validateLevel(settings['start_' + levelType])) hidden = false
+        if(!parent.validateLevel(settings['stop_' + levelType])) hidden = false
+        typeString = 'brightness'
+        typeUnit = '%'
+    }
+    if(levelType == 'temp') {
+        if(!parent.checkIsTempMulti(settings['controlDevice'])) return
+        if(!parent.validateTemp(settings['start_' + levelType])) hidden = false
+        if(!parent.validateTemp(settings['stop_' + levelType])) hidden = false
+        typeString = 'temperature color'
+        typeUnit = 'K'
+    }
+       
+    sectionTitle = ''
+    if(!settings['start_' + levelType] && !settings['stop_' + levelType]) sectionTitle = 'Click to set ' + typeString + ' (optional)'
+    if(settings['start_' + levelType] && (!settings['stop_' + levelType] || settings['start_' + levelType] == settings['stop_' + levelType])) sectionTitle = '<b>On start, set ' + typeString + ' to ' + settings['start_' + levelType] + typeUnit + '</b>'
+    if(settings['stop_' + levelType] && !settings['start_' + levelType]) sectionTitle += '<b>On stop, set ' + typeString + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
+    if(settings['start_' + levelType] && settings['stop_' + levelType] && settings['start_' + levelType] != settings['stop_' + levelType]) sectionTitle = '<b>Start to end: Change ' + typeString + ' from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + '</b>'
+ 
+    section(hideable: true, hidden: hidden, sectionTitle){
+
+        if(settings['start_' + levelType] && settings['start_' + levelType] == settings['stop_' + levelType]) displayWarning('Starting and ending ' + typeString + ' are both set to ' + settings['start_' + levelType] + '. This won\'t hurt anything, but the Stop ' + settings['start_' + levelType] + ' setting won\'t actually <i>do</i> anything.')
+        
+        displayLevelsField(levelType,'start')
+        displayLevelsField(levelType,'stop')
+        displayInfo(getLevelsMessage(levelType))
+    }
+}
+
+def displayLevelsField(levelType, startType){
+    if(!validateTimes(startType)) return
+    if(startType == 'stop' && !checkIfStopTimeEntered()) return
+    if(startType == 'stop' && !settings['start_' + levelType]) return
+    if(!settings['start_action']) return
+    if(!settings['stop_action']) return
+    
+    if(startType == 'start' && 'start_action' == 'off'){
+        paragraph('',width:6)
+        return
+    }
+    typeString = 'brightness'
+    if(levelType == 'temp') typeString = 'temperature color'
+    if(levelType == 'hue') typeString = 'hue'
+    if(levelType == 'sat') typeString = 'saturation'
+    
+    fieldName = startType + '_' + levelType
+    unitString = ''
+    if(levelType == 'hue') unitString = ' (in 360 degrees)'
+    fieldTitle = 'Set ' + typeString + ' at start' + unitString + ':'
+    if(startType == 'stop') fieldTitle = 'Transition to ' + typeString + ' at stop:'
+    fieldWidth = 12
+    if(settings['start_' + levelType]) fieldWidth = 6
+    if(!checkIfStopTimeEntered()) fieldWidth = 12
+    if(levelType == 'hue' && settings['start_hue'] && settings['stop_hue']) fieldWidth = 4
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    input fieldName, 'number', title: fieldTitle, width: fieldWidth, submitOnChange:true
+}
+
+def getLevelsMessage(levelType){
+    if(levelType == 'brightness') {
+        typeString = 'brightness'
+        typeUnit = '%'
+        typeRange = '1 to 100' + typeUnit
+    }
+    if(levelType == 'temp') {
+        typeString = 'color temperature'
+        typeUnit = 'K'
+        typeRange = '1800 to 5400' + typeUnit
+    }
+    if(levelType == 'brightness'){
+        if(!parent.validateLevel(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateLevel(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is percentage from ' + typeRange + '. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['stop_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && checkIfStopTimeEntered())) message = 'Enter the percentage of ' + typeString + ' from ' + typeRange + ' where 0' + typeUnit + ' is off, and 100' + typeUnit + ' is maximum.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from start level to ' + settings['stop_' + levelType] + typeUnit + ' over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && checkIfStopTimeEntered())) message = typeString.capitalize() + ' is percentage from ' + typeRange + '. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop level over the duration of the schedule.'
+    }
+    if(levelType == 'temp'){
+        if(!parent.validateTemp(settings['start_' + levelType])) displayError('Start ' + typeString + ' must be from ' + typeRange + '. Correct start ' + typeString + '.')
+        if(!parent.validateTemp(settings['stop_' + levelType])) displayError('Stop ' + typeString + ' must be from ' + typeRange + '. Correct stop ' + typeString + '.')
+        //Both entered
+        message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. It will transition from ' + settings['start_' + levelType] + typeUnit + ' to ' + settings['start_' + levelType] + typeUnit + ' ' + typeString + ' over the duration of the schedule.'
+        //Neither entered
+        if(!settings['start_' + levelType] && (!settings['stop_' + levelType] && checkIfStopTimeEntered())) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue; 3000' + typeUnit + ' is warm white, 4000' + typeUnit + ' is cool white, and 5000' + typeUnit + ' is daylight.'
+        //One entered
+        if(!settings['start_' + levelType] && settings['stop_' + levelType]) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. If entering both starting and stopping ' + typeString + ', it will transition from start level to ' + settings['stop_' + levelType] + typeUnit + ' over the duration of the schedule.'
+        if(settings['start_' + levelType] && (!settings['stop_' + levelType] && checkIfStopTimeEntered())) message = typeString.capitalize() + ' is from ' + typeRange + ' where lower is more yellow and higher is more blue. If entering both starting and stopping ' + typeString + ', it will transition from ' + settings['start_' + levelType] + typeUnit + ' to stop level over the duration of the schedule.'
+    }
+    return message
+}
+
+def displayColorOption(){
+    if(!parent.checkIsColorMulti(settings['controlDevice'])) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(!settings['stop_action']) return
+    if(settings['start_action'] == 'off') return
+    if(!checkIfStopTimeEntered()) settings['stop_hue'] = null
+    if(!checkIfStopTimeEntered()) settings['stop_sat'] = null
+
+    typeUnit = '°'
+
+    hidden = true
+    if(!validateColor()) hidden = false
+    if(settings['start_hue'] && (!settings['stop_hue'] && checkIfStopTimeEntered())) hidden = false
+    if(settings['start_sat'] && (!settings['stop_sat'] && checkIfStopTimeEntered())) hidden = false
+    if(!validateColor()) hidden = false
+
+    section(hideable: true, hidden: hidden, getColorTitle()){
+        if(!parent.validateHue(settings['start_hue'])) displayError('Start hue must be from 1 to 360. Correct start hue.')
+        if(!parent.validateSat(settings['start_sat'])) displayError('Start saturation must be from 1 to 100. Correct start saturation.')
+        if(!parent.validateHue(settings['stop_hue'])) displayError('Stop hue must be from 1 to 360. Correct stop hue.')
+        if(!parent.validateSat(settings['stop_sat'])) displayError('Stop saturation must be from 1 to 100. Correct stop saturation.')
+        
+        if(settings['start_hue'] && settings['start_hue'] == settings['stop_hue']) displayWarning('Starting and ending hue are both set to ' + settings['start_hue'] + '. This won\'t hurt anything, but the Stop hue setting won\'t actually <i>do</i> anything.')
+        if(settings['start_sat'] && settings['start_sat'] == settings['stop_sat']) displayWarning('Starting and ending saturation are both set to ' + settings['start_sat'] + '. This won\'t hurt anything, but the Stop saturation setting won\'t actually <i>do</i> anything.')
+
+        displayLevelsField('hue', 'start')
+        displayLevelsField('hue', 'stop')
+        displayHueDirection()
+        
+        if(settings['start_hue'] && settings['stop_hue']){
+            if(settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). Optional.'
+            if(!settings['hueDirection']) message = 'Red = 1 hue (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device). It will transition from starting to ending hue for the duration of the schedule. For "order", if for instance, a start value of 1 and stop value of 26 is entered, allows for chosing whether it would change from red to yellow then blue, or from red to purple, blue, then green. Optional.'
         }
-        if(returnValue) return returnValue
+        if(!settings['start_hue'] || !settings['stop_hue']){
+            message = 'Hue is degrees from 1 to 360 around a color wheel, where red is 1 (and 360). Orange = 29; yellow = 58; green = 94; turquiose = 180; blue = 240; purple = 270 (may vary by device).'
+            if(validateTimes('stop') && checkIfStopTimeEntered()) message += ' If entering both starting and ending hue, it will transition from starting to ending hue for the duration of the schedule.'
+            message += ' Optional.'
+        }
+        if(parent.validateHue(settings['start_hue']) && parent.validateSat(settings['start_sat']) && parent.validateHue(settings['stop_hue']) && parent.validateSat(settings['stop_sat'])){
+            displayInfo(message)
+        } else {
+            displayError(message)
+        }
+        displayLevelsField('sat', 'start')
+        displayLevelsField('sat', 'stop')
+
+        if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+        if(!settings['start_sat'] || !settings['stop_sat']){
+            message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
+            if(validateTimes('stop') && checkIfStopTimeEntered()) message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+            message += ' Optional.'
+        }
+        displayInfo(message)
+    }
+}
+
+def displayHueDirection(){
+    if(!settings['start_hue']) return
+    if(!settings['stop_hue']) return
+    if(!checkIfStopTimeEntered()) settings['hueDirection'] = null
+
+    if(settings['start_hue'] < settings['stop_hue']){
+        forwardSequence = '90, 91, 92  ... 270, 271, 272'
+        reverseSequence = '90, 89, 88 ... 2, 1, 360, 359 ... 270, 269, 268'
+    }
+    if(settings['start_hue'] > settings['stop_hue']){
+        forwardSequence = '270, 271, 272 ... 359, 360, 1, 2 ... 90, 91, 92'
+        reverseSequence = '270, 269, 268 ... 75, 74, 73'
+    }
+
+    fieldName = 'hueDirection'
+    fieldTitle = 'Order to change hue:'
+    if(!settings[fieldName]) fieldTitle = 'Which order to change hue?'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
+    input fieldName, 'enum', title: fieldTitle, width: 4, submitOnChange:true, options: ['forward': forwardSequence, 'reverse': reverseSequence]
+}
+
+def getColorTitle(){
+    if(!settings['start_hue'] && !settings['stop_hue'] && !settings['start_sat'] && !settings['stop_sat'])  return 'Click to set color (hue and/or saturation) (optional)'
+    typeUnit = '°'
+    sectionTitle = ''
+    
+    if(settings['start_hue'] && !settings['stop_hue']) sectionTitle = '<b>On start, set hue to ' + settings['start_hue'] + typeUnit + '</b>'
+    if(settings['stop_hue'] && !settings['start_hue']) sectionTitle = '<b>On stop, set hue to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['start_hue'] && settings['stop_hue']) sectionTitle = '<b>Start to end: Change hue from ' + settings['start_hue'] + typeUnit + ' to ' + settings['stop_hue'] + typeUnit + '</b>'
+    if(settings['hueDirection'] == 'reverse') sectionTitle += '<b> (in reverse order)</b>'
+    
+    if(!settings['start_sat'] && !settings['stop_sat']) return sectionTitle + moreOptions
+    
+    if(settings['start_hue'] || settings['stop_hue']) sectionTitle += '<br>'
+    if(settings['start_sat'] && !settings['stop_sat']) sectionTitle += '<b>On start, set saturation to ' + settings['start_sat'] + '%</b>'
+    if(settings['stop_sat'] && !settings['start_sat']) sectionTitle += '<b>On stop, set saturation to ' + settings['stop_sat'] + '%</b>'
+    if(settings['start_sat'] && settings['stop_sat']) sectionTitle += '<b>Start to end: Change saturation from ' + settings['start_sat'] + '% to ' + settings['stop_sat'] + '%</b>'
+
+    if(!settings['start_sat'] || !settings['stop_sat']) return sectionTitle + moreOptions
+    if(!validateColor()) return sectionTitle + moreOptions
+    return sectionTitle
+}
+
+def displayChangeModeOption(){
+    if(!settings['controlDevice']) return
+    if(!validateTimes('start')) return
+    if(!validateTimes('stop')) return
+    if(!settings['start_action']) return
+    if(!settings['stop_action']) return
+    if(!settings['advancedSetup']) return
+
+    hidden = true
+    if(settings['startMode'] && (!settings['stopMode'] && checkIfStopTimeEntered())) hidden = false
+    if(!settings['startMode'] && settings['stopMode']) hidden = false
+
+    width = 12
+    if(checkIfStopTimeEntered()) width = 6
+    
+    sectionTitle = ''
+    if(!settings['startMode'] && !settings['stopMode']) sectionTitle = 'Click to set Mode change (optional)'
+    if(settings['startMode']) sectionTitle = '<b>On start, set Mode ' + settings['startMode'] + '</b>'
+    if(settings['startMode'] && settings['stopMode']) sectionTitle += '<br>'
+    if(settings['stopMode']) sectionTitle += '<b>On stop, set Mode ' + settings['stopMode'] + '</b>'
+
+    section(hideable: true, hidden: hidden, sectionTitle){
+        displayModeField('start')
+        displayModeField('stop')
+    }
+}
+
+def displayModeField(startType){
+    if(startType == 'stop' && !checkIfStopTimeEntered()) return
+    fieldName = startType + 'Mode'
+    fieldTitle = 'Set Hubitat\'s "Mode" on ' + startType + '?'
+    if(settings['startMode']) fieldTitle = 'Set Hubitat\'s "Mode" on ' + startType + ':'
+    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldWitch = 6
+    if(!checkIfStopTimeEntered()) fieldWidth = 12
+    input fieldName, 'mode', title: fieldTitle, width: 6, submitOnChange:true
+}
+
+def compareDeviceLists(list1,list2){
+    list1.each{first->
+        list2.each{second->
+            if(first.id == second.id) returnValue = true
+        }
     }
     return returnValue
 }
 
-// Returns an ordered map of actions per button
-def setActionsPerButton(buttonNumber,fieldValue = false, unique = false){
-    fieldOptions = [:]
-    fieldOptions = setActionsPerButtonPreset(fieldOptions,fieldValue)
-    //fieldOptions = setActionsPerButtonDefault(fieldOptions,fieldValue,buttonNumber)
-    fieldOptions = setActionsPerButtonType(fieldOptions,fieldValue,buttonNumber)
-    fieldOptions = setActionsPerButtonOther(fieldOptions,fieldValue,buttonNumber)
-    
-    if(!settings['advancedSetup']) {        // Remove any already picked
-        for(int i = 0; i < buttonMap.size(); i++){
-            if(i != buttonNumber){
-                actionMap.each{it->
-                    if(settings['button_' + (i + 1)] == it.'action') fieldOptions.remove(it.'action')
-                }
-            }
-        }
-    }
-    return fieldOptions
+def getPlainAction(action){
+    if(!action) return 'perform action'
+    if(action == 'none') return 'do nothing'
+    if(action == 'on') return 'turn on'
+    if(action == 'off') return 'turn off'
+    if(action == 'toggle') return 'toggle'
+    if(action == 'lock') return 'lock'
+    if(action == 'unlock') return 'unlock'
 }
-// Return actionMap line of what it's set to
-def setActionsPerButtonPreset(fieldOptions,fieldValue){
-    if(!fieldValue) return
-    actionMap.find{it->      // 1) What fieldValue is
-        if(it.'action' == fieldValue) {
-            fieldOptions[it.'action'] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-
-def setActionsPerButtonType(fieldOptions,fieldValue,buttonNumber){
-    if(!fieldOptions) fieldOptions = [:]
-    actionMap.findAll{it->      // 3) Correct "type"
-        if(it.'type' == buttonMap[buttonNumber].'type') {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue)) fieldOptions[it.action] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-def setActionsPerButtonOther(fieldOptions,fieldValue,buttonNumber){
-    actionMap.findAll{it->      // 4) The rest
-        if(it.'type' != buttonMap[buttonNumber]['type']) {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue)) fieldOptions[it.action] = it.'actionText'.capitalize()
-        }
-    }
-    return fieldOptions
-}
-def setActionsPerButtonProcess(fieldOptions,actionMapLine,fieldValue){
-    if(!actionMapLine) return
-    if(actionMapLine?.'advanced' && !advancedSetup) return
-    if(actionMapLine.'actionText' == fieldValue) return
-
-    return true
-}
-
-def checkAnyDeviceSet(){
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(!checkIfShowButton(buttonNumber)) continue
-        for(int actionNumber = 0; actionNumber < actionMap.size(); actionNumber++){
-            if(settings['button_' + (buttonNumber + 1)] == actionMap[actionNumber].'action' && settings['controlDevice'].size() == 1) return true
-            if(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionNumber].'action']) return true
-            return true
-        }
-    }
-    return false
-}
-
-def resetControllerDevices(deviceName){
-    if(!deviceName) return
-    app.removeSetting(deviceName)
-    setDeviceById(deviceName + 'Id', deviceName,'pushableButton')
-}
-def setDeviceById(deviceIdName, deviceName,capability){
-    if(!settings[deviceIdName]) return
-    if(!(parentDeviceList = parent.getDeviceList())) return
-    newVar = []
-    settings[deviceIdName].each{deviceId->
-        parentDeviceList.find{singleDevice->
-            if(singleDevice.id == deviceId){
-                newVar.add(singleDevice)
-            }
-        }
-    }
-    app.updateSetting(deviceName, [type: 'capability.' + capability, value: newVar])
-}
-
-def resetDevices(){
-        for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-            for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-                app.removeSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action')
-                if(!settings['controlDevice']) continue
-                if(!checkIfShowButton(buttonNumber)) continue
-                if(settings['button_' + (buttonNumber + 1)] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action', [type: "capability.switch", value: settings['controlDevice']])
-                }
-                if(settings['button_' + (buttonNumber + 1)] != actionMap[actionMapItem].'action') app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action')
-                setDeviceById('buttonId_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action', 'button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action','switch')
-            }
-        }
-}
-def buildButtonMap(){
-    return [['fullName':'flip 90°', 'shortName':'flip90', 'type':'on','eventType':'pushed','advanced':false],
-            ['fullName':'flip 180°', 'shortName':'flip180', 'type':'on','eventType':'pushed','advanced':false],
-            ['fullName':'rotate clockwise', 'shortName':'clockwise', 'type':'dim','eventType':'released','advanced':false],
-    ['fullName':'rotate counter-clockwise', 'shortName':'counterClockwise', 'type':'dim','eventType':'held','advanced':false],
-        ['fullName':'shake', 'shortName':'shake', 'type':'on','eventType':'doubleTapped','advanced':true]]
-}
-
-def getActionFromButtonNumber(buttonNumber){
-     actionMap.find{it->
-           if(it.'defaultButton' == (buttonNumber + 1)) returnValue = it
-     }
-     returnValue
-}
-
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                                 End UI.                                  */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                                 End UI.                                  */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                                 End UI.                                  */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                                 End UI.                                  */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 /* ************************************************************************ */
 /*                                                                          */
-/*                                 End UI.                                  */
+/*                          End display functions.                          */
 /*                                                                          */
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1149,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1155,'trace','Updated')
-    unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1161,'trace','Initialized')
+    putLog(574,'trace',app.label + ' initializing.')
+    if(settings['stop_brightness'] == 0) settings['stop_brightness'] = null
+    if(settings['stop_temp'] == 0) settings['stop_temp'] = null
+    if(settings['stop_hue'] == 0) settings['stop_hue'] = null
+    if(settings['stop_sat'] == 0) settings['stop_sat'] = null
+    if(settings['start_brightness']) settings['start_brightness'] = parent.convertToInteger(settings['start_brightness'])
+    if(settings['stop_brightness']) settings['stop_brightness'] = parent.convertToInteger(settings['stop_brightness'])
+    if(settings['start_temp']) settings['start_temp'] = parent.convertToInteger(settings['start_temp'])
+    if(settings['stop_temp']) settings['stop_temp'] = parent.convertToInteger(settings['stop_temp'])
+    if(settings['start_hue']) settings['start_hue'] = parent.convertToInteger(settings['start_hue'])
+    if(settings['stop_hue']) settings['stop_hue'] = parent.convertToInteger(settings['stop_hue'])
+    if(settings['start_sat']) settings['start_sat'] = parent.convertToInteger(settings['start_sat'])
+    if(settings['stop_sat']) settings['stop_sat'] = parent.convertToInteger(settings['stop_sat'])
 
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
-    subscribe(device, "pushed.1", buttonEvent)
-    subscribe(device, "pushed.2", buttonEvent)
-    subscribe(device, "pushed.3", buttonEvent)
-    subscribe(device, "pushed.4", buttonEvent)
-    subscribe(device, "pushed.5", buttonEvent)
-    subscribe(device, "pushed.6", buttonEvent)
-    
-    //doubleTapped, release and hold used by kkossev's driver
-    subscribe(device, "doubleTapped", buttonEvent)
-    subscribe(device, "released", buttonEvent)
-    subscribe(device, "held", buttonEvent)
-        
-    dimValue = 8
-    if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
-    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    dimValue = 20
-    if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
-    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1183,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
-
+    unschedule()
     setTime()
+    clearScheduleFromTable()    // Clear schedule from table, to avoid stale settings
 
-    putLog(1187,'trace','Initialized')
-}
-
-def buttonEvent(evt){
-    // If not correct day, return nulls
-    if(!checkIncludeDates()) return
-    // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
-    if(!getActive()) return
-
-    buttonNumber = convertDriver(evt)     // Sets atomicState.buttonNumber to action corresponding to cubeActions
-    actionMap = buildActionMap()
-
-    for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-        if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(1205,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
-        doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
-    }
-}
-
-def doActions(device,action){
-    if(!device) return
-    putLog(1209,'trace','Set ' + device + ' as ' + action)
+    subscribeDevices()
+    startTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime,app.label)
+    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime,app.label)
+    if(stopTime && stopTime < startTime) stopTime += parent.CONSTDayInMilli()
     
-    device.each{singleDevice->
-        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
-        levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
+    alreadyRunning = parent.checkNowBetweenScheduledStartStopTimes(startTime,stopTime,app.label)
+    if(!alreadyRunning) setStartSchedule()
+    if(alreadyRunning) runDailyStartSchedule()
+    if(!alreadyRunning) setStopSchedule()
 
-        stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
-        if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
-        
-        fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(1219,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+    putLog(604,'info',app.label + ' initialized.')
+    return true
+}
+
+def handleStateChange(event){
+    parent.updateTableCapturedState(event.device,event.value,app.label)
+}
+
+// this does level, temp, hue, and sat
+def handleBrightnessChange(event){
+    parent.updateTableCapturedLevel(event.device,'brightness',app.label)
+}
+
+// This needs rewrite
+def handleTempChange(event){
+    parent.updateTableCapturedLevel(event.device,'colorTemperature',app.label)
+}
+
+// This needs rewrite
+def handleHueChange(event){
+    parent.updateTableCapturedLevel(event.device,'hue',app.label)
+}
+
+def handleSatChange(event){
+    parent.updateTableCapturedLevel(event.device,'saturation',app.label)
+}
+
+// Creates the schedule for start and stop
+def setStartSchedule(){
+    setTime()
+    timeMillis = parent.getDatetimeFromTimeInMillis(atomicState.startTime) - now()
+    if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli() + 5000   // Add seconds to allow stop schedule(s) to run
+    parent.scheduleChildEvent(timeMillis,'','runDailyStartSchedule','',app.id)
+    
+    return true
+}
+
+def setStopSchedule(){
+    setTime()
+    if(!atomicState.stopTime) return
+    timeMillis = parent.getDatetimeFromTimeInMillis(atomicState.stopTime) - now()
+    if(timeMillis < 0) timeMillis += parent.CONSTDayInMilli()
+    parent.scheduleChildEvent(timeMillis,'','runDailyStopSchedule','',app.id)
+
+    return true
+}
+
+// Performs actual changes at time set with start_action
+// Called only by schedule set in incrementalSchedule
+def runDailyStartSchedule(){
+    putLog(654,'info',app.label + ' schedule has started.')
+    
+    setStartSchedule()
+    setStopSchedule()
+    
+    if(!checkIncludeDates()) return
+
+    setStartSchedule()
+    setStopSchedule()
+    clearScheduleFromTable() // clear out any "manual overrides"
+    
+    if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
+    if(settings['start_temp'] && settings['stop_temp']) runIncremental = true
+    if(settings['start_hue'] && settings['stop_hue']) runIncremental = true
+    if(settings['start_sat'] && settings['stop_sat']) runIncremental = true
+    if(runIncremental) {
+        setTime()
+        if(atomicState.startTime < atomicState.stopTime) scheduleFrequency = Math.round(Math.abs(atomicState.stopTime - atomicState.startTime) / parent.CONSTScheduleMaximumIncrements())
+        if(atomicState.startTime > atomicState.stopTime) scheduleFrequency = Math.round(Math.abs((atomicState.stopTime + parent.CONSTDayInMilli()) - atomicState.startTime) / parent.CONSTScheduleMaximumIncrements())
+        if(scheduleFrequency < parent.CONSTScheduleMinimumInactiveFrequencyMilli()) scheduleFrequency = parent.CONSTScheduleMinimumActiveFrequencyMilli()
+        atomicState.scheduleFrequency = scheduleFrequency
+        parent.scheduleChildEvent(scheduleFrequency,'','runIncrementalSchedule','',app.id)
+    }
+
+    if(!getActive()) {
+        atomicState.startDisabled = true
+        return
+    }
+    atomicState.startDisabled = false
+
+    brightnessMap = getLevelMap('brightness',settings['start_brightness'])
+    tempMap = getLevelMap('temp',settings['start_temp'])
+    hueMap = getLevelMap('hue',settings['start_hue'])
+    satMap = getLevelMap('sat',settings['start_sat'])
+    scheduleMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
+
+    settings['controlDevice'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
+        fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
+        putLog(694,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
-    if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
-    parent.setDeviceMulti(device,app.label)
+    parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
 
-// Sets atomicState.buttonNumber to string of action
-// Currently converts from kkossev's T1 driver to match veeceeoh's Aqara Mi driver
-// Is there a way to determine which driver is used?
-// (1) shaking
-// (2) 90flip
-// (3) 180flip
-// (4) slide
-// (5) knock
-// (6) clockwise
-// (7) counterclockwise
-def convertDriver(evt){
-   // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(1238,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+// Performs actual changes at time set with start_action
+// Called only by schedule set in incrementalSchedule
+def runDailyStopSchedule(){
+    putLog(702,'info',app.label + ' schedule has ended.')
 
-// Could be mutliple priors sices (if multiple cubes) - need to make it a map
-    priorSide = atomicState.priorSide
-    atomicState.priorSide = evt.value
+    unschedule('runIncrementalSchedule')    //This doesn't seem to work
+    setStartSchedule()
+    setStopSchedule()
+    atomicState.remove('scheduleFrequency')
 
-    buttonMap = buildButtonMap()
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(evt.name == buttonMap[buttonNumber].'eventType'){
-            if(evt.name != 'pushed') return buttonNumber
+    if(atomicState.startDisabled) return
+    
+    clearScheduleFromTable()    // Remove start/incremental table entries - all that should be left after schedule ends is stop settings (with a stopTime)
+
+    if(!settings['start_brightness']) brightnessMap = getLevelMap('brightness',settings['stop_brightness'])
+    if(!settings['start_temp']) tempMap = getLevelMap('temp',settings['stop_temp'])
+    if(!settings['start_hue']) hueMap = getLevelMap('hue',settings['stop_hue'])
+    if(!settings['start_sat']) satMap = getLevelMap('sat',settings['stop_sat'])
+    scheduleMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
+    settings['controlDevice'].each{singleDevice->
+        stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
+        fullMap = parent.addMaps(scheduleMap, stateMap)
+        parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
+        putLog(722,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+    }
+    parent.setDeviceMulti(settings['controlDevice'],app.label)
+    atomicState.remove('startTime')        // Cleared to prevent runIncremental from running
+    atomicState.remove('stopTime')
+    atomicState.stopDateTime = null
+}
+
+// Is unscheduled from runDailyStopSchedule
+def runIncrementalSchedule(){
+    setStopDateTime()
+    if(atomicState.stopDateTime < now()) return
+
+    if(!getActive()) {
+        // Remove table entries, to be re-added if schedule becomes active again
+        clearScheduleFromTable()
+        parent.scheduleChildEvent(parent.CONSTScheduleMinimumInactiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)
+        return
+    }
+    
+    timeMillis = atomicState.scheduleFrequency
+    
+    anyDevicesChanged = false       // True is to remain active
+    settings['controlDevice'].each{singleDevice->
+        brightnessMap = getIncrementalMaps(singleDevice,'brightness')
+        tempMap = getIncrementalMaps(singleDevice,'temp')
+        hueMap = getIncrementalMaps(singleDevice,'hue')
+        satMap = getIncrementalMaps(singleDevice,'sat')
+        incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
+        if(incrementalMap) {
+            putLog(752,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            anyDevicesChanged = true
+            parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(evt.value == '1' && priorSide == '6') return 1
-        if(evt.value == '2' && priorSide == '5') return 1
-        if(evt.value == '3' && priorSide == '4') return 1
-        if(evt.value == '4' && priorSide == '3') return 1
-        if(evt.value == '5' && priorSide == '2') return 1
-        if(evt.value == '6' && priorSide == '1') return 1
-        return 0
+        if(!incrementalMap) putLog(756,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+    }
+    if(anyDevicesChanged) parent.setDeviceMulti(settings['controlDevice'], app.label)
+    if(anyDevicesChanged) {
+        if(timeMillis < parent.CONSTScheduleMinimumActiveFrequencyMilli()) timeMillis = parent.CONSTScheduleMinimumActiveFrequencyMilli()
+    }
+    parent.scheduleChildEvent(timeMillis, '', 'runIncrementalSchedule', '', app.id)
+}
+
+def getLevelMap(type,level){
+    if(atomicState.stopTime) {
+        stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime, app.label)
+        if(stopTime < now()) stopTime += parent.CONSTDayInMilli()
+    }
+    return parent.getLevelMap(type,level,app.id,stopTime,app.label)
+}
+
+def getIncrementalMaps(singleDevice,type){
+    if(parent.getAppIdForDeviceFromTable(singleDevice.id,type,app.label) == 'manual') return
+    
+    newLevel = getIncrementalLevelSingle(singleDevice, type)
+    
+    stopTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime, app.label)
+    if(stopTime < now()) stopTime += parent.CONSTDayInMilli()
+    return parent.getLevelMap(type, newLevel, app.id,stopTime, app.label)
+}
+
+def subscribeDevices(){
+    unsubscribe()
+    subscribe(settings['controlDevice'], 'switch', handleStateChange)
+    subscribe(settings['controlDevice'], 'hue', handleHueChange)
+    subscribe(settings['controlDevice'], 'saturation', handleSatChange)
+    subscribe(settings['controlDevice'], 'colorTemperature', handleTempChange)
+    subscribe(settings['controlDevice'], 'level', handleBrightnessChange)
+    subscribe(settings['controlDevice'], 'speed', handleBrightnessChange)
+    subscribe(location, 'systemStart', handleSystemBoot)
+    subscribe(location,'timeZone',handleTimezone)
+    return
+}
+
+def clearScheduleFromTable(){
+    if(settings['stopTime'] == settings['startTime']) return    // Prevents lights returning to default settings (and flickering)
+    settings['controlDevice'].each{singleDevice->
+        clearTableKey(singleDevice.id,'brightness')
+        clearTableKey(singleDevice.id,'temp')
+        clearTableKey(singleDevice.id,'hue')
+        clearTableKey(singleDevice.id,'sat')
     }
 }
 
-def setTime(){
-    if(!setStartTime()) return
-    setStopTime()
-    return true
+def clearTableKey(singleDeviceId,type){
+    if(!singleDeviceId) return
+    if(!type) return
+    levelAppId = parent.getAppIdForDeviceFromTable(singleDeviceId,type,app.label)
+    if(levelAppId){
+        if(levelAppId == app.id) clearKey = true
+        levelTime = parent.getTimeForDeviceFromTable(singleDeviceId,type,app.label)
+        // Clear any "manual overrides" set prior to schedule
+        // Perhaps should only be done with settings used by this schedule
+        // However, runIncremental does not check times (to maximize run speed)
+        if(levelAppId == 'manual') {
+            if(levelTime < parent.getDatetimeFromTimeInMillis(atomicState.startTime,app.label)) clearKey = true
+        }
+        if(levelAppId != app.id){
+            if(levelTime + parent.CONSTDayInMilli() < now()) clearKey = true    // If not this schedule but not today, prune it
+        }
+    }
+    if(clearKey) parent.clearTableKey(singleDeviceId,type,app.label)
 }
 
-def setStartTime(){
-    if(!settings['start_timeType']) return
-    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
-    setTime = setStartStopTime('start')
-    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    atomicState.start  = setTime
-    putLog(1272,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
+// Only thing really neede is:
+// 1) If schedule is not running, remove itself from Table
+// 2) Run Daily Start Schedule and let it deal with restarting a schedule
+def systemBootActivate(){
+    initialize()
 }
 
-def setStopTime(){
-    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
-    if(atomicState.stop > atomicState.start) return
-    setTime = setStartStopTime('stop')
-    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
-    atomicState.stop  = setTime
-    putLog(1282,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
+def setTime(){      // Should NOT be run from Incremental
+    atomicState.startTime = getBaseStartStopTimes('start')
+    atomicState.stopTime = getBaseStartStopTimes('stop')
+    if(atomicState.startTime == atomicState.stopTime) atomicState.stopTime -= 1 // If start and stop are the same, stop needs to be smaller, to be seen as next day
+}
+def setStopDateTime(){      // Should only be run from Incremental
+    if(atomicState.startDateTime) return
+    if(atomicState.stopDateTime) return
+    startDateTime = parent.getDatetimeFromTimeInMillis(atomicState.startTime)
+    stopDateTime = parent.getDatetimeFromTimeInMillis(atomicState.stopTime)
+    if(stopDateTime < startDateTime) stopDateTime += parent.CONSTDayInMilli()
+    atomicState.stopDateTime = stopDateTime
 }
 
-// Sets atomicState.start and atomicState.stop variables
-// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
-def setStartStopTime(type){
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
-    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
+// Returns 'start' or 'stop' time (of day) in millis
+// Must be converted with getDatetimeFromTimeInMillis if compared to now()
+def getBaseStartStopTimes(type){
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(settings[type + '_timeType'] == 'time') {
+        if(!settings[type + '_time']) return
+        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime()) + 1   // Add 1 so midnight isn't "empty" as zero
+    }
+    if(!settings[type + '_sunType']) return
+    if(settings[type + '_timeType'] == 'sunrise') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label)))
+    if(settings[type + '_timeType'] == 'sunset') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label)))
 }
 
-def checkIncludeDates(){
-    if(!atomicState.includeDates) return true
-    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
-    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+// type expects 'brightness', 'temp', 'hue', 'sat'
+// With Hue, checks reverse
+def getIncrementalLevelSingle(singleDevice,type){
+    if(!singleDevice) return
+    if(!type) return
+    if(!atomicState.startTime) return
+    if(!atomicState.stopTime) return
+    if(!settings['start_' + type]) return
+    if(!settings['stop_' + type]) return
+
+    // need to check if time was before schedule started
+    //if(parent.getAppIdForDeviceFromTable(singleDevice,type,app.label) != app.id) return
+
+    totalMillis = atomicState.stopTime - atomicState.startTime
+    if(totalMillis < 0) totalMillis = atomicState.startTime + atomicState.stopTime  // Adjust for going past midnight
+    elapsedMillis = parent.getTimeOfDayInMillis(now(),app.label) - atomicState.startTime
+    percentComplete = elapsedMillis / totalMillis
+    forward = false
+    if(settings['start_' + type] < settings['stop_' + type]) forward = true
+    if(type == 'hue' && settings['hueDirection'] == 'reverse') forward = !forward
+
+    totalRange = Math.abs(settings['start_' + type] - settings['stop_' + type])
+    if(type == 'hue'){
+        if(!forward) totalRange = 360 - settings['stop_' + type] + settings['start_' + type]
+    }
+    if(forward) resultLevel = Math.round(totalRange * percentComplete + settings['start_' + type])
+    if(!forward) resultLevel = Math.round(settings['start_' + type] - totalRange * percentComplete)
+    if(type == 'hue'){
+        if(resultLevel < 0) resultLevel = 360 + resultLevel
+        if(resultLevel > 360) resultLevel = resultLevel - 360
+    }
+    
+    return resultLevel
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -1688,22 +900,25 @@ def processDates(){
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
 }
 
-// Return true if disabled
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
-    if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
-    }
-
-    if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
-    }
-    if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
-    }
-
+    if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
+    if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
     return true
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
+}
+
+// Checks if schedule is to run or not
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    currentYear = new Date(now()).format('yyyy')
+    if(!atomicState.includeDates[currentYear]) processDates()
+    if(atomicState.includeDates[currentYear].contains(new Date(now()).format('D'))) return true
 }
 
 /* ************************************************************************ */
