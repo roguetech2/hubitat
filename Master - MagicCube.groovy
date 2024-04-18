@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.2
+*  Version: 0.4.2.4
 * 
 ***********************************************************************************************************************/
 
@@ -578,20 +578,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(1149,'trace','Installed')
+    putLog(581,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1155,'trace','Updated')
+    putLog(587,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1161,'trace','Initialized')
-
+    putLog(593,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(device, "pushed.1", buttonEvent)
@@ -612,11 +611,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(1183,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(614,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(1187,'trace','Initialized')
+    putLog(618,'trace','Initialized')
 }
 
 def buttonEvent(evt){
@@ -631,14 +630,14 @@ def buttonEvent(evt){
 
     for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(1205,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
+        putLog(633,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
         doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
     }
 }
 
 def doActions(device,action){
     if(!device) return
-    putLog(1209,'trace','Set ' + device + ' as ' + action)
+    putLog(640,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
@@ -648,7 +647,7 @@ def doActions(device,action){
         if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
         
         fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(1219,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+        if(fullMap) putLog(650,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
@@ -667,7 +666,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(1238,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(669,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
 // Could be mutliple priors sices (if multiple cubes) - need to make it a map
     priorSide = atomicState.priorSide
@@ -686,56 +685,6 @@ def convertDriver(evt){
         if(evt.value == '6' && priorSide == '1') return 1
         return 0
     }
-}
-
-def setTime(){
-    if(!setStartTime()) return
-    setStopTime()
-    return true
-}
-
-def setStartTime(){
-    if(!settings['start_timeType']) return
-    if(atomicState.start && parent.checkToday(atomicState.start,app.label)) return
-    setTime = setStartStopTime('start')
-    if(setTime > now()) setTime -= parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    if(!parent.checkToday(setTime)) setTime += parent.CONSTDayInMilli() // We shouldn't have to do this, it should be in setStartStopTime to get the right time to begin with
-    atomicState.start  = setTime
-    putLog(1272,'info','Start time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-def setStopTime(){
-    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
-    if(atomicState.stop > atomicState.start) return
-    setTime = setStartStopTime('stop')
-    if(setTime < atomicState.start) setTime += parent.CONSTDayInMilli()
-    atomicState.stop  = setTime
-    putLog(1282,'info','Stop time set to ' + parent.getPrintDateTimeFormat(setTime))
-    return true
-}
-
-// Sets atomicState.start and atomicState.stop variables
-// Requires type value of "start" or "stop" (must be capitalized to match setting variables)
-def setStartStopTime(type){
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'time') return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSSZ", settings[type + '_time']).getTime()
-    if(settings[type + '_timeType'] == 'sunrise') return (settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label))
-    if(settings[type + '_timeType'] == 'sunset') return (settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label))
-}
-
-def checkIncludeDates(){
-    if(!atomicState.includeDates) return true
-    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
-    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
-}
-def processDates(){
-    atomicState.remove('includeDates')
-    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
-    currentYear = new Date(now()).format('yyyy').toInteger()
-    includeDatesValue = settings['includeDates']
-    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
 }
 
 // Return true if disabled
@@ -993,7 +942,7 @@ def displayIfModeOption(){
     if(anyErrors) return
     
     fieldName = 'ifMode'
-    sectionTitle = 'Click to select with what Mode (optional)'
+    sectionTitle = 'Click to select with what Mode (Optional)'
     if(settings[fieldName]) sectionTitle = '<b>Only with Mode: ' + settings[fieldName] + '</b>'
 
     section(hideable: true, hidden: true, sectionTitle){
@@ -1039,7 +988,7 @@ def displayPeopleOption(){
     hidden = true
     if(peopleError) hidden = false
     
-    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (optional)'
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (Optional)'
     if(settings['personHome']) sectionTitle = '<b>Only if home: ' + withPeople + '</b>'
     if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
     if(settings['personNotHome']) sectionTitle += '<b>Only if away: ' + withoutPeople + '</b>'
@@ -1095,10 +1044,12 @@ def validateSunriseMinutes(type){
     return true
 }
 
+// Need to clean up/fix this
 def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (optional)'
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (Optional)'
 
     if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(!settings['start_timeType'] && (settings['days'] || settings['includeDates'] || settings['excludeDates'])) sectionTitle = 'On: '
     if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
     if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
     if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
@@ -1115,10 +1066,11 @@ def getTimeSectionTitle(){
     }
     dayText = dayList.join(', ')
     
-    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['days']) sectionTitle += dayText
+    if(settings['includeDates']) sectionTitle += ' +[included dates]'
+    if(settings['excludeDates']) sectionTitle += ' +[excluded dates]'
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days']) sectionTitle += moreOptions
-    
+    if(!settings['days'] || !settings['includeDates'] || !settings['excludeDates']) sectionTitle += moreOptions
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
     sectionTitle += '</br>'
@@ -1239,8 +1191,8 @@ def displayDaysOption(){
     if(!validateTimes('stop')) return
 
     fieldName = 'days'
-    fieldTitle = 'On these days (optional; defaults to all days):'
-    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = 'On these days (Optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (Optional; defaults to all days)?'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
     displaySelectField(fieldName,fieldTitle,options,true,false)
@@ -1374,6 +1326,50 @@ def displayFilterButton(buttonName){
         return
     }
 }
+def getNextYearWithMondayChristmas(currentYear = null) {
+    if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
+    mondayChristmas = false
+    while (!mondayChristmas) {
+        currentYear++
+        christmas = Date.parse('yyyyMMdd',currentYear + '1225')
+        if (christmas.format('EEEE') == 'Monday') mondayChristmas = true
+        
+    }
+    return currentYear
+}
+
+def setTime(){
+    if(!settings['start_timeType']) return
+    if(!settings['stop_timeType']) return
+    if(settings['start_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['start_time']).getTime()
+    if(settings['stop_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['stop_time']).getTime()
+    if(settings['start_timeType'] == 'sunrise') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunrise(settings['start_sunOffset'] * -1,app.label) : parent.getSunrise(settings['start_sunOffset'],app.label))
+    if(settings['stop_timeType'] == 'sunrise') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunrise(settings['stop_sunOffset'] * -1,app.label) : parent.getSunrise(settings['stop_sunOffset'],app.label))
+    if(settings['start_timeType'] == 'sunset') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunset(settings['start_sunOffset'] * -1,app.label) : parent.getSunset(settings['start_sunOffset'],app.label))
+    if(settings['stop_timeType'] == 'sunset') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunset(settings['stop_sunOffset'] * -1,app.label) : parent.getSunset(settings['stop_sunOffset'],app.label))
+    
+    if(settings['start_timeType'] != 'time' || settings['stop_timeType'] != 'time'){
+        unschedule('setTime')
+        timeMillis = now() + parent.CONSTDayInMilli()
+        parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
+        putLog(1355,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+    }
+    return true
+}
+
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
+    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+}
+def processDates(){
+    atomicState.remove('includeDates')
+    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    includeDatesValue = settings['includeDates']
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
 
 def displayExcludeDates(){
     fieldName = 'excludeDates'
@@ -1384,24 +1380,27 @@ def displayExcludeDates(){
     deviceText = 'the device'
     if(thisType == 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
     if(thisType != 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    christmasMondayYear = getNextYearWithMondayChristmas()
     infoTip = 'Enter which date(s) to restrict or exclude this ' + thisDescription + ' routine. "Only on dates" are when this ' + thisDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
 "Not on" dates are when this ' + thisDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
 	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
 <i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
-	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
-<i>Example: Christmas could be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years, otherwise 360].</i>\n\
+	• Use month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas could be entered as "12/25", "25.12" or "359" (the latter only true for non-leap years, otherwise "360").</i>\n\
 	• Separate multiple dates with a comma (or semicolon). \
 <i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
 	• Use a hyphen to indicate a range of dates. \
 <i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
     	• The "days" options above will combine with the dates. \
-<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' if Christmas is on a Monday.</i>\n\
+<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' to activate on 12/25/' + christmasMondayYear + ', 12/25/' + getNextYearWithMondayChristmas((christmasMondayYear + 1)) + ', etc. when Christmas is on a Monday.</i>\n\
 	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
 <i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
 	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
 	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
 
     displayInfo(infoTip)
+    
 }
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
