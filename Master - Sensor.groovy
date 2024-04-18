@@ -13,9 +13,11 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.8
+*  Version: 0.4.3.9
 *
 ***********************************************************************************************************************/
+
+// TO-DO: Allow showing/hiding info tips. Add a button showing where info tips are at. onClick, set a settings variable to show. Use a div span in the tip. On save, remove the settings variables.
 
 definition(
     name: "Master - Sensor",
@@ -50,6 +52,7 @@ preferences {
     thisDescriptionPlural = 'sensors'
     
     page(name: "setup", install: install, uninstall: true) {
+        debugTime = now()
         if(!app.label){
             section(){
                 displayNameOption()
@@ -101,7 +104,16 @@ def formComplete(){
     if(!settings['controllerDevice']) return false
     if(!settings['controlDevice']) return false
     if(settings['startDelay'] && settings['stopDelay'] && settings['startDelay'] > settings['stopDelay']) return false
-
+    if(getThresholdOptionErrors('levelThreshold')) return false
+    if(getLevelDeltaOptionErrors('levelDelta')) return false
+    if(!validateMinutes(settings['relativeMinutes'])) return false
+    if(getRunTimeMaximumError('runTimeMinimum')) return false
+    if(getRunTimeMaximumError('runTimeMaximum')) return false
+    if(!parent.validateLevel(settings['startBrightness'])) return false
+    if(!parent.validateTemp(settings['startColorTemperature'])) return false
+    if(!parent.validateHue(settings['startHue'])) return false
+    if(!parent.validateLevel(settings['startSat'])) return false
+    if(peopleError) return false
     return true
 }
 
@@ -180,7 +192,7 @@ def displayDelayOption(){
     if(!sensorMapEntry) return
 
     hidden = true
-    if(settings['startDelay'] == settings['stopDelay']) hidden = false
+    if(settings['startDelay'] == settings['stopDelay'] && (settings['startDelay'] || settings['stopDelay'])) hidden = false
     if(settings['startDelay'] > settings['stopDelay']) hidden = false
     sectionTitle = 'Click to set start and stop delay time</b> (Optional)'
     if(settings['stopDelay']) sectionTitle = ''
@@ -191,30 +203,35 @@ def displayDelayOption(){
     if(settings['startDelay'] && !settings['stopDelay']) sectionTitle += moreOptions
     if(!settings['startDelay'] && settings['stopDelay']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(settings['startDelay'] == settings['stopDelay']) displayWarning('The Start Delay and Stop Delay times are set as the same. The Stop action will be automatically delayed a few seconds longer to prevent Start and Stop events from conflicting.')
-        if(settings['startDelay'] > settings['stopDelay']) displayError('Start Delay must be equal to or less than Stop Delay. This is to prevent them from conflicting, if Stop activates within the ' + (settings['startDelay'] - settings['stopDelay']) + ' minutes() of potential overlap with Start.')
-    displayActionDelayOptionFields('start')
-    displayActionDelayOptionFields('stop')
+        if(settings['startDelay'] || settings['stopDelay']){
+            if(settings['startDelay'] == settings['stopDelay']) displayWarning('The Start Delay and Stop Delay times are set as the same. The Stop action will be automatically delayed a few seconds longer to prevent Start and Stop events from conflicting.')
+            if(settings['startDelay'] > settings['stopDelay']) displayError('Start Delay must be equal to or less than Stop Delay. This is to prevent them from conflicting, if Stop activates within the ' + (settings['startDelay'] - settings['stopDelay']) + ' minutes() of potential overlap with Start.')
+        }
+        displayActionDelayOptionFields('start')
+        displayActionDelayOptionFields('stop')
     }
 }
 
 def displayActionDelayOptionFields(type){
     fieldName = type + 'Delay'
-    if(!settings[fieldName]) return
     displayActionDelayOptionCompleted(fieldName,type)
     displayActionDelayOptionIncompleted(fieldName,type)
 
 }
 def displayActionDelayOptionCompleted(fieldName,type){
     if(!settings[fieldName]) return
-    fieldTitle = 'Delay minutes: (Optional)'
-    displayError(getMinutesValidationError(settings[fieldName]))
+    fieldTitle = type.capitalize() + ' delay minutes:'
+    displayError(validateMinutes(settings[fieldName]))
     displayTextField(fieldName,fieldTitle,'number',false)
 }
 def displayActionDelayOptionIncompleted(fieldName,type){
     if(settings[fieldName]) return
+    if(type == 'start' && settings['runTimeMinimum'] && settings[fieldName]) {
+        if(settings[fieldName] < settings['runTimeMinimum']) displayWaring('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
+    }
     if(type == 'start') helpTip = 'Applies to all actions (Mode, notifications, etc.).'
-    fieldTitle = 'Wait time before performing ' + type + 'actions: (Optional)'
+    displayInfo(helpTip)
+    fieldTitle = 'Wait time in minutes before performing ' + type + ' actions: (Optional)'
     displayTextField(fieldName,fieldTitle,'number',false)
     if(type == 'stop' && settings['startDelay']) helpTip += ' Note that if the device activates (' + sensorMapEntry.start + ') or re-activates within the Stop Delay time, the Stop Delay will be reset.<br>1) If a sensor activates and then deactivates within the Start Delay period, the deactivation will be ignored. (The Stop conditions will be rechecked when the Start Delay expires, without the sensor needing to update. So, the Stop Actions may <i>immediately</i> follow the Start Actions.)<br>2) If a sensor deactivates (stops) and then reactivates (starts again) within the Stop Delay period, then a) If allowed by Run Times (not Delay Times), a new Start event will be triggered, b) If Wait Times prevent a new Start event, then Stop Delay timer will continue (every Start event should allow an Stop event, with the assumption of a sensor providing only one update per Start/Stop event).' // conditions performed in handleSensorUpdate
  displayInfo(helpTip)
@@ -243,26 +260,7 @@ def displayActionOption(){
         displayActionOptionFields('stop',fieldOptions)
     }
 }
-/*
-def displayActionFields(type){
-    width = 10
-    if(type == 'start') typeText = startText
-    if(type == 'stop') typeText = stopText
-    fieldName = type + 'Action'
-    fieldTitle = typeText.capitalize() + ' action:'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    displayLabel(fieldTitle,2)
-    actionMap = ['none': 'Do Nothing (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle', 'resume':'Resume Schedule (or turn off)']
 
-    input type + 'Action', 'enum', title: '', multiple: false, width: width, options: actionMap, submitOnChange:true
-    if(sensorMapEntry.type == 'bool') infoStartText = sensorMapEntry.start
-    if(sensorMapEntry.type != 'bool') infoStartText = 'start'
-    if(!settings['startAction'] && !settings['stopAction']) displayInfo('Select what action to take when the ' + sensorMapEntry.name + ' reading meets the requirement (as "' + infoStartText + '"), or no longer meets it ("stop"). You will enter the start and stop actions below.')
-
-    displayActionDelayOptionFields(type)
-
-}
-*/
 def displayActionOptionFields(type,fieldOptions){
     fieldName = type + 'Action'
     displayActionOptionCompleted(fieldName,type,fieldOptions)
@@ -295,12 +293,14 @@ def displayThresholdOption(){
     if(sensorMapEntry.type == 'bool') return
     
     hidden = true
-    if(!settings['levelThreshold']) sectionTitle = 'Click to set threshold</b> (Optional)'
+    if(getThresholdOptionErrors('levelThreshold')) hidden = false
+    if(!settings['levelThreshold']) sectionTitle = 'Click to set ' + sensorMapEntry.name + ' threshold</b> (Optional)'
     if(settings['levelThreshold']) sectionTitle = '<b>Run while: ' + sensorMapEntry.name + ' ' + forwardDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.unitType + '</b>'
 
     section(hideable: true, hidden: hidden, sectionTitle){
         //display error if !validate
         fieldName = 'levelThreshold'
+        displayError(getThresholdOptionErrors(fieldName))
         if(settings[fieldName]) displayDirectionOption('threshold','direction')
         displayThresholdOptionComplete(fieldName)
         displayThresholdOptionIncomplete(fieldName)
@@ -309,17 +309,22 @@ def displayThresholdOption(){
 def displayThresholdOptionComplete(fieldName){
     if(!settings[fieldName]) return
     fieldTitle = 'Threshold:'
+  
     displayTextField(fieldName,fieldTitle,'number',false)
 }
 def displayThresholdOptionIncomplete(fieldName){
     if(settings[fieldName]) return
-    fieldTitle = 'Set start threshold level:'
+    fieldTitle = 'Start threshold level:'
     directionText = 'less'
     if(settings['forwardDirection']) directionText = 'greater'
     unitsText = ''
     if(sensorMapEntry.unitTypeText) unitsText = ' (in ' + sensorMapEntry.unitTypeText + ')'
-    displayInfo('Set the ' + sensorMapEntry.name + ' level' + unitsText + '. It will run until it is ' + directionText + ' than the threshold level.')
+    displayInfo('Set the ' + sensorMapEntry.name + ' level' + unitsText + ' to start. It will run until it is ' + directionText + ' than the threshold level.')
     displayTextField(fieldName,fieldTitle,'number',false)
+}
+def getThresholdOptionErrors(fieldName){
+    if(!settings[fieldName]) return
+    if(settings[fieldName] < sensorMapEntry.start || settings[fieldName] > sensorMapEntry.stop) return 'The ' + sensorMapEntry.name + ' change must be between ' + sensorMapEntry.start + ' and ' + sensorMapEntry.stop + '.'
 }
 
 def displayLevelDeltaOption(){
@@ -330,15 +335,18 @@ def displayLevelDeltaOption(){
     if(sensorMapEntry.type == 'bool') return
 
     hidden = true
+    if(getLevelDeltaOptionErrors('levelDelta')) hidden = false
     if(settings['relativeMinutes'] && !settings['levelDelta']) hidden = false
     if(!validateMinutes(settings['relativeMinutes'])) hidden = false
-    
-    sectionTitle = 'Click to set amount ' + forwardDirection2 + ' over time (optional)'
+    sectionTitle = 'Click to set ' + sensorMapEntry.name + ' ' + forwardDirection2 + ' over time (Optional)'
     minutes = settings['relativeMinutes']
     if(!settings['relativeMinutes']) minutes = '5'
     if(settings['levelDelta']) sectionTitle = '<b>Run after: ' + sensorMapEntry.name + ' ' + forwardDirection2 + 's ' + settings['levelDelta'] + sensorMapEntry.unitType + ' in ' + minutes + ' min.</b>'
+        if(settings['advancedSetup'] && settings['levelDelta'] && !settings['relativeMinutes']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
         fieldName = 'levelDelta'
+        displayError(getLevelDeltaOptionErrors(fieldName))
+        displayError(validateMinutes(settings['relativeMinutes']))
         displayLevelDeltaOptionComplete(fieldName)
         displayLevelDeltaOptionIncomplete(fieldName)
     }
@@ -366,15 +374,19 @@ def displayLevelDeltaOptionComplete(fieldName){
 }
 def displayLevelDeltaOptionIncomplete(fieldName){
     if(settings[fieldName]) return
-    displayError(getMinutesValidationError(settings['relativeMinutes']))
+    displayError(validateMinutes(settings['relativeMinutes']))
     displayDeltaMinutes('relativeMinutes')
-    sensorText = sensorMapEntry.name + ' ' + sensorMapEntry.unitType
+    sensorText = sensorMapEntry.name + ' (' + sensorMapEntry.unitTypeText + ')'
     if(!sensorMapEntry.unitType) sensorText = sensorMapEntry.name
     fieldTitle = sensorText + ' change within ' + settings['relativeMinutes'] + ' minutes:'
-    if(!settings['relativeMinutes']) fieldTitle = sensorText + ' ' + orwardDirection2 + ' within 5 minutes:'
+    if(!settings['relativeMinutes']) fieldTitle = sensorText + ' ' + forwardDirection2 + ' within 5 minutes:'
     displayTextField(fieldName,fieldTitle,'decimal',true)
     displayInfo('It will continue to run until back within 10% of the original value.')
     if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
+}
+def getLevelDeltaOptionErrors(fieldName){
+    if(!settings[fieldName]) return
+    if(settings[fieldName] >= (sensorMapEntry.stop - sensorMapEntry.start)) return 'The ' + sensorMapEntry.name + ' change must be less than ' + (sensorMapEntry.stop - sensorMapEntry.start) + '.'
 }
 
 def displayDirectionOption(type,fieldName){
@@ -387,7 +399,7 @@ def displayDirectionOption(type,fieldName){
 
 def displayDeltaMinutes(fieldName){
     if(!settings['advancedSetup'] && !settings[fieldName]) return
-    displayError(getMinutesValidationError(settings['relativeMinutes']))
+    displayError(validateMinutes(settings['relativeMinutes']))
     displayDeltaMinutesComplete(fieldName)
     displayDeltaMinutesIncomplete(fieldName)
 }
@@ -398,7 +410,7 @@ def displayDeltaMinutesComplete(fieldName){
 }
 def displayDeltaMinutesIncomplete(fieldName){
     if(settings[fieldName]) return
-    fieldTitle = 'Minutes between change (optional: default 5)'
+    fieldTitle = 'Minutes between change (Optional: default 5)'
     displayTextField(fieldName,fieldTitle,'number',false)
 }
 
@@ -412,7 +424,7 @@ def displayChangeModeOption(){
     if(settings['startMode'] || settings['stopMode']) hidden = false
     if(settings['startMode'] && settings['stopMode']) hidden = true
 
-    sectionTitle = 'Click to set Mode change (optional)'
+    sectionTitle = 'Click to set Mode change (Optional)'
     if(settings['startMode']) sectionTitle = '<b>On ' + startText + ': Set Mode to ' + settings['startMode'] + '</b>'
     if(settings['startMode'] && settings['stopMode']) sectionTitle += '<br>'
     if(settings['stopMode']) sectionTitle += '<b>On stop: Set Mode to ' + settings['stopMode'] + '</b>'
@@ -432,13 +444,11 @@ def displayRunTimeOption(){
     
     hidden = true
     if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] >= settings['runTimeMaximum']) hidden = false
-    if(settings['runTimeMinimum'] && !settings['runTimeMaximum']) hidden = false
-    if(!settings['runTimeMinimum'] && settings['runTimeMaximum']) hidden = false
     if(!validateMinutes(settings['runTimeMinimum'])) hidden = false
     if(!validateMinutes(settings['runTimeMaximum'])) hidden = false
 
     sectionTitle = ''
-    if(!settings['runTimeMinimum'] && !settings['runTimeMaximum']) sectionTitle = 'Click to set run time (optional)'
+    if(!settings['runTimeMinimum'] && !settings['runTimeMaximum']) sectionTitle = 'Click to set run time (Optional)'
     if(settings['runTimeMinimum']) sectionTitle =  '<b>Minimum run time: ' + settings['runTimeMinimum'] + ' min.</b>'
     if(settings['runTimeMinimum'] && settings['runTimeMaximum']) sectionTitle += '<br>'
     if(settings['runTimeMaximum']) sectionTitle += '<b>Maximum run time: ' + settings['runTimeMaximum'] + ' min.</b>'
@@ -446,10 +456,9 @@ def displayRunTimeOption(){
     if(!settings['runTimeMinimum'] && settings['runTimeMaximum']) sectionTitle += moreOptions
 
     section(hideable: true, hidden: hidden, sectionTitle){
-        if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] > settings['runTimeMaximum']) displayError('Minimum run time must be greater than maximum run time.')
-        displayError(getMinutesValidationError(settings['runTimeMinimum']))
-        displayError(getMinutesValidationError(settings['runTimeMaximum']))
-        if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] == settings['runTimeMaximum']) displayWarning('If is not recommended to have equal maximum and minimum run time. It will turn off after ' + settings['runTimeMinimum'] + ' minutes regardless of any other settings, but setting maximum run time without any other start and stop settings would accomplish the same thing.')
+        displayError(getRunTimeMaximumError('runTimeMinimum'))
+        displayError(getRunTimeMaximumError('runTimeMaximum'))
+        if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] == settings['runTimeMaximum']) displayWarning('Having the same maximum and minimum run time will force it to stop at ' + settings['runTimeMinimum'] + ' minutes. Setting just maximum run time (with no other requirements to stop) would accomplish the same thing (or, set a delay time).')
 
         displayRunTimeMinimum()
         displayRunTimeMaximum()
@@ -459,42 +468,51 @@ def displayRunTimeOption(){
 
 def displayRunTimeMinimum(){
     if(validateMinutes(settings['runTimeMinimum']) && !validateMinutes(settings['runTimeMaximum'])) return
-    width = 10
     fieldName = 'runTimeMinimum'
+    displayRunTimeMinimumCompleted(fieldName)
+    displayRunTimeMinimumIncompleted(fieldName)
+}
+def displayRunTimeMinimumCompleted(fieldName){
+    if(!settings[fieldName]) return
     fieldTitle = 'Minimum minutes:'
-    if(!settings[fieldName]) fieldTitle = 'Minimum run time (in minutes)'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(!settings[fieldName]) {
-        displayLabel(fieldTitle)
-        width = 12
-    }
-    input fieldName, 'number', title: '', required: false, width:width, submitOnChange:true
+    displayTextField(fieldName,fieldTitle,'number',false)
+}
+def displayRunTimeMinimumIncompleted(fieldName){
+    if(settings[fieldName]) return
+    fieldTitle = 'Run for at least (minutes):'
+    displayTextField(fieldName,fieldTitle,'number',false)
     message = 'Number of minutes it must run before stopping regardless of ' + sensorMapEntry.name + ', to prevent "cycling".'
-    if(settings['startWait'] && !settings['stopWait']) message += ' Note that the start wait time will not affect the minimum run time.'
-    if(settings['startWait'] && settings['stopWait']) message += ' Note that neither the start nor stop wait time will not affect the minimum run time.'
-    if(!settings['startWait'] && settings['stopWait']) message += ' Note that neither the start nor stop wait time will not affect the minimum run time.'
-    if(!settings[fieldName]) displayInfo(message)
+    if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start wait time will not affect the minimum run time.'
+    if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop wait times.'
+    if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop wait time will not affect the minimum run time.'
+    displayInfo(message)
 }
 
 def displayRunTimeMaximum(){
     if(!validateMinutes(settings['runTimeMinimum'])) return
-    width = 10
     fieldName = 'runTimeMaximum'
+    displayRunTimeMaximumCompleted(fieldName)
+    displayRunTimeMaximumIncompleted(fieldName)
+}
+def displayRunTimeMaximumCompleted(fieldName){
+    if(!settings[fieldName]) return
     fieldTitle = 'Maximum minutes:'
-    if(!settings[fieldName]) fieldTitle = 'Maximum run time (in minutes)'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    if(settings[fieldName]) displayLabel(fieldTitle,2)
-    if(!settings[fieldName]) {
-        displayLabel(fieldTitle)
-        width = 12
-    }
-    input fieldName, 'number', title: '', required: false, width:width, submitOnChange:true
+    displayTextField(fieldName,fieldTitle,'number',false)
+}
+def displayRunTimeMaximumIncompleted(fieldName){
+    if(settings[fieldName]) return
+    fieldTitle = 'Run for no more than (minutes):'
+    displayTextField(fieldName,fieldTitle,'number',false)
     message = 'Number of minutes to run after which it will stop regardless of ' + sensorMapEntry.name + '. (Will not start again for the same duration.)'
-    if(settings['startWait'] && !settings['stopWait']) message += ' Note that the start wait time will not affect the maximum run time.'
-    if(settings['startWait'] && settings['stopWait']) message += ' Note that neither the start nor stop wait time will not affect the maximum run time.'
-    if(!settings['startWait'] && settings['stopWait']) message += ' Note that neither the start nor stop wait time will not affect the maximum run time.'
-    if(!settings[fieldName]) displayInfo(message)
+    if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start delay time will not affect the maximum run time.'
+    if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop delay times.'
+    if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop delay time will not affect the maximum run time.'
+    displayInfo(message)
+}
+def getRunTimeMaximumError(fieldName){
+    if(!settings[fieldName]) return
+    if(validateMinutes(settings['fieldName'])) return validateMinutes(settings['fieldName'])
+    if(fieldName == 'runTimeMinimum' && settings['runTimeMaximum'] && settings['runTimeMinimum'] > settings['runTimeMaximum']) return 'Minimum run time must be greater than maximum run time.'
 }
 
 def displayScheduleSection(){
@@ -512,8 +530,8 @@ def displayScheduleSection(){
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + thisDescription + ' is active. You can create another ' + thisDescription + ' "app" to do something else for opposite times/days.')
-        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + thisDescription + ' is active. For instance, to set a door contact sensor to turn on a light only at night, you could set start time as sunset and stop time as sunrise.')
+        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayWarning('There is no reason for having start and stop time the same; ' + thisDescription + ' apps are active all the time by default.')
 
         displayTimeTypeOption('start')
         displayTimeOption('start')
@@ -539,6 +557,11 @@ def setLightOptions(){
     hidden = true
     //if !validate brightness, color or temp, hidden = false
     section(hideable: true, hidden: hidden, sectionTitle){
+        if(!parent.validateLevel(settings['startBrightness'])) displayError('Brightness must be between 1 and 100.')
+        if(!parent.validateTemp(settings['startColorTemperature'])) displayError('Color temperature must be between 1800 and 5400.')
+        if(!parent.validateHue(settings['startHue'])) displayError('Color temperature must be between 1 and 360.')
+        if(!parent.validateLevel(settings['startSat'])) displayError('Saturation must be between 1 and 100.')
+
         // display error if !validate
         displayBrightnessOption()
         displayColorTemperatureOption()
@@ -548,11 +571,11 @@ def setLightOptions(){
 }
 
 def getLightOptionsSectionTitle(){
-    sectionTitle = 'Click to set light options (optional)'
+    sectionTitle = 'Click to set light options (Optional)'
     if(settings['startBrightness']) sectionTitle = '<b>On ' + startText + ': Set brightness to ' + settings['startBrightness'] + '%</b>'
     if(settings['startColorTemperature']) {
         if(settings['startBrightness']) sectionTitle += '<br>'
-        sectionTitle = '<b>On ' + startText + ': Set color brightness to ' + settings['startColorTemperature'] + 'K</b>'
+        sectionTitle = '<b>On ' + startText + ': Set color temperature to ' + settings['startColorTemperature'] + 'K</b>'
     }
     if(settings['startHue']) {
         if(settings['startBrightness']) sectionTitle += '<br>'
@@ -563,13 +586,13 @@ def getLightOptionsSectionTitle(){
         sectionTitle = '<b>On ' + startText + ': Set saturation to ' + settings['startSat'] + '%</b>'
     }
     if(settings['startBrightness'] || settings['startColorTemperature'] || settings['startHue'] || settings['startSat']) {
-        if(!settings['startBrightness'] || (!settings['startColorTemperature'] || (!settings['startHue'] && !settings['startSat']))) sectionTitle += moreOptions
+        if(!settings['startBrightness'] || (!settings['startColorTemperature'] && (!settings['startHue'] || !settings['startSat']))) sectionTitle += moreOptions
     }
     return sectionTitle
 }
 
 def displayBrightnessOption(){
-    if(!settings['advancedSetup'] && !settings['startBrightness'] && !settings['stopBrightness']) return
+    if(!settings['advancedSetup'] && !settings['startBrightness']) return
     if(!parent.checkIsDimmableMulti(settings['controlDevice'])) return
     fieldName = 'startBrightness'
     displayBrightnessOptionCompleted(fieldName)
@@ -587,18 +610,18 @@ def displayBrightnessOptionIncompleted(fieldName){
 }
 
 def displayColorTemperatureOption(){
-    if(!settings['advancedSetup'] && !settings['startColorTemperature'] && !settings['stopColorTemperature']) return
+    if(!settings['advancedSetup'] && !settings['startColorTemperature']) return
     if(!parent.checkIsTempMulti(settings['controlDevice'])) return
-    fieldName = 'startBrightness'
-    displayBrightnessOptionCompleted(fieldName)
-    displayBrightnessOptionIncompleted(fieldName)
+    fieldName = 'startColorTemperature'
+    displayColorTemperatureOptionCompleted(fieldName)
+    displayColorTemperatureOptionIncompleted(fieldName)
 
-    displayInfo('Only color temperature or hue/saturation can be set, not both. Color temperature is from 1800 to 5400 where lower is more yellow and higher is more blue; 3000 is warm white, 4000 is cool white, and 5000 is daylight.')
 }
 def displayColorTemperatureOptionCompleted(fieldName){
     if(!settings[fieldName]) return
     fieldTitle = startText.capitalize() + ' color temperature:'
     displayTextField(fieldName,fieldTitle,'number',false)
+    displayInfo('Only color temperature or hue/saturation can be set. 3000 is warm white, 4000 is cool white, and 5000 is daylight.')
 }
 def displayColorTemperatureOptionIncompleted(fieldName){
     if(settings[fieldName]) return
@@ -608,7 +631,7 @@ def displayColorTemperatureOptionIncompleted(fieldName){
 }
 
 def displayHueOption(){
-    if(!settings['advancedSetup'] && !settings['startHue'] && !settings['stopHue'] && !settings['startSat'] && !settings['stopSat']) return
+    if(!settings['advancedSetup'] && !settings['startHue'] && !settings['startSat']) return
     if(settings['startColorTemperature']) return
     if(!parent.checkIsColorMulti(settings['controlDevice'])) return
     fieldName = 'startHue'
@@ -705,7 +728,7 @@ def displayAlertOptions(){
     if(settings['pushNotification'] && !settings['speech']) sectionTitle += moreOptions
     if(!settings['pushNotification'] && settings['speech']) sectionTitle += moreOptions
     
-    if(!settings['speech'] && !settings['pushNotification']) sectionTitle = 'Click to send notifications (optional)'
+    if(!settings['speech'] && !settings['pushNotification']) sectionTitle = 'Click to send notifications (Optional)'
 
     section(hideable: true, hidden: hidden, sectionTitle){
         if(parent.pushNotificationDevice){
@@ -786,7 +809,7 @@ def buildSensorMap(){
             [name:'Temperature',attribute:'temperature',capability:'temperatureMeasurement',type:'range',start:-100,stop:250,unitType:'°' + location.temperatureScale,unitTypeText:'degrees ' + location.temperatureScale,advanced:false],
             [name:'Ultraviolet Index',attribute:'ultravioletIndex',capability:'ultravioletIndex',type:'range',start:1,stop:11,unitType:'',unitTypeText:'',advanced:true],
             [name:'Valve',attribute:'valve',capability:'valve',type:'bool',start:'open',stop:'closed',advanced:true],
-            [name:'Voltage',attribute:'voltage',capability:'voltageMeasurement',type:'range',start:0,stop:1000,unitType:'V',unitTypeText:'volts',advanced:true],
+            [name:'Voltage',attribute:'voltage',capability:'voltageMeasurement',type:'range',start:0,stop:1000,unitType:'v',unitTypeText:'volts',advanced:true],
             [name:'Window Blind (position)',attribute:'position',capability:'windowShade',type:'range',start:0,stop:100,unitType:'%',unitTypeText:'percent',advanced:true],
             [name:'Window Blind',attribute:'windowBlind',capability:'windowShade',type:'bool',start:'open',stop:'closed',advanced:true],
             [name:'Window Shade (position)',attribute:'position',capability:'windowShade',type:'range',start:0,stop:100,unitType:'%',unitTypeText:'percent',advanced:true],
@@ -800,29 +823,41 @@ def buildSensorMap(){
 // It could return attribute:name pairs
 def getAvailableCapabilitiesList(){
     matchList = [:]
-    
-    for(int sensorsMapLoop = 0; sensorsMapLoop < sensorsMap.size();sensorsMapLoop++){
-        if(!advancedSetup && sensorsMap[sensorsMapLoop].advanced) continue
-        if(matchList.containsKey(capabilityName)) continue
-        if(!controllerTypeButtonValue){    // If filtering disabled, add all sensor types
+    notMatchList = []
+
+    if(!controllerTypeButtonValue){    // If filtering disabled, add all sensor types
+        for(int sensorsMapLoop = 0; sensorsMapLoop < sensorsMap.size();sensorsMapLoop++){
+            if(matchList.containsKey(sensorsMap[sensorsMapLoop].capability)) continue
             matchList[sensorsMap[sensorsMapLoop].capability] = getAvailableCapabilitiesListEntry(sensorsMapLoop)
-            continue
         }
-        allDeviceOptions.each {singleDevice ->
-            for(int capabilitiesLoop = 0; capabilitiesLoop < singleDevice.capabilities.size();capabilitiesLoop++){
-                capabilityName = singleDevice.capabilities[capabilitiesLoop].name.uncapitalize()
-                if(sensorsMap[sensorsMapLoop].capability != capabilityName) continue
-            matchList[sensorsMap[sensorsMapLoop].capability] = getAvailableCapabilitiesListEntry(sensorsMapLoop)
-            }
+        return returnAvailableCapabilitiesList(matchList)
+    }
+
+    allDeviceOptions.each {singleDevice ->
+        for(int capabilitiesLoop = 0; capabilitiesLoop < singleDevice.capabilities.size();capabilitiesLoop++){
+            if(notMatchList.contains(singleDevice.capabilities[capabilitiesLoop].name)) continue        // Uncapitalizing adds significant processing time, so check notMatch
+            capabilityName = singleDevice.capabilities[capabilitiesLoop].name.uncapitalize()
+            if(matchList.containsKey(capabilityName)) continue
+            sensorsMapEntry = sensorsMap.find{it.capability == capabilityName}
+            if(!sensorsMapEntry) {
+                notMatchList += singleDevice.capabilities[capabilitiesLoop].name
+                continue
+        }
+            if(!advancedSetup && sensorsMapEntry.advanced) continue
+            matchList[capabilityName] = buildAvailableCapabilitiesListEntry(sensorsMapEntry)
         }
     }
+    return returnAvailableCapabilitiesList(matchList)
+}
+def returnAvailableCapabilitiesList(matchList){
+    if(!matchList) return
     if(!matchList.containsKey(settings['controllerType'])) matchList[settings['controllerType']] = sensorsMap.find{it.capability == settings['controllerType']}.name // Add the current controller type (mostly if advanced options changed)
     return matchList.sort { it.value.toLowerCase() }
 }
-def getAvailableCapabilitiesListEntry(sensorsMapEntryNumber){
-    if(sensorsMap[sensorsMapEntryNumber].type == 'bool') return sensorsMap[sensorsMapEntryNumber].name + ' (' + sensorsMap[sensorsMapEntryNumber].start + '/' + sensorsMap[sensorsMapEntryNumber].stop + ')'
-    if(sensorsMap[sensorsMapEntryNumber].unitType) return sensorsMap[sensorsMapEntryNumber].name + ' (' + sensorsMap[sensorsMapEntryNumber].unitTypeText + ')'
-    if(sensorsMap[sensorsMapEntryNumber].type != 'bool' && !sensorsMap[sensorsMapEntryNumber].unitType) return sensorsMap[sensorsMapEntryNumber].name
+def buildAvailableCapabilitiesListEntry(sensorsMapEntry){
+    if(sensorsMapEntry.type == 'bool') return sensorsMapEntry.name + ' (' + sensorsMapEntry.start + '/' + sensorsMapEntry.stop + ')'
+    if(sensorsMapEntry.unitType) return sensorsMapEntry.name + ' (' + sensorsMapEntry.unitTypeText + ')'
+    if(sensorsMapEntry.type != 'bool' && !sensorsMapEntry.unitType) return sensorsMapEntry.name
 }
 
 def getSensorsMapEntry(sensorsMap){
@@ -942,12 +977,8 @@ def getPlainAction(action){
 }
 
 def validateMinutes(value){
-    if(!getMinutesValidationError(value)) return true
-}
-
-def getMinutesValidationError(value){
-    if(value == 0) return
     if(!value) return
+    if(value == 0) return
     if(value > 1440) return 'Maximum minutes is 1,440 (24 hours).'
     if(value < 1) return 'Minimum minutes is 1.'
 }
@@ -984,28 +1015,26 @@ def getMinutesValidationError(value){
 
 
 def installed() {
-    putLog(987,'trace','Installed')
+    putLog(1018,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(993,'trace','Updated')
+    putLog(1024,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
+    putLog(1030,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     setTime()
 
 	unschedule()        // Reset here or in updated? Would installed also do updated?
-    atomicState.remove("startTime")
-    atomicState.remove("stopTime")
 
     if(!atomicState.contactLastNotification) atomicState.contactLastNotification = new Date().getTime() - parent.CONSTHourInMilli() // Why set this? Just test if blank when sending.
     
-    setTime()
     sensorsMap = buildSensorMap()
     state.sensorMapEntry = getSensorsMapEntry(sensorsMap)
 
@@ -1017,7 +1046,7 @@ def initialize() {
     
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1020,'trace','Initialized')
+    putLog(1049,'trace','Initialized')
 }
 
 def handleSensorStart(event) {
@@ -1025,7 +1054,7 @@ def handleSensorStart(event) {
     if(atomicState.startDelayActive) return
     if(!getActive()) return
     unschedule('performStopAction')
-    putLog(1028,'debug','Sensor is ' + event.value + '.')
+    putLog(1057,'debug','Sensor is ' + event.value + '.')
     if(scheduleDelay('start')) return        // if repeadedly triggered (as Start), need to know if delayed schedule; maybe another state var?
     performStartAction()
 }
@@ -1034,7 +1063,7 @@ def handleSensorStop(event) {
     if(!atomicState.startTime) return
     if(atomicState.stopDelayActive) return
     unschedule('performStartAction')
-    putLog(1037,'debug','Sensor is ' + event.value + '.')
+    putLog(1066,'debug','Sensor is ' + event.value + '.')
     if(scheduleDelay('stop')) return        // if repeadedly triggered (as Stop), need to know if delayed schedule; maybe another state var?
     performStopAction()
 }
@@ -1044,13 +1073,13 @@ def handleSensorUpdate(event) {
     updateSensorDeltaArray()
     if(!checkStartOptions()) return
     if(checkStopOptions()) {
-        putLog(1047,'error','Both start and stop conditions met.')
+        putLog(1076,'error','Both start and stop conditions met.')
         return
     }
     startConditionsMet = checkStartOptions()
     stopConditionsMet = checkStartOptions()
     if(startConditionsMet && stopConditionsMet) {
-        putLog(1053,'error','Both start and stop conditions met.')
+        putLog(1082,'error','Both start and stop conditions met.')
         return
     }
     if(startConditionsMet) {
@@ -1091,12 +1120,12 @@ def checkStartOptions(){
     if(state.sensorMapEntry['type'] == 'range' && checkStopLevelConditions()) {
         atomicState.startTime = null
         atomicState.remove("startTime")    // Clear stopTime too?
-        putLog(1094,'error','Both start and stop conditions met.')
+        putLog(1123,'error','Both start and stop conditions met.')
         return
     }
     if(!checkMinimumWaitTime) {
         scheduleMinimumWaitTime()
-        putLog(1099,'debug','Sensor would activate, but for minimum wait time from last execution.')
+        putLog(1128,'debug','Sensor would activate, but for minimum wait time from last execution.')
         return
     }
     return true
@@ -1126,7 +1155,7 @@ def performStartAction(){
         // set levels
         stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1129,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
+        putLog(1158,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
     scheduleMaximumRunTime()
@@ -1141,7 +1170,7 @@ def performStopAction(){
     settings['controlDevice'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1144,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
+        putLog(1173,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
@@ -1282,7 +1311,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1285,'trace','Minimum wait time exceeded.')
+    putLog(1314,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1317,38 +1346,6 @@ def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null)
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
-def setTime(){
-    if(!settings['start_timeType']) return
-    if(!settings['stop_timeType']) return
-    if(settings['start_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['start_time']).getTime()
-    if(settings['stop_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['stop_time']).getTime()
-    if(settings['start_timeType'] == 'sunrise') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunrise(settings['start_sunOffset'] * -1,app.label) : parent.getSunrise(settings['start_sunOffset'],app.label))
-    if(settings['stop_timeType'] == 'sunrise') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunrise(settings['stop_sunOffset'] * -1,app.label) : parent.getSunrise(settings['stop_sunOffset'],app.label))
-    if(settings['start_timeType'] == 'sunset') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunset(settings['start_sunOffset'] * -1,app.label) : parent.getSunset(settings['start_sunOffset'],app.label))
-    if(settings['stop_timeType'] == 'sunset') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunset(settings['stop_sunOffset'] * -1,app.label) : parent.getSunset(settings['stop_sunOffset'],app.label))
-    
-    if(settings['start_timeType'] != 'time' || settings['stop_timeType'] != 'time'){
-        unschedule('setTime')
-        timeMillis = now() + parent.CONSTDayInMilli()
-        parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
-        putLog(1334,'info','Scheduling update subrise/sunset start and/or stop time(s).')
-    }
-    return true
-}
-
-def checkIncludeDates(){
-    if(!atomicState.includeDates) return true
-    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
-    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
-}
-def processDates(){
-    atomicState.remove('includeDates')
-    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
-    currentYear = new Date(now()).format('yyyy').toInteger()
-    includeDatesValue = settings['includeDates']
-    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
-}
 
 // Return true if disabled
 def getActive(){
@@ -1605,7 +1602,7 @@ def displayIfModeOption(){
     if(anyErrors) return
     
     fieldName = 'ifMode'
-    sectionTitle = 'Click to select with what Mode (optional)'
+    sectionTitle = 'Click to select with what Mode (Optional)'
     if(settings[fieldName]) sectionTitle = '<b>Only with Mode: ' + settings[fieldName] + '</b>'
 
     section(hideable: true, hidden: true, sectionTitle){
@@ -1651,7 +1648,7 @@ def displayPeopleOption(){
     hidden = true
     if(peopleError) hidden = false
     
-    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (optional)'
+    if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (Optional)'
     if(settings['personHome']) sectionTitle = '<b>Only if home: ' + withPeople + '</b>'
     if(settings['personHome'] && settings['personNotHome']) sectionTitle += '<br>'
     if(settings['personNotHome']) sectionTitle += '<b>Only if away: ' + withoutPeople + '</b>'
@@ -1707,10 +1704,12 @@ def validateSunriseMinutes(type){
     return true
 }
 
+// Need to clean up/fix this
 def getTimeSectionTitle(){
-    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (optional)'
+    if(!settings['start_timeType'] && !settings['stop_timeType'] && !settings['days']) return 'Click to set with schedule (Optional)'
 
     if(settings['start_timeType']) sectionTitle = '<b>Starting: '
+    if(!settings['start_timeType'] && (settings['days'] || settings['includeDates'] || settings['excludeDates'])) sectionTitle = 'On: '
     if(settings['start_timeType'] == 'time' && settings['start_time']) sectionTitle += 'At ' + Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['start_time']).format('h:mm a', location.timeZone)
     if(settings['start_timeType'] == 'time' && !settings['start_time']) sectionTitle += 'At specific time '
     if(settings['start_timeType'] == 'sunrise' || settings['start_timeType'] == 'sunset'){
@@ -1727,10 +1726,11 @@ def getTimeSectionTitle(){
     }
     dayText = dayList.join(', ')
     
-    if(settings['start_timeType'] && settings['days']) sectionTitle += ' on: ' + dayText
+    if(settings['days']) sectionTitle += dayText
+    if(settings['includeDates']) sectionTitle += ' +[included dates]'
+    if(settings['excludeDates']) sectionTitle += ' +[excluded dates]'
     if(settings['start_timeType']) sectionTitle += '</b>'
-    if(!settings['days']) sectionTitle += moreOptions
-    
+    if(!settings['days'] || !settings['includeDates'] || !settings['excludeDates']) sectionTitle += moreOptions
     if(!settings['start_timeType'] && !settings['stop_timeType']) return sectionTitle
 
     sectionTitle += '</br>'
@@ -1851,8 +1851,8 @@ def displayDaysOption(){
     if(!validateTimes('stop')) return
 
     fieldName = 'days'
-    fieldTitle = 'On these days (optional; defaults to all days):'
-    if(!settings[fieldName]) fieldTitle = 'On which days (optional; defaults to all days)?'
+    fieldTitle = 'On these days (Optional; defaults to all days):'
+    if(!settings[fieldName]) fieldTitle = 'On which days (Optional; defaults to all days)?'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
     displaySelectField(fieldName,fieldTitle,options,true,false)
@@ -1986,6 +1986,50 @@ def displayFilterButton(buttonName){
         return
     }
 }
+def getNextYearWithMondayChristmas(currentYear = null) {
+    if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
+    mondayChristmas = false
+    while (!mondayChristmas) {
+        currentYear++
+        christmas = Date.parse('yyyyMMdd',currentYear + '1225')
+        if (christmas.format('EEEE') == 'Monday') mondayChristmas = true
+        
+    }
+    return currentYear
+}
+
+def setTime(){
+    if(!settings['start_timeType']) return
+    if(!settings['stop_timeType']) return
+    if(settings['start_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['start_time']).getTime()
+    if(settings['stop_timeType'] == 'time') atomicState.scheduleStartTime = timeToday(settings['stop_time']).getTime()
+    if(settings['start_timeType'] == 'sunrise') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunrise(settings['start_sunOffset'] * -1,app.label) : parent.getSunrise(settings['start_sunOffset'],app.label))
+    if(settings['stop_timeType'] == 'sunrise') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunrise(settings['stop_sunOffset'] * -1,app.label) : parent.getSunrise(settings['stop_sunOffset'],app.label))
+    if(settings['start_timeType'] == 'sunset') atomicState.scheduleStartTime = (settings['start_sunType'] == 'before' ? parent.getSunset(settings['start_sunOffset'] * -1,app.label) : parent.getSunset(settings['start_sunOffset'],app.label))
+    if(settings['stop_timeType'] == 'sunset') atomicState.scheduleStopTime = (settings['stop_sunType'] == 'before' ? parent.getSunset(settings['stop_sunOffset'] * -1,app.label) : parent.getSunset(settings['stop_sunOffset'],app.label))
+    
+    if(settings['start_timeType'] != 'time' || settings['stop_timeType'] != 'time'){
+        unschedule('setTime')
+        timeMillis = now() + parent.CONSTDayInMilli()
+        parent.scheduleChildEvent(timeMillis,'','setTime','',app.id)
+        putLog(2015,'info','Scheduling update subrise/sunset start and/or stop time(s).')
+    }
+    return true
+}
+
+def checkIncludeDates(){
+    if(!atomicState.includeDates) return true
+    if(!atomicState.includeDates[now().format('yyyy')]) processDates()
+    if(atomicState?.includeDates[now().format('yyyy')].contains(now().format('D'))) return true
+}
+def processDates(){
+    atomicState.remove('includeDates')
+    if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    includeDatesValue = settings['includeDates']
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
 
 def displayExcludeDates(){
     fieldName = 'excludeDates'
@@ -1996,24 +2040,27 @@ def displayExcludeDates(){
     deviceText = 'the device'
     if(thisType == 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
     if(thisType != 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
+    currentYear = new Date(now()).format('yyyy').toInteger()
+    christmasMondayYear = getNextYearWithMondayChristmas()
     infoTip = 'Enter which date(s) to restrict or exclude this ' + thisDescription + ' routine. "Only on dates" are when this ' + thisDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
 "Not on" dates are when this ' + thisDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
 	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
 <i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
-	• Enter dates as month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
-<i>Example: Christmas could be entered as 12/25, 25.12 or 359 [the latter only true for non-leap years, otherwise 360].</i>\n\
+	• Use month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
+<i>Example: Christmas could be entered as "12/25", "25.12" or "359" (the latter only true for non-leap years, otherwise "360").</i>\n\
 	• Separate multiple dates with a comma (or semicolon). \
 <i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
 	• Use a hyphen to indicate a range of dates. \
 <i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
     	• The "days" options above will combine with the dates. \
-<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' if Christmas is on a Monday.</i>\n\
+<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' to activate on 12/25/' + christmasMondayYear + ', 12/25/' + getNextYearWithMondayChristmas((christmasMondayYear + 1)) + ', etc. when Christmas is on a Monday.</i>\n\
 	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
 <i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
 	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
 	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
 
     displayInfo(infoTip)
+    
 }
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
