@@ -399,6 +399,7 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
 // Returns true if level value is either valid or null
 def validateLevel(value, childLabel='Master'){
     if(!value) return true
+    log.debug 'value ' + value
     value = value as int
         if(value < 1) return false
         if(value > 100) return false
@@ -501,16 +502,19 @@ def checkIsColor(singleDevice, childLabel='Master'){
 }
 // Used by child apps to determine if UI shows dim/brighten, temp or color options
 def checkIsDimmableMulti(multiDevice, childLabel='Master'){
+    if(!multiDevice) return
     for(int i = 0; i < multiDevice.size(); i++){
         if(multiDevice[i].hasCapability('SwitchLevel')) return true
     }
 }
 def checkIsTempMulti(multiDevice, childLabel='Master'){
+    if(!multiDevice) return
     for(int i = 0; i < multiDevice.size(); i++){
         if(multiDevice[i].hasCapability('ColorTemperature')) return true
     }
 }
 def checkIsColorMulti(multiDevice, childLabel='Master'){
+    if(!multiDevice) return
     for(int i = 0; i < multiDevice.size(); i++){
         if(multiDevice[i].hasCapability('ColorMode')) return true
     }
