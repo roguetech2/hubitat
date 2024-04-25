@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.4
+*  Version: 0.4.2.5
 * 
 ***********************************************************************************************************************/
 
@@ -1323,7 +1323,6 @@ def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,require
 }
 
 def appButtonHandler(buttonValue){
-    log.debug buttonValue
       switch(buttonValue) {
           case 'controllerButton':
           if(!state[buttonValue + 'Value']){
@@ -1351,7 +1350,6 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'averageButton':        //used only by sensor app
-        log.debug 'appButtonHandler averageButtonValue = ' + state[buttonValue + 'Value']
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
               break
@@ -1359,13 +1357,10 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'multipleOptionsButton':        //used only by sensor app
-          log.debug '1 appButtonHandler'
           if(!state[buttonValue + 'Value']){
-              log.debug '2 appButtonHandler'
               state[buttonValue + 'Value'] = true
               break
           }
-          log.debug '3 appButtonHandler'
               state[buttonValue + 'Value'] = false
           break
       }
@@ -1403,7 +1398,6 @@ def displayFilterButton(buttonName){
         return
     }
     if(buttonName == 'averageButton'){
-        log.debug 'displayFilterButton averageButtonValue = ' + state[buttonName + 'Value']
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterNoMergeIcon, width:1
         }
@@ -1412,7 +1406,6 @@ def displayFilterButton(buttonName){
         }
         return
     }
-    log.debug buttonName
     if(buttonName == 'multipleOptionsButton'){
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterMergeIcon, width:1
