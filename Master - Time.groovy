@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.25
+*  Version: 0.7.2.26
 *
 ***********************************************************************************************************************/
 
@@ -538,7 +538,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(570,'trace',app.label + ' initializing.')
+    putLog(541,'trace',app.label + ' initializing.')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     unschedule()
@@ -555,7 +555,7 @@ def initialize() {
     if(alreadyRunning) runDailyStartSchedule()
     if(!alreadyRunning) setStopSchedule()
 
-    putLog(587,'info',app.label + ' initialized.')
+    putLog(558,'info',app.label + ' initialized.')
     return true
 }
 
@@ -606,7 +606,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(638,'info',app.label + ' schedule has started.')
+    putLog(609,'info',app.label + ' schedule has started.')
     
     setStartSchedule()
     setStopSchedule()
@@ -646,7 +646,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(678,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(649,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
@@ -654,7 +654,7 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(686,'info',app.label + ' schedule has ended.')
+    putLog(657,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
@@ -674,7 +674,7 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(706,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(677,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
     atomicState.remove('startTime')        // Cleared to prevent runIncremental from running
@@ -704,11 +704,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(736,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(707,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(740,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(711,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['controlDevice'], app.label)
     if(anyDevicesChanged) {
@@ -1460,7 +1460,6 @@ def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,require
 }
 
 def appButtonHandler(buttonValue){
-    log.debug buttonValue
       switch(buttonValue) {
           case 'controllerButton':
           if(!state[buttonValue + 'Value']){
@@ -1488,7 +1487,6 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'averageButton':        //used only by sensor app
-        log.debug 'appButtonHandler averageButtonValue = ' + state[buttonValue + 'Value']
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
               break
@@ -1496,13 +1494,10 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'multipleOptionsButton':        //used only by sensor app
-          log.debug '1 appButtonHandler'
           if(!state[buttonValue + 'Value']){
-              log.debug '2 appButtonHandler'
               state[buttonValue + 'Value'] = true
               break
           }
-          log.debug '3 appButtonHandler'
               state[buttonValue + 'Value'] = false
           break
       }
@@ -1540,7 +1535,6 @@ def displayFilterButton(buttonName){
         return
     }
     if(buttonName == 'averageButton'){
-        log.debug 'displayFilterButton averageButtonValue = ' + state[buttonName + 'Value']
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterNoMergeIcon, width:1
         }
@@ -1549,7 +1543,6 @@ def displayFilterButton(buttonName){
         }
         return
     }
-    log.debug buttonName
     if(buttonName == 'multipleOptionsButton'){
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterMergeIcon, width:1
