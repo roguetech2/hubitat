@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.9
+*  Version: 0.4.3.10
 *
 ***********************************************************************************************************************/
 
@@ -46,6 +46,7 @@ setUILinks()
 
 preferences {
     if(!settings) settings = [:]
+            tooltipNumber = 0
     if(!app.label) install = false
     if(app.label){
         install = formComplete()
@@ -186,13 +187,15 @@ def displayControllerDeviceOptionComplete(fieldName){
     displayDeviceSelectField(fieldName,fieldTitle,capability,true)
     if(sensorCount == 1) helpTip = sensorMapEntry.name + ' is currently ' + sensorAverage + sensorMapEntry.unitType + '.'
     
-    if(sensorCount > 1) {
+    if(sensorCount > 1 && sensorMapEntry.type == 'bool') displayInfo('Any one sensor will start/stop routine.')
+    if(sensorCount > 1 && sensorMapEntry.type != 'bool') {
 // if averageButtonValue
         if(!settings['advancedSetup'] && !state['averageButtonValue']) helpTip = 'Average (of ' + sensorCount + ' devices) is currently ' + sensorAverage + sensorMapEntry.unitType + '.'
         if(settings['advancedSetup'] && !state['averageButtonValue']) helpTip = 'Using average (currently ' + sensorAverage + sensorMapEntry.unitType + ') of ' + sensorCount + ' devices.'
         if(settings['advancedSetup'] || state['averageButtonValue']){
             displayFilterButton('averageButton')
-            if(state['averageButtonValue']) helpTip = 'Any one sensor can start routine (current average is ' + sensorAverage + sensorMapEntry.unitType + ').'
+// Should stopping routine be limited to the same sensor that started it??
+            if(state['averageButtonValue']) helpTip = 'Any one sensor can start or stop the routine (current average is ' + sensorAverage + sensorMapEntry.unitType + ').'
        
             displayInfo(helpTip,false,11)
         } else {
@@ -205,7 +208,7 @@ def displayControllerDeviceOptionIncomplete(fieldName){
     fieldTitle = 'Select the ' + sensorMapEntry.name + ' sensor(s) being used:'
     capability = 'capability.' + settings['controllerType']
     displayDeviceSelectField(fieldName,fieldTitle,capability,true)
-    if(settings['advancedSetup']) displayInfo('Select all sensor devices to be used, including primary and comparison. [Comparison device functionality has not been added yet.]')
+    if(settings['advancedSetup']) displayInfo('Select all sensor devices to be used (including pany you may want to use as a comparison device. [Comparison device functionality has not been added yet.]')
     if(!settings['advancedSetup']) displayInfo('Select all sensor devices to be used. Multiple sensors will be averaged together by default.')
 }
 
@@ -256,12 +259,15 @@ def displayActionDelayOptionIncompleted(fieldName,type){
     if(type == 'start' && settings['runTimeMinimum'] && settings[fieldName]) {
         if(settings[fieldName] < settings['runTimeMinimum']) displayWaring('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
     }
+    helpTip = ''
     if(type == 'start') helpTip = 'Applies to all actions (Mode, notifications, etc.).'
     displayInfo(helpTip)
     fieldTitle = 'Wait time in minutes before performing ' + type + ' actions: (Optional)'
     displayTextField(fieldName,fieldTitle,'number',false)
-    if(type == 'stop' && settings['startDelay']) helpTip += ' Note that if the device activates (' + sensorMapEntry.start + ') or re-activates within the Stop Delay time, the Stop Delay will be reset.<br>1) If a sensor activates and then deactivates within the Start Delay period, the deactivation will be ignored. (The Stop conditions will be rechecked when the Start Delay expires, without the sensor needing to update. So, the Stop Actions may <i>immediately</i> follow the Start Actions.)<br>2) If a sensor deactivates (stops) and then reactivates (starts again) within the Stop Delay period, then a) If allowed by Run Times (not Delay Times), a new Start event will be triggered, b) If Wait Times prevent a new Start event, then Stop Delay timer will continue (every Start event should allow an Stop event, with the assumption of a sensor providing only one update per Start/Stop event).' // conditions performed in handleSensorUpdate
- displayInfo(helpTip)
+    if(type == 'stop' && settings['startDelay']) {
+        helpTip = 'Note that if the device activates (' + sensorMapEntry.start + ') or re-activates within the Stop Delay time, the Stop Delay will be reset.<br>1) If a sensor activates and then deactivates within the Start Delay period, the deactivation will be ignored. (The Stop conditions will be rechecked when the Start Delay expires, without the sensor needing to update. So, the Stop Actions may <i>immediately</i> follow the Start Actions.)<br>2) If a sensor deactivates (stops) and then reactivates (starts again) within the Stop Delay period, then a) If allowed by Run Times (not Delay Times), a new Start event will be triggered, b) If Wait Times prevent a new Start event, then Stop Delay timer will continue (every Start event should allow an Stop event, with the assumption of a sensor providing only one update per Start/Stop event).' // conditions performed in handleSensorUpdate
+         displayInfo(helpTip)
+    }
 }
 // Move delay to it's own section, to apply to everything (Mode, notifications, etc.)
 // Needs to be advanced option
@@ -319,14 +325,14 @@ def displayMultipleConditions(){
     if(settings['levelComparison']) triggerOptions++
     if(triggerOptions < 2) return
 
-    if(settings['levelThreshold'] && settings['direction']) infoLevelsText = 'over ' + settings['levelThreshold'] + sensorMapEntry.unitType
-    if(settings['levelThreshold'] && !settings['direction']) infoLevelsText = 'under ' + settings['levelThreshold'] + sensorMapEntry.unitType
+    if(settings['levelThreshold'] && settings['direction']) infoLevelsText = forwardDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.unitType
+    if(settings['levelThreshold'] && !settings['direction']) infoLevelsText = reverseDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.unitType
     if(infoLevelsText && settings['levelDelta']) infoLevelsText += '; '
-    if(settings['levelDelta'] && settings['direction']) infoLevelsText += 'increases ' + settings['levelDelta'] + sensorMapEntry.unitType
-    if(settings['levelDelta'] && !settings['direction']) infoLevelsText += 'decreases ' + settings['levelDelta'] + sensorMapEntry.unitType
+    if(settings['levelDelta'] && settings['direction']) infoLevelsText += forwardDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.unitType
+    if(settings['levelDelta'] && !settings['direction']) infoLevelsText += reverseDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.unitType
     if(infoLevelsText && settings['levelComparison']) infoLevelsText += '; '
-    if(settings['levelComparison'] && settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' over ' + settings['comparisonDevice']
-    if(settings['levelComparison'] && !settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' under ' + settings['comparisonDevice']
+    if(settings['levelComparison'] && settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' ' + forwardDirection + ' ' + settings['comparisonDevice']
+    if(settings['levelComparison'] && !settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' ' + reverseDirection + ' ' + settings['comparisonDevice']
     
     section(){
         if(!state['multipleOptionsButtonValue']) infoMessage = 'Any of the conditions will start the routine (' + infoLevelsText + ').'
@@ -378,6 +384,7 @@ def displayThresholdOptionIncomplete(fieldName){
 }
 def getThresholdOptionErrors(fieldName){
     if(!settings[fieldName]) return
+    if(sensorMapEntry.type == 'bool') return
     if(settings[fieldName] < sensorMapEntry.start || settings[fieldName] > sensorMapEntry.stop) return 'The ' + sensorMapEntry.name + ' change must be between ' + sensorMapEntry.start + ' and ' + sensorMapEntry.stop + '.'
 }
 
@@ -389,17 +396,17 @@ def displayLevelDeltaOption(){
     if(sensorMapEntry.type == 'bool') return
 
     hidden = true
-    errorMessage = getLevelDeltaOptionErrors('levelDelta')
+    fieldName = 'levelDelta'
+    errorMessage = getLevelDeltaOptionErrors(fieldName)
     if(errorMessages) hidden = false
-    if(settings['relativeMinutes'] && !settings['levelDelta']) hidden = false
+    if(settings['relativeMinutes'] && !settings[fieldName]) hidden = false
     if(getMinutesError(settings['relativeMinutes'])) hidden = false
     sectionTitle = 'Click to set ' + sensorMapEntry.name + ' ' + forwardDirection2 + ' over time (Optional)'
     minutes = settings['relativeMinutes']
     if(!settings['relativeMinutes']) minutes = '5'
-    if(settings['levelDelta']) sectionTitle = '<b>Run after: ' + sensorMapEntry.name + ' ' + forwardDirection2 + 's ' + settings['levelDelta'] + sensorMapEntry.unitType + ' in ' + minutes + ' min.</b>'
-        if(settings['advancedSetup'] && settings['levelDelta'] && !settings['relativeMinutes']) sectionTitle += moreOptions
+    if(settings[fieldName]) sectionTitle = '<b>Run after: ' + sensorMapEntry.name + ' ' + forwardDirection2 + 's ' + settings[fieldName] + sensorMapEntry.unitType + ' in ' + minutes + ' min.</b>'
+    if(settings['advancedSetup'] && settings[fieldName] && !settings['relativeMinutes']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
-        fieldName = 'levelDelta'
         displayError(errorMessage)
         displayLevelDeltaOptionComplete(fieldName)
         displayLevelDeltaOptionIncomplete(fieldName)
@@ -412,10 +419,10 @@ def displayLevelDeltaOptionComplete(fieldName){
     fieldTitle = sensorMapEntry.name + ' change:'
     displayTextField(fieldName,fieldTitle,'decimal',true)
     if(sensorAverage){
-        if(settings['direction']) startLevel = sensorAverage + settings['levelDelta']
-        if(!settings['direction']) startLevel = sensorAverage - settings['levelDelta']
-        if(settings['direction']) stopLevel = sensorAverage + Math.round(settings['levelDelta'] / 10)
-        if(!settings['direction']) stopLevel = sensorAverage - Math.round(settings['levelDelta'] / 10)
+        if(settings['direction']) startLevel = sensorAverage + settings[fieldName]
+        if(!settings['direction']) startLevel = sensorAverage - settings[fieldName]
+        if(settings['direction']) stopLevel = sensorAverage + Math.round(settings[fieldName] / 10)
+        if(!settings['direction']) stopLevel = sensorAverage - Math.round(settings[fieldName] / 10)
         pluralText = sensorPlural + ' is'
         if(sensorCount > 1) pluralText = sensorPlural + ' are'
         helpTip = 'The ' + pluralText + ' currently at ' + sensorAverage + sensorMapEntry.unitType + ', so it would turn the ' + devicePlural + ' on if, within ' + minutes + ' minutes, ' + sensorMapEntry.name + ' were to ' + forwardDirection2 + ' to ' + startLevel + sensorMapEntry.unitType + ' (and turn off only when back to at least ' + stopLevel + sensorMapEntry.unitType + ').'
@@ -440,6 +447,7 @@ def displayLevelDeltaOptionIncomplete(fieldName){
 }
 def getLevelDeltaOptionErrors(fieldName){
     if(!settings[fieldName]) return
+    if(sensorMapEntry.type == 'bool') return
     if(settings[fieldName] >= (sensorMapEntry.stop - sensorMapEntry.start)) return 'The ' + sensorMapEntry.name + ' change must be less than ' + (sensorMapEntry.stop - sensorMapEntry.start) + '.'
 }
 
@@ -491,6 +499,11 @@ def displayComparisonOption(){
         //displayError(getThresholdOptionErrors(fieldName))
         displayComparisonLevelOptionComplete(fieldName)
         displayComparisonLevelOptionIncomplete(fieldName)
+        if(settings['comparisonDevice']){
+            if(settings['comparisonDevice'].size() > 1) deviceText = 'sensors are'
+            if(sensorCount == 1) displayInfo('Control ' + deviceText + ' at ' + getComparisonSensorAverage() + sensorMapEntry.unitType + '. Main sensor is at ' + sensorAverage + sensorMapEntry.unitType + '.')
+            if(sensorCount > 1) displayInfo('Control ' + deviceText + ' at ' + getComparisonSensorAverage() + sensorMapEntry.unitType + '. Main sensors average is ' + sensorAverage + sensorMapEntry.unitType + '.')
+        }
     }
 }
 def displayComparisonDeviceOptionComplete(fieldName,fieldOptions){
@@ -498,18 +511,16 @@ def displayComparisonDeviceOptionComplete(fieldName,fieldOptions){
     fieldTitle = 'Control device:'
     displaySelectField(fieldName,fieldTitle,fieldOptions, true, true)
     deviceText = 'sensor is'
-    if(settings[fieldName].size() > 1) deviceText = 'sensors are'
-    if(sensorCount == 1) displayInfo('Control ' + deviceText + ' at ' + getComparisonSensorAverage() + sensorMapEntry.unitType + '. Main sensor is at ' + sensorAverage + sensorMapEntry.unitType + '.')
-    if(sensorCount > 1) displayInfo('Control ' + deviceText + ' at ' + getComparisonSensorAverage() + sensorMapEntry.unitType + '. Main sensors average is ' + sensorAverage + sensorMapEntry.unitType + '.')
 }
 def displayComparisonDeviceOptionIncomplete(fieldName,fieldOptions){
     if(settings[fieldName]) return
-    fieldTitle = 'Select the device that will be the "control" (that sets the baseline):'
+    fieldTitle = 'Select the control device (that the primary sensor will be compared to):'
     displaySelectField(fieldName,fieldTitle,fieldOptions, true, true)
     displayInfo('If the device you\'d like as control device ins\'t listed, add it as a ' + sensorMapEntry.name + ' Sensor above.')
 }
 def displayComparisonLevelOptionComplete(fieldName){
     if(!settings[fieldName]) return
+    if(!settings['comparisonDevice']) return
     if(sensorMapEntry.type == 'bool') return
     displayDirectionOption('comparison','direction')
     if(settings['direction']) fieldTitle = sensorMapEntry.unitType + ' over:'
@@ -519,6 +530,7 @@ def displayComparisonLevelOptionComplete(fieldName){
 }
 def displayComparisonLevelOptionIncomplete(fieldName){
     if(settings[fieldName]) return
+    if(!settings['comparisonDevice']) return
     if(sensorMapEntry.type == 'bool') return
     if(settings['direction']) fieldTitle = 'Value over ' + settings['comparisonDevice'] + ' to start:'
     if(!settings['direction']) fieldTitle = 'Value under ' + settings['comparisonDevice'] + ' to start:'
@@ -541,7 +553,7 @@ def getComparisonDeviceList(){
 def displayDirectionOption(type,fieldName){
     if(type ==  'threshold') fieldTitle = 'Start if ' + sensorMapEntry.name + ' is <b>' + forwardDirection + '</b> ' + settings['levelThreshold'] + sensorMapEntry.unitType + '. Click for ' + reverseDirection + '.'
     if(type ==  'delta') fieldTitle = 'Start if ' + sensorMapEntry.name + ' <b>' + forwardDirection2 + 's</b> ' + settings['levelDelta'] + sensorMapEntry.unitType + ' in ' + minutes + ' minutes. Click for ' + reverseDirection2 + 's.'
-    if(type ==  'comparison') fieldTitle = 'Start if ' + sensorMapEntry.name + ' <b>' + forwardDirection + '</b> ' + settings['levelComparison'] + sensorMapEntry.unitType + ' ' + settings['comparisonDevice'] + '. Click for ' + reverseDirection2 + 's.'
+    if(type ==  'comparison') fieldTitle = 'Start if [insert primary] is  ' + settings['levelComparison'] + sensorMapEntry.unitType + ' <b>' + forwardDirection + '</b> ' + settings['comparisonDevice'] + '. Click for ' + reverseDirection + '.'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, 'bool', title: fieldTitle, submitOnChange:true
 }
@@ -1190,19 +1202,19 @@ def getPlainAction(action){
 
 
 def installed() {
-    putLog(1018,'trace','Installed')
+    putLog(1205,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1024,'trace','Updated')
+    putLog(1211,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1030,'trace','Initializing')
+    putLog(1217,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     atomicState.remove('startTime')
     atomicState.remove('startLevel')
@@ -1230,7 +1242,7 @@ def initialize() {
     
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1049,'trace','Initialized')
+    putLog(1245,'trace','Initialized')
 }
 
 def handleSensorStart(event) {
@@ -1238,7 +1250,7 @@ def handleSensorStart(event) {
     if(atomicState.startDelayActive) return
     if(!getActive()) return
     unschedule('performStopAction')
-    putLog(1057,'debug','Sensor is ' + event.value + '.')
+    putLog(1253,'debug','Sensor is ' + event.value + '.')
     if(scheduleDelay('start')) return        // if repeadedly triggered (as Start), need to know if delayed schedule; maybe another state var?
     performStartAction(true,event.value)
 }
@@ -1247,7 +1259,7 @@ def handleSensorStop(event) {
     if(!atomicState.startTime) return
     if(atomicState.stopDelayActive) return
     unschedule('performStartAction')
-    putLog(1066,'debug','Sensor is ' + event.value + '.')
+    putLog(1262,'debug','Sensor is ' + event.value + '.')
     if(scheduleDelay('stop')) return        // if repeadedly triggered (as Stop), need to know if delayed schedule; maybe another state var?
     performStopAction(true,event.value)
 }
@@ -1256,7 +1268,7 @@ def handleSensorUpdate(event) {
 //atomicState.remove('startTime')
 //atomicState.remove('startLevel')
     if(!state.sensorMapEntry['type']) {
-        putLog(1081,'error','No sensor type defined, which means the setup is somehow incorect. Try resaving it.')
+        putLog(1271,'error','No sensor type defined, which means the setup is somehow incorect. Try resaving it.')
         return
     }
     if(settings['comparisonDeviceId'] && settings['comparisonDeviceId'].contains(event.device.id.toString())) return
@@ -1270,7 +1282,7 @@ def handleSensorUpdate(event) {
     startConditionsMet = checkSensorUpdateStartConditions(event.value.toInteger(),event.device.id)
     stopConditionsMet = checkSensorUpdateStopConditions(event.value.toInteger())
     if(startConditionsMet && stopConditionsMet) {
-        putLog(1082,'error','Both start and stop conditions met.')
+        putLog(1285,'error','Both start and stop conditions met.')
         return
     }
     performStartAction(startConditionsMet,event.value.toInteger())
@@ -1281,7 +1293,7 @@ def checkSensorUpdateStartConditions(levelValue,singleDeviceId){
     if(!getActive()) return 
     if(!checkMinimumWaitTime) {
         scheduleMinimumWaitTime()
-        putLog(1128,'debug','Sensor would activate, but for minimum wait time from last execution.')
+        putLog(1296,'debug','Sensor would activate, but for minimum wait time from last execution.')
         return
     }
     if(state.sensorMapEntry['type'] == 'bool') {
@@ -1319,8 +1331,9 @@ def checkStartLevelDeltaCondition(singleDeviceId){
     if(!atomicState.sensorAverage) return
     
     startDelta = false
-    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) sensorChangeList = atomicState.sensorChanges.singleDeviceId
+    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) sensorChangeList = atomicState.sensorChanges[singleDeviceId]
     if(!state['averageButtonValue'] || settings['controllerDevice'].size() == 1) sensorChangeList = atomicState.sensorChanges
+    
     if(!sensorChangeList) return
     sensorChangeList.reverseEach{
         if(!returnValue){
@@ -1360,7 +1373,7 @@ def performStartAction(startConditionsMet, levelValue){
         // set levels
         stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1158,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
+        putLog(1376,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
     scheduleMaximumRunTime()
@@ -1414,7 +1427,7 @@ def performStopAction(performStopAction, levelValue){
     settings['controlDevice'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1173,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
+        putLog(1430,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
@@ -1447,12 +1460,14 @@ def scheduleDelay(type){
 
 def updateSensorDeltaArray(singleDeviceId){
     backupArray = [:]
-    atomicState.remove('sensorChanges')
+    //atomicState.remove('sensorChanges')
     if(!settings['levelDelta']) {
         atomicState.remove('sensorChanges')
         return
     }
-    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) if(atomicState.sensorChanges?.singleDeviceId) sensorChanges = atomicState.sensorChanges.singleDeviceId
+    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) {
+        if(atomicState.sensorChanges[singleDeviceId]) sensorChanges = atomicState.sensorChanges[singleDeviceId]
+    }
     if(!state['averageButtonValue'] || settings['controllerDevice'].size() == 1) sensorChanges = atomicState.sensorChanges
     atomicState.remove('sensorChanges')
 
@@ -1507,7 +1522,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1314,'trace','Minimum wait time exceeded.')
+    putLog(1525,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1624,11 +1639,17 @@ def displayLabel(text, width = 12){
     paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
 }
 
+
 def displayInfo(text,noDisplayIcon = null, width=12){
     if(!text) return
+    //tooltipName = 'tooltip' + tooltipNumber
+    //tooltipComputedValueName = 'tooltipValue' + tooltipNumber
+    //paragraph('<div onclick="var ' + tooltipName + ' = document.getElementById(\'' + tooltipName + '\'); var ' + tooltipComputedValueName + ' = window.getComputedStyle(' + tooltipName + '); if (' + tooltipComputedValueName + '.display === \'block\') { ' + tooltipName + '.style.display = \'none\'; } else { ' + tooltipName + '.style.display = \'block\'; ' + tooltipName + '.innerText = \'' + text + '\'; }">' + infoIcon + '</div><div id="' + tooltipName + '" style="display: none; background-color:AliceBlue"></div>', width:width)
+
+    //tooltipNumber++
     if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
     if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
-    helpTip = ''
+    text = ''
 }
 
 def displayError(text,noDisplayIcon = null, width=12){
@@ -2173,7 +2194,6 @@ def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,require
 }
 
 def appButtonHandler(buttonValue){
-    log.debug buttonValue
       switch(buttonValue) {
           case 'controllerButton':
           if(!state[buttonValue + 'Value']){
@@ -2201,7 +2221,6 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'averageButton':        //used only by sensor app
-        log.debug 'appButtonHandler averageButtonValue = ' + state[buttonValue + 'Value']
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
               break
@@ -2209,13 +2228,10 @@ def appButtonHandler(buttonValue){
               state[buttonValue + 'Value'] = false
           break
           case 'multipleOptionsButton':        //used only by sensor app
-          log.debug '1 appButtonHandler'
           if(!state[buttonValue + 'Value']){
-              log.debug '2 appButtonHandler'
               state[buttonValue + 'Value'] = true
               break
           }
-          log.debug '3 appButtonHandler'
               state[buttonValue + 'Value'] = false
           break
       }
@@ -2253,7 +2269,6 @@ def displayFilterButton(buttonName){
         return
     }
     if(buttonName == 'averageButton'){
-        log.debug 'displayFilterButton averageButtonValue = ' + state[buttonName + 'Value']
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterNoMergeIcon, width:1
         }
@@ -2262,7 +2277,6 @@ def displayFilterButton(buttonName){
         }
         return
     }
-    log.debug buttonName
     if(buttonName == 'multipleOptionsButton'){
         if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterMergeIcon, width:1
@@ -2310,8 +2324,8 @@ def getBaseStartStopTimes(type){
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
-    if(!atomicState.includeDates?.currentYear) processDates()
-    if(atomicState.includeDate.currentYear.contains(now().format('D'))) return true
+    if(!atomicState.'includeDates'?.currentYear) processDates()
+    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D'))) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
