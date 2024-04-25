@@ -905,11 +905,17 @@ def displayLabel(text, width = 12){
     paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
 }
 
+
 def displayInfo(text,noDisplayIcon = null, width=12){
     if(!text) return
+    //tooltipName = 'tooltip' + tooltipNumber
+    //tooltipComputedValueName = 'tooltipValue' + tooltipNumber
+    //paragraph('<div onclick="var ' + tooltipName + ' = document.getElementById(\'' + tooltipName + '\'); var ' + tooltipComputedValueName + ' = window.getComputedStyle(' + tooltipName + '); if (' + tooltipComputedValueName + '.display === \'block\') { ' + tooltipName + '.style.display = \'none\'; } else { ' + tooltipName + '.style.display = \'block\'; ' + tooltipName + '.innerText = \'' + text + '\'; }">' + infoIcon + '</div><div id="' + tooltipName + '" style="display: none; background-color:AliceBlue"></div>', width:width)
+
+    //tooltipNumber++
     if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
     if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
-    helpTip = ''
+    text = ''
 }
 
 def displayError(text,noDisplayIcon = null, width=12){
@@ -961,8 +967,8 @@ def displayControllerOption(){
     fieldName = 'controllerDevice'
     resetControllerDevices(fieldName)
     fieldOptions = ''
-    if(settings['controllerButtonValue'] == null) app.updateSetting('controllerButtonValue', [type: 'bool', value: 'true'])
-    if(settings['controllerButtonValue']){
+    if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
+    if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
         if(parent.getDeviceList() && !fieldOptions) return
     }
@@ -1001,18 +1007,19 @@ def displayControllerOptionIncomplete(fieldName,fieldOptions){
     if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
     if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
 }
-def controllerOptionProcessParentDeviceList(){
+def controllerOptionProcessParentDeviceList(capability){
     if(!allDeviceOptions) return
     controllerList = [:]
-    fullList = [:]
+    //fullList = [:]
     allDeviceOptions.each{singleDevice->
-        if(singleDevice.hasCapability('PushableButton')){
+        if(singleDevice.hasCapability(capability.capitalize())){
             controllerMatch = controllerOptionProcessParentDeviceListMatch(singleDevice)
-            if(controllerMatch) controllerList.put([singleDevice.'id',singleDevice.'label'])
-            if(!controllerMatch) fullList.put([singleDevice.'id',singleDevice.'label'])
+            if(controllerMatch) controllerList.put([singleDevice.'id',getDeviceName(singleDevice)])
+            //if(!controllerMatch) fullList.put([singleDevice.'id',getDeviceName(singleDevice)])
         }
     }
-    return fullList.sort{it.value.toLowerCase()}
+    if(!controllerList) return
+    return controllerList.sort{it.value.toLowerCase()}
 }
 
 def displayAdvancedOption(){
@@ -1056,8 +1063,8 @@ def displayControlDeviceOptionComplete(fieldName){
     fieldTitle = 'Device to control:'
     if(settings[fieldName].size() > 1) fieldTitle = 'Devices to control:'
     capabilitiesType = 'switch'
-    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
-    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
+    if(state['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
+    if(state['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
 
     displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
 }
@@ -1067,8 +1074,8 @@ def displayControlDeviceOptionIncomplete(fieldName){
     if(thisType == 'sensor' && settings['controllerDevice'].size() == 1) fieldTitle = 'Select all device(s) to control with the sensor:'
     if(thisType == 'sensor' && settings['controllerDevice'].size() > 1) fieldTitle = 'Select all device(s) to control with the sensors:'
     capabilitiesType = 'switch'
-    if(settings['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
-    if(settings['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
+    if(state['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
+    if(state['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
 
     displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
 }
@@ -1453,104 +1460,105 @@ def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,require
 }
 
 def appButtonHandler(buttonValue){
-    log.debug buttonValue + ' ' + settings[buttonValue + 'Value']
+    log.debug buttonValue
       switch(buttonValue) {
           case 'controllerButton':
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: true])
-              return
+          if(!state[buttonValue + 'Value']){
+              state[buttonValue + 'Value'] = true
+              break
           }
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: false])
+              state[buttonValue + 'Value'] = false
           break
           case 'controlButton':
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 1])
-              return
+          if(!state[buttonValue + 'Value']){
+              state[buttonValue + 'Value'] = 1
+              break
           }
-          if(settings[buttonValue + 'Value'] == 1){
-              app.updateSetting(buttonValue + 'Value', [type: 'number', value: 2])
-              return
+          if(state[buttonValue + 'Value'] == 1){
+              state[buttonValue + 'Value'] = 2
+              break
           }
-          app.removeSetting(buttonValue + 'Value')
-          return
+              state.remove(buttonValue + 'Value')
+          break
           case 'controllerTypeButton':        //used only by sensor app
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: true])
-              return
+          if(!state[buttonValue + 'Value']){
+              state[buttonValue + 'Value'] = true
+              break
           }
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: false])
-          return
+              state[buttonValue + 'Value'] = false
+          break
           case 'averageButton':        //used only by sensor app
-          if(!settings[buttonValue + 'Value']){
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: true])
-              return
+        log.debug 'appButtonHandler averageButtonValue = ' + state[buttonValue + 'Value']
+          if(!state[buttonValue + 'Value']){
+              state[buttonValue + 'Value'] = true
+              break
           }
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: false])
-          return
+              state[buttonValue + 'Value'] = false
+          break
           case 'multipleOptionsButton':        //used only by sensor app
           log.debug '1 appButtonHandler'
-          if(!settings[buttonValue + 'Value']){
-          log.debug '2 appButtonHandler'
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: true])
-              return
+          if(!state[buttonValue + 'Value']){
+              log.debug '2 appButtonHandler'
+              state[buttonValue + 'Value'] = true
+              break
           }
           log.debug '3 appButtonHandler'
-              app.updateSetting(buttonValue + 'Value', [type: 'bool', value: false])
-          return
+              state[buttonValue + 'Value'] = false
+          break
       }
 }
 
 def displayFilterButton(buttonName){
     if(buttonName == 'controllerButton'){
-        if(settings[buttonName + 'Value']) {
+        if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterYesIcon + ' Filter', width:1
         }
-        if(!settings[buttonName + 'Value']){
+        if(!state[buttonName + 'Value']){
             input buttonName, 'button', title: filterNoIcon + ' Filter', width:1
         }
         return
     }
     if(buttonName == 'controlButton'){
-        if(!settings[buttonName + 'Value']) {
+        if(!state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterSwitchIcon + ' Filter', width:1
         }
-        if(settings[buttonName + 'Value'] == 1){
+        if(state[buttonName + 'Value'] == 1){
             input buttonName, 'button', title: filterLightIcon + ' Filter', width:1
         }
-        if(settings[buttonName + 'Value'] == 2){
+        if(state[buttonName + 'Value'] == 2){
             input buttonName, 'button', title: filterColorIcon + ' Filter', width:1
         }
         return
     }
     if(buttonName == 'controllerTypeButton'){
-        if(settings[buttonName + 'Value']) {
+        if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterYesIcon + ' Filter', width:1
         }
-        if(!settings[buttonName + 'Value']){
+        if(!state[buttonName + 'Value']){
             input buttonName, 'button', title: filterNoIcon + ' Filter', width:1
         }
         return
     }
     if(buttonName == 'averageButton'){
-        if(settings[buttonName + 'Value']) {
+        log.debug 'displayFilterButton averageButtonValue = ' + state[buttonName + 'Value']
+        if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterNoMergeIcon, width:1
         }
-        if(!settings[buttonName + 'Value']){
+        if(!state[buttonName + 'Value']){
             input buttonName, 'button', title: filterMergeIcon, width:1
         }
         return
     }
     log.debug buttonName
     if(buttonName == 'multipleOptionsButton'){
-        if(settings[buttonName + 'Value']) {
+        if(state[buttonName + 'Value']) {
             input buttonName, 'button', title: filterMergeIcon, width:1
         }
-        if(!settings[buttonName + 'Value']){
+        if(!state[buttonName + 'Value']){
             input buttonName, 'button', title: filterNoMergeIcon, width:1
         }
         return
     }
-    comparisonButton
 }
 def getNextYearWithMondayChristmas(currentYear = null) {
     if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
@@ -1589,8 +1597,8 @@ def getBaseStartStopTimes(type){
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
-    if(!atomicState.includeDates?.currentYear) processDates()
-    if(atomicState.includeDate.currentYear.contains(now().format('D'))) return true
+    if(!atomicState.'includeDates'?.currentYear) processDates()
+    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D'))) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -1599,6 +1607,12 @@ def processDates(){
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
+
+def getDeviceName(singleDevice){
+    if(!singleDevice) return
+    if(singleDevice.label) return singleDevice.label
+    return singleDevice.name
 }
 
 def displayExcludeDates(){
