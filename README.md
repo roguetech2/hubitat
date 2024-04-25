@@ -18,7 +18,7 @@ Master.groovy:
 Master - Alert.groovy:
 	Child app for sending text messages and push alerts.
 
-	Production status: Abandonded (most functionality merged into Sensor).
+	Production status: Abandonded (does not function)
 ------------------------------------------------
 Master - Sensor.groovy:
 	Child app for sensors.
@@ -38,7 +38,7 @@ Master - Pico.groovy:
 Master - Presense.groovy:
 	Child app for home presense.
 
-	Production status: Abandoned, possibly to be rebuilt (most functionality merged into Sensor).
+	Production status: Abandoned, possibly to be rebuilt (does not function)
 ------------------------------------------------
 Master - Time.groovy:
 	Child app for complex scheduling.
