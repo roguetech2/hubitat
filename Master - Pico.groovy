@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.21
+*  Version: 0.6.2.22
 *
 ***********************************************************************************************************************/
 
@@ -66,8 +66,11 @@ preferences {
         }
         if(app.label){
             setUILinks()
+            // Sometimes UI doesn refresh with controller
+            // getDeviceList and controllerOptionProcessParentDeviceList should be called after resetDevices, but
+            // Hubitat is a stupid piece of shit that arbitrarily does not allow calling parent prior to page.
             allDeviceOptions = parent.getDeviceList()
-            controllerDeviceOptions = controllerOptionProcessParentDeviceList()
+            controllerDeviceOptions = controllerOptionProcessParentDeviceList('pushableButton')
             if(allDeviceOptions && !controllerDeviceOptions) {
                 section(){
                     displayError('You don\'t have any Caseta or Pico devices selected in the Master app. Update the device selection in the Master app to include Caseta(s)/Pico(s).')
@@ -95,7 +98,7 @@ preferences {
 
 def formComplete(){
     if(!app.label) return false
-    if(!settings['device']) return false
+    if(!settings['controllerDevice']) return false
     if(!numberOfButtons) return false
     if(!controlDevice) return false
     if(!checkAnyDeviceSet()) return false
@@ -140,9 +143,15 @@ def controllerOptionProcessParentDeviceListMatch(singleDevice){
 }
 
 def displayCustomActionsOption(){
-    if(!settings['device']) return
+    if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
-    if(!numberOfButtons) return
+    if(!numberOfButtons) {
+        if(!state.hubitatBug) displayWarning('Please refresh the page. It failed to auto-refresh due to a known bug in Hubitat.')
+        if(state.hubitatBug) displayWarning('Turns out, something is wrong with ' + settings['controllerDevice'] + '.')
+        state.hubitatBug = true
+        return
+    }
+    state.remove('hubitatBug')
     if(anyErrors) return
     fieldName = 'customActionsSetup'
     options = ['automap':'Automap actions','actions':'Assign action and devices to each button','actionsAndDevices':'Customize actions and devices for each button']
@@ -168,7 +177,7 @@ def displayCustomActionsOptionIncomplete(fieldName,options){
 }
 
 def displayAutoMappingMessage(){
-    if(!settings['device']) return
+    if(!settings['controllerDevice']) return
     if(!numberOfButtons) return
     if(settings['customActionsSetup'] != 'automap') return
     if(!settings['controlDevice']) return
@@ -202,7 +211,9 @@ def displayAutoMappingMessage(){
 
 def displayDefineActions(){
     if(settings['customActionsSetup'] != 'actions') return
+    if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
+    if(!numberOfButtons) return
     section(hideable: true, hidden: false, getDefineActionsSectionTitle('push')) {
         if(settings['controlDevice'].size() > 1){
             warningValue = getDefineActionsWarningValue('push')
@@ -290,7 +301,8 @@ def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
 def displayCustomizeActionsAndDevices(){
     if(settings['customActionsSetup'] != 'actionsAndDevices') return
     if(!settings['controlDevice']) return
-    if(!settings['device']) return
+    if(!settings['controllerDevice']) return
+    if(!numberOfButtons) return
     
     displayCustomizeActionsAndDevicesSections('push')
     displayCustomizeActionsAndDevicesSections('hold')
@@ -374,17 +386,17 @@ def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action, p
 }
 
 def displaySetHoldOption(){
-    if(!settings['device']) return
+    if(!settings['controllerDevice']) return
     if(!numberOfButtons) return
     if(!settings['advancedSetup'] && !settings['setHold']) return
     fieldName = 'setHold'
     holdAvailable = false
-    settings['device'].each{singleDevice->
+    settings['controllerDevice'].each{singleDevice->
         if(singleDevice.currentHeld) holdAvailable = true
     }
     if(!holdAvailable) {
-        if(settings['device'].size() == 1) displayInfo('The Pico ' + settings['device'] + ' does not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
-        if(settings['device'].size() > 1) displayInfo('The Picos do not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
+        if(settings['controllerDevice'].size() == 1) displayInfo('The Pico ' + settings['controllerDevice'] + ' does not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
+        if(settings['controllerDevice'].size() > 1) displayInfo('The Picos do not appear to support Long Press. To set Long Press actions, change the device type from "Lutron Fast Pico."')
         return
     }
     displaySetHoldOptionEnabled(fieldName)
@@ -488,7 +500,7 @@ def displayDimmingProgressionOptionIncomplete(fieldName, pushType){
 }
 
 def displayScheduleSection(){
-    if(!settings['device']) return
+    if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
     if(!checkAnyDeviceSet()) return
@@ -528,8 +540,8 @@ def checkIfShowButton(number){
 }
                                      
 def getButtonNumbers(){
-    if(!settings['device']) return
-    settings['device'].each{
+    if(!settings['controllerDevice']) return
+    settings['controllerDevice'].each{
         if(!it.currentValue('numberOfButtons')) numberOfButtons = 5
         if(it.currentValue('numberOfButtons')) {
             if(numberOfButtons){
@@ -741,24 +753,24 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(744,'trace', 'Installed')
+    putLog(756,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(750,'trace','Updated')
+    putLog(762,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(756,'trace','Initializing')
+    putLog(768,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
-    subscribe(settings['device'], 'pushed', buttonPushed)
-    subscribe(settings['device'], 'held', buttonPushed)
-    subscribe(settings['device'], 'released', buttonReleased)
+    subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
+    subscribe(settings['controllerDevice'], 'held', buttonPushed)
+    subscribe(settings['controllerDevice'], 'released', buttonReleased)
     
     dimValue = 8
     if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
@@ -766,11 +778,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(769,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(781,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(773,'trace','Initialized')
+    putLog(785,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -787,7 +799,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') action = 'push'
     if(evt.name == 'held') action = 'hold'
     
-    putLog(790,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(802,'trace',action.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap()
 
@@ -803,7 +815,7 @@ def buttonPushed(evt){
             if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
 
             fullMap = parent.addMaps(stateMap, levelMap)
-            if(fullMap) putLog(806,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(818,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -820,7 +832,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(823,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(835,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -836,7 +848,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(839,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(851,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -935,11 +947,11 @@ def getActive(){
 def buildActionMap(){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
-    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'advanced':false],
-        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'advanced':false],
-        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'advanced':false],
-        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'advanced':false],
-        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'advanced':false],
+    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
+        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
+        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
+        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
+        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
         ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true]]
 }
                                      
@@ -1081,6 +1093,8 @@ def controllerOptionProcessParentDeviceList(capability){
 }
 
 def displayAdvancedOption(){
+    if(thisType != 'schedule' && !settings['controllerDevice']) return
+    if(!settings['controlDevice']) return
     if(anyErrors) return        // Only pico or cube
     fieldName = 'advancedSetup'
     if((thisType != 'schedule' && thisType != 'sensor') && !settings['controllerDevice'] && !settings[fieldName]) return        // schedule doesn't have controllerDevice, and sensor needs advanced before controllerDevice
