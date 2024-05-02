@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.11
+*  Version: 0.4.3.12
 *
 ***********************************************************************************************************************/
 
@@ -233,8 +233,11 @@ def displayDelayOption(){
     if(!settings['startDelay'] && settings['stopDelay']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
         if(settings['startDelay'] || settings['stopDelay']){
-            if(settings['startDelay'] == settings['stopDelay']) displayWarning('The Start Delay and Stop Delay times are set as the same. The Stop action will be automatically delayed a few seconds longer to prevent Start and Stop events from conflicting.')
-            if(settings['startDelay'] > settings['stopDelay']) displayError('Start Delay must be equal to or less than Stop Delay. This is to prevent them from conflicting, if Stop activates within the ' + (settings['startDelay'] - settings['stopDelay']) + ' minutes() of potential overlap with Start.')
+            if(settings['startDelay'] == settings['stopDelay']) displayWarning('Since start and stop delay times are the same, the stop delay time will automatically be delayed a fraction of a second to ensure stop occurs after start.')
+            warningText = 'Having a stop delay shorter than the start delay may result in unpredicatable results, including a stop action preceding the start action, or a stop action occuring without any start action.'
+            if((settings['startDelay'] && settings['stopDelay']) && settings['startDelay'] > settings['stopDelay']) displayWarning(warningText)
+            if(settings['startDelay'] && !settings['stopDelay']) displayWarning(warningText)
+            warningText = ''
         }
         displayActionDelayOptionFields('start')
         displayActionDelayOptionFields('stop')
@@ -251,25 +254,30 @@ def displayActionDelayOptionCompleted(fieldName,type){
     if(!settings[fieldName]) return
     fieldTitle = type.capitalize() + ' delay minutes:'
     displayError(getMinutesError(settings[fieldName]))
+    if(type == 'start' && settings['runTimeMinimum']) {
+        if(settings[fieldName] < settings['runTimeMinimum']) displayWaring('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
+    }
+    if(settings['runTimeMaximum'] && settings[fieldName] >= settings['runTimeMaximum']) displayWarning('The start action will never occur, because the delay time exceeds the maximum runtime (' + settings['runTimeMaximum'] + ' minutes).')
     displayTextField(fieldName,fieldTitle,'number',false)
 }
 def displayActionDelayOptionIncompleted(fieldName,type){
     if(settings[fieldName]) return
-    if(type == 'start' && settings['runTimeMinimum'] && settings[fieldName]) {
-        if(settings[fieldName] < settings['runTimeMinimum']) displayWaring('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
-    }
     helpTip = ''
     if(type == 'start') helpTip = 'Applies to all actions (Mode, notifications, etc.).'
     displayInfo(helpTip)
     fieldTitle = 'Wait time in minutes before performing ' + type + ' actions: (Optional)'
     displayTextField(fieldName,fieldTitle,'number',false)
     if(type == 'stop' && settings['startDelay']) {
-        helpTip = 'Note that if the device activates (' + sensorMapEntry.start + ') or re-activates within the Stop Delay time, the Stop Delay will be reset.<br>1) If a sensor activates and then deactivates within the Start Delay period, the deactivation will be ignored. (The Stop conditions will be rechecked when the Start Delay expires, without the sensor needing to update. So, the Stop Actions may <i>immediately</i> follow the Start Actions.)<br>2) If a sensor deactivates (stops) and then reactivates (starts again) within the Stop Delay period, then a) If allowed by Run Times (not Delay Times), a new Start event will be triggered, b) If Wait Times prevent a new Start event, then Stop Delay timer will continue (every Start event should allow an Stop event, with the assumption of a sensor providing only one update per Start/Stop event).' // conditions performed in handleSensorUpdate
-         displayInfo(helpTip)
+        activationText = ''
+        if(sensorMapEntry.'type' == 'bool') activationText = '(' + sensorMapEntry.'start' + ')'
+        helpTip = 'Note that if the sensor status changes within the delay period, the start/stop action will be ignored (that is, if after starting, the sensor routines toggles back to stop within the start delay period, the delayed start action would be cancelled).'
+        displayInfo(helpTip)
     }
 }
 // Move delay to it's own section, to apply to everything (Mode, notifications, etc.)
 // Needs to be advanced option
+
+// Set error message if nothing (including Mode and Notifications)?
 def displayActionOption(){
     if(!settings['controllerType']) return
     if(!settings['controllerDevice']) return
@@ -311,33 +319,42 @@ def displayActionOptionIncompleted(fieldName,type,fieldOptions){
     if(type == 'stop') typeText = stopText
     fieldTitle = 'Action to take on control device on ' + typeText + ':'
     displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
-    if(sensorMapEntry.type == 'bool') infoStartText = sensorMapEntry.start
-    if(sensorMapEntry.type != 'bool') infoStartText = 'start'
+    if(sensorMapEntry.'type' == 'bool') infoStartText = sensorMapEntry.start
+    if(sensorMapEntry.'type' != 'bool') infoStartText = 'start'
     if(!settings['startAction'] && !settings['stopAction']) displayInfo('Select what action to take when the ' + sensorMapEntry.name + ' reading meets the requirement (as "' + infoStartText + '"), or no longer meets it ("stop"). You will enter the start and stop actions below.')
 
 }
 
 def displayMultipleConditions(){
+    if(!settings['controllerType']) return
+    if(!settings['controllerDevice']) return
+    if(!settings['controlDevice']) return
+    if(!sensorMapEntry) return
+    if(sensorMapEntry.type == 'bool') return
     triggerOptions = 0
     if(settings['levelThreshold']) triggerOptions++
     if(settings['levelDelta']) triggerOptions++
     if(settings['levelComparison']) triggerOptions++
     if(triggerOptions < 2) return
 
-    if(settings['levelThreshold'] && settings['direction']) infoLevelsText = forwardDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.unitType
-    if(settings['levelThreshold'] && !settings['direction']) infoLevelsText = reverseDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.unitType
-    if(infoLevelsText && settings['levelDelta']) infoLevelsText += '; '
-    if(settings['levelDelta'] && settings['direction']) infoLevelsText += forwardDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.unitType
-    if(settings['levelDelta'] && !settings['direction']) infoLevelsText += reverseDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.unitType
-    if(infoLevelsText && settings['levelComparison']) infoLevelsText += '; '
+    if(state['multipleOptionsButtonValue']) conjunctionText = ' AND '
+    if(!state['multipleOptionsButtonValue']) conjunctionText = ' OR '
+    if(infoLevelsText && settings['levelDelta'] && !state['multipleOptionsButtonValue']) infoLevelsText += ' OR '
+    if(settings['levelThreshold'] && settings['direction']) infoLevelsText = forwardDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.'unitType'
+    if(settings['levelThreshold'] && !settings['direction']) infoLevelsText = reverseDirection + ' ' + settings['levelThreshold'] + sensorMapEntry.'unitType'
+    if(infoLevelsText && settings['levelDelta']) infoLevelsText += conjunctionText
+    if(settings['levelDelta'] && settings['direction']) infoLevelsText += forwardDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.'unitType'
+    if(settings['levelDelta'] && !settings['direction']) infoLevelsText += reverseDirection2 + ' ' + settings['levelDelta'] + sensorMapEntry.'unitType'
+    if(infoLevelsText && settings['levelComparison']) infoLevelsText += conjunctionText
     if(settings['levelComparison'] && settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' ' + forwardDirection + ' ' + settings['comparisonDevice']
     if(settings['levelComparison'] && !settings['direction']) infoLevelsText += settings['levelComparison'] + sensorMapEntry.unitType + ' ' + reverseDirection + ' ' + settings['comparisonDevice']
     
     section(){
         if(!state['multipleOptionsButtonValue']) infoMessage = 'Any of the conditions will start the routine (' + infoLevelsText + ').'
+        if(!state['multipleOptionsButtonValue'] && !settings['advancedSetup']) infoMessage += ' Select advanced options to change.'
         if(settings['advancedSetup'] || state['multipleOptionsButtonValue']) {
             displayFilterButton('multipleOptionsButton')
-            if(state['multipleOptionsButtonValue']) infoMessage = 'All of the conditions (' + infoLevelsText + ') must be true for the routine to start.'
+            if(state['multipleOptionsButtonValue']) infoMessage = 'All of the conditions are required to start the routine (' + infoLevelsText + ').'
             displayInfo(infoMessage,false,11)
         }
         if(!settings['advancedSetup'] && !state['multipleOptionsButtonValue']) displayInfo(infoMessage)
@@ -604,6 +621,8 @@ def displayRunTimeOption(){
     
     hidden = true
     if(settings['runTimeMinimum'] && settings['runTimeMaximum'] && settings['runTimeMinimum'] >= settings['runTimeMaximum']) hidden = false
+    if(settings['runTimeMinimum'] && !settings['runTimeMaximum']) hidden = false
+    if(!settings['runTimeMinimum'] && settings['runTimeMaximum']) hidden = false
     if(getMinutesError(settings['runTimeMinimum'])) hidden = false
     if(getMinutesError(settings['runTimeMaximum'])) hidden = false
 
@@ -642,9 +661,11 @@ def displayRunTimeMinimumIncompleted(fieldName){
     fieldTitle = 'Run for at least (minutes):'
     displayTextField(fieldName,fieldTitle,'number',false)
     message = 'Number of minutes it must run before stopping regardless of ' + sensorMapEntry.name + ', to prevent "cycling".'
-    if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start wait time will not affect the minimum run time.'
-    if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop wait times.'
-    if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop wait time will not affect the minimum run time.'
+    displayInfo(message)
+    message = ''
+    if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start delay time will not affect the maximum run time (that is, the minimum run time is from when the start conditions are met, not when the start actions are performed.)'
+    if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop delay times (that is, the minimum run time is from when the start/stop conditions are met, not when the start/stop actions are performed.)'
+    if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop delay time will not affect the maximum run time (that is, the minimum run time is from when the stop conditions are met, not when the stop actions are performed.)'
     displayInfo(message)
 }
 
@@ -657,13 +678,21 @@ def displayRunTimeMaximum(){
 def displayRunTimeMaximumCompleted(fieldName){
     if(!settings[fieldName]) return
     fieldTitle = 'Maximum minutes:'
+    if(settings['startDelay'] && settings['startDelay'] >= settings[fieldName]) displayWarning('The start action will never occur, because the delay time (' + settings['startDelay'] + ' minutes) exceeds the maximum runtime (' + settings[fieldName] + ' minutes).')
     displayTextField(fieldName,fieldTitle,'number',false)
+    message = ''
+    if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start delay time will not be affected by the maximum run time.'
+    if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop delay times.'
+    if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop delay time will not be affected by the maximum run time.'
+    displayInfo(message)
 }
 def displayRunTimeMaximumIncompleted(fieldName){
     if(settings[fieldName]) return
     fieldTitle = 'Run for no more than (minutes):'
     displayTextField(fieldName,fieldTitle,'number',false)
     message = 'Number of minutes to run after which it will stop regardless of ' + sensorMapEntry.name + '. (Will not start again for the same duration.)'
+    displayInfo(message)
+    message = ''
     if(settings['startDelay'] && !settings['stopDelay']) message += ' Note that the start delay time will not affect the maximum run time.'
     if(settings['startDelay'] && settings['stopDelay']) message += ' Note that minimum run time is not affected by start and stop delay times.'
     if(!settings['startDelay'] && settings['stopDelay']) message += ' Note that stop delay time will not affect the maximum run time.'
@@ -1201,19 +1230,19 @@ def getPlainAction(action){
 
 
 def installed() {
-    putLog(1204,'trace','Installed')
+    putLog(1233,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1210,'trace','Updated')
+    putLog(1239,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1216,'trace','Initializing')
+    putLog(1245,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     atomicState.remove('startTime')
     atomicState.remove('startLevel')
@@ -1234,166 +1263,84 @@ def initialize() {
     atomicState.sensorMapEntry = getSensorsMapEntry(sensorsMap)
 
     if(atomicState.sensorMapEntry['type'] == 'bool') {
-        //subscribe(settings['controllerDevice'], atomicState.sensorMapEntry['attribute'] + '.' + atomicState.sensorMapEntry['start'], handleSensorStart)
-        //subscribe(settings['controllerDevice'], atomicState.sensorMapEntry['attribute'] + '.' + atomicState.sensorMapEntry['stop'], handleSensorStop)  
         subscribe(settings['controllerDevice'], atomicState.sensorMapEntry['attribute'] + '.' + atomicState.sensorMapEntry['start'], handleSensorUpdate)
         subscribe(settings['controllerDevice'], atomicState.sensorMapEntry['attribute'] + '.' + atomicState.sensorMapEntry['stop'], handleSensorUpdate)  
     }
     if(atomicState.sensorMapEntry['type'] == 'range') subscribe(settings['controllerDevice'], atomicState.sensorMapEntry['attribute'], handleSensorUpdate)
     
+    setTime()
+    
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1246,'trace','Initialized')
+    putLog(1275,'trace','Initialized')
 }
 
-// Start with boolean sensors
-// Shouldn't be needed  - all sensors should go through handleSensorUpdate
-// DEPRECATED
-def handleSensorStart(event) {
-    if(atomicState.startTime) return
-    if(atomicState.startDelayActive) return
-    if(!getActive()) return
-    unschedule('performStopAction')
-    putLog(1257,'debug','Sensor is ' + event.value + '.')
-    if(scheduleDelay('start')) return        // if repeadedly triggered (as Start), need to know if delayed schedule; maybe another state var?
-    performStartAction(event.value.toInteger())
-}
-
-// Stop with boolean sensors
-// Shouldn't be needed  - all sensors should go through handleSensorUpdate
-// DEPRECATED
-def handleSensorStop(event) {
-    if(!atomicState.startTime) return
-    if(atomicState.stopDelayActive) return
-    unschedule('performStartAction')
-    putLog(1269,'debug','Sensor is ' + event.value + '.')
-    if(scheduleDelay('stop')) return        // if repeadedly triggered (as Stop), need to know if delayed schedule; maybe another state var?
-    performStopAction(event.value.toInteger())
-}
-
+// Somewhat duplicated in handleScheduleStart and handleScheduleStop
 def handleSensorUpdate(event) {
     unschedule('handleScheduleStop')
     unschedule('handleScheduleStart')
     if(!state.sensorMapEntry['type']) {
-        putLog(1278,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
+        putLog(1283,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
         return
     }
     if(settings['comparisonDeviceId'] && settings['comparisonDeviceId'].contains(event.device.id.toString())) return
-
-    if(state.sensorMapEntry['type'] != 'bool'){
+    if(state.sensorMapEntry['type'] == 'range'){
         if(!state['averageButtonValue']) atomicState.sensorAverage = getControllerSensorAverage(getSensorCount())
         if(state['averageButtonValue']) atomicState.sensorAverage = event.value.toInteger()
         updateSensorDeltaArray(event.device.id)
         if(settings['comparisonDevice']) atomicState.comparisonSensorAverage = getComparisonSensorAverage()
     }
-    startConditionsMet = checkSensorUpdateStartConditions(event.value.toInteger(),event.device.id)
-    stopConditionsMet = checkSensorUpdateStopConditions(event.value.toInteger(),event.device.id)
+    startConditionsMet = checkStartOrStopCondititions('start',event.device)
+    stopConditionsMet = checkStartOrStopCondititions('stop',event.device)
     if(startConditionsMet && stopConditionsMet) {
-        putLog(1292,'error','Both start and stop conditions met. Re-initializing to reset parameters. Most likely, the sensor triggered, but never "stopped". If you continue to see this, submit a bug report to jroguetech.')
-        initialize()
-        return
+        if(atomicState.startTime) startConditionsMet = false
+        if(!atomicState.startTime) stopConditionsMet = false
     }
-    if(startConditionsMet) performStartAction(event.value.toInteger())
-    if(stopConditionsMet) performStopAction(event.value.toInteger())
+    if(startConditionsMet) performStart(event.value,event.device.id)
+    if(stopConditionsMet) performStop()
 }
 
-// Called with minimumWaitTime
-def handleScheduleStart(deviceId){
-    if(!state.sensorMapEntry['type']) {
-        putLog(1303,'error','No sensor type defined, which means the setup is somehow incorect. Try resaving it.')
-        return
-    }
-    settings['controllerDevice'].each{singleDevice->
-        skipLoop = false
-        if(singleDevice.'id' != deviceId) skipLoop = true
-        if(settings['comparisonDeviceId'] && settings['comparisonDeviceId'].contains(singleDevice.'id'.toString())) skipLoop = true
-
-        if(!skipLoop && !stopLoop){
-            deviceLevel = singleDevice.'current' + state.sensorMapEntry['attribute'].capitalize()
-            if(state.sensorMapEntry['type'] != 'bool'){
-                if(!state['averageButtonValue']) atomicState.sensorAverage = getControllerSensorAverage(getSensorCount())
-                if(state['averageButtonValue']) atomicState.sensorAverage = deviceLevel
-                if(settings['comparisonDevice']) atomicState.comparisonSensorAverage = getComparisonSensorAverage()
-            }
-            startConditionsMet = checkSensorUpdateStartConditions(deviceLevel,singleDevice.'id')
-            if(startConditionsMet) {
-                stopLoop = true
-                performStartAction(deviceLevel)
-            }
-        }
-    }
-}
-// Called with minimumRunTime (if stop is triggered beforehand) and maximumRunTime
-def handleScheduleStop(deviceId){
-    if(!state.sensorMapEntry['type']) {
-        putLog(1329,'error','No sensor type defined, which means the setup is somehow incorect. Try resaving it.')
-        return
-    }
-    settings['controllerDevice'].each{singleDevice->
-        skipLoop = false
-        if(singleDevice.'id'.toInteger() != deviceId.toInteger()) skipLoop = true
-        if(settings['comparisonDeviceId'] && settings['comparisonDeviceId'].contains(singleDevice.'id'.toString())) skipLoop = true
-
-        if(!skipLoop && !stopLoop){
-            deviceLevel = singleDevice.'current' + state.sensorMapEntry['attribute'].capitalize()
-            if(state.sensorMapEntry['type'] != 'bool'){
-                if(!state['averageButtonValue']) atomicState.sensorAverage = getControllerSensorAverage(getSensorCount())
-                if(state['averageButtonValue']) atomicState.sensorAverage = deviceLevel
-                if(settings['comparisonDevice']) atomicState.comparisonSensorAverage = getComparisonSensorAverage()
-            }
-            stopConditionsMet = checkSensorUpdateStopConditions(deviceLevel,singleDevice.id)
-            if(stopConditionsMet) {
-                stopLoop = true
-                performStopAction(deviceLevel)
-            }
-        }
-    }
-}
-
-def checkSensorUpdateStartConditions(levelValue,singleDeviceId){
-    //if(atomicState.startTime) return // Already on - would we want it to reset?? - FIX THIS, do NOT remove it!!
-    if(!getActive()) return 
-    if(!checkMinimumWaitTime) {
-        scheduleMinimumWaitTime(singleDeviceId)
-        putLog(1358,'debug','Sensor would activate, but for minimum wait time from last execution.')
-        return
-    }
+// With start, returns true to start, false to not start
+// With stop, returns false to stop, true to not stop
+def checkStartOrStopCondititions(startType,singleDevice){
+    if(!singleDevice) return    // log error
+    levelValue = singleDevice.'current' + state.sensorMapEntry['attribute'].capitalize()
     if(state.sensorMapEntry['type'] == 'bool') {
-        if(levelValue == state.sensorMapEntry['start']) return true
+        if(levelValue == state.sensorMapEntry[startType]) return true
         return false
     }
-    thresholdValue = true
-    if(settings['levelThreshold']){
-        if(settings['direction'] && atomicState.sensorAverage <= settings['levelThreshold']) thresholdValue = false
-        if(!settings['direction'] && atomicState.sensorAverage >= settings['levelThreshold']) thresholdValue = false
-        if(!state['multipleOptionsButtonValue']) return thresholdValue
+    if(!settings['multipleOptionsButtonValue']){
+        if(checkThresholdValue(startType)) return true
+        if(checkDeltaValue(startType,deviceId,levelValue)) return true
+        if(checkControlValue(startType)) return true
+        return false
     }
-    deltaValue = true
-    if(settings['levelDelta']) {
-        deltaValue = checkStartLevelDeltaCondition(singleDeviceId)
-        if(!state['multipleOptionsButtonValue']) return deltaValue
-    }
-    compareValue = true
-    if(settings['controlDifference']){
-        if(settings['direction'] && atomicState.controlAverage > atomicState.comparisonSensorAverage + settings['controlDifference']) compareValue = false
-        if(!settings['direction'] && atomicState.controlAverage < atomicState.comparisonSensorAverage - settings['controlDifference']) compareValue = false
-        if(!settings['multipleOptionsButtonValue']) return thresholdValue
-    }
-    if(settings['multipleOptionsButtonValue']){
-        if(!thresholdValue) return
-        if(!deltaValue) return
-        if(!compareValue) return
-    }
-    if(thresholdValue) return true
-    if(deltaValue) return true
-    if(compareValue) return true
+    if(checkThresholdValue(startType) && checkDeltaValue(startType,levelValue) && checkDeltaValue(startType)) true
 }
-def checkStartLevelDeltaCondition(singleDeviceId){
+def checkThresholdValue(startType){
+    if(settings['multipleOptionsButtonValue'] && !settings['levelThreshold']) return true
+    if(!settings['levelThreshold']) return false
+    
+    if(settings['direction'] && atomicState.sensorAverage > settings['levelThreshold']) returnValue = true
+    if(!settings['direction'] && atomicState.sensorAverage < settings['levelThreshold']) returnValue = true
+    if(startType == 'start') return returnValue
+    if(startType == 'stop') return !returnValue
+}
+def checkDeltaValue(startType,deviceId,levelValue){
+    if(settings['multipleOptionsButtonValue'] && !settings['levelDelta']) return true
+    if(!settings['levelDelta']) return false
+    
+    if(startType == 'stop'){
+// Need to add fudge factor for Delta - if goes up 10 degrees, stop after lowering it 8
+        if(settings['direction'] && levelValue <= atomicState.startLevel) return true
+        if(!settings['direction'] && levelValue >= atomicState.startLevel) return true
+        return false
+    }
+    //if startType == 'start'
     if(!atomicState.relativeMinutes) return
     if(!atomicState.sensorAverage) return
-    
     startDelta = false
-    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) sensorChangeList = atomicState.sensorChanges[singleDeviceId]
+    if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) sensorChangeList = atomicState.sensorChanges[deviceId]
     if(!state['averageButtonValue'] || settings['controllerDevice'].size() == 1) sensorChangeList = atomicState.sensorChanges
     
     if(!sensorChangeList) return
@@ -1417,85 +1364,109 @@ def checkStartLevelDeltaCondition(singleDeviceId){
     }
     return returnValue
 }
-def performStartAction(levelValue){
-    //atomicState.remove('startTime')     // Debugging only
-    if(atomicState.startTime) return
-    if(atomicState.startDelayActive) return //!scheduleDelay('start')
-    atomicState.remove('startDelayActive') // da fuq? Which is it, return or remove it?
-
+def checkControlValue(startType){
+    if(settings['multipleOptionsButtonValue'] && !settings['levelComparison']) return true
+    if(!settings['levelComparison']) return false
+    
+    if(settings['direction'] && atomicState.sensorAverage > atomicState.comparisonSensorAverage + settings['levelComparison']) returnValue = true
+    if(!settings['direction'] && atomicState.sensorAverage < atomicState.comparisonSensorAverage - settings['levelComparison']) returnValue = true
+    if(startType == 'start') return returnValue
+    if(startType == 'stop') return !returnValue
+}
+def performStart(levelValue,deviceId){
+    if(!getActive()) return
+    if(atomicState.startTime) return        // May need to come up with a solution for if only starting?
+    if(!state.sensorMapEntry) return       // log error...?
+    if(!checkMinimumWaitTime()){
+        scheduleMinimumWaitTime(deviceId)
+        return
+    }
     unschedule('performStopAction')
     atomicState.remove('stopTime')
     atomicState.startTime = now()
-    atomicState.startLevel = levelValue    // Do we need this with bool sensors??
+    if(state.sensorMapEntry['type'] == 'range' && settings['levelDelta']) atomicState.startLevel = levelValue
     if(state.sensorMapEntry['type'] == 'range') atomicState.sensorStart = atomicState.sensorAverage
-    if(settings['startAction'] != 'on' && settings['startAction'] != 'off' && settings['startAction'] != 'toggle') return  // even if not performing actions, still act as if started (need mode, etc beforehand)
-
+    
+    if(!scheduleDelay('start',deviceId)) performStartActions(levelValue)
+}
+// Called from performStart and scheduleDelay
+def performStartActions(levelValue){
+    scheduleMaximumRunTime()
+    unschedule('performStopAction')
+    atomicState.remove('stopTime')
+    atomicState.startTime = now()
+    if(state.sensorMapEntry['type'] == 'range') atomicState.startLevel = levelValue
+    if(state.sensorMapEntry['type'] == 'range') atomicState.sensorStart = atomicState.sensorAverage
+// Mode Change
+// Notifications
+    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
     settings['controlDevice'].each{singleDevice->
         // set levels
         stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1437,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
+        putLog(1407,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
-    scheduleMaximumRunTime(levelValue)
 }
-def checkSensorUpdateStopConditions(levelValue,deviceId){
-    if(!atomicState.startTime) return // Already off
-    if(!checkMinimumRunTime()) {
+// Called from scheduleMaximumRunTime?
+def performStop(){
+    if(!atomicState.startTime) return        // Leave this for when scheduled (if it changes prior to schedule triggering)
+
+    if(!checkMinimumRunTime()){
         scheduleMinimumRunTime(deviceId)
         return
     }
-    if(state.sensorMapEntry['type'] == 'bool') {
-        if(levelValue == state.sensorMapEntry['stop']) return true
-    }
-    thresholdValue = true
-    if(settings['levelThreshold']){
-        if(settings['direction'] && levelValue > settings['levelThreshold']) thresholdValue = false
-        if(!settings['direction'] && levelValue < settings['levelThreshold']) thresholdValue = false
-    }
-    deltaValue = true
-    if(settings['levelDelta']){
-// should be the level prior to having started
-        if(settings['direction'] && levelValue < atomicState.startLevel) deltaValue = false
-        if(!settings['direction'] && levelValue > atomicState.startLevel) deltaValue = false
-    }
-    compareValue = true
-    if(settings['controlDifference']){
-        if(settings['direction'] && atomicState.comparisonSensorAverage > atomicState.sensorAverage + settings['controlDifference']) compareValue = false
-        if(!settings['direction'] && atomicState.comparisonSensorAverage < atomicState.sensorAverage - settings['controlDifference']) compareValue = false
-    }
-    if(state['multipleOptionsButtonValue']){
-        if(!thresholdValue) return
-        if(!deltaValue) return
-        if(!compareValue) return
-    }
-    if(thresholdValue) return true
-    if(deltaValue) return true
-    if(compareValue) return true
+    if(!scheduleDelay('stop')) performStopActions()
 }
-def performStopAction(levelValue){
-    if(!atomicState.startTime) return
-    if(atomicState.stopDelayActive) return    // If startDelay... return? If it hasn't yet started but already stopped, pretend like it never happened, or ignore any stop until after the delay?
-
+// Called from performStop and scheduleDelay
+def performStopActions(levelValue = ''){        // levelValue is sent by scheduleDelay (for caompatibility with 'start')
     atomicState.remove('startTime')
+    atomicState.remove('startLevel')
     atomicState.remove('sensorStart')
     atomicState.remove('stopDelayActive')
+    
+    unschedule('scheduleDelay')
     unschedule('performStartAction')
     atomicState.stopTime = now()
-    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return  // even if not performing actions, still act  as if stopped (need mode, etc beforehand)
-
+// Mode Change
+// Notifications
+    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
     settings['controlDevice'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
         parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1490,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
+        putLog(1437,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
 
-// Need to add fudge factor for Delta - if goes up 10 degrees, stop after lowering it 8
+// Called with minimumWaitTime
+def handleScheduleStart(deviceId){
+    settings['controllerDevice'].find{it->
+        if(it.id == deviceId) singleDevice = it
+    }
+    if(!singleDevice) {
+        // log error
+        return
+    }
+    levelValue = singleDevice.'current' + state.sensorMapEntry['attribute'].capitalize()
+    if(!checkStartOrStopCondititions('start',singleDevice)) return
+    performStartAction(levelValue)
+}
+// Called with minimumRunTime (if stop is triggered beforehand) and maximumRunTime
+def handleScheduleStop(deviceId){
+    settings['controllerDevice'].find{it->
+        if(it.id == deviceId) singleDevice = it
+    }
+    if(!singleDevice) {
+        // log error
+        return
+    }
+    levelValue = singleDevice.'current' + state.sensorMapEntry['attribute'].capitalize()
+    if(!checkStartOrStopCondititions('stop',singleDevice)) return
+    performStopAction(levelValue)
+}
 
-
-
+// Called when control device changes
 def handleStateChange(event) {
     return
     lastChangeAddId = parent.getStateChangeAppId(event.device,app.id,app.label)
@@ -1504,18 +1475,9 @@ def handleStateChange(event) {
     
     parent.updateTableCapturedState(event.device,event.value,app.label)
     atomicState.startTime = now()
-    if(event.value == 'on') scheduleMaximumRunTime(event.value)	
+    if(event.value == 'on') scheduleMaximumRunTime()	
     if(event.value == 'off') atomicState.remove("startTime")
     
-}
-
-def scheduleDelay(type){
-    if(!settings[type + 'Delay']) return
-    timeMillis = settings[type + 'Delay'] * parent.CONSTMinuteInMilli()
-    if(type == 'stop' && settings['startDelay'] == settings['stopDelay']) timeMillis += 2000        // Add delay for if start and stop trigger at the same "minute" (if allowing second units, change this to a fraction of a second)
-    parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Action','',app.id)
-    atomicState[type + 'DelayActive'] = true
-    return true
 }
 
 def updateSensorDeltaArray(singleDeviceId){
@@ -1526,6 +1488,7 @@ def updateSensorDeltaArray(singleDeviceId){
         return
     }
     if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) {
+        if(!atomicState.sensorChanges) atomicState.sensorChanges = [:]
         if(atomicState.sensorChanges[singleDeviceId]) sensorChanges = atomicState.sensorChanges[singleDeviceId]
     }
     if(!state['averageButtonValue'] || settings['controllerDevice'].size() == 1) sensorChanges = atomicState.sensorChanges
@@ -1556,17 +1519,12 @@ def updateSensorDeltaArray(singleDeviceId){
     itemCount++
     newArray[itemCount] = [time:now(),sensor:atomicState.sensorAverage]
     if(state['averageButtonValue'] && settings['controllerDevice'].size() > 1) {
-// should be able to use merge maps function here
         if(atomicState.sensorChanges) backupArray = atomicState.sensorChanges
         backupArray[singleDeviceId] = newArray
         atomicState.sensorChanges = backupArray        // Convoluted bullshit because Hubitat doesn't properly support dictionaries in state variables
     }
     if(!state['averageButtonValue'] || settings['controllerDevice'].size() == 1) atomicState.sensorChanges = newArray
 }
-
-
-// controlStopManual is not checked
-
 
 def checkMinimumRunTime(){
     if(!settings['runTimeMinimum']) return true
@@ -1582,18 +1540,18 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1585,'trace','Minimum wait time exceeded.')
+    putLog(1543,'trace','Minimum wait time exceeded.')
     return true
 }
 
 // Schedule to turn off immdiately when timer ends
-def scheduleMaximumRunTime(deviceId){
+def scheduleMaximumRunTime(){
     if(!settings['runTimeMaximum']) return
     if(!atomicState.startTime) return
-    unschedule('scheduleMaximumRunTime')
+    unschedule('performStop')
     
     timeMillis = (atomicState.startTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
-    parent.scheduleChildEvent(timeMillis,'','performStopAction',deviceId,app.id)
+    parent.scheduleChildEvent(timeMillis,'','performStop','',app.id)
 }
 
 // Schedule to check if should stop when timer expires (rather than wait for a sensor update)
@@ -1609,7 +1567,8 @@ def scheduleMinimumRunTime(deviceId){
 // Schedule to check if should (re)start when timer expires (rather than wait for a sensor update)
 // Just reinitialize? Do we need averages from prior to a wait time?
 def scheduleMinimumWaitTime(deviceId){
-    if(!settings['runTimeMinimum']) return true
+    if(!atomicState.startTime) return
+    if(!settings['runTimeMaximum']) return true
     unschedule('handleScheduleStop')    // ?? Not 100% sure on this
     
     timeMillis = (atomicState.startTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
@@ -1617,10 +1576,19 @@ def scheduleMinimumWaitTime(deviceId){
     parent.scheduleChildEvent(timeMillis,'','handleScheduleStart',deviceId,app.id)
 }
 
+def scheduleDelay(type,deviceId = ''){
+    if(!settings[type + 'Delay']) return
+    timeMillis = settings[type + 'Delay'] * parent.CONSTMinuteInMilli()
+    if(type == 'stop' && settings['startDelay'] == settings['stopDelay']) timeMillis += 500        // Add delay for if start and stop trigger at the same "minute" (if allowing second units, change this to a fraction of a second)
+    if(type == 'start') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions',deviceId,app.id)
+    if(type == 'stop') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions','',app.id)
+    //atomicState[type + 'DelayActive'] = true
+    return true
+}
+
 def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
     runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
-
 
 // Return true if disabled
 def getActive(){
@@ -1808,6 +1776,7 @@ def displayControllerOptionIncomplete(fieldName,fieldOptions){
 }
 def controllerOptionProcessParentDeviceList(capability){
     if(!allDeviceOptions) return
+    if(!capability) return
     controllerList = [:]
     //fullList = [:]
     allDeviceOptions.each{singleDevice->
@@ -1822,8 +1791,8 @@ def controllerOptionProcessParentDeviceList(capability){
 }
 
 def displayAdvancedOption(){
-    if(thisType != 'schedule' && !settings['controllerDevice']) return
-    if(!settings['controlDevice']) return
+    if((thisType == 'pico' || thisType == 'magicCube') && !settings['controllerDevice']) return
+    if(thisType != 'sensor' && !settings['controlDevice']) return
     if(anyErrors) return        // Only pico or cube
     fieldName = 'advancedSetup'
     if((thisType != 'schedule' && thisType != 'sensor') && !settings['controllerDevice'] && !settings[fieldName]) return        // schedule doesn't have controllerDevice, and sensor needs advanced before controllerDevice
@@ -1858,6 +1827,7 @@ def displayControlDeviceOption(){
     fieldName = 'controlDevice'
     displayControlDeviceOptionComplete(fieldName)
     displayControlDeviceOptionIncomplete(fieldName)
+    if(sensorMapEntry['type'] == 'bool') displayInfo('Note the sensor routine starts with "' + sensorMapEntry['start'] + '" and stops with "' + sensorMapEntry['stop'] + '". It will only run if the prior instance has stopped.')
 }
 def displayControlDeviceOptionComplete(fieldName){
     if(!settings[fieldName]) return
@@ -2265,42 +2235,42 @@ def appButtonHandler(buttonValue){
           case 'controllerButton':
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'controlButton':
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = 1
-              break
+              return
           }
           if(state[buttonValue + 'Value'] == 1){
               state[buttonValue + 'Value'] = 2
-              break
+              return
           }
               state.remove(buttonValue + 'Value')
-          break
+          return
           case 'controllerTypeButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'averageButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'multipleOptionsButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
       }
 }
 
@@ -2367,6 +2337,8 @@ def getNextYearWithMondayChristmas(currentYear = null) {
 }
 
 def setTime(){
+    atomicState.remove('scheduleStartTime')
+    atomicState.remove('scheduleStopTime')
     if(!settings['start_timeType']) return
     atomicState.scheduleStartTime = getBaseStartStopTimes('start')
     atomicState.scheduleStopTime = getBaseStartStopTimes('stop')
