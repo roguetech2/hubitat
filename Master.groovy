@@ -102,8 +102,8 @@ preferences {
         displaySensors()
         displayPicos()
         displayMagicCubes()
-        //displayContactSensors()
-        //displayPresence()
+        displayContactSensors()
+        displayPresence()
         if(allDevices) displayAllDevicesOption()
     }
 }
@@ -192,7 +192,6 @@ def displayMagicCubes(){
 
 def displaySensors(){
     section(){
-        displaySensorTip()
         title = 'Click to add '
         if(sensorCount == 0) title += 'a <b>Sensor</b>'
         if(sensorCount != 0) title += 'or edit <b>sensors</b> (' + sensorCount + ' total)'
@@ -244,25 +243,6 @@ can also select specific weekdays and dates, and other factors like Mode. Schedu
         • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
         • Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).'
         displayInfo(scheduleText)
-    }
-}
-
-def displaySensorTip(){
-    if(hideTips) return
-    section(){
-        sensorText = 'Sensors allow triggering events based on a sensor. Actions include on, off, toggle, dim, brighten, and "resume schedule". \
-It supports every sensor type. With boolean sensors it automatically sets the trigger as being the active value. \
-With variable sensors (like temperature or humidity), allow three different ways to set the trigger: a specific threshold (below 32 degrees), \
-value change (humidity increases by 10%) or comparing to another sensor (5% difference between two sensors). Allows setting minimum run, \
-maximum run time, and action delay. Use cases:<br>\
-        • Set a porch light to come on when door is opened (turn on with "open", off with "close", and maximum run time of a few minutes)<br>\
-        • Set a porch light to come on when door is closed (turn on with "open", off with "close", and set delay time for "close" to a few minutes)<br>\
-        • Automate a bathroom fan or basement dehumidifier<br>\
-        • Automate irrigation based on weather<br>\
-        • Basic motion activation (but this app lacks functionality specific for motion, such as dimming lights prior to turning off)<br> \
-        • Set a porch light to alternate on and off, to allow bugs to disperse (by setting the light as both sensor and device to control)<br>\
-        • Set pool pump or irrigation to run when it\'s freezing (or to not run).'
-        displayInfo(sensorText)
     }
 }
 
@@ -410,9 +390,9 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(413,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
+        putLog(393,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
     }
-    putLog(415,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(395,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 
@@ -457,7 +437,7 @@ def validateSat(value, childLabel='Master'){
 def validateMultiplier(value, childLabel='Master'){
     if(value){
         if(value < 1 || value > 100){
-            putLog(460,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
+            putLog(440,'error',"ERROR: Multiplier $value is not valid",childLabel,True)
             return
         }
     }
@@ -625,7 +605,7 @@ def CONSTMinuteInMilli(){
 
 def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
     returnValue = 200
-    putLog(628,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
+    putLog(608,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
     return returnValue
 }
 
@@ -909,7 +889,8 @@ def checkNowBetweenScheduledStartStopTimes(startTime, stopTime,childLabel='Maste
 def checkNowBetweenTimes(timeStart, timeStop,childLabel='Master'){
     if(!timeStart) return
     if(!timeStop) return
-    varNow = getTimeOfDayInMillis(now())
+
+    varNow = now()
     if(varNow < timeStart) return
     if(varNow > timeStop) return
 
@@ -974,7 +955,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(977,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(958,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -1050,7 +1031,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(1053,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(1034,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
     oldLevel = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
@@ -1058,7 +1039,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
 
     if(checkIsFan(singleDevice)) singleDevice.setSpeed(newLevel)
     if(!checkIsFan(singleDevice)) singleDevice.setLevel(newLevel)
-    putLog(1061,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(1042,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -1070,9 +1051,12 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
     if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') return
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
 
-    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' > now()) return
-    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' > now()) return
-    
+    //if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'stopTime' > now()) return
+    //if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'stopTime' > now()) return
+
+    if(atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'time' > atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'time') return
+    if(atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel' && atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'time' > atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'time') return
+
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'currentLevel'
     
     if(atomicState.'devices'?."${singleDevice.id}"?.'temp'?.'stopTime'){
@@ -1081,14 +1065,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
     oldLevel = _getDeviceCurrentLevel(singleDevice,'temp',childLabel)
     if(newLevel == oldLevel) return
     if(!newLevel) {
-        putLog(1064,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(1068,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
     if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(1091,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(1075,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -1096,7 +1080,6 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
 def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(!singleDevice) return
     if(!checkIsColor(singleDevice,childLabel)) return
-
     if(!atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel') return
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == 'off') return
     
@@ -1110,7 +1093,7 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(1113,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(1096,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -1135,7 +1118,7 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(1138,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(1121,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -1152,12 +1135,12 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(1155,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(1138,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         singleDevice.off()
-        putLog(1160,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(1143,'info','Turned off ' + singleDevice,childLabel,'True')
         return true
     }
 }
@@ -1168,8 +1151,14 @@ def _getDeviceCurrentLevel(singleDevice,type,childLabel = 'Master'){
         if(!checkIsFan(singleDevice)) return singleDevice.currentLevel as Integer
     }
     if(type == 'temp') return singleDevice.currentColorTemperature as Integer
+// Adjust currentHue for hiRezHue
+// Requires change to pico.getCycleColorValue
     if(type == 'hue') return singleDevice.currentHue as Integer
     if(type == 'sat') return singleDevice.currentSaturation as Integer
+}
+
+def _getCurrentLevel(singleDeviceId,type,childLabel = 'Master'){
+    return atomicState?.'devices'?."${singleDeviceId}"?."${type}"?.'currentLevel'
 }
 
 // Do reverse, and wrap around
@@ -1182,6 +1171,7 @@ def getStateMapSingle(singleDevice,action,appId,childLabel = 'Master'){
     if(!action) return
     if(!singleDevice) return
     if(action != 'on' && action != 'off' && action != 'toggle') return
+    
     if(action == 'toggle'){
         action = 'on'
         if(!atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state') {
@@ -1222,7 +1212,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(1225, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(1215, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -1237,7 +1227,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(1240,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(1230,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1345,7 +1335,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1348,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1338,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1359,12 +1349,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1362,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1352,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1367,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1357,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1373,7 +1363,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1376,'debug',message + mode,childLabel,'True')
+    putLog(1366,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1382,14 +1372,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1385,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1375,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1392,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1382,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1398,7 +1388,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1401,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1391,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1425,7 +1415,7 @@ def mergeMapToTable(singleDeviceId, newMap, childLabel = 'Master'){
 
     if(!mainMap?."${singleDeviceId}") mainMap[(singleDeviceId)] = [:]
     newMap.each{newKey,newValue->
-            mainMap."${singleDeviceId}"."${newKey}" = newValue
+        mainMap."${singleDeviceId}"."${newKey}" = newValue
     }
     if(mainMap?."${singleDeviceId}") atomicState.'devices' =  mainMap
 }
