@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.27
+*  Version: 0.7.2.28
 *
 ***********************************************************************************************************************/
 
@@ -39,7 +39,7 @@ definition(
 // 4 for trace + info + errors + warnings
 // 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 4
+    return 5
 }
 
 setUILinks()
@@ -575,11 +575,12 @@ def handleTempChange(event){
 
 // This needs rewrite
 def handleHueChange(event){
-    return
+    return    // Captures pico hue change as being a "manual" change and updates (but doesn't seem to hurt anything)
     parent.updateTableCapturedLevel(event.device,'hue',app.label)
 }
 
 def handleSatChange(event){
+    return    // Captures pico hue change as being a "manual" change and updates (but doesn't seem to hurt anything)
     parent.updateTableCapturedLevel(event.device,'saturation',app.label)
 }
 
@@ -607,15 +608,13 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(610,'info',app.label + ' schedule has started.')
+    putLog(611,'info',app.label + ' schedule has started.')
     
     setStartSchedule()
     setStopSchedule()
     
     if(!checkIncludeDates()) return
 
-    setStartSchedule()
-    setStopSchedule()
     clearScheduleFromTable() // clear out any "manual overrides"
     
     if(settings['start_brightness'] && settings['stop_brightness']) runIncremental = true
@@ -647,7 +646,7 @@ def runDailyStartSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(650,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        putLog(649,'debug','Performing start action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
 }
@@ -655,16 +654,16 @@ def runDailyStartSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(658,'info',app.label + ' schedule has ended.')
+    putLog(657,'info',app.label + ' schedule has ended.')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStartSchedule()
     setStopSchedule()
     atomicState.remove('scheduleFrequency')
-
-    if(atomicState.startDisabled) return
     
     clearScheduleFromTable()    // Remove start/incremental table entries - all that should be left after schedule ends is stop settings (with a stopTime)
+    
+    if(atomicState.startDisabled) return
 
     if(!settings['start_brightness']) brightnessMap = getLevelMap('brightness',settings['stop_brightness'])
     if(!settings['start_temp']) tempMap = getLevelMap('temp',settings['stop_temp'])
@@ -675,7 +674,7 @@ def runDailyStopSchedule(){
         stateMap = parent.getStateMapSingle(singleDevice.id,settings['stop_action'],app.id,app.label)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap)
         parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
-        putLog(677,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
+        if(scheduleMap.size() > 0) putLog(677,'debug','Performing stop action(s) for ' + singleDevice + ' as ' + fullMap + '.')
     }
     parent.setDeviceMulti(settings['controlDevice'],app.label)
     atomicState.remove('startTime')        // Cleared to prevent runIncremental from running
@@ -705,11 +704,11 @@ def runIncrementalSchedule(){
         satMap = getIncrementalMaps(singleDevice,'sat')
         incrementalMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap)
         if(incrementalMap) {
-            putLog(708,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
+            putLog(707,'debug','Incremental schedule for ' + singleDevice + ' settings are ' + incrementalMap)
             anyDevicesChanged = true
             parent.mergeMapToTable(singleDevice.id, levelMap)
         }
-        if(!incrementalMap) putLog(712,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
+        if(!incrementalMap) putLog(711,'debug','Incremental schedule for ' + singleDevice + ' has no changes.')
     }
     if(anyDevicesChanged) parent.setDeviceMulti(settings['controlDevice'], app.label)
     if(anyDevicesChanged) {
@@ -750,7 +749,8 @@ def subscribeDevices(){
 }
 
 def clearScheduleFromTable(){
-    if(settings['stopTime'] == settings['startTime']) return    // Prevents lights returning to default settings (and flickering)
+    if(settings['stop_time'] == settings['start_time']) return    // Prevents lights returning to default settings (and flickering)
+    putLog(753,'debug','Removing scheduled settings from master device table.')
     settings['controlDevice'].each{singleDevice->
         clearTableKey(singleDevice.id,'brightness')
         clearTableKey(singleDevice.id,'temp')
