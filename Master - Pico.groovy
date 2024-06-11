@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.23
+*  Version: 0.6.2.24
 *
 ***********************************************************************************************************************/
 
@@ -43,7 +43,7 @@ definition(
 // 4 for trace + info + errors + warnings
 // 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 4
+    return 5
 }
 
 preferences {
@@ -389,14 +389,14 @@ def displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions, pushTyp
 
 def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,deviceOptions){
     fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionLine.'action'
-    
     fieldTitle = '<b>' + actionLine.'descriptionActive' + '</b>:'
     if(!settings[fieldName]) fieldTitle = actionLine.'description' + ' <font color="gray">(Select devices)</font>'
-
+    
     width = 12
     if(settings[fieldName] && actionLine.'action' == 'setColor') width = 11
     if(settings[fieldName] && actionLine.'action' == 'cycleColor') width = 11
     displaySelectField(fieldName,fieldTitle,deviceOptions,true,false,'',width)
+
     displaySetColorOption(buttonNumber,actionLine.'action')
     displayCycleColorOption(buttonNumber,actionLine.'action')
 }
@@ -425,6 +425,8 @@ def displaySetColorOption(buttonNumber, buttonAction){
       //  app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType]
         return
     }
+    if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_color'] == '#000000')  app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_color')
+                                                                                                            
     fieldSet = false
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == buttonAction) fieldSet = true
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction]) fieldSet = true
@@ -731,14 +733,27 @@ def checkAnyDeviceSet(){
 def resetControllerDevices(deviceName){
     if(!deviceName) return
     app.removeSetting(deviceName)
-    setDeviceById(deviceName + 'Id', deviceName,'pushableButton')
+    setControllerDeviceById(deviceName + 'Id', deviceName,'pushableButton')
 }
-def setDeviceById(deviceIdName, deviceName,capability){
+def setControllerDeviceById(deviceIdName, deviceName,capability){
     if(!settings[deviceIdName]) return
     if(!(parentDeviceList = parent.getDeviceList())) return
     newVar = []
     settings[deviceIdName].each{deviceId->
         parentDeviceList.find{singleDevice->
+            if(singleDevice.id == deviceId){
+                newVar.add(singleDevice)
+            }
+        }
+    }
+    app.updateSetting(deviceName, [type: 'capability.' + capability, value: newVar])
+}
+def setControlDeviceById(deviceIdName, deviceName,capability){
+    if(!settings[deviceIdName]) return
+    if(!(parentDeviceList = parent.getDeviceList())) return
+    newVar = []
+    settings[deviceIdName].each{deviceId->
+         settings['controlDevice'].find{singleDevice->
             if(singleDevice.id == deviceId){
                 newVar.add(singleDevice)
             }
@@ -759,14 +774,31 @@ def resetDevices(){
 
                 if(!settings['controlDevice']) continue
                 if(!checkIfShowButton(buttonNumber)) continue
-                if(customActionsSetup == 'automap' && actionMap[actionMapItem].'defaultButton' == (buttonNumber + 1) && (setHold || pushType == 'push')){
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, [type: "capability.switch", value: settings['controlDevice']])
+                
+                app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction)
+                if(customActionsSetup == 'automap'){        // With automap, set default action button to control device
+                    app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction)
+                    app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType)
+                    if(actionMap[actionMapItem].'defaultButton' == (buttonNumber + 1) && (setHold || pushType == 'push')){
+                        app.updateSetting('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, [type: "capability.switch", value: settings['controlDevice']])
+                        app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, [type: "capability.switch", value: settings['controlDevice']])
+                    }
                 }
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
-                    app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, [type: "capability.switch", value: settings['controlDevice']])
+                
+                if(settings['customActionsSetup'] == 'actions'){        // With actions only, if only one control device, set to control device; otherwise, use id
+                    if(settings['button_' + (buttonNumber + 1) + '_' + pushType] != actionMap[actionMapItem].'action') app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction)
+                    if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() == 1){
+                        app.updateSetting('button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, [type: "capability.switch", value: settings['controlDevice']])
+                    }
+                    if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionMapItem].'action' && settings['controlDevice'].size() > 1){
+                        setControlDeviceById('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction,'switch')
+                    }
                 }
-                if(settings['button_' + (buttonNumber + 1) + '_' + pushType] != actionMap[actionMapItem].'action') app.removeSetting('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction)
-                setDeviceById('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction,'switch')
+                
+                if(settings['customActionsSetup'] == 'actionsAndDevices'){        // With actions and devices, set to id
+                    app.removeSetting('button_' + (buttonNumber + 1) + '_' + pushType)
+                    setControlDeviceById('buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction, 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction,'switch')
+                }
             }
         }
     }
@@ -818,19 +850,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(821,'trace', 'Installed')
+    putLog(853,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(827,'trace','Updated')
+    putLog(859,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(833,'trace','Initializing')
+    putLog(865,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
@@ -843,11 +875,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(846,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(878,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(850,'trace','Initialized')
+    putLog(882,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -866,7 +898,7 @@ def buttonPushed(evt){
 
     //action = settings['button_' + buttonNumber + '_' + actionType]
     
-    putLog(869,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(901,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap()
 
@@ -878,14 +910,14 @@ def buttonPushed(evt){
             if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.label)
 
             brightnessMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
-            
+
             setColorMap = getSetColorMap(switchAction, buttonNumber, actionType, singleDevice)
             setCycleMap = getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice)
             
             if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle') stateMap = parent.getStateMapSingle(singleDevice,switchAction.'action',app.id,app.label)       // on, off, toggle
             if(switchAction.'action' == 'level') stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
             fullMap = parent.addMaps(stateMap, brightnessMap,setColorMap,setCycleMap)
-            if(fullMap) putLog(888,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(920,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -972,7 +1004,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(975,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1007,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -988,7 +1020,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(991,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1023,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
