@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.5
+*  Version: 0.4.2.6
 * 
 ***********************************************************************************************************************/
 
@@ -47,7 +47,7 @@ def getLogLevel(){
 preferences {
     if(!settings) settings = [:]
     buttonMap = buildButtonMap()
-    actionMap = buildActionMap()
+    actionMap = buildActionMap('cube')
     resetDevices()
     anyErrors = checkAnyErrors()
     install = formComplete()
@@ -63,7 +63,7 @@ preferences {
         if(app.label){
 setUILinks()
             allDeviceOptions = parent.getDeviceList()
-            controllerDeviceOptions = controllerOptionProcessParentDeviceList()
+            controllerDeviceOptions = controllerOptionProcessParentDeviceList('pushableButton')
             if(allDeviceOptions && !controllerDeviceOptions) {
                 section(){
                     displayError('You don\'t have any MagicCube devices selected in the Master app. Update the device selection in the Master app to include MagicCube(s).')
@@ -626,7 +626,7 @@ def buttonEvent(evt){
     if(!getActive()) return
 
     buttonNumber = convertDriver(evt)     // Sets atomicState.buttonNumber to action corresponding to cubeActions
-    actionMap = buildActionMap()
+    actionMap = buildActionMap('cube')
 
     for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
@@ -640,7 +640,7 @@ def doActions(device,action){
     putLog(640,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
-        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, app.label)
+        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.label)        // dimmingProgressionSteps has not been added to UI (yet?)
         levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
 
         stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
@@ -672,11 +672,7 @@ def convertDriver(evt){
     priorSide = atomicState.priorSide
     atomicState.priorSide = evt.value
 
-    buttonMap = buildButtonMap()
-    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(evt.name == buttonMap[buttonNumber].'eventType'){
-            if(evt.name != 'pushed') return buttonNumber
-        }
+    if(evt.name == 'pushed'){
         if(evt.value == '1' && priorSide == '6') return 1
         if(evt.value == '2' && priorSide == '5') return 1
         if(evt.value == '3' && priorSide == '4') return 1
@@ -684,6 +680,12 @@ def convertDriver(evt){
         if(evt.value == '5' && priorSide == '2') return 1
         if(evt.value == '6' && priorSide == '1') return 1
         return 0
+    }
+    buttonMap = buildButtonMap()
+    for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
+        if(evt.name == buttonMap[buttonNumber].'eventType'){
+            return buttonNumber
+        }
     }
 }
 
@@ -737,15 +739,18 @@ def getActive(){
 // Copy/paste between all child apps
 
 // Not used by schedule or sensor (yet)
-def buildActionMap(){
+// Needs to be moved back into non-shared
+def buildActionMap(thisType){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
-    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'advanced':false],
-        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'advanced':false],
-        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'advanced':false],
-        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'advanced':false],
-        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'advanced':false],
-        ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true]]
+    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
+        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
+        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
+        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
+        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
+        ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
+        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
+        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
 }
                                      
 def setUILinks(){
@@ -823,9 +828,10 @@ def displayNameOptionIncomplete(){
     displayInfo('Name this ' + thisDescription + ' setup. Each ' + thisDescription + ' setup must have a unique name.')
 }
 
-// Not used by sensor app (yet)
+//So many custom options per app.... Either pass params, or move to non-shared
 def displayControllerOption(){
-    if(thisApp == 'schedule') return
+    if(thisType == 'schedule') return
+    if(thisType == 'sensor' && !sensorMapEntry) return
     if(!app.label) return
     fieldName = 'controllerDevice'
     resetControllerDevices(fieldName)
@@ -849,29 +855,30 @@ def displayControllerOption(){
 }
 def displayControllerOptionComplete(fieldName,fieldOptions){
     if(!settings[fieldName]) return
-    if(thisType == 'cube'){
-        fieldTitle = 'MagicCube:'
-        if(settings[fieldName].size() > 1) fieldTitle = 'MagicCubes:'
-    }
-    if(thisType == 'pico'){
-        fieldTitle = 'Pico controller:'
-        if(settings[fieldName].size() > 1) fieldTitle = 'Pico controllers:'
-    }
-
+    if(thisType == 'cube') fieldTitle = 'MagicCube'
+    if(thisType == 'pico') fieldTitle = 'Pico controller'
+    if(thisType == 'sensor')fieldTitle = 'Sensor'
+    if(settings[fieldName].size() > 1) fieldTitle += 's:'
+    capability = 'capability.pushableButton'
+    if(thisType == 'sensor') capability = 'capability.' + sensorMapEntry.'capability'
     if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
-    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, capability, true, 'controllerButton')
 }
 def displayControllerOptionIncomplete(fieldName,fieldOptions){
     if(settings[fieldName]) return
-            if(thisType == 'pico') displayInfo('Select which Lutron Caseta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
+    if(thisType == 'pico') displayInfo('Select which Lutron Caseta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
     if(fieldOptions) displayInfo('If you don\'t see the device you want, make sure you have it selected in the Master app.')
-            if(thisType == 'pico') fieldTitle = 'Select button device(s) to setup:'
-            if(thisType == 'cube') fieldTitle = 'Select MagicCube(s) to setup:'
+    if(thisType == 'pico') fieldTitle = 'Select button device(s) to setup:'
+    if(thisType == 'cube') fieldTitle = 'Select MagicCube(s) to setup:'
+    if(thisType == 'sensor') fieldTitle = 'Select sensor(s) to setup:'
+    capability = 'capability.pushableButton'
+    if(thisType == 'sensor') capability = 'capability.' + sensorMapEntry.'capability'
     if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
-    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, 'capability.pushableButton', true, 'controllerButton')
+    if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, capability, true, 'controllerButton')
 }
 def controllerOptionProcessParentDeviceList(capability){
     if(!allDeviceOptions) return
+    if(!capability) return
     controllerList = [:]
     //fullList = [:]
     allDeviceOptions.each{singleDevice->
@@ -881,14 +888,23 @@ def controllerOptionProcessParentDeviceList(capability){
             //if(!controllerMatch) fullList.put([singleDevice.'id',getDeviceName(singleDevice)])
         }
     }
+    if(settings['controllerDeviceId']){
+        settings['controllerDeviceId'].each{controllerDeviceIdValue->
+            if(!controllerList.containsKey(controllerDeviceIdValue)){
+                controllerList.put([controllerDeviceIdValue,'test'])
+               }
+               }
+    }
     if(!controllerList) return
     return controllerList.sort{it.value.toLowerCase()}
 }
 
 def displayAdvancedOption(){
+    if((thisType == 'pico' || thisType == 'magicCube') && !settings['controllerDevice']) return
+    if(thisType != 'sensor' && !settings['controlDevice']) return
     if(anyErrors) return        // Only pico or cube
     fieldName = 'advancedSetup'
-    if((thisType != 'schedule' && thisType != 'sensor') && !settings['controllerDevice'] && !settings[fieldName]) return        // schedule doesn't have controllerDevice, and sensor needs advanced before controllerDevice
+    if((thisType != 'schedule' && thisType != 'sensor') && !controllerDevice && !settings[fieldName]) return        // schedule doesn't have controllerDevice, and sensor needs advanced before controllerDevice
     if(!settings['customActionsSetup'] && !settings[fieldName] && (thisType == 'pico' || thisType == 'cube')) return
     if(thisType != 'sensor' && !settings['controlDevice']) return
     if(thisType == 'schedule'){
@@ -903,23 +919,24 @@ def displayAdvancedOption(){
 }
 def displayAdvancedOptionEnabled(fieldName){
     if(!settings[fieldName]) return
-    fieldTitleTrue = 'Showing advanced options.'
+    fieldTitleTrue = 'Showing advanced setup.'
     displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
 }
 def displayAdvancedOptionDisabled(fieldName){
     if(settings[fieldName]) return
     fieldTitleTrue = 'Keeping it simple.'
-    fieldTitleFalse = 'Click to show advanced options.'
+    fieldTitleFalse = 'Click to show advanced setup.'
     displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
 }
 
 def displayControlDeviceOption(){
     if(thisType == 'sensor' && !settings['controllerType']) return
-    if(thisType != 'schedule' && !settings['controllerDevice']) return
+    if(thisType != 'schedule' && !controllerDevice) return        // Can't be settings because... Hubitat is retarded and doesn't update the settings variable with app.updateSettings
     if(anyErrors) return
     fieldName = 'controlDevice'
     displayControlDeviceOptionComplete(fieldName)
     displayControlDeviceOptionIncomplete(fieldName)
+    if(thisType == 'sensor' && sensorMapEntry.'type' == 'bool') displayInfo('Note the sensor routine starts with "' + sensorMapEntry.'start' + '" and stops with "' + sensorMapEntry.'stop' + '". It will only run if the prior instance has stopped.')
 }
 def displayControlDeviceOptionComplete(fieldName){
     if(!settings[fieldName]) return
@@ -944,13 +961,14 @@ def displayControlDeviceOptionIncomplete(fieldName){
 }
 
 def displayIfModeOption(){
-    if(!settings['controllerDevice'] && thisType != 'schedule') return
+    if(!controllerDevice && thisType != 'schedule') return        // Can't be settings because... Hubitat is retarded and doesn't update the settings variable with app.updateSettings
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
     if((thisType == 'pico' || thisType == 'cube') && !checkAnyDeviceSet()) return
     if(anyErrors) return
+    if(thisType == 'sensor' && sensorCount == 0) return        // Need to add 'anyErrors' to sensors
     
     fieldName = 'ifMode'
     sectionTitle = 'Click to select with what Mode (Optional)'
@@ -976,13 +994,14 @@ def displayIfModeFieldIncomplete(fieldName){
 def displayPeopleOption(){
 // Use devices selected in Master app
 // Add check for if no presense devices
-    if(!settings['controllerDevice'] && thisType != 'schedule') return
+    if(!controllerDevice && thisType != 'schedule') return        // Can't be settings because... Hubitat is retarded and doesn't update the settings variable with app.updateSettings
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
     if((thisType == 'pico' || thisType == 'cube') && !checkAnyDeviceSet()) return
     if(anyErrors) return
+    if(thisType == 'sensor' && sensorCount == 0) return        // Need to add 'anyErrors' to sensors
 
     List peopleList1=[]
     settings['personHome'].each{
@@ -1061,12 +1080,12 @@ def getTimeSectionTitle(){
     if(settings['start_timeType']) sectionTitle = '<b>Starting: ' + getTimeSectionStartStopTitle('start') + '</b>'
     if(settings['start_timeType'] && settings['stop_timeType']) sectionTitle += '\n'
     if(settings['stop_timeType']) sectionTitle += '<b>Stopping: ' + getTimeSectionStartStopTitle('stop') + '</b>'
-    if(thisType == 'schedule' && settings['start_time'] == settings['stop_time']) sectionTitle = '<b>Always</b>'
+    if(thisType == 'schedule' && settings['start_time'] && settings['stop_time'] && settings['start_time'] == settings['stop_time']) sectionTitle = '<b>Always</b>'
     return sectionTitle
 }
 def getTimeSectionStartStopTitle(type){
     sectionTitle = ''
-    if(type == 'stop' && !settings[type + '_timeType'] && !settings[type + '_timeType']) return 'No end'
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 'No end'
     if(settings[type + '_timeType'] == 'time') sectionTitle += 'At '
     if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) sectionTitle += 'specific time'
     if(settings[type + '_timeType'] == 'time' && settings[type + '_time']) sectionTitle += Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings[type + '_time']).format('h:mm a', location.timeZone)
@@ -1291,13 +1310,9 @@ def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,de
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue,submitOnChange:true
 }
-def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true, button = ''){
-    width = 12
-    if(!settings[fieldName] && button) width = 11
-    if(settings[fieldName]){
-        width = 10
-        if(button) width = 9
-    }
+def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true, button = '', width = 12){
+    if(button) width--
+    if(settings[fieldName]) width = width - 2
     fieldTitle = addFieldName(fieldTitle,fieldName)
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
@@ -1327,42 +1342,42 @@ def appButtonHandler(buttonValue){
           case 'controllerButton':
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'controlButton':
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = 1
-              break
+              return
           }
           if(state[buttonValue + 'Value'] == 1){
               state[buttonValue + 'Value'] = 2
-              break
+              return
           }
               state.remove(buttonValue + 'Value')
-          break
+          return
           case 'controllerTypeButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'averageButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
           case 'multipleOptionsButton':        //used only by sensor app
           if(!state[buttonValue + 'Value']){
               state[buttonValue + 'Value'] = true
-              break
+              return
           }
               state[buttonValue + 'Value'] = false
-          break
+          return
       }
 }
 
@@ -1428,27 +1443,27 @@ def getNextYearWithMondayChristmas(currentYear = null) {
     return currentYear
 }
 
-def setTime(){
-    if(!settings['start_timeType']) return
-    atomicState.scheduleStartTime = getBaseStartStopTimes('start')
-    atomicState.scheduleStopTime = getBaseStartStopTimes('stop')
-    
-    if(atomicState.scheduleStartTime == atomicState.scheduleStopTime) atomicState.scheduleStopTime -= 1 // If start and stop are the same, stop needs to be smaller, to be seen as next day
-
-}
 // Returns 'start' or 'stop' time (of day) in millis
 // Must be converted with getDatetimeFromTimeInMillis if compared to now()
-def getBaseStartStopTimes(type){
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+def getBaseStartStopDateTime(type){
     if(type == 'stop' && !settings['stop_timeType']) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
     if(type == 'start' && !settings['start_timeType']) return
     if(settings[type + '_timeType'] == 'time') {
         if(!settings[type + '_time']) return
-        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime()) + 1   // Add 1 so midnight isn't "empty" as zero
+        return timeToday(settings[type + '_time']).getTime()
     }
     if(!settings[type + '_sunType']) return
-    if(settings[type + '_timeType'] == 'sunrise') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label)))
-    if(settings[type + '_timeType'] == 'sunset') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label)))
+
+    if(settings[type + '_timeType'] == 'sunrise') {
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.label)
+    }
+    if(settings[type + '_timeType'] == 'sunset') {
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset(settings[type + '_sunOffset'] * -1,app.label)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.label)
+    }
+    return returnValue
 }
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
@@ -1463,6 +1478,35 @@ def processDates(){
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
+
+// Not used with scheduler app (except in UI)
+// If time, sets persistent variables for:
+// startTime = time of day (no date) for start
+// stopTime = time of day (no date) for stop
+// stopDateTime = date and time for stop
+def setTime(){
+    atomicState.remove('startTime')
+    atomicState.remove('stopTime')
+    atomicState.remove('stopDateTime')
+    
+    if(!settings['start_timeType']) return
+    if(!settings['stop_timeType']) return
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'))
+    if(!startTime) {
+        putLog(1497,'error','Schedule error with starting time.')
+        return
+    }
+
+    stopDateTime = getBaseStartStopDateTime('stop')
+    stopTime = parent.getTimeOfDayInMillis(stopDateTime)
+    if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    atomicState.startTime = startTime
+    if(!stopTime) return
+    if(startTime == stopTime) stopTime += 1 // Not sure this is actually neccesary
+
+    atomicState.stopTime = stopTime
+    atomicState.stopDateTime = stopDateTime
 }
 
 def getDeviceName(singleDevice){
