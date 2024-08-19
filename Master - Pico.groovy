@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.24
+*  Version: 0.6.2.26
 *
 ***********************************************************************************************************************/
 
@@ -50,7 +50,7 @@ preferences {
     if(!settings) settings = [:]
     numberOfButtons = getButtonNumbers()
     buttonMap = buildButtonMap()
-    actionMap = buildActionMap()
+    actionMap = buildActionMap('pico')
     resetDevices()
     anyErrors = checkAnyErrors()
     install = formComplete()
@@ -191,8 +191,10 @@ def displayAutoMappingMessage(){
         pushAutoMappingText = ''
         holdAutoMappingText = ''
         displayInfo('To change these, select "Assign actions to each button" as Selection Type.')
+
         for(int i = 0; i < buttonMap.size(); i++) {
             showButton = checkIfShowButton(i)
+
             if(!showButton) continue
             actionMapItem = getActionFromButtonNumber(i)
             if(i != 0) pushAutoMappingText += '<br>'
@@ -596,7 +598,7 @@ def checkIfShowButton(number){
     if(numberOfButtons == 2 && number == 2) return false
     if(numberOfButtons == 2 && number == 3) return false
     if(numberOfButtons == 4 && number == 2) return false
-    if(!parent.checkIsColorMulti(settings['controlDevice']) && buttonMap[number].'type' == 'dim') return false
+    if(!parent.checkIsDimmableMulti(settings['controlDevice']) && buttonMap[number].'type' == 'dim') return false
     return true
 }
                                      
@@ -850,19 +852,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(853,'trace', 'Installed')
+    putLog(855,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(859,'trace','Updated')
+    putLog(861,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(865,'trace','Initializing')
+    putLog(867,'trace','Initializing')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
@@ -875,11 +877,11 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(878,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(880,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(882,'trace','Initialized')
+    putLog(884,'trace','Initialized')
 }
 
 def buttonPushed(evt){
@@ -897,27 +899,28 @@ def buttonPushed(evt){
     if(evt.name == 'held') actionType = 'hold'
 
     //action = settings['button_' + buttonNumber + '_' + actionType]
-    
-    putLog(901,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
-    if(!actionMap) switchActions = buildActionMap()
+    putLog(903,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
-    switchActions.each { switchAction ->
-    
+    if(!actionMap) switchActions = buildActionMap('pico')
+
+    switchActions.each{switchAction ->
         device = settings['button_' + buttonNumber + '_' + actionType + '_' + switchAction.'action']
      //   if(!device) device = settings['controlDevice']
         device.each{singleDevice->
             if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.label)
 
-            brightnessMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
+            brightnessMap = parent.getLevelMap('brightness',level,app.id,'', app.label)         // dim, brighten
 
             setColorMap = getSetColorMap(switchAction, buttonNumber, actionType, singleDevice)
             setCycleMap = getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice)
-            
-            if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle') stateMap = parent.getStateMapSingle(singleDevice,switchAction.'action',app.id,app.label)       // on, off, toggle
+            stateValue = 'on'        // turn on for brightness, or color, or anything else (shouldn't do this for 'resume'?)
+            if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle')  stateValue = switchAction.'action'
+
+            stateMap = parent.getStateMapSingle(singleDevice,stateValue,app.id,app.label)       // on, off, toggle
             if(switchAction.'action' == 'level') stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
             fullMap = parent.addMaps(stateMap, brightnessMap,setColorMap,setCycleMap)
-            if(fullMap) putLog(920,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+            if(fullMap) putLog(923,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
             parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
         }
         if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
@@ -1004,7 +1007,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1007,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1010,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1020,7 +1023,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1023,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1026,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1117,9 +1120,10 @@ def getActive(){
 
 // Not used by schedule or sensor (yet)
 // Needs to be moved back into non-shared
-def buildActionMap(){
+def buildActionMap(thisType){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
+
     return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
         ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
         ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
@@ -1457,12 +1461,12 @@ def getTimeSectionTitle(){
     if(settings['start_timeType']) sectionTitle = '<b>Starting: ' + getTimeSectionStartStopTitle('start') + '</b>'
     if(settings['start_timeType'] && settings['stop_timeType']) sectionTitle += '\n'
     if(settings['stop_timeType']) sectionTitle += '<b>Stopping: ' + getTimeSectionStartStopTitle('stop') + '</b>'
-    if(thisType == 'schedule' && settings['start_time'] == settings['stop_time']) sectionTitle = '<b>Always</b>'
+    if(thisType == 'schedule' && settings['start_time'] && settings['stop_time'] && settings['start_time'] == settings['stop_time']) sectionTitle = '<b>Always</b>'
     return sectionTitle
 }
 def getTimeSectionStartStopTitle(type){
     sectionTitle = ''
-    if(type == 'stop' && !settings[type + '_timeType'] && !settings[type + '_timeType']) return 'No end'
+    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 'No end'
     if(settings[type + '_timeType'] == 'time') sectionTitle += 'At '
     if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) sectionTitle += 'specific time'
     if(settings[type + '_timeType'] == 'time' && settings[type + '_time']) sectionTitle += Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings[type + '_time']).format('h:mm a', location.timeZone)
@@ -1820,29 +1824,27 @@ def getNextYearWithMondayChristmas(currentYear = null) {
     return currentYear
 }
 
-def setTime(){
-    atomicState.remove('scheduleStartTime')
-    atomicState.remove('scheduleStopTime')
-    if(!settings['start_timeType']) return
-    atomicState.scheduleStartTime = getBaseStartStopTimes('start')
-    atomicState.scheduleStopTime = getBaseStartStopTimes('stop')
-    
-    if(atomicState.scheduleStartTime == atomicState.scheduleStopTime) atomicState.scheduleStopTime -= 1 // If start and stop are the same, stop needs to be smaller, to be seen as next day
-
-}
 // Returns 'start' or 'stop' time (of day) in millis
 // Must be converted with getDatetimeFromTimeInMillis if compared to now()
-def getBaseStartStopTimes(type){
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+def getBaseStartStopDateTime(type){
     if(type == 'stop' && !settings['stop_timeType']) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
     if(type == 'start' && !settings['start_timeType']) return
     if(settings[type + '_timeType'] == 'time') {
         if(!settings[type + '_time']) return
-        return parent.getTimeOfDayInMillis(timeToday(settings[type + '_time']).getTime()) + 1   // Add 1 so midnight isn't "empty" as zero
+        return timeToday(settings[type + '_time']).getTime()
     }
     if(!settings[type + '_sunType']) return
-    if(settings[type + '_timeType'] == 'sunrise') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunrise(settings[type + '_sunOffset'],app.label)))
-    if(settings[type + '_timeType'] == 'sunset') return parent.getTimeOfDayInMillis((settings[type + '_sunType'] == 'before' ? parent.getSunset(settings[type + '_sunOffset'] * -1,app.label) : parent.getSunset(settings[type + '_sunOffset'],app.label)))
+
+    if(settings[type + '_timeType'] == 'sunrise') {
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.label)
+    }
+    if(settings[type + '_timeType'] == 'sunset') {
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset(settings[type + '_sunOffset'] * -1,app.label)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.label)
+    }
+    return returnValue
 }
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
@@ -1857,6 +1859,35 @@ def processDates(){
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+}
+
+// Not used with scheduler app (except in UI)
+// If time, sets persistent variables for:
+// startTime = time of day (no date) for start
+// stopTime = time of day (no date) for stop
+// stopDateTime = date and time for stop
+def setTime(){
+    atomicState.remove('startTime')
+    atomicState.remove('stopTime')
+    atomicState.remove('stopDateTime')
+    
+    if(!settings['start_timeType']) return
+    if(!settings['stop_timeType']) return
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'))
+    if(!startTime) {
+        putLog(1878,'error','Schedule error with starting time.')
+        return
+    }
+
+    stopDateTime = getBaseStartStopDateTime('stop')
+    stopTime = parent.getTimeOfDayInMillis(stopDateTime)
+    if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    atomicState.startTime = startTime
+    if(!stopTime) return
+    if(startTime == stopTime) stopTime += 1 // Not sure this is actually neccesary
+
+    atomicState.stopTime = stopTime
+    atomicState.stopDateTime = stopDateTime
 }
 
 def getDeviceName(singleDevice){
