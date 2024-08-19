@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.34
+*  Version: 0.4.1.36
 *
 ***********************************************************************************************************************/
 
@@ -132,8 +132,8 @@ def displayAllDevicesOption(){
     fieldTitle = 'Select all devices:'
     if(allDevices){
         section(){
-    displayInfo('All devices should be selected. This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
-    input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
+            displayInfo('All devices should be selected. This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
+            input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
         }
     }
     if(!allDevices) {
@@ -225,66 +225,6 @@ def displayPresence(){
     }
 }
 
-def displayScheduleTip(){
-    if(hideTips) return
-    section(){
-        scheduleText = 'Schedules allow performing actions on switches and lights (e.g. turn on, off, dim, set color, etc.) at specific times, \
-and will run daily. Devices can be set to progressively change by setting both start and stop values for brightness or color. If a \
-device is turned off, the schedule continues to run, so <i>when it is</i> turned on, it will do so at the correct level(s). You \
-can also select specific weekdays and dates, and other factors like Mode. Schedules also support sunrise and sunset. Use cases:<br>\
-        • Set a porch light to turn on at sunset and off at sunrise<br>\
-        • Set room lights to turn on and get dimmer as it gets later in the evening<br>\
-        • Set room lights to be dimmer as it gets later in the evening, when and if they are turned on<br>\
-        • Set lights to turn off at night<br>\
-        • Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)<br>\
-        • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those dates)<br>\
-        • Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)<br>\
-        • Turn on certain devices when someone arrives, within a certain time (or any time, by setting start time the same as stop time)<br>\
-        • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
-        • Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).'
-        displayInfo(scheduleText)
-    }
-}
-
-def displayPicoTip(){
-    if(hideTips) return
-    section(){
-        picoText = 'The Pico app is designed for Lutron Caseta switches and Pico remotes. It may or may not work for other 2, 4 or 5 button devices. \
-Actions include on, off, toggle, dim, brighten, and "resume schedule" (more on that below). It supports push, and hold (no double tap yet). \
-It allows quickly setting up remotes to work (select a Pico, set a device, and save), or more advanced options of defining specific actions for each button, \
-and/or defining different devices per button. It allows scheduling, such that a remote can do different things at different times, as well as presence. \
-The "resume" option resets back to a schedule. For instance, if the brightness set by a schedule is overridden, selecting resume has the schedule take \
-back over. Use cases:<br>\
-        • Control a light or group of lights<br>\
-        • Control any (smart) switched device (i. e. blinds, irrigation, fans, etc.)<br>\
-        • With 5-button Picos, set center button to toggle the ceiling fan (and other buttons control the lights)<br>\
-        • Using a 2 button Pico, control two bedside lamps by setting both as "toggle"<br>\
-        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
-        • Set push to control one light, but hold to control lights in an adjacent room<br>\
-        • Set push to dim, but hold to progressively dim<br>\
-        • Set light switch to send a notification during the day as a honeypot for would be intruders (notifications aren\'t yet a feature, but soon)<br>\
-        • Set switches for a pool pump or irrigation for pool cleaner/landscaper for their time and day, but repurpose the switch for outdoor lighting at other times<br>\
-        • Schedule a porch light to be dim, but set the "on" button to set it to full brightness, and "off" button has it go back to dim per the schedule.'
-        displayInfo(picoText)
-    }
-}
-
-def displayMagicCubeTip(){
-    if(hideTips) return
-    section(){
-        magicCubeText = 'MagicCubes are sold by Xiaomi under the Aqara brand. They are, aptly, cubes (and perhaps magic). Actions supported are flip 90, flip 180, shake, \
-rotate left, and rotate right. (Support for side up number to be added.) Each action can be set to control different devices and/or perform different actions. Actions include on, off, dim, \
-brighten, and resum schedule. The "resume" option grants control back to a schedule if the schedule is overridden (see Pico app note for more info).\
-Use cases:<br>\
-        • Control a light by flipping the Cube.<br>\
-        • Control multiple devices, such as having a lamp toggle with flip 90, another lamp toggle with flip 180, and a ceiling fan toggle with shake.<br>\
-        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
-        • Control light brightness with rotate right (brighten) and left (dim) (like a volume knob)<br>\
-        • Control a (smart) media player volume... like a volume knob, as well as power, skip track, etc.<br>\
-        • Train a pet to flip it to indicate to be let outside (notifications not yet supported).'
-        displayInfo(magicCubeText)
-    }
-}
 /*
 if(notificationDevice && people){
 section(""){
@@ -387,9 +327,9 @@ def singleLock(action, singleDevice, childLabel = 'Master'){
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(390,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
+        putLog(330,'error','Invalid value for action "' + action + '" sent to singleLock function',childLabel,'True')
     }
-    putLog(392,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(332,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 
@@ -602,7 +542,7 @@ def CONSTMinuteInMilli(){
 
 def CONSTDeviceActionDelayMillis(childLabel = 'Master'){
     returnValue = 200
-    putLog(605,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
+    putLog(545,'debug','Pausing for ' + returnValue + 'ms.',childLabel,'True')
     return returnValue
 }
 
@@ -952,7 +892,7 @@ def setLockMulti(multiDevice, action, childLabel = 'Master'){
 def _setLockSingle(singleDevice, action, childLabel = 'Master'){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(955,'info',action + 'ed ' + singleDevice,childLabel,'True')
+    putLog(895,'info',action + 'ed ' + singleDevice,childLabel,'True')
 }
 
 // Sets devices to match state
@@ -1028,7 +968,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
     }
     
     if(!newLevel) {
-        putLog(1031,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
+        putLog(971,'Using default brightness of ' + CONSTDeviceDefaultBrightness() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultBrightness()
     }
     oldLevel = _getDeviceCurrentLevel(singleDevice,'brightness',childLabel)
@@ -1036,7 +976,7 @@ def setDeviceBrightnessSingle(singleDevice, childLabel = 'Master'){
 
     if(checkIsFan(singleDevice)) singleDevice.setSpeed(newLevel)
     if(!checkIsFan(singleDevice)) singleDevice.setLevel(newLevel)
-    putLog(1039,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(979,'info','Set brightenss of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -1062,14 +1002,14 @@ def setDeviceTempSingle(singleDevice,childLabel = 'Master'){
     oldLevel = _getDeviceCurrentLevel(singleDevice,'temp',childLabel)
     if(newLevel == oldLevel) return
     if(!newLevel) {
-        putLog(1065,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
+        putLog(1005,'Using default color temperature of ' + CONSTDeviceDefaultTemp() + ' for ' + singleDevice,childLabel,'True')
         newLevel = CONSTDeviceDefaultTemp()
     }
     
-    if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
+    //if(checkTempWithinVariance(_getDeviceCurrentLevel(singleDevice,'temp',childLabel),newLevel,singleDevice.currentColorMode,childLabel) && singleDevice.currentColorMode == 'CT') return
 
     singleDevice.setColorTemperature(newLevel)
-    putLog(1072,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
+    putLog(1012,'info','Set temperature of ' + singleDevice + ' to ' + newLevel + ' (from ' + oldLevel + ')',childLabel,'True')
     return true
 }
 
@@ -1085,12 +1025,11 @@ def setDeviceHueSingle(singleDevice,childLabel = 'Master'){
     }
 
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'hue'?.'currentLevel'
-    
     if(!settings['hiRezHue']) newLevel = Math.round(newLevel / 3.6)
-    if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
+    //if(newLevel == _getDeviceCurrentLevel(singleDevice,'hue',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setHue(newLevel)
-    putLog(1093,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
+    putLog(1032,'info','Set hue of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'hue',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -1112,10 +1051,10 @@ def setDeviceSatSingle(singleDevice,childLabel = 'Master'){
     
     newLevel = atomicState.'devices'?."${singleDevice.id}"?.'sat'?.'currentLevel'
     
-    if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
+    //if(newLevel == _getDeviceCurrentLevel(singleDevice,'sat',childLabel) && singleDevice.currentColorMode == 'RGB') return
 
     singleDevice.setSaturation(newLevel)
-    putLog(1121,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
+    putLog(1057,'info','Set saturation of ' + singleDevice + ' to ' + newLevel + ' (from ' +  _getDeviceCurrentLevel(singleDevice,'sat',childLabel) + ')',childLabel,'True')
     return true
 }
 
@@ -1132,18 +1071,21 @@ def setDeviceStateSingle(singleDevice,childLabel = 'Master'){
     
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'on') {
         singleDevice.on()
-        putLog(1135,'info','Turned on ' + singleDevice,childLabel,'True')
+        putLog(1074,'info','Turned on ' + singleDevice,childLabel,'True')
         return true
     }
     if(atomicState.'devices'."${singleDevice.id}".'state'.'state' == 'off') {
         singleDevice.off()
-        putLog(1140,'info','Turned off ' + singleDevice,childLabel,'True')
+        putLog(1079,'info','Turned off ' + singleDevice,childLabel,'True')
         // clear state settings
-        atomicState.'devices'?."${singleDevice.id}".each{key, value -> 
+        newVar = atomicState.'devices'
+        if(!newVar?."${singleDevice.id}") return
+        newVar?."${singleDevice.id}".each{key, value -> 
             if(value?.'appType'){
-                if(value?.'appType' != ' time') clearTableKey(singleDevice.id,key, childLabel)
+                if(value?.'appType' != 'time') clearTableKey(singleDevice.id,key, childLabel)
             }
         }
+        atomicState.'devices' = newVar
         return true
     }
 }
@@ -1215,7 +1157,7 @@ def _getAppTypeFromId(appId,childLabel = 'Master'){
 
 def updateTableCapturedState(singleDevice,action,childLabel = 'Master'){
     if(atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' == action) return
-    putLog(1218, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
+    putLog(1160, 'Captured state change for ' + singleDevice + ' to turn ' + action + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?.'state'?.'state' + '; actually was ' + singleDevice.currentState + ')',childLabel,'True')
     stateMap = getStateMapSingle(singleDevice,action,'manual',childLabel)
     mergeMapToTable(singleDevice.id,stateMap,childLabel)
     if(action == 'on') setDeviceSingle(singleDevice,childLabel)    // With device on, set levels
@@ -1230,7 +1172,7 @@ def updateTableCapturedLevel(singleDevice,type,childLabel = 'Master'){
     }
     
     currentLevel = _getDeviceCurrentLevel(singleDevice,type,childLabel)
-    putLog(1233,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
+    putLog(1175,'trace','Captured manual ' + type + ' change for ' + singleDevice + ' to turn ' + currentLevel + ' (table was ' + atomicState.'devices'?."${singleDevice.id}"?."${type}"?.'currentLevel' + ')',childLabel,'True')
     levelMap = getLevelMap(type,currentLevel,'manual','',childLabel)
     mergeMapToTable(singleDevice.id,levelMap,childLabel)
 }
@@ -1338,7 +1280,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1341,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
+        putLog(1283,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',childLabel,'True')
         return
     }
     if(timeValue) {
@@ -1352,12 +1294,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1355,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
+                    putLog(1297,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',Child.label,'True')
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1360,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
+                putLog(1302,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',Child.label,'True')
         }
     }
 }
@@ -1366,7 +1308,7 @@ def changeMode(mode, childLabel = 'Master'){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1369,'debug',message + mode,childLabel,'True')
+    putLog(1311,'debug',message + mode,childLabel,'True')
 }
 
 // Send SMS text message to $phone with $message
@@ -1375,14 +1317,14 @@ def sendPushNotification(phone, message, childLabel = 'Master'){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1378,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
+        putLog(1320,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',childLabel,'True')
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1385,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
+            if(it.deviceNotification(message)) putLog(1327,'debug','Sent phone message to ' + phone + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1391,7 +1333,7 @@ def sendVoiceNotification(deviceId,message, childLabel='Master'){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1394,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
+            if(it.speak(text)) putLog(1336,'debug','Played voice message on ' + deviceId + ' "' + message + '"',childLabel,'True')
         }
     }
 }
@@ -1433,6 +1375,39 @@ def clearTableKey(singleDeviceId,type, childLabel = 'Master'){
     return true
 }
 
+def clearScheduleDevicesValue(appId, childLabel = 'Master'){
+    //atomicState.remove('scheduleControlDevice')
+    if(!atomicState.scheduleControlDevice) {
+        atomicState.scheduleControlDevice = [:]
+        return
+    }
+    newVar = atomicState.scheduleControlDevice
+    newVar.each { deviceId, appIdList -> appIdList.removeAll { it == appId } }      // Remove appId values
+    newVar = newVar.findAll { _, value -> value }           // Remove keys with empty lists
+
+    atomicState.scheduleControlDevice = newVar
+}
+
+def addScheduleDevices(singleDeviceId, appId, childLabel = 'Master'){
+    if(!atomicState.scheduleControlDevice) {                            // No devices
+        atomicState.scheduleControlDevice = [singleDeviceId:[appId]]
+        return
+    }
+
+    if(!atomicState.scheduleControlDevice?."${singleDeviceId}") {       // New device
+        newVar = atomicState.scheduleControlDevice
+        newVar."${singleDeviceId}" = [appId]
+        atomicState.scheduleControlDevice = newVar
+        return
+    }
+
+    if(atomicState.scheduleControlDevice?."${singleDeviceId}".contains(appId)) return       // Already in it
+    
+    newVar = atomicState.scheduleControlDevice
+    newVar."${singleDeviceId}".add(appId)           // Add it
+    atomicState.scheduleControlDevice = newVar
+}
+
 def convertToInteger(value, childLabel = 'Master'){
     if(value instanceof Integer) return value
     if(value instanceof Long) return value
@@ -1440,6 +1415,67 @@ def convertToInteger(value, childLabel = 'Master'){
     return
 }
 
+def displayScheduleTip(){
+    if(hideTips) return
+    section(){
+        scheduleText = 'Schedules allow performing actions on switches and lights (e.g. turn on, off, dim, set color, etc.) at specific times, \
+and will run daily. Devices can be set to progressively change by setting both start and stop values for brightness or color. If a \
+device is turned off, the schedule continues to run, so <i>when it is</i> turned on, it will do so at the correct level(s). You \
+can also select specific weekdays and dates, and other factors like Mode. Schedules also support sunrise and sunset. Use cases:<br>\
+        • Set a porch light to turn on at sunset and off at sunrise<br>\
+        • Set room lights to turn on and get dimmer as it gets later in the evening<br>\
+        • Set room lights to be dimmer as it gets later in the evening, when and if they are turned on<br>\
+        • Set lights to turn off at night<br>\
+        • Set a bedroom light to turn on in the morning, on weekdays (and progressively brighten for a couple minutes)<br>\
+        • Set irrigation (or pool) controls for different times based on the season (by setting a schedule for each season, limited to those dates)<br>\
+        • Turn off all devices when everyone leaves, within a certain time (or any time, by setting start time the same as stop time)<br>\
+        • Turn on certain devices when someone arrives, within a certain time (or any time, by setting start time the same as stop time)<br>\
+        • Set a color of a light based on who is home, based on the time (e.g. if a child is not home an hour after sunset, set a light to red)<br>\
+        • Send a notification based on who is home (e.g. a child arriving/departing, during a certain time, or in general).'
+        displayInfo(scheduleText)
+    }
+}
+
+def displayPicoTip(){
+    if(hideTips) return
+    section(){
+        picoText = 'The Pico app is designed for Lutron Caseta switches and Pico remotes. It may or may not work for other 2, 4 or 5 button devices. \
+Actions include on, off, toggle, dim, brighten, and "resume schedule" (more on that below). It supports push, and hold (no double tap yet). \
+It allows quickly setting up remotes to work (select a Pico, set a device, and save), or more advanced options of defining specific actions for each button, \
+and/or defining different devices per button. It allows scheduling, such that a remote can do different things at different times, as well as presence. \
+The "resume" option resets back to a schedule. For instance, if the brightness set by a schedule is overridden, selecting resume has the schedule take \
+back over. Use cases:<br>\
+        • Control a light or group of lights<br>\
+        • Control any (smart) switched device (i. e. blinds, irrigation, fans, etc.)<br>\
+        • With 5-button Picos, set center button to toggle the ceiling fan (and other buttons control the lights)<br>\
+        • Using a 2 button Pico, control two bedside lamps by setting both as "toggle"<br>\
+        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
+        • Set push to control one light, but hold to control lights in an adjacent room<br>\
+        • Set push to dim, but hold to progressively dim<br>\
+        • Set light switch to send a notification during the day as a honeypot for would be intruders (notifications aren\'t yet a feature, but soon)<br>\
+        • Set switches for a pool pump or irrigation for pool cleaner/landscaper for their time and day, but repurpose the switch for outdoor lighting at other times<br>\
+        • Schedule a porch light to be dim, but set the "on" button to set it to full brightness, and "off" button has it go back to dim per the schedule.'
+        displayInfo(picoText)
+    }
+}
+
+def displayMagicCubeTip(){
+    if(hideTips) return
+    section(){
+        magicCubeText = 'MagicCubes are sold by Xiaomi under the Aqara brand. They are, aptly, cubes (and perhaps magic). Actions supported are flip 90, flip 180, shake, \
+rotate left, and rotate right. (Support for side up number to be added.) Each action can be set to control different devices and/or perform different actions. Actions include on, off, dim, \
+brighten, and resum schedule. The "resume" option grants control back to a schedule if the schedule is overridden (see Pico app note for more info).\
+Use cases:<br>\
+        • Control a light by flipping the Cube.<br>\
+        • Control multiple devices, such as having a lamp toggle with flip 90, another lamp toggle with flip 180, and a ceiling fan toggle with shake.<br>\
+        • When turning on a bedroom lamp, turn off the living room (or porch) light<br>\
+        • Control light brightness with rotate right (brighten) and left (dim) (like a volume knob)<br>\
+        • Control a (smart) media player volume... like a volume knob, as well as power, skip track, etc.<br>\
+        • Train a pet to flip it to indicate to be let outside (notifications not yet supported).'
+        displayInfo(magicCubeText)
+    }
+}
+                                                                                                       
 def checkLog(type){
     logLevel = getLogLevel()
     switch(type) {
