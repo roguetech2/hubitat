@@ -618,11 +618,11 @@ def runDailyStartSchedule(){
     
     setStartSchedule()        // Reschedule
     setStopSchedule()    // Need to do this for first time it runs (could be in initialize instead)
-    log.debug '1runDailyStartSchedule'
+
     if(!checkIncludeDates()) return
 
     clearScheduleFromTable() // clear out any "manual overrides"
-    log.debug '2runDailyStartSchedule'
+
     if(checkIfIncremental()){
         setScheduleTime()
         parent.scheduleChildEvent(atomicState.baseFrequency,'','runIncrementalSchedule','',app.id)
@@ -641,7 +641,7 @@ def runDailyStartSchedule(){
     hueMap = getLevelMap('hue','start')
     satMap = getLevelMap('sat','start')
     scheduleMap = parent.addMaps(brightnessMap, tempMap, hueMap, satMap,'',app.id)
-log.debug '3runDailyStartSchedule scheduleMap ' + scheduleMap
+
     settings['controlDevice'].each{singleDevice->
         stateMap = parent.getStateMapSingle(singleDevice,settings['start_action'],app.id)          // Needs singleDevice for toggle
         fullMap = parent.addMaps(scheduleMap, stateMap,'','','',app.id)    // Remove if using device on/off as schedule triggers
