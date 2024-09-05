@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.26
+*  Version: 0.6.2.28
 *
 ***********************************************************************************************************************/
 
@@ -864,7 +864,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(867,'trace','Initializing')
+    putLog(867,'trace','^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
@@ -873,23 +873,24 @@ def initialize() {
     
     dimValue = 8
     if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
-    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
+    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
-    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(880,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
+    putLog(880,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(884,'trace','Initialized')
+    putLog(884,'trace','¬')
 }
 
 def buttonPushed(evt){
+    putLog(888,'info','^')
 // check mode and people
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
+    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.id)) return
     if(!getActive()) return
 
     buttonNumber = assignButtonNumber(evt.value.toInteger())
@@ -900,7 +901,7 @@ def buttonPushed(evt){
 
     //action = settings['button_' + buttonNumber + '_' + actionType]
 
-    putLog(903,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(904,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap('pico')
 
@@ -908,46 +909,47 @@ def buttonPushed(evt){
         device = settings['button_' + buttonNumber + '_' + actionType + '_' + switchAction.'action']
      //   if(!device) device = settings['controlDevice']
         device.each{singleDevice->
-            if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.label)
+            if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
 
-            brightnessMap = parent.getLevelMap('brightness',level,app.id,'', app.label)         // dim, brighten
+            brightnessMap = parent.getLevelMap('brightness',level,'', app.id)         // dim, brighten
 
             setColorMap = getSetColorMap(switchAction, buttonNumber, actionType, singleDevice)
             setCycleMap = getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice)
             stateValue = 'on'        // turn on for brightness, or color, or anything else (shouldn't do this for 'resume'?)
             if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle')  stateValue = switchAction.'action'
 
-            stateMap = parent.getStateMapSingle(singleDevice,stateValue,app.id,app.label)       // on, off, toggle
-            if(switchAction.'action' == 'level') stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
-            fullMap = parent.addMaps(stateMap, brightnessMap,setColorMap,setCycleMap)
-            if(fullMap) putLog(923,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
-            parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
+            stateMap = parent.getStateMapSingle(singleDevice,stateValue,app.id)       // on, off, toggle
+            if(switchAction.'action' == 'level') stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
+            fullMap = parent.addMaps(stateMap, brightnessMap,setColorMap,setCycleMap,'',app.id)
+            if(fullMap) putLog(924,'trace','[' + singleDevice + '] settings ' + fullMap)
+            parent.mergeMapToTable(singleDevice.id,fullMap,app.id)
         }
-        if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)       //??? this function needs to be rewritten, I think
+        if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)       //??? this function needs to be rewritten, I think
         if(actionType == 'hold') holdNextLevelMulti(device,switchAction.'action')
 
-        parent.setDeviceMulti(device,app.label)
+        parent.setDeviceMulti(device,app.id)
     }
+    putLog(932,'info','¬')
 }
 
 def getSetColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'setColor') return
-    currentHue = parent._getCurrentLevel(singleDevice.id,'hue')
-    currentSat = parent._getCurrentLevel(singleDevice.id,'sat')
+    currentHue = parent._getCurrentLevel(singleDevice.id,'hue',app.id)
+    currentSat = parent._getCurrentLevel(singleDevice.id,'sat',app.id)
     hueValue = getHueFromHex(buttonNumber, actionType, singleDevice)
     satValue = getSatFromHex(buttonNumber, actionType, singleDevice)
     if(currentHue == hueValue && currentSat == satValue)  {
-        parent.clearTableKey(singleDevice.id,'hue')
-        parent.clearTableKey(singleDevice.id,'sat')
+        parent.clearTableKey(singleDevice.id,'hue',app.id)
+        parent.clearTableKey(singleDevice.id,'sat',app.id)
         return
     }
-    if(hueValue) hueMap = parent.getLevelMap('hue',hueValue,app.id,'',childLabel)
-    if(satValue) satMap = parent.getLevelMap('sat',satValue,app.id,'',childLabel)
-    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
-    return parent.addMaps(stateMap, hueMap, satMap)
+    if(hueValue) hueMap = parent.getLevelMap('hue',hueValue,'',app.id)
+    if(satValue) satMap = parent.getLevelMap('sat',satValue,'',app.id)
+    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
+    return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
 }
 def getHueFromHex(buttonNumber, pushType, singleDevice){
-    if(!parent.checkIsColor(singleDevice)) return
+    if(!parent.checkIsColor(singleDevice,app.id)) return
     colorHex = settings['button_' + buttonNumber + '_' + pushType + '_color']
     if(!colorHex) colorHex = '#FF0000'
     colorRgb = hubitat.helper.ColorUtils.hexToRGB(colorHex)
@@ -957,7 +959,7 @@ def getHueFromHex(buttonNumber, pushType, singleDevice){
     return returnValue
 }
 def getSatFromHex(buttonNumber, pushType, singleDevice){
-    if(!parent.checkIsColor(singleDevice)) return
+    if(!parent.checkIsColor(singleDevice,app.id)) return
     colorHex = settings['button_' + buttonNumber + '_' + pushType + '_color']
     if(!colorHex) colorHex = '#FF0000'
     colorRgb = hubitat.helper.ColorUtils.hexToRGB(colorHex)
@@ -969,25 +971,25 @@ def getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'cycleColor') return
     nextColor = getCycleColorValue(buttonNumber, actionType, singleDevice)
     if(!nextColor) {
-        parent.clearTableKey(singleDevice.id,'hue')
-        parent.clearTableKey(singleDevice.id,'sat')
+        parent.clearTableKey(singleDevice.id,'hue',app.id)
+        parent.clearTableKey(singleDevice.id,'sat',app.id)
         return
     }
-    hueMap = parent.getLevelMap('hue',nextColor,app.id,'',childLabel)
-    satMap = parent.getLevelMap('sat',100,app.id,'',childLabel)
-    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
-    return parent.addMaps(stateMap, hueMap, satMap)
+    hueMap = parent.getLevelMap('hue',nextColor,'',app.id)
+    satMap = parent.getLevelMap('sat',100,'',app.id)
+    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
+    return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
 }
 def getCycleColorValue(buttonNumber, pushType, singleDevice){
     if(!singleDevice) return
-    if(!parent.checkIsColor(singleDevice)) return
+    if(!parent.checkIsColor(singleDevice,app.id)) return
     colorCount = settings['button_' + buttonNumber + '_' + pushType + '_colorCount']
     if(!colorCount) colorCount = 6
     firstColor = Math.round(360 / (colorCount * 2))
     lastColor = 360 - Math.round(360 / (colorCount * 2))
-    currentColor = parent._getCurrentLevel(singleDevice.id,'hue')
+    currentColor = parent._getCurrentLevel(singleDevice.id,'hue',app.id)
     //if(!hiRezHue) currentColor = Math.round(currentColor * 3.6)
-    if(!parent.checkIsOn(singleDevice)) return firstColor
+    if(!parent.checkIsOn(singleDevice,app.id)) return firstColor
     if(!currentColor) return firstColor
     if(currentColor >= lastColor){
         // set white/resume schedule
@@ -1007,7 +1009,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1010,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1012,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1023,7 +1025,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1026,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1028,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1055,11 +1057,11 @@ def holdNextLevelMulti(multiDevice,action){
 
 // Has to be in child app for schedule
 def holdNextLevelSingle(singleDevice,action){
-    if(!parent.checkIsDimmable(singleDevice,app.label)) return
+    if(!parent.checkIsDimmable(singleDevice,app.id)) return
     level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
     if(!level) return
-    levelMap = parent.getLevelMap(type,level,app.id,'',childLabel)         // dim, brighten
-    parent.mergeMapToTable(singleDevice.id,levelMap,app.label)
+    levelMap = parent.getLevelMap(type,level,'',app.id)         // dim, brighten
+    parent.mergeMapToTable(singleDevice.id,levelMap,app.id)
     
     parameters = [device: singleDevice.id, action: action]
     parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters,app.id)
@@ -1074,14 +1076,14 @@ def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
     if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
+        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
     }
 
     if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
+        if(!parent.checkPeopleHome(settings['personHome'],app.id)) return
     }
     if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
+        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.id)) return
     }
 
     return true
@@ -1220,7 +1222,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList() && !fieldOptions) return
+        if(parent.getDeviceList(app.id) && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
@@ -1551,12 +1553,12 @@ def displaySunriseTypeOption(type){
 }
 
 def getSunriseTime(type,sunOffset,sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1),app.id)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1),app.id)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0,app.id)).format('hh:mm a') + ')'   
 }
 
 def displaySunriseOffsetOption(type){
@@ -1812,6 +1814,7 @@ def displayFilterButton(buttonName){
         return
     }
 }
+//Used in UI tooltip example
 def getNextYearWithMondayChristmas(currentYear = null) {
     if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
     mondayChristmas = false
@@ -1837,20 +1840,23 @@ def getBaseStartStopDateTime(type){
     if(!settings[type + '_sunType']) return
 
     if(settings[type + '_timeType'] == 'sunrise') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.id)
     }
     if(settings[type + '_timeType'] == 'sunset') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.id)
     }
     return returnValue
 }
+// Date map is [yyyy:[ddd,ddd,ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
-    if(!atomicState.'includeDates'?.currentYear) processDates()
-    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D'))) return true
+    
+    if(!atomicState.'includeDates'?.currentYear) processDates()        // If a new year
+    
+    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D').toInteger())) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -1858,7 +1864,7 @@ def processDates(){
     currentYear = new Date().format('yyyy').toInteger()
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
 // Not used with scheduler app (except in UI)
@@ -1873,14 +1879,14 @@ def setTime(){
     
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'))
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(1878,'error','Schedule error with starting time.')
+        putLog(1749,'error','Schedule error with starting time.')
         return
     }
 
     stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime)
+    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
     if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
     atomicState.startTime = startTime
     if(!stopTime) return
@@ -1932,5 +1938,5 @@ def displayExcludeDates(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
+    return parent.putLog(lineNumber,type,message,app.id,'True')
 }
