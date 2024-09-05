@@ -1498,15 +1498,10 @@ def putLog(lineNumber, type = 'trace', message, appId = app.id, isChild = null){
     if(appId == app.id) logLevel = getLogLevel()
     if(appId != app.id) logLevel = (getChildAppById(appId)).getLogLevel()
     if(!checkLog(type,logLevel)) return
-    if(isChild){
-        text = '[' + (getChildAppById(appId)).label + ' :: ' + lineNumber + '] -- ' + message
-    } 
-    if(!isChild && appId != app.id){
-        text = '[' + (getChildAppById(appId)).label + '] [Master :: ' + lineNumber + '] -- ' + message
-    }
-    if(!isChild && appId == app.id){
-        text = '[Master :: ' + lineNumber + '] -- ' + message
-    }
+    if(isChild)  text = '[' + (getChildAppById(appId)).label + ' :: ' + lineNumber + '] -- ' + message
+    if(!isChild && appId != app.id) text = '[' + (getChildAppById(appId)).label + '] [Master :: ' + lineNumber + '] -- ' + message        // Within parent, but called from app
+    if(!isChild && appId == app.id) text = '[Master :: ' + lineNumber + '] -- ' + message        // Within parent, and not called from app
+
     if(type == 'error') text = '<font color="red">' + text + '</font>'
     if(type == 'warn') text = '<font color="brown">' + text + '</font>'
 
