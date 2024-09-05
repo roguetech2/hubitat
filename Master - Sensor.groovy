@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.14
+*  Version: 0.4.3.16
 *
 ***********************************************************************************************************************/
 
@@ -777,7 +777,7 @@ def setLightOptions(){
     if(!settings['controllerType']) return
     if(!controllerDevice) return        // Can't be settings because... Hubitat is retarded and doesn't update the settings variable with app.updateSettings
     if(!settings['controlDevice']) return
-    if(!parent.checkIsDimmableMulti(settings['controlDevice'])) return
+    if(!parent.checkIsDimmableMulti(settings['controlDevice'],app.id)) return
     if(sensorCount == 0) return
 
     sectionTitle = getLightOptionsSectionTitle()
@@ -822,7 +822,7 @@ def getLightOptionsSectionTitle(){
 
 def displayBrightnessOption(){
     if(!settings['advancedSetup'] && !settings['startBrightness']) return
-    if(!parent.checkIsDimmableMulti(settings['controlDevice'])) return
+    if(!parent.checkIsDimmableMulti(settings['controlDevice'],app.id)) return
     fieldName = 'startBrightness'
     displayBrightnessOptionCompleted(fieldName)
     displayBrightnessOptionIncompleted(fieldName)
@@ -840,7 +840,7 @@ def displayBrightnessOptionIncompleted(fieldName){
 
 def displayColorTemperatureOption(){
     if(!settings['advancedSetup'] && !settings['startColorTemperature']) return
-    if(!parent.checkIsTempMulti(settings['controlDevice'])) return
+    if(!parent.checkIsTempMulti(settings['controlDevice'],app.id)) return
     fieldName = 'startColorTemperature'
     displayColorTemperatureOptionCompleted(fieldName)
     displayColorTemperatureOptionIncompleted(fieldName)
@@ -862,7 +862,7 @@ def displayColorTemperatureOptionIncompleted(fieldName){
 def displayHueOption(){
     if(!settings['advancedSetup'] && !settings['startHue'] && !settings['startSat']) return
     if(settings['startColorTemperature']) return
-    if(!parent.checkIsColorMulti(settings['controlDevice'])) return
+    if(!parent.checkIsColorMulti(settings['controlDevice'],app.id)) return
     fieldName = 'startHue'
     displayHueOptionCompleted(fieldName)
     displayHueOptionIncompleted(fieldName)
@@ -885,7 +885,7 @@ def displayHueOptionIncompleted(fieldName){
 def displaySatOption(){
     if(!settings['advancedSetup'] && !settings['startHue'] && !settings['stopHue'] && !settings['startSat'] && !settings['stopSat']) return
     if(settings['startColorTemperature']) return
-    if(!parent.checkIsColorMulti(settings['controlDevice'])) return
+    if(!parent.checkIsColorMulti(settings['controlDevice'],app.id)) return
     fieldName = 'startSat'
     displaySatOptionCompleted(fieldName)
     displaySatOptionIncompleted(fieldName)
@@ -990,7 +990,7 @@ def resetControllerDevices(deviceName){
 def setDeviceById(deviceIdName, deviceName,capability){
 //This doesn't work for comparison device
     if(!settings[deviceIdName]) return
-    if(!(parentDeviceList = parent.getDeviceList())) return
+    if(!(parentDeviceList = parent.getDeviceList(app.id))) return
     newVar = []
     settings[deviceIdName].each{deviceId->
         parentDeviceList.find{singleDevice->
@@ -1294,7 +1294,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(1297,'trace','Initializing')
+    putLog(1297,'trace','^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     atomicState.remove('startTime')
     atomicState.remove('startLevel')
@@ -1324,7 +1324,7 @@ def initialize() {
     
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1327,'trace','Initialized')
+    putLog(1327,'trace','¬')
 }
 
 // Somewhat duplicated in handleScheduleStart and handleScheduleStop
@@ -1433,6 +1433,7 @@ def performStart(levelValue,deviceId){
         scheduleMinimumWaitTime(deviceId)
         return
     }
+    putLog(1436,'info','^')
     unschedule('performStopAction')
     atomicState.remove('stopTime')
     atomicState.startTime = now()
@@ -1440,6 +1441,7 @@ def performStart(levelValue,deviceId){
     if(state.sensorMapEntry.'type' == 'range') atomicState.sensorStart = atomicState.sensorAverage
     
     if(!scheduleDelay('start',deviceId)) performStartActions(levelValue)
+    putLog(1444,'info','¬')
 }
 // Called from performStart and scheduleDelay
 def performStartActions(levelValue){
@@ -1454,11 +1456,11 @@ def performStartActions(levelValue){
     if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
     settings['controlDevice'].each{singleDevice->
         // set levels
-        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id,app.label)
-        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1459,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Start.')
+        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id)
+        parent.mergeMapToTable(singleDevice.id,stateMap,app.id)
+        putLog(1461,'info','[' + singleDevice + '] sensor Start ' + stateMap)
     }
-    parent.setDeviceMulti(settings['controlDevice'],app.label)
+    parent.setDeviceMulti(settings['controlDevice'],app.id)
 }
 // Called from scheduleMaximumRunTime?
 def performStop(){
@@ -1468,7 +1470,9 @@ def performStop(){
         scheduleMinimumRunTime(deviceId)
         return
     }
+    putLog(1473,'info','^')
     if(!scheduleDelay('stop')) performStopActions()
+    putLog(1475,'info','¬')
 }
 // Called from performStop and scheduleDelay
 def performStopActions(levelValue = ''){        // levelValue is sent by scheduleDelay (for caompatibility with 'start')
@@ -1484,11 +1488,11 @@ def performStopActions(levelValue = ''){        // levelValue is sent by schedul
 // Notifications
     if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
     settings['controlDevice'].each{singleDevice->
-        stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id,app.label)
-        parent.mergeMapToTable(singleDevice.id,stateMap,app.label)
-        putLog(1489,'info','Setting ' + singleDevice + ' to ' + stateMap + ' as sensor Stop.')
+        stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id)
+        parent.mergeMapToTable(singleDevice.id,stateMap,app.id)
+        putLog(1493,'info','[' + singleDevice + '] sensorStop ' + stateMap)
     }
-    parent.setDeviceMulti(settings['controlDevice'],app.label)
+    parent.setDeviceMulti(settings['controlDevice'],app.id)
 }
 
 // Called with minimumWaitTime
@@ -1521,11 +1525,11 @@ def handleScheduleStop(deviceId){
 // Called when control device changes
 def handleStateChange(event) {
     return
-    lastChangeAddId = parent.getStateChangeAppId(event.device,app.id,app.label)
-    currentState = parent.checkIsOn(event.device,app.label)
+    lastChangeAddId = parent.getStateChangeAppId(event.device,app.id)
+    currentState = parent.checkIsOn(event.device,app.id)
     if(lastChangeAddId == app.id && (currentState && event.value == 'on' || !currentState && event.value == 'off')) return
     
-    parent.updateTableCapturedState(event.device,event.value,app.label)
+    parent.updateTableCapturedState(event.device,event.value,app.id)
     atomicState.startTime = now()
     if(event.value == 'on') scheduleMaximumRunTime()	
     if(event.value == 'off') atomicState.remove("startTime")
@@ -1592,7 +1596,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.stopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1595,'trace','Minimum wait time exceeded.')
+    putLog(1599,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1647,14 +1651,14 @@ def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
     if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
+        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
     }
 
     if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
+        if(!parent.checkPeopleHome(settings['personHome'],app.id)) return
     }
     if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
+        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.id)) return
     }
 
     return true
@@ -1696,6 +1700,7 @@ def getActive(){
 def buildActionMap(thisType){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
+
     return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
         ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
         ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
@@ -1792,7 +1797,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList() && !fieldOptions) return
+        if(parent.getDeviceList(app.id) && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
@@ -2123,12 +2128,12 @@ def displaySunriseTypeOption(type){
 }
 
 def getSunriseTime(type,sunOffset,sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1),app.id)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1),app.id)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0,app.id)).format('hh:mm a') + ')'   
 }
 
 def displaySunriseOffsetOption(type){
@@ -2384,6 +2389,7 @@ def displayFilterButton(buttonName){
         return
     }
 }
+//Used in UI tooltip example
 def getNextYearWithMondayChristmas(currentYear = null) {
     if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
     mondayChristmas = false
@@ -2409,20 +2415,23 @@ def getBaseStartStopDateTime(type){
     if(!settings[type + '_sunType']) return
 
     if(settings[type + '_timeType'] == 'sunrise') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.id)
     }
     if(settings[type + '_timeType'] == 'sunset') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.id)
     }
     return returnValue
 }
+// Date map is [yyyy:[ddd,ddd,ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
-    if(!atomicState.'includeDates'?.currentYear) processDates()
-    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D'))) return true
+    
+    if(!atomicState.'includeDates'?.currentYear) processDates()        // If a new year
+    
+    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D').toInteger())) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -2430,7 +2439,7 @@ def processDates(){
     currentYear = new Date().format('yyyy').toInteger()
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
 // Not used with scheduler app (except in UI)
@@ -2445,14 +2454,14 @@ def setTime(){
     
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'))
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(2450,'error','Schedule error with starting time.')
+        putLog(2549,'error','Schedule error with starting time.')
         return
     }
 
     stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime)
+    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
     if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
     atomicState.startTime = startTime
     if(!stopTime) return
@@ -2504,5 +2513,5 @@ def displayExcludeDates(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
+    return parent.putLog(lineNumber,type,message,app.id,'True')
 }
