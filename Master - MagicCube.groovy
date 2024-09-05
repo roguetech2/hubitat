@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.6
+*  Version: 0.4.2.8
 * 
 ***********************************************************************************************************************/
 
@@ -590,7 +590,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(593,'trace','Initializing')
+    putLog(593,'trace','^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(device, "pushed.1", buttonEvent)
@@ -607,51 +607,53 @@ def initialize() {
         
     dimValue = 8
     if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
-    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
+    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
-    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue)
-    putLog(614,'info','Brightening/dimming progression factor set: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
+    putLog(614,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(618,'trace','Initialized')
+    putLog(618,'trace','¬')
 }
 
 def buttonEvent(evt){
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.label)) return
+    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop,app.id)) return
     if(!getActive()) return
 
+    putLog(628,'info','^')
     buttonNumber = convertDriver(evt)     // Sets atomicState.buttonNumber to action corresponding to cubeActions
     actionMap = buildActionMap('cube')
 
     for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(633,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
+        putLog(634,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
         doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
     }
+    putLog(637,'trace','¬')
 }
 
 def doActions(device,action){
     if(!device) return
-    putLog(640,'trace','Set ' + device + ' as ' + action)
+    putLog(642,'trace','Set ' + device + ' as ' + action)
     
     device.each{singleDevice->
-        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.label)        // dimmingProgressionSteps has not been added to UI (yet?)
-        levelMap = parent.getLevelMap('brightness',level,app.id,'',childLabel)         // dim, brighten
+        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.id)        // dimmingProgressionSteps has not been added to UI (yet?)
+        levelMap = parent.getLevelMap('brightness',level,'',app.id)         // dim, brighten
 
-        stateMap = parent.getStateMapSingle(singleDevice,action,app.id,app.label)       // on, off, toggle
-        if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id,app.label)
+        stateMap = parent.getStateMapSingle(singleDevice,action,app.id)       // on, off, toggle
+        if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
         
-        fullMap = parent.addMaps(stateMap,levelMap)
-        if(fullMap) putLog(650,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
-        parent.mergeMapToTable(singleDevice.id,fullMap,app.label)
+        fullMap = parent.addMaps(stateMap,levelMap,'','','',app.id)
+        if(fullMap) putLog(652,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
+        parent.mergeMapToTable(singleDevice.id,fullMap,app.id)
     }
-    if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.label)
-    parent.setDeviceMulti(device,app.label)
+    if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)
+    parent.setDeviceMulti(device,app.id)
 }
 
 // Sets atomicState.buttonNumber to string of action
@@ -666,7 +668,7 @@ def doActions(device,action){
 // (7) counterclockwise
 def convertDriver(evt){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(669,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    if(!atomicState.priorSide) putLog(671,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
 
 // Could be mutliple priors sices (if multiple cubes) - need to make it a map
     priorSide = atomicState.priorSide
@@ -694,14 +696,14 @@ def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
     if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.label)) return
+        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
     }
 
     if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.label)) return
+        if(!parent.checkPeopleHome(settings['personHome'],app.id)) return
     }
     if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.label)) return
+        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.id)) return
     }
 
     return true
@@ -743,6 +745,7 @@ def getActive(){
 def buildActionMap(thisType){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
+
     return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
         ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
         ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
@@ -839,7 +842,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList() && !fieldOptions) return
+        if(parent.getDeviceList(app.id) && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
@@ -1170,12 +1173,12 @@ def displaySunriseTypeOption(type){
 }
 
 def getSunriseTime(type,sunOffset,sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset * -1)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset * -1)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1),app.id)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1),app.id)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0)).format('hh:mm a') + ')'   
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0,app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0,app.id)).format('hh:mm a') + ')'   
 }
 
 def displaySunriseOffsetOption(type){
@@ -1431,6 +1434,7 @@ def displayFilterButton(buttonName){
         return
     }
 }
+//Used in UI tooltip example
 def getNextYearWithMondayChristmas(currentYear = null) {
     if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
     mondayChristmas = false
@@ -1456,20 +1460,23 @@ def getBaseStartStopDateTime(type){
     if(!settings[type + '_sunType']) return
 
     if(settings[type + '_timeType'] == 'sunrise') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.id)
     }
     if(settings[type + '_timeType'] == 'sunset') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset(settings[type + '_sunOffset'] * -1,app.label)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.label)
+        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
+        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.id)
     }
     return returnValue
 }
+// Date map is [yyyy:[ddd,ddd,ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
-    if(!atomicState.'includeDates'?.currentYear) processDates()
-    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D'))) return true
+    
+    if(!atomicState.'includeDates'?.currentYear) processDates()        // If a new year
+    
+    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D').toInteger())) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -1477,7 +1484,7 @@ def processDates(){
     currentYear = new Date().format('yyyy').toInteger()
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], app.id, true)]
+    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
 // Not used with scheduler app (except in UI)
@@ -1492,14 +1499,14 @@ def setTime(){
     
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'))
+    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(1497,'error','Schedule error with starting time.')
+        putLog(1749,'error','Schedule error with starting time.')
         return
     }
 
     stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime)
+    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
     if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
     atomicState.startTime = startTime
     if(!stopTime) return
@@ -1551,5 +1558,5 @@ def displayExcludeDates(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
-    return parent.putLog(lineNumber,type,message,app.label,,getLogLevel())
+    return parent.putLog(lineNumber,type,message,app.id,'True')
 }
