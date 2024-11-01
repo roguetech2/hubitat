@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.28
+*  Version: 0.6.2.29
 *
 ***********************************************************************************************************************/
 
@@ -904,47 +904,39 @@ def buttonPushed(evt){
     putLog(904,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
 
     if(!actionMap) switchActions = buildActionMap('pico')
-
     switchActions.each{switchAction ->
         device = settings['button_' + buttonNumber + '_' + actionType + '_' + switchAction.'action']
      //   if(!device) device = settings['controlDevice']
         device.each{singleDevice->
             if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
 
-            brightnessMap = parent.getLevelMap('brightness',level,'', app.id)         // dim, brighten
-
+            brightnessMap = parent.getLevelMap('brightness',level, app.id)         // dim, brighten
             setColorMap = getSetColorMap(switchAction, buttonNumber, actionType, singleDevice)
             setCycleMap = getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice)
-            stateValue = 'on'        // turn on for brightness, or color, or anything else (shouldn't do this for 'resume'?)
+            fullMap = parent.addMaps(setColorMap,setCycleMap,brightnessMap,'','',app.id)
+            if(fullMap) stateValue = 'on'        // turn on for brightness, or color, or anything else (shouldn't do this for 'resume'?)
             if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle')  stateValue = switchAction.'action'
 
             stateMap = parent.getStateMapSingle(singleDevice,stateValue,app.id)       // on, off, toggle
-            if(switchAction.'action' == 'level') stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
-            fullMap = parent.addMaps(stateMap, brightnessMap,setColorMap,setCycleMap,'',app.id)
-            if(fullMap) putLog(924,'trace','[' + singleDevice + '] settings ' + fullMap)
-            parent.mergeMapToTable(singleDevice.id,fullMap,app.id)
+
+            if(fullMap) putLog(922,'trace','[' + singleDevice + '] settings ' + fullMap)
+            parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
+            parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
         }
         if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)       //??? this function needs to be rewritten, I think
         if(actionType == 'hold') holdNextLevelMulti(device,switchAction.'action')
 
         parent.setDeviceMulti(device,app.id)
     }
-    putLog(932,'info','¬')
+    putLog(931,'info','¬')
 }
 
 def getSetColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'setColor') return
-    currentHue = parent._getCurrentLevel(singleDevice.id,'hue',app.id)
-    currentSat = parent._getCurrentLevel(singleDevice.id,'sat',app.id)
     hueValue = getHueFromHex(buttonNumber, actionType, singleDevice)
     satValue = getSatFromHex(buttonNumber, actionType, singleDevice)
-    if(currentHue == hueValue && currentSat == satValue)  {
-        parent.clearTableKey(singleDevice.id,'hue',app.id)
-        parent.clearTableKey(singleDevice.id,'sat',app.id)
-        return
-    }
-    if(hueValue) hueMap = parent.getLevelMap('hue',hueValue,'',app.id)
-    if(satValue) satMap = parent.getLevelMap('sat',satValue,'',app.id)
+    if(hueValue) hueMap = parent.getLevelMap('hue',hueValue,app.id)
+    if(satValue) satMap = parent.getLevelMap('sat',satValue,app.id)
     stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
     return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
 }
@@ -971,12 +963,12 @@ def getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'cycleColor') return
     nextColor = getCycleColorValue(buttonNumber, actionType, singleDevice)
     if(!nextColor) {
-        parent.clearTableKey(singleDevice.id,'hue',app.id)
-        parent.clearTableKey(singleDevice.id,'sat',app.id)
+        parent.clearTableKey('nonSchedule',singleDevice.id,'hue',app.id)
+        parent.clearTableKey('nonSchedule',singleDevice.id,'sat',app.id)
         return
     }
-    hueMap = parent.getLevelMap('hue',nextColor,'',app.id)
-    satMap = parent.getLevelMap('sat',100,'',app.id)
+    hueMap = parent.getLevelMap('hue',nextColor,app.id)
+    satMap = parent.getLevelMap('sat',100,app.id)
     stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
     return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
 }
@@ -987,7 +979,7 @@ def getCycleColorValue(buttonNumber, pushType, singleDevice){
     if(!colorCount) colorCount = 6
     firstColor = Math.round(360 / (colorCount * 2))
     lastColor = 360 - Math.round(360 / (colorCount * 2))
-    currentColor = parent._getCurrentLevel(singleDevice.id,'hue',app.id)
+    currentColor = parent.getCurrentLevelFromTable('hue',singleDevice.id,app.id)
     //if(!hiRezHue) currentColor = Math.round(currentColor * 3.6)
     if(!parent.checkIsOn(singleDevice,app.id)) return firstColor
     if(!currentColor) return firstColor
@@ -1009,7 +1001,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1012,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1004,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1025,7 +1017,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1028,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1020,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1060,8 +1052,8 @@ def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.id)) return
     level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
     if(!level) return
-    levelMap = parent.getLevelMap(type,level,'',app.id)         // dim, brighten
-    parent.mergeMapToTable(singleDevice.id,levelMap,app.id)
+    levelMap = parent.getLevelMap(type,level,app.id)         // dim, brighten
+    parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
     
     parameters = [device: singleDevice.id, action: action]
     parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters,app.id)
@@ -1523,7 +1515,8 @@ def displayTimeOption(type){
     fieldTitle = addFieldName(fieldTitle,fieldName)
     if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
     input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+    // Add separate alert for if noon or midnight are actually entered
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Midnight is "am", and noon is "pm". Required.')
 }
                                      
 def getTypeOptionWidth(type){
@@ -1881,7 +1874,7 @@ def setTime(){
     if(!settings['stop_timeType']) return
     startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(1749,'error','Schedule error with starting time.')
+        putLog(1877,'error','Schedule error with starting time.')
         return
     }
 
@@ -1938,5 +1931,7 @@ def displayExcludeDates(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
+    appId = app.id
+
     return parent.putLog(lineNumber,type,message,app.id,'True')
 }
