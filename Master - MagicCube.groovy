@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.8
+*  Version: 0.4.2.9
 * 
 ***********************************************************************************************************************/
 
@@ -643,14 +643,14 @@ def doActions(device,action){
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.id)        // dimmingProgressionSteps has not been added to UI (yet?)
-        levelMap = parent.getLevelMap('brightness',level,'',app.id)         // dim, brighten
+        levelMap = parent.getLevelMap('brightness',level,app.id)         // dim, brighten
 
         stateMap = parent.getStateMapSingle(singleDevice,action,app.id)       // on, off, toggle
-        if(level) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
+        if(levelMap) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
         
-        fullMap = parent.addMaps(stateMap,levelMap,'','','',app.id)
-        if(fullMap) putLog(652,'trace','Updating settings for ' + singleDevice + ' to ' + fullMap)
-        parent.mergeMapToTable(singleDevice.id,fullMap,app.id)
+        if(fullMap) putLog(651,'trace','Updating settings for ' + singleDevice + ' to ' + levelMap)
+        parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
+        parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)
     parent.setDeviceMulti(device,app.id)
@@ -1143,7 +1143,8 @@ def displayTimeOption(type){
     fieldTitle = addFieldName(fieldTitle,fieldName)
     if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
     input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
-    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Required.')
+    // Add separate alert for if noon or midnight are actually entered
+    if(!settings[fieldName]) displayInfo('Enter the time to ' + type + ' the schedule in "hh:mm AM/PM" format. Midnight is "am", and noon is "pm". Required.')
 }
                                      
 def getTypeOptionWidth(type){
@@ -1501,7 +1502,7 @@ def setTime(){
     if(!settings['stop_timeType']) return
     startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(1749,'error','Schedule error with starting time.')
+        putLog(1505,'error','Schedule error with starting time.')
         return
     }
 
@@ -1558,5 +1559,7 @@ def displayExcludeDates(){
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
 def putLog(lineNumber,type = 'trace',message = null){
+    appId = app.id
+
     return parent.putLog(lineNumber,type,message,app.id,'True')
 }
