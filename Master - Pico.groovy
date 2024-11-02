@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.29
+*  Version: 0.6.2.30
 *
 ***********************************************************************************************************************/
 
@@ -899,9 +899,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') actionType = 'push'
     if(evt.name == 'held') actionType = 'hold'
 
-    //action = settings['button_' + buttonNumber + '_' + actionType]
-
-    putLog(904,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + device)
+    putLog(902,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + evt.device)
 
     if(!actionMap) switchActions = buildActionMap('pico')
     switchActions.each{switchAction ->
@@ -910,17 +908,15 @@ def buttonPushed(evt){
         device.each{singleDevice->
             if(actionType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
 
-            brightnessMap = parent.getLevelMap('brightness',level, app.id)         // dim, brighten
+            brightnessMap = parent.getNonScheduleLevelMap('brightness',level, app.id)         // dim, brighten
             setColorMap = getSetColorMap(switchAction, buttonNumber, actionType, singleDevice)
             setCycleMap = getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice)
-            fullMap = parent.addMaps(setColorMap,setCycleMap,brightnessMap,'','',app.id)
-            if(fullMap) stateValue = 'on'        // turn on for brightness, or color, or anything else (shouldn't do this for 'resume'?)
-            if(switchAction.'action' == 'on' || switchAction.'action' == 'off' || switchAction.'action' == 'toggle')  stateValue = switchAction.'action'
-
-            stateMap = parent.getStateMapSingle(singleDevice,stateValue,app.id)       // on, off, toggle
+            fullMap = parent.combineMaps(setColorMap,setCycleMap,brightnessMap,'','',app.id)
+            stateValue =  performToggle(switchAction.'action',singleDevice)
+            if(levelMap) stateValue = 'on'
 
             if(fullMap) putLog(922,'trace','[' + singleDevice + '] settings ' + fullMap)
-            parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
+            parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
             parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
         }
         if(actionType == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)       //??? this function needs to be rewritten, I think
@@ -928,17 +924,20 @@ def buttonPushed(evt){
 
         parent.setDeviceMulti(device,app.id)
     }
-    putLog(931,'info','¬')
+    putLog(927,'info','¬')
 }
 
+// This is fucked up - returning map, and merging maps
+// SHould just merge it here?
 def getSetColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'setColor') return
     hueValue = getHueFromHex(buttonNumber, actionType, singleDevice)
     satValue = getSatFromHex(buttonNumber, actionType, singleDevice)
-    if(hueValue) hueMap = parent.getLevelMap('hue',hueValue,app.id)
-    if(satValue) satMap = parent.getLevelMap('sat',satValue,app.id)
-    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
-    return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
+    if(hueValue) hueMap = parent.getNonScheduleLevelMap('hue',hueValue,app.id)
+    if(satValue) satMap = parent.getNonScheduleLevelMap('sat',satValue,app.id)
+    stateMap = 'on'
+    parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
+    return parent.combineMaps(hueMap, satMap,'','',app.id)
 }
 def getHueFromHex(buttonNumber, pushType, singleDevice){
     if(!parent.checkIsColor(singleDevice,app.id)) return
@@ -959,18 +958,21 @@ def getSatFromHex(buttonNumber, pushType, singleDevice){
     return Math.round(colorHsv[1])
 }
 
+// This is fucked up - returning map, and merging maps
+// SHould just merge it here?
 def getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'cycleColor') return
     nextColor = getCycleColorValue(buttonNumber, actionType, singleDevice)
     if(!nextColor) {
-        parent.clearTableKey('nonSchedule',singleDevice.id,'hue',app.id)
-        parent.clearTableKey('nonSchedule',singleDevice.id,'sat',app.id)
+        parent.clearTableDeviceSetting('nonSchedule',singleDevice.id,'hue',app.id)
+        parent.clearTableDeviceSetting('nonSchedule',singleDevice.id,'sat',app.id)
         return
     }
-    hueMap = parent.getLevelMap('hue',nextColor,app.id)
-    satMap = parent.getLevelMap('sat',100,app.id)
-    stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
-    return parent.addMaps(stateMap, hueMap, satMap,'','',app.id)
+    hueMap = parent.getNonScheduleLevelMap('hue',nextColor,app.id)
+    satMap = parent.getNonScheduleLevelMap('sat',100,app.id)
+    stateMap = 'on'
+    parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
+    return parent.combineMaps(stateMap, hueMap, satMap,'','',app.id)
 }
 def getCycleColorValue(buttonNumber, pushType, singleDevice){
     if(!singleDevice) return
@@ -1001,7 +1003,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1004,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1006,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1017,7 +1019,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1020,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1022,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1052,7 +1054,7 @@ def holdNextLevelSingle(singleDevice,action){
     if(!parent.checkIsDimmable(singleDevice,app.id)) return
     level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
     if(!level) return
-    levelMap = parent.getLevelMap(type,level,app.id)         // dim, brighten
+    levelMap = parent.getNonScheduleLevelMap(type,level,app.id)         // dim, brighten
     parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
     
     parameters = [device: singleDevice.id, action: action]
@@ -1874,7 +1876,7 @@ def setTime(){
     if(!settings['stop_timeType']) return
     startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!startTime) {
-        putLog(1877,'error','Schedule error with starting time.')
+        putLog(1879,'error','Schedule error with starting time.')
         return
     }
 
@@ -1893,6 +1895,15 @@ def getDeviceName(singleDevice){
     if(!singleDevice) return
     if(singleDevice.label) return singleDevice.label
     return singleDevice.name
+}
+
+def performToggle(action,singleDevice){
+    if(action != 'on' && action != 'off' && action != 'toggle') return
+    if(action != 'toggle') return action
+        if(parent.checkIsOn(singleDevice,app.id)) {
+            return 'off'
+        }
+        return 'on'
 }
 
 def displayExcludeDates(){
