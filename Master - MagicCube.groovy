@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.9
+*  Version: 0.4.2.10
 * 
 ***********************************************************************************************************************/
 
@@ -643,14 +643,14 @@ def doActions(device,action){
     
     device.each{singleDevice->
         if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.id)        // dimmingProgressionSteps has not been added to UI (yet?)
-        levelMap = parent.getLevelMap('brightness',level,app.id)         // dim, brighten
+        levelMap = parent.getNonScheduleLevelMap('brightness',level,app.id)         // dim, brighten
 
-        stateMap = parent.getStateMapSingle(singleDevice,action,app.id)       // on, off, toggle
-        if(levelMap) stateMap = parent.getStateMapSingle(singleDevice,'on',app.id)
+        stateValue =  performToggle(action,singleDevice)
+        if(levelMap) stateValue = 'on'
         
         if(fullMap) putLog(651,'trace','Updating settings for ' + singleDevice + ' to ' + levelMap)
         parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
-        parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
+        parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)
     parent.setDeviceMulti(device,app.id)
@@ -1521,6 +1521,15 @@ def getDeviceName(singleDevice){
     if(!singleDevice) return
     if(singleDevice.label) return singleDevice.label
     return singleDevice.name
+}
+
+def performToggle(action,singleDevice){
+    if(action != 'on' && action != 'off' && action != 'toggle') return
+    if(action != 'toggle') return action
+        if(parent.checkIsOn(singleDevice,app.id)) {
+            return 'off'
+        }
+        return 'on'
 }
 
 def displayExcludeDates(){
