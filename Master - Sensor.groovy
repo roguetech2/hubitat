@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.17
+*  Version: 0.4.3.19
 *
 ***********************************************************************************************************************/
 
@@ -500,7 +500,7 @@ def displayComparisonOption(){
     
     fieldOptions = getComparisonDeviceList()
     if(!fieldOptions) {
-        putLog(494,'error','Failed building comparison device list (comparisonOptionProcessControlDeviceList).')
+        putLog(503,'error','Failed building comparison device list (comparisonOptionProcessControlDeviceList).')
         return
     }
     if(fieldOptions) {
@@ -1338,13 +1338,12 @@ def initialize() {
 
 // Somewhat duplicated in handleScheduleStart and handleScheduleStop
 def handleSensorUpdate(event) {
-    
     putLog(1342,'info','^')
     unschedule('handleScheduleStop')
     unschedule('handleScheduleStart')
     
     if(!state.sensorMapEntry.'type') {
-        putLog(1347,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
+        putLog(1346,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
         return
     }
     
@@ -1365,15 +1364,15 @@ def handleSensorUpdate(event) {
     }
     
     if(startConditionsMet) {
-        putLog(1368,'trace','Start conditions met.')
+        putLog(1367,'trace','Start conditions met.')
         performStart(event.value,event.device.id)
     }
     if(stopConditionsMet) {
-        putLog(1372,'trace','Stop conditions met.')
+        putLog(1371,'trace','Stop conditions met.')
         performStop(event.device.id)
     }
     
-    putLog(1376,'info','^')
+    putLog(1375,'info','^')
 }
 
 // With start, returns true to start, false to not start
@@ -1477,16 +1476,16 @@ def performStartActions(levelValue){
 // Mode Change
 // Notifications
     if(settings['startAction'] == 'resume')  {
-        putLog(1480,'trace','[' + singleDevice + '] attempting schedule resume')
+        putLog(1479,'trace','[' + singleDevice + '] attempting schedule resume')
         parent.resumeDeviceScheduleMulti(settings['controlDevice'],app.id)
         return
     }
-    if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
+    if(settings['startAction'] != 'on' && settings['startAction'] != 'off' && settings['startAction'] != 'toggle') return
+
     settings['controlDevice'].each{singleDevice->
-        // set levels
-        stateMap = parent.getStateMapSingle(singleDevice,settings['startAction'],app.id)
-        parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
-        putLog(1489,'info','[' + singleDevice + '] sensor Start ' + stateMap)
+        stateValue = performToggle(settings['startAction'],singleDevice)
+        parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
+        putLog(1488,'info','[' + singleDevice + '] sensor Start ' + settings['startAction'])
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
 }
@@ -1513,10 +1512,11 @@ def performStopActions(levelValue = ''){        // levelValue is sent by schedul
 // Mode Change
 // Notifications
     if(settings['stopAction'] != 'on' && settings['stopAction'] != 'off' && settings['stopAction'] != 'toggle') return
+    
     settings['controlDevice'].each{singleDevice->
-        stateMap = parent.getStateMapSingle(singleDevice,settings['stopAction'],app.id)
-        parent.mergeMapToTable('state',singleDevice.id,stateMap,app.id)
-        putLog(1519,'info','[' + singleDevice + '] sensorStop ' + stateMap)
+        stateValue = performToggle(settings['stopAction'],singleDevice)
+        parent.mergeMapToTable('state',singleDevice.id,settings['stopAction'],app.id)
+        putLog(1519,'info','[' + singleDevice + '] sensorStop ' + settings['stopAction'])
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
 }
@@ -1826,7 +1826,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList(app.id) && !fieldOptions) return
+        if(parent.getDeviceList() && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
@@ -2505,6 +2505,15 @@ def getDeviceName(singleDevice){
     if(!singleDevice) return
     if(singleDevice.label) return singleDevice.label
     return singleDevice.name
+}
+
+def performToggle(action,singleDevice){
+    if(action != 'on' && action != 'off' && action != 'toggle') return
+    if(action != 'toggle') return action
+        if(parent.checkIsOn(singleDevice,app.id)) {
+            return 'off'
+        }
+        return 'on'
 }
 
 def displayExcludeDates(){
