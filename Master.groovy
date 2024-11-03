@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.40
+*  Version: 0.4.1.41
 *
 ***********************************************************************************************************************/
 
@@ -463,8 +463,9 @@ def checkIsFan(singleDevice, appId = app.id){
 // Test state of a single switch
 def checkIsOn(singleDevice, appId = app.id){
     // If no deviceState, set it
-    if(atomicState.'state'?."${singleDevice.id}" == 'on') return true
-    if(atomicState.'state'?."${singleDevice.id}" == 'off') return false 
+    stateValue = atomicState.'state'?."${singleDevice.id}"
+    if(stateValue == 'on') return true
+    if(stateValue == 'off') return false 
     if(singleDevice.currentValue('switch') == 'on') return true
 }
 
@@ -872,7 +873,7 @@ def setLockMulti(multiDevice, action, appId = app.id){
 def _setLockSingle(singleDevice, action, appId = app.id){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(875,'info','[' + singleDevice + '] ' + action + 'ed ',appId)
+    putLog(876,'info','[' + singleDevice + '] ' + action + 'ed ',appId)
 }
 
 // Sets devices to match state
@@ -929,6 +930,7 @@ def setDeviceSingle(singleDevice,appId = app.id){
 
 def setDeviceLevelSingle(type, singleDevice, appId = app.id){
     if(!singleDevice) return
+    if(!checkIsOn(singleDevice,appId)) return
     if(type == 'brightness' && !checkIsDimmable(singleDevice,appId)) return
     if(type == 'temp' && !checkIsTemp(singleDevice,appId)) return
     if(type == 'hue' && !checkIsColor(singleDevice,appId)) return
@@ -945,9 +947,11 @@ def setDeviceLevelSingle(type, singleDevice, appId = app.id){
     if(atomicState.'state'?."${singleDevice.id}" == 'off') return
     newLevel = getCurrentLevelFromTableOrDefault(type, singleDevice,appId)
 
+
     if(!newLevel) return
-    if(!checkLevelDifferent(type, newLevel,singleDevice,appId)) return
-    
+    if(singleDevice.currentValue('switch') == 'on'){
+        if(!checkLevelDifferent(type, newLevel,singleDevice,appId)) return
+    }
     if(type == 'brightness'){
         if(checkIsFan(singleDevice,appId)) singleDevice.setSpeed(newLevel)
         if(!checkIsFan(singleDevice,appId)) singleDevice.setLevel(newLevel)
@@ -957,7 +961,7 @@ def setDeviceLevelSingle(type, singleDevice, appId = app.id){
     if(type == 'sat') singleDevice.setSaturation(newLevel)
     setLastActionTime()
     
-    putLog(960,'info','[' + singleDevice + '] ' + type + ' ' + newLevel,appId)
+    putLog(964,'info','[' + singleDevice + '] ' + type + ' ' + newLevel,appId)
     return true
 }
 
@@ -977,7 +981,7 @@ def setDeviceStateSingle(singleDevice,appId = app.id){
         clearTableDevice('nonSchedule', singleDevice.id,appId)
        // clearNonScheduleDeviceSetting(singleDevice.id,appId)
     }
-        putLog(980,'info','[' + singleDevice + '] ' + atomicState.'state'."${singleDevice.id}",appId)
+        putLog(984,'info','[' + singleDevice + '] ' + atomicState.'state'."${singleDevice.id}",appId)
     return true
 }
 
@@ -985,7 +989,7 @@ def changeMode(mode, appId = app.id){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(988,'debug',message + mode,appId)
+    putLog(992,'debug',message + mode,appId)
 }
 
 // Send SMS text message to $phone with $message
@@ -994,14 +998,14 @@ def sendPushNotification(phone, message, appId = app.id){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(997,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
+        putLog(1001,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1004,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
+            if(it.deviceNotification(message)) putLog(1008,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
         }
     }
 }
@@ -1010,7 +1014,7 @@ def sendVoiceNotification(deviceId,message, appId = app.id){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1013,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
+            if(it.speak(text)) putLog(1017,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
         }
     }
 }
@@ -1160,7 +1164,7 @@ def getScheduleLevelMap(type,level,appId = app.id){
 
 def updateTableCapturedState(singleDevice,action,appId = app.id){
     if(atomicState.'state'?."${singleDevice.id}" == action) return
-    putLog(1163, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + atomicState.'state'?."${singleDevice.id}" + '; actually was ' + singleDevice.currentState + ')',appId)
+    putLog(1167, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + atomicState.'state'?."${singleDevice.id}" + '; actually was ' + singleDevice.currentState + ')',appId)
     stateMap = getStateMapSingle(singleDevice,action,app.id)
     mergeMapToTable('state',singleDevice.id,stateMap,appId)
     if(action == 'on') setDeviceSingle(singleDevice,appId)    // With device on, set levels
@@ -1172,7 +1176,7 @@ def updateTableCapturedLevel(singleDevice,type,appId = app.id){
     if(!checkLevelDifferent(type, newLevel, singleDevice, appId)) return
 
     currentLevel = convertHueValue(type,getCurrentLevelFromDevice(type,singleDevice,appId),appId)
-    putLog(1175,'trace','[' + singleDevice + '] captured ' + type + ' to ' + newLevel + ' (table was ' + oldLevel + ')',appId)
+    putLog(1179,'trace','[' + singleDevice + '] captured ' + type + ' to ' + newLevel + ' (table was ' + oldLevel + ')',appId)
     levelMap = getLevelMap(type,currentLevel,appId)
     mergeMapToTable('nonSchedule',singleDevice.id,levelMap,appId)
 }
@@ -1278,7 +1282,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1281,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
+        putLog(1285,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
         return
     }
     if(timeValue) {
@@ -1292,12 +1296,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1295,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',appId)
+                    putLog(1299,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',appId)
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1300,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',appId)
+                putLog(1304,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',appId)
         }
     }
 }
@@ -1319,7 +1323,7 @@ def mergeMapToTable(tableName, singleDeviceId, newMap, appId = app.id){
     if(!singleDeviceId) return
     if(!newMap) return
     if(tableName != 'state' && tableName != 'nonSchedule' && tableName != 'schedule') {
-        putLog(1322,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
+        putLog(1326,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
         return
     }
     if(atomicState."${tableName}") tempMap = atomicState."${tableName}"
@@ -1434,7 +1438,7 @@ def pauseActions(){
 
     delayTime = CONSTDeviceActionDelayMillis() - (now() - atomicState.lastChangeTime)
     if(delayTime < 1) return        // Just in case the computing time to compute it makes it less than 0
-    putLog(1437,'debug','Pausing execution: ' + delayTime + 'ms',appId)
+    putLog(1441,'debug','Pausing execution: ' + delayTime + 'ms',appId)
     pauseExecution(delayTime)
 }
 
