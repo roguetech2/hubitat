@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.30
+*  Version: 0.6.2.31
 *
 ***********************************************************************************************************************/
 
@@ -1216,7 +1216,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList(app.id) && !fieldOptions) return
+        if(parent.getDeviceList() && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
