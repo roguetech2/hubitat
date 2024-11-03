@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.35
+*  Version: 0.7.2.36
 *
 ***********************************************************************************************************************/
 
@@ -1066,7 +1066,7 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        if(parent.getDeviceList(app.id) && !fieldOptions) return
+        if(parent.getDeviceList() && !fieldOptions) return
     }
     if(fieldOptions) {
         fieldName += 'Id'
