@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.36
+*  Version: 0.7.2.37
 *
 ***********************************************************************************************************************/
 
@@ -582,20 +582,23 @@ def handleStateChange(event){
 
 // this does level, temp, hue, and sat
 def handleBrightnessChange(event){
-    newLevel = parent.getCurrentLevelFromDevice(type,singleDevice,appId)
+    newLevel = parent.getCurrentLevelFromDevice('brightness',singleDevice,appId)
     parent.updateTableCapturedLevel(event.device.id,'brightness',newLevel,app.id)
 }
 
 def handleTempChange(event){
-    parent.updateTableCapturedLevel(event.device,'temp',app.id)
+    newLevel = parent.getCurrentLevelFromDevice('temp',singleDevice,appId)
+    parent.updateTableCapturedLevel(event.device.id,'temp',newLevel,app.id)
 }
 
 def handleHueChange(event){
-    parent.updateTableCapturedLevel(event.device,'hue',app.id)
+    newLevel = parent.getCurrentLevelFromDevice('hue',singleDevice,appId)
+    parent.updateTableCapturedLevel(event.device.id,'hue',newLevel,app.id)
 }
 
 def handleSatChange(event){
-    parent.updateTableCapturedLevel(event.device,'sat',app.id)
+    newLevel = parent.getCurrentLevelFromDevice('sat',singleDevice,appId)
+    parent.updateTableCapturedLevel(event.device.id,'sat',newLevel,app.id)
 }
 
 // Creates the schedule for start and stop
@@ -620,7 +623,7 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(623,'info','^')
+    putLog(626,'info','^')
 
     setStartSchedule()        // Reschedule
     setStopSchedule()    // Need to do this for first time it runs (could be in initialize instead)
@@ -652,7 +655,7 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable('schedule',singleDevice.id,scheduleMap,app.id)
         stateValue = performToggle(settings['start_action'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(655,'debug','[' + singleDevice + '] schedule Start ' + scheduleMap)
+        putLog(658,'debug','[' + singleDevice + '] schedule Start ' + scheduleMap)
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
 
@@ -660,13 +663,13 @@ def runDailyStartSchedule(){
         atomicState.remove('startTime')
         clearScheduleFromTable()
     }
-    putLog(663,'info','¬')
+    putLog(666,'info','¬')
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(669,'info','^')
+    putLog(672,'info','^')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStopSchedule()        // Don't run Start Schedule, because we don't want to trigger setScheduleTime within dailyStopSchedule - if we do, it must be prior to removing state vars
@@ -693,10 +696,10 @@ def runDailyStopSchedule(){
         stateValue = performToggle(settings['stop_action'],singleDevice)
         log.debbug stateValue
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        if(scheduleMap.size() > 0) putLog(696,'debug','[' + singleDevice + '] schedule Stop ' + scheduleMap)
+        if(scheduleMap.size() > 0) putLog(699,'debug','[' + singleDevice + '] schedule Stop ' + scheduleMap)
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
-    putLog(699,'info','¬')
+    putLog(702,'info','¬')
 }
 
 // Is unscheduled from runDailyStopSchedule
@@ -711,7 +714,7 @@ def runIncrementalSchedule(){
         return
     }
     
-    putLog(714,'info','^')
+    putLog(717,'info','^')
     allDevicesOff = true           // True is to set time as CONSTScheduleMinimumInactiveFrequencyMilli; not using checkAnyOnMulti because already looping devices
     settings['controlDevice'].each{singleDevice->
         if(parent.checkIsOn(singleDevice,app.id)) allDevicesOff = false
@@ -722,10 +725,10 @@ def runIncrementalSchedule(){
         if(hueMap || satMap) tempMap = ''
         incrementalMap = parent.combineMaps(brightnessMap, tempMap, hueMap, satMap,'',app.id)
         if(incrementalMap) {
-            putLog(725,'debug','[' + singleDevice + '] incremental ' + incrementalMap)
+            putLog(728,'debug','[' + singleDevice + '] incremental ' + incrementalMap)
             parent.mergeMapToTable('schedule',singleDevice.id, incrementalMap,app.id)
         }
-        if(!incrementalMap) putLog(728,'debug','[' + singleDevice + '] incremental no changes.')
+        if(!incrementalMap) putLog(731,'debug','[' + singleDevice + '] incremental no changes.')
     }
     
     timeMillis = atomicState.baseFrequency
@@ -734,7 +737,7 @@ def runIncrementalSchedule(){
     parent.scheduleChildEvent(timeMillis, '', 'runIncrementalSchedule', '', app.id)        // Reschedule
     
     if(incrementalMap) parent.setDeviceMulti(settings['controlDevice'], app.id)
-    putLog(737,'info','¬')
+    putLog(740,'info','¬')
 }
 
 def getLevelMap(type,startStop){
@@ -764,7 +767,7 @@ def subscribeDevices(){
 
 def clearScheduleFromTable(){
     if(settings['stop_time'] == settings['start_time']) return    // Prevents lights returning to default settings (and flickering)
-    putLog(767,'debug','Removing scheduled settings from master device table.')
+    putLog(770,'debug','Removing scheduled settings from master device table.')
     settings['controlDevice'].each{singleDevice->
         parent.clearTableDevice('schedule', singleDevice.id,appId)
         parent.clearScheduleDeviceSetting(singleDevice.id,'brightness',app.id)
