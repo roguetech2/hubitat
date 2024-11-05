@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.42
+*  Version: 0.4.1.43
 *
 ***********************************************************************************************************************/
 
@@ -959,6 +959,8 @@ def setDeviceLevelSingle(type, singleDevice, appId = app.id){
     if(!checkIsOn(singleDevice,appId)) return
     if(type == 'brightness' && !checkIsDimmable(singleDevice,appId)) return
     if(type == 'temp' && !checkIsTemp(singleDevice,appId)) return
+    if(type == 'hue' && !checkIsColor(singleDevice,appId)) return
+    if(type == 'sat' && !checkIsColor(singleDevice,appId)) return
 
     if(type == 'temp'){
         if(atomicState.'nonSchedule'?."${singleDevice.id}"?.'hue') return
@@ -986,7 +988,7 @@ def setDeviceLevelSingle(type, singleDevice, appId = app.id){
     if(type == 'sat') singleDevice.setSaturation(newLevel)
     setLastActionTime()
     
-    putLog(989,'info','[' + singleDevice + '] ' + type + ' ' + newLevel,appId)
+    putLog(991,'info','[' + singleDevice + '] ' + type + ' ' + newLevel,appId)
     return true
 }
 
@@ -1006,7 +1008,7 @@ def setDeviceStateSingle(singleDevice,appId = app.id){
         clearTableDevice('nonSchedule', singleDevice.id,appId)
        // clearNonScheduleDeviceSetting(singleDevice.id,appId)
     }
-        putLog(1009,'info','[' + singleDevice + '] ' + atomicState.'state'."${singleDevice.id}",appId)
+        putLog(1011,'info','[' + singleDevice + '] ' + atomicState.'state'."${singleDevice.id}",appId)
     return true
 }
 
@@ -1014,7 +1016,7 @@ def changeMode(mode, appId = app.id){
     if(location.mode == mode) return
     message = 'Changed Mode from ' + oldMode + ' to '
     setLocationMode(mode)
-    putLog(1017,'debug',message + mode,appId)
+    putLog(1019,'debug',message + mode,appId)
 }
 
 // Send SMS text message to $phone with $message
@@ -1023,14 +1025,14 @@ def sendPushNotification(phone, message, appId = app.id){
     def now = new Date()getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1026,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
+        putLog(1028,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
         return
     }
 
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1033,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
+            if(it.deviceNotification(message)) putLog(1035,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
         }
     }
 }
@@ -1039,7 +1041,7 @@ def sendVoiceNotification(deviceId,message, appId = app.id){
     if(!deviceId)  return
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1042,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
+            if(it.speak(text)) putLog(1044,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
         }
     }
 }
@@ -1190,12 +1192,11 @@ def getScheduleLevelMap(type,level,appId = app.id){
 
 def updateTableCapturedState(singleDevice,action,appId = app.id){
     if(atomicState.'state'?."${singleDevice.id}" == action) return
-    if(action == 'none') return
-    putLog(1194, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + atomicState.'state'?."${singleDevice.id}" + '; actually was ' + singleDevice.currentState + ')',appId)
+    if(action != 'on' && action != 'off') return
+    putLog(1196, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + atomicState.'state'?."${singleDevice.id}" + '; actually was ' + singleDevice.currentState + ')',appId)
     stateMap = getStateMapSingle(singleDevice,action,app.id)
     mergeMapToTable('state',singleDevice.id,stateMap,appId)
     if(action == 'on') setDeviceSingle(singleDevice,appId)    // With device on, set levels
-
 }
 
 def updateTableCapturedLevel(singleDeviceId,type,newLevel,appId = app.id){
@@ -1218,9 +1219,9 @@ def updateTableCapturedLevel(singleDeviceId,type,newLevel,appId = app.id){
         }
     }
 
-    putLog(1221,'trace','[' + singleDevice + '] captured ' + type + ' to ' + currentLevel + ' (table was ' + tableLevel + ')',appId)
+    putLog(1222,'trace','[' + singleDevice + '] captured ' + type + ' to ' + currentLevel + ' (table was ' + tableLevel + ')',appId)
     levelMap = getNonScheduleLevelMap(type,currentLevel,appId)
-    mergeMapToTable('nonSchedule',singleDevice.id,levelMap,appId)
+    mergeMapToTable('nonSchedule',singleDeviceId,levelMap,appId)
 }
 
 def _getNextLevelDimmable(singleDevice, action, dimFactor = 1.61,appId = app.id){
@@ -1324,7 +1325,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1327,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
+        putLog(1328,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
         return
     }
     if(timeValue) {
@@ -1338,12 +1339,12 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1341,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',appId)
+                    putLog(1342,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',appId)
                     return
                 }
                 Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
                 if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1346,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',appId)
+                putLog(1347,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',appId)
         }
     }
 }
@@ -1365,7 +1366,7 @@ def mergeMapToTable(tableName, singleDeviceId, newMap, appId = app.id){
     if(!singleDeviceId) return
     if(!newMap) return
     if(tableName != 'state' && tableName != 'nonSchedule' && tableName != 'schedule') {
-        putLog(1368,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
+        putLog(1369,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
         return
     }
     if(atomicState."${tableName}") tempMap = atomicState."${tableName}"
@@ -1481,7 +1482,7 @@ def pauseActions(){
 
     delayTime = CONSTDeviceActionDelayMillis() - (now() - atomicState.lastChangeTime)
     if(delayTime < 1) return        // Just in case the computing time to compute it makes it less than 0
-    putLog(1484,'debug','Pausing execution: ' + delayTime + 'ms',appId)
+    putLog(1485,'debug','Pausing execution: ' + delayTime + 'ms',appId)
     pauseExecution(delayTime)
 }
 
