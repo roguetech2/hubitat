@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.11
+*  Version: 0.4.2.12
 * 
 ***********************************************************************************************************************/
 
@@ -622,7 +622,7 @@ def buttonEvent(evt){
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop,app.id)) return
+    if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime, app.id)) return
     if(!getActive()) return
 
     putLog(628,'info','^')
@@ -695,8 +695,8 @@ def convertDriver(evt){
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
-    if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
+    if(atomicState.scheduleStartTime && atomicState.stopTime){
+        if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime,app.id)) return
     }
 
     if(settings['personHome']){
@@ -1488,33 +1488,38 @@ def processDates(){
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
-// Not used with scheduler app (except in UI)
+// Not used with scheduler app
 // If time, sets persistent variables for:
-// startTime = time of day (no date) for start
-// stopTime = time of day (no date) for stop
-// stopDateTime = date and time for stop
+// scheduleBeginTime = time of day (no date) for start
+// scheduleEndTime = time of day (no date) for stop
 def setTime(){
-    atomicState.remove('startTime')
-    atomicState.remove('stopTime')
-    atomicState.remove('stopDateTime')
-    
+    atomicState.remove('scheduleBeginTime')
+    atomicState.remove('scheduleEndTime')
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
-    if(!startTime) {
-        putLog(1505,'error','Schedule error with starting time.')
+    
+    // Not sure is resyncing scheduleBeginTime and scheduleEndTime is neccesary if set a specific times (not sunrise/set)
+    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - weird times to stagger the load
+    
+    scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
+    if(!scheduleBeginTime) {
+        putLog(1506,'error','Schedule error with starting time.')
         return
     }
 
-    stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
-    if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
-    atomicState.startTime = startTime
-    if(!stopTime) return
-    if(startTime == stopTime) stopTime += 1 // Not sure this is actually neccesary
+    scheduleEndTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('stop'), app.id)
 
-    atomicState.stopTime = stopTime
-    atomicState.stopDateTime = stopDateTime
+    if(scheduleEndTime == 0) scheduleEndTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    
+    atomicState.scheduleBeginTime = scheduleBeginTime
+    
+    if(!scheduleEndTime) return
+    atomicState.scheduleEndTime = scheduleEndTime
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 def getDeviceName(singleDevice){
@@ -1526,10 +1531,8 @@ def getDeviceName(singleDevice){
 def performToggle(action,singleDevice){
     if(action != 'on' && action != 'off' && action != 'toggle') return
     if(action != 'toggle') return action
-        if(parent.checkIsOn(singleDevice,app.id)) {
-            return 'off'
-        }
-        return 'on'
+    if(parent.checkIsOn(singleDevice,app.id)) return 'off'
+    return 'on'
 }
 
 def displayExcludeDates(){
