@@ -891,7 +891,7 @@ def buttonPushed(evt){
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime, app.id)) return
+    if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
     if(!getActive()) return
 
     buttonNumber = assignButtonNumber(evt.value.toInteger())
