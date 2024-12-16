@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.31
+*  Version: 0.6.2.32
 *
 ***********************************************************************************************************************/
 
@@ -218,7 +218,7 @@ def displayDefineActions(){
     if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
     if(!numberOfButtons) return
-    section(hideable: true, hidden: false, getDefineActionsSectionTitle('push')) {
+    section(hideable: true, hidden: false, 'Button actions: ' + getDefineActionsSectionTitle('push')) {
         if(settings['controlDevice'].size() > 1){
             warningValue = getDefineActionsWarningValue('push')
             if(warningValue) displayWarning('Select the device(s) for ' + warningValue + '.')
@@ -604,15 +604,16 @@ def checkIfShowButton(number){
                                      
 def getButtonNumbers(){
     if(!settings['controllerDevice']) return
-    settings['controllerDevice'].each{
-        if(!it.currentValue('numberOfButtons')) numberOfButtons = 5
-        if(it.currentValue('numberOfButtons')) {
+    settings['controllerDevice'].each{singleDevice->
+        if(!singleDevice.currentValue('numberOfButtons')) numberOfButtons = 5
+        if(singleDevice.currentValue('numberOfButtons')) {
             if(numberOfButtons){
-                if(numberOfButtons < it.currentValue('numberOfButtons')) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
+                if(numberOfButtons < singleDevice.currentValue('numberOfButtons')) numberOfButtons = singleDevice.currentValue('numberOfButtons').toInteger()
             }
-            if(!numberOfButtons) numberOfButtons = it.currentValue('numberOfButtons').toInteger()
+            if(!numberOfButtons) numberOfButtons = singleDevice.currentValue('numberOfButtons').toInteger()
         }
     }
+    
     return numberOfButtons
 }
 
@@ -852,19 +853,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(855,'trace', 'Installed')
+    putLog(856,'trace', 'Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(861,'trace','Updated')
+    putLog(862,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(867,'trace','^')
+    putLog(868,'trace','^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
@@ -877,20 +878,20 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    putLog(880,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(881,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(884,'trace','¬')
+    putLog(885,'trace','¬')
 }
 
 def buttonPushed(evt){
-    putLog(888,'info','^')
-// check mode and people
+    putLog(889,'info','^')
+
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(atomicState.stop && !parent.checkNowBetweenTimes(atomicState.start, atomicState.stop, app.id)) return
+    if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime, app.id)) return
     if(!getActive()) return
 
     buttonNumber = assignButtonNumber(evt.value.toInteger())
@@ -899,7 +900,7 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') actionType = 'push'
     if(evt.name == 'held') actionType = 'hold'
 
-    putLog(902,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + evt.device)
+    putLog(903,'trace',actionType.capitalize() + ' button ' + buttonNumber + ' of ' + evt.device)
 
     if(!actionMap) switchActions = buildActionMap('pico')
     switchActions.each{switchAction ->
@@ -915,7 +916,7 @@ def buttonPushed(evt){
             stateValue =  performToggle(switchAction.'action',singleDevice)
             if(levelMap) stateValue = 'on'
 
-            if(fullMap) putLog(922,'trace','[' + singleDevice + '] settings ' + fullMap)
+            if(fullMap) putLog(919,'trace','[' + singleDevice + '] settings ' + fullMap)
             parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
             parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
         }
@@ -924,7 +925,7 @@ def buttonPushed(evt){
 
         parent.setDeviceMulti(device,app.id)
     }
-    putLog(927,'info','¬')
+    putLog(928,'info','¬')
 }
 
 // This is fucked up - returning map, and merging maps
@@ -964,8 +965,8 @@ def getCycleColorMap(switchAction, buttonNumber, actionType, singleDevice){
     if(switchAction.'action' != 'cycleColor') return
     nextColor = getCycleColorValue(buttonNumber, actionType, singleDevice)
     if(!nextColor) {
-        parent.clearTableDeviceSetting('nonSchedule',singleDevice.id,'hue',app.id)
-        parent.clearTableDeviceSetting('nonSchedule',singleDevice.id,'sat',app.id)
+        parent.clearTableByDeviceAndType('nonSchedule',singleDevice.id,'hue',app.id)
+        parent.clearTableByDeviceAndType('nonSchedule',singleDevice.id,'sat',app.id)
         return
     }
     hueMap = parent.getNonScheduleLevelMap('hue',nextColor,app.id)
@@ -1003,7 +1004,7 @@ def buttonHeld(evt){
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
 
-    putLog(1006,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1007,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1019,7 +1020,7 @@ def assignButtonNumber(originalButton){
 // This is the schedule function that sets the level for progressive dimming
 def runSetProgressiveLevel(data){
     if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1022,'trace','Function runSetProgressiveLevel returning (no matching device)')
+        putLog(1023,'trace','Function runSetProgressiveLevel returning (no matching device)')
         return
     }
     holdNextLevelSingle(singleDevice,action)
@@ -1862,33 +1863,38 @@ def processDates(){
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
-// Not used with scheduler app (except in UI)
+// Not used with scheduler app
 // If time, sets persistent variables for:
-// startTime = time of day (no date) for start
-// stopTime = time of day (no date) for stop
-// stopDateTime = date and time for stop
+// scheduleBeginTime = time of day (no date) for start
+// scheduleEndTime = time of day (no date) for stop
 def setTime(){
-    atomicState.remove('startTime')
-    atomicState.remove('stopTime')
-    atomicState.remove('stopDateTime')
-    
+    atomicState.remove('scheduleBeginTime')
+    atomicState.remove('scheduleEndTime')
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
-    if(!startTime) {
-        putLog(1879,'error','Schedule error with starting time.')
+    
+    // Not sure is resyncing scheduleBeginTime and scheduleEndTime is neccesary if set a specific times (not sunrise/set)
+    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - weird times to stagger the load
+    
+    scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
+    if(!scheduleBeginTime) {
+        putLog(1881,'error','Schedule error with starting time.')
         return
     }
 
-    stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
-    if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
-    atomicState.startTime = startTime
-    if(!stopTime) return
-    if(startTime == stopTime) stopTime += 1 // Not sure this is actually neccesary
+    scheduleEndTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('stop'), app.id)
 
-    atomicState.stopTime = stopTime
-    atomicState.stopDateTime = stopDateTime
+    if(scheduleEndTime == 0) scheduleEndTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    
+    atomicState.scheduleBeginTime = scheduleBeginTime
+    
+    if(!scheduleEndTime) return
+    atomicState.scheduleEndTime = scheduleEndTime
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 def getDeviceName(singleDevice){
@@ -1900,10 +1906,8 @@ def getDeviceName(singleDevice){
 def performToggle(action,singleDevice){
     if(action != 'on' && action != 'off' && action != 'toggle') return
     if(action != 'toggle') return action
-        if(parent.checkIsOn(singleDevice,app.id)) {
-            return 'off'
-        }
-        return 'on'
+    if(parent.checkIsOn(singleDevice,app.id)) return 'off'
+    return 'on'
 }
 
 def displayExcludeDates(){
