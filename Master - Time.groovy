@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.37
+*  Version: 0.7.2.39
 *
 ***********************************************************************************************************************/
 
@@ -541,30 +541,27 @@ def updated() {
 }
 
 def uninstalled(){
-    clearScheduleFromTable()
+    unschedule()
+    clearSchedule()
 }
 def initialize() {
-    putLog(547,'info','^')
-    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
+    putLog(548,'info','^ Initialize ^')
     subscribeDevices()
 
     resume()
     
-    putLog(553,'info','¬')
-    return true
+    putLog(553,'info','¬ Initialize ¬')
 }
 def resume() {
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
-    setControlDeviceId()
     unschedule()
-    clearScheduleFromTable()    // Clear schedule from master table, to avoid stale settings
+    clearSchedule()    // Clear schedule from master table, to avoid stale settings
 
     subscribeDevices()
-    
-    setScheduleTime()
 
     if(getBaseStartStopDateTime('start') && getBaseStartStopDateTime('stop')){
+        setScheduleTime()
         if(getBaseStartStopDateTime('start') < now() && getBaseStartStopDateTime('stop') > now()) runStartSchedule = true
         if(getBaseStartStopDateTime('start') < now() && getBaseStartStopDateTime('stop') < getBaseStartStopDateTime('start')) runStartSchedule = true
         if(getBaseStartStopDateTime('start') > now() && getBaseStartStopDateTime('stop') > now() && getBaseStartStopDateTime('start') > getBaseStartStopDateTime('stop')) runStartSchedule = true
@@ -582,22 +579,22 @@ def handleStateChange(event){
 
 // this does level, temp, hue, and sat
 def handleBrightnessChange(event){
-    newLevel = parent.getCurrentLevelFromDevice('brightness',singleDevice,appId)
+    newLevel = parent.getCurrentLevelFromDevice('brightness',event.device,app.id)
     parent.updateTableCapturedLevel(event.device.id,'brightness',newLevel,app.id)
 }
 
 def handleTempChange(event){
-    newLevel = parent.getCurrentLevelFromDevice('temp',singleDevice,appId)
+    newLevel = parent.getCurrentLevelFromDevice('temp',event.device,app.id)
     parent.updateTableCapturedLevel(event.device.id,'temp',newLevel,app.id)
 }
 
 def handleHueChange(event){
-    newLevel = parent.getCurrentLevelFromDevice('hue',singleDevice,appId)
+    newLevel = parent.getCurrentLevelFromDevice('hue',event.device,app.id)
     parent.updateTableCapturedLevel(event.device.id,'hue',newLevel,app.id)
 }
 
 def handleSatChange(event){
-    newLevel = parent.getCurrentLevelFromDevice('sat',singleDevice,appId)
+    newLevel = parent.getCurrentLevelFromDevice('sat',event.device,app.id)
     parent.updateTableCapturedLevel(event.device.id,'sat',newLevel,app.id)
 }
 
@@ -623,17 +620,17 @@ def setStopSchedule(){
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(626,'info','^')
+    putLog(623,'info','^ runDailyStartSchedule')
 
     setStartSchedule()        // Reschedule
     setStopSchedule()    // Need to do this for first time it runs (could be in initialize instead)
 
     if(!checkIncludeDates()) return
 
-    if(checkIfIncremental()){
-        setScheduleTime()
-        parent.scheduleChildEvent(atomicState.baseFrequency,'','runIncrementalSchedule','',app.id)
-    }
+    if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
+
+    if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') setScheduleTime()
+    if(checkIfIncremental()) parent.scheduleChildEvent(atomicState.baseFrequency,'','runIncrementalSchedule','',app.id)
 
     if(atomicState.stopTime){
         if(!getEnvironmentActive()) {
@@ -649,27 +646,27 @@ def runDailyStartSchedule(){
     satMap = getLevelMap('sat','start')
     if(hueMap || satMap) tempMap = ''
     scheduleMap = parent.combineMaps(brightnessMap, tempMap, hueMap, satMap,'',app.id)
-
     settings['controlDevice'].each{singleDevice->
-        parent.clearNonScheduleDeviceSetting(singleDevice.id,app.id) // clear out any "manual overrides"
+        clearNonScheduleFromTable(singleDevice.id,scheduleMap) // clear out any "manual overrides"
         parent.mergeMapToTable('schedule',singleDevice.id,scheduleMap,app.id)
         stateValue = performToggle(settings['start_action'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(658,'debug','[' + singleDevice + '] schedule Start ' + scheduleMap)
+        putLog(654,'debug','[' + singleDevice + '] schedule Start ' + scheduleMap)
+        //if(stateValue || parent.checkIsOn(singleDevice,app.id)) parent.setDeviceSingle(singleDevice,app.id)
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
 
     if(!atomicState.stopTime) {
         atomicState.remove('startTime')
-        clearScheduleFromTable()
+        clearScheduleDevicesFromTable()
     }
-    putLog(666,'info','¬')
+    putLog(663,'info','¬ runDailyStartSchedule ¬')
 }
 
 // Performs actual changes at time set with start_action
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(672,'info','^')
+    putLog(669,'info','^ runDailyStopSchedule')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStopSchedule()        // Don't run Start Schedule, because we don't want to trigger setScheduleTime within dailyStopSchedule - if we do, it must be prior to removing state vars
@@ -682,9 +679,12 @@ def runDailyStopSchedule(){
     atomicState.remove('baseFrequency')
     atomicState.remove('activeAtStart')
     
-    clearScheduleFromTable()        // Clear schedule from master table
+    clearSchedule()        // Clear schedule from master table
     
     if(!activeAtStart) return
+
+    if(settings['stopMode']) parent.changeMode(settings['stopMode'],app.id)
+
     brightnessMap = getLevelMap('brightness','stop')
     tempMap = getLevelMap('temp','stop')
     hueMap = getLevelMap('hue','stop')
@@ -694,12 +694,12 @@ def runDailyStopSchedule(){
     settings['controlDevice'].each{singleDevice->
         parent.mergeMapToTable('schedule',singleDevice.id,scheduleMap,app.id)
         stateValue = performToggle(settings['stop_action'],singleDevice)
-        log.debbug stateValue
+
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
         if(scheduleMap.size() > 0) putLog(699,'debug','[' + singleDevice + '] schedule Stop ' + scheduleMap)
     }
     parent.setDeviceMulti(settings['controlDevice'],app.id)
-    putLog(702,'info','¬')
+    putLog(702,'info','¬ runDailyStopSchedule ¬')
 }
 
 // Is unscheduled from runDailyStopSchedule
@@ -709,7 +709,7 @@ def runIncrementalSchedule(){
 
     if(!getEnvironmentActive()) {
         // Remove table entries, to be re-added if schedule becomes active again
-        clearScheduleFromTable()
+        clearScheduleDevicesFromTable()
         parent.scheduleChildEvent(parent.CONSTScheduleMinimumInactiveFrequencyMilli(),'','runIncrementalSchedule','',app.id)        // Reschedule (if not active)
         return
     }
@@ -765,16 +765,37 @@ def subscribeDevices(){
     return
 }
 
-def clearScheduleFromTable(){
+// Change this to resetting everything?
+def clearSchedule(){
+// Is called from incremental, so do not call unschedule (which would clear start/stop schedules)
+    atomicState.remove('startTime')        // Clear out schedule times (can changed with sunrise/sunset)
+    atomicState.remove('stopTime')
+    atomicState.remove('stopDateTime')
+    atomicState.remove('totalTime')
+    atomicState.remove('baseFrequency')
+    atomicState.remove('activeAtStart')
+    clearScheduleDevicesFromTable()
+}
+
+def clearScheduleDevicesFromTable(){                        // Called from schedule start and stop, or else devices won't have changed
     if(settings['stop_time'] == settings['start_time']) return    // Prevents lights returning to default settings (and flickering)
-    putLog(770,'debug','Removing scheduled settings from master device table.')
+    putLog(782,'debug','Removing scheduled settings from master device table.')
     settings['controlDevice'].each{singleDevice->
-        parent.clearTableDevice('schedule', singleDevice.id,appId)
-        parent.clearScheduleDeviceSetting(singleDevice.id,'brightness',app.id)
-        parent.clearScheduleDeviceSetting(singleDevice.id,'temp',app.id)
-        parent.clearScheduleDeviceSetting(singleDevice.id,'hue',app.id)
-        parent.clearScheduleDeviceSetting(singleDevice.id,'sat',app.id)
+        parent.clearTableByDeviceAndAppId('schedule',singleDevice.id,app.id)
     }
+}
+
+def clearScheduleFromTable(){                               // called from initialize or where devices may have changed
+    if(settings['stop_time'] == settings['start_time']) return    // Prevents lights returning to default settings (and flickering)
+    putLog(790,'debug','Removing scheduled settings from master device table.')
+    parent.clearTableByAppId('schedule',app.id)
+}
+
+def clearNonScheduleFromTable(singleDeviceId,settingsMap){
+    if(settingsMap?.'brightness') parent.clearTableByDeviceAndType('nonSchedule',singleDeviceId,'brightness',app.id)
+    if(settingsMap?.'temp') parent.clearTableByDeviceAndType('nonSchedule',singleDeviceId,'temp',app.id)
+    if(settingsMap?.'hue') parent.clearTableByDeviceAndType('nonSchedule',singleDeviceId,'hue',app.id)
+    if(settingsMap?.'sat') parent.clearTableByDeviceAndType('nonSchedule',singleDeviceId,'sat',app.id)
 }
 
 // Only thing really neede is:
@@ -828,7 +849,7 @@ def getIncrementalLevelSingle(singleDevice,type){
 // Called from setScheduleTime, so don't use atomicState.startTime or stoopTime
 def checkIfIncremental(){
     if(!settings['start_timeType']) return
-    if(!settings['stop_timeType']) return
+    if(!settings['stop_timeType'] || settings['stop_timeType'] == 'none') return
     if(settings['start_brightness'] && settings['stop_brightness'] && settings['start_brightness'] > 0  && settings['stop_brightness'] > 0) return true
     if(settings['start_temp'] && settings['stop_temp'] && settings['start_temp'] > 0 && settings['stop_temp'] > 0) return true
     if(settings['start_hue'] && settings['stop_hue'] && settings['start_hue'] > 0 && settings['stop_hue'] > 0) return true
@@ -931,13 +952,8 @@ def setScheduleTime(){
     baseFrequency = Math.round(totalTime / parent.CONSTScheduleMaximumIncrements())
     if(baseFrequency < parent.CONSTScheduleMinimumActiveFrequencyMilli()) baseFrequency = parent.CONSTScheduleMinimumActiveFrequencyMilli()
     
-    atomicState.totalTime = totalTime
-    atomicState.baseFrequency = baseFrequency
-}
-
-// Called from parent.scheduleChildEvent
-def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
-    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
+    if(totalTime) atomicState.totalTime = totalTime
+    if(baseFrequency) atomicState.baseFrequency = baseFrequency
 }
 
 /* ************************************************************************ */
@@ -1719,33 +1735,38 @@ def processDates(){
     atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
 }
 
-// Not used with scheduler app (except in UI)
+// Not used with scheduler app
 // If time, sets persistent variables for:
-// startTime = time of day (no date) for start
-// stopTime = time of day (no date) for stop
-// stopDateTime = date and time for stop
+// scheduleBeginTime = time of day (no date) for start
+// scheduleEndTime = time of day (no date) for stop
 def setTime(){
-    atomicState.remove('startTime')
-    atomicState.remove('stopTime')
-    atomicState.remove('stopDateTime')
-    
+    atomicState.remove('scheduleBeginTime')
+    atomicState.remove('scheduleEndTime')
     if(!settings['start_timeType']) return
     if(!settings['stop_timeType']) return
-    startTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
-    if(!startTime) {
-        putLog(1733,'error','Schedule error with starting time.')
+    
+    // Not sure is resyncing scheduleBeginTime and scheduleEndTime is neccesary if set a specific times (not sunrise/set)
+    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - add arbitrary seconds to stagger the load
+    
+    scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
+    if(!scheduleBeginTime) {
+        putLog(1753,'error','Schedule error with starting time.')
         return
     }
 
-    stopDateTime = getBaseStartStopDateTime('stop')
-    stopTime = parent.getTimeOfDayInMillis(stopDateTime, app.id)
-    if(stopTime == 0) stopTime += 1                         // If midnight, don't have zero to prevent false null checks.
-    atomicState.startTime = startTime
-    if(!stopTime) return
-    if(startTime == stopTime) stopTime += 1 // Not sure this is actually neccesary
+    scheduleEndTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('stop'), app.id)
 
-    atomicState.stopTime = stopTime
-    atomicState.stopDateTime = stopDateTime
+    if(scheduleEndTime == 0) scheduleEndTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    
+    atomicState.scheduleBeginTime = scheduleBeginTime
+    
+    if(!scheduleEndTime) return
+    atomicState.scheduleEndTime = scheduleEndTime
+}
+
+// Called from parent.scheduleChildEvent
+def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
+    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
 }
 
 def getDeviceName(singleDevice){
@@ -1757,10 +1778,8 @@ def getDeviceName(singleDevice){
 def performToggle(action,singleDevice){
     if(action != 'on' && action != 'off' && action != 'toggle') return
     if(action != 'toggle') return action
-        if(parent.checkIsOn(singleDevice,app.id)) {
-            return 'off'
-        }
-        return 'on'
+    if(parent.checkIsOn(singleDevice,app.id)) return 'off'
+    return 'on'
 }
 
 def displayExcludeDates(){
