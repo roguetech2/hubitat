@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.21
+*  Version: 0.4.3.22
 *
 ***********************************************************************************************************************/
 
@@ -258,7 +258,7 @@ def displayActionDelayOptionCompleted(fieldName,type){
     fieldTitle = type.capitalize() + ' delay minutes:'
     displayError(getMinutesError(settings[fieldName]))
     if(type == 'start' && settings['runTimeMinimum']) {
-        if(settings[fieldName] < settings['runTimeMinimum']) displayWaring('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
+        if(settings[fieldName] < settings['runTimeMinimum']) displayWarning('The start delay is less then minimum run time. Delay time and minimum run time are from the start trigger, so minimum run time should include delay time.')
     }
     if(settings['runTimeMaximum'] && settings[fieldName] >= settings['runTimeMaximum']) displayWarning('The start action will never occur, because the delay time exceeds the maximum runtime (' + settings['runTimeMaximum'] + ' minutes).')
     displayTextField(fieldName,fieldTitle,'number',false)
@@ -292,26 +292,100 @@ def displayActionOption(){
     
     sectionTitle = 'Click to set start and stop action(s)</b> (Optional)'
     if(sensorMapEntry.'type' == 'bool'){
-        startText = 'When ' + sensorMapEntry.'attribute' + ' ' + sensorMapEntry.'start' + ': '
-        stopText = 'When ' + sensorMapEntry.'attribute' + ' ' + sensorMapEntry.'stop' + ': '
+        startText = 'When ' + sensorMapEntry.'attribute' + ' ' + sensorMapEntry.'start'
+        stopText = 'When ' + sensorMapEntry.'attribute' + ' ' + sensorMapEntry.'stop'
     }
     if(sensorMapEntry.'type' != 'bool'){
-        startText = 'Start action: '
-        stopText = 'Stop action: '
+        startText = 'Start action'
+        stopText = 'Stop action'
+    }
+    
+    if(settings['stopAction']) sectionTitle = ''
+    if(startText && stopText && (settings['ignoreScheduleChanges'] || settings['ignorePicoChanges'] || settings['ignorePicoChanges'])){
+        ignoreText = ''
+        if(settings['ignoreScheduleChanges']) ignoreText = 'Schedule'
+        if(settings['ignorePicoChanges']) {
+            if(ignoreText) ignoreText += ', '
+            ignoreText += 'Pico'
+        }
+        if(settings['ignoreMagicCubeChanges']) {
+            if(ignoreText) ignoreText += ', '
+            ignoreText += 'MagicCube'
+        }
+        if(ignoreText) sectionTitle = 'If not changed by ' +  ignoreText + ':<br>'
     }
 
-    if(settings['stopAction']) sectionTitle = ''
-    if(settings['startAction']) sectionTitle = '<b>' + startText + getPlainAction(settings['startAction']).capitalize() + '</b>'
+    if(settings['startAction']) sectionTitle += '<b>' + startText + ': ' + getPlainAction(settings['startAction']).capitalize() + '</b>'
     if(settings['startAction'] && settings['stopAction']) sectionTitle += '\n'
-    if(settings['stopAction']) sectionTitle += '<b>' + stopText +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
+    if(settings['stopAction']) sectionTitle += '<b>' + stopText + ': ' +  getPlainAction(settings['stopAction']).capitalize() + '</b>'
 
     if(settings['startAction'] && !settings['stopAction']) sectionTitle += moreOptions
     if(!settings['startAction'] && settings['stopAction']) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
+        if(settings['advancedSetup']) displayIgnoreScheduleChanges()
+        if(settings['advancedSetup']) displayIgnorePicoChanges()
+        if(settings['advancedSetup']) displayIgnoreMagicCubeChanges()
         fieldOptions = getActionOptionsList()
         displayActionOptionFields('start',fieldOptions)
         displayActionOptionFields('stop',fieldOptions)
     }
+}
+
+def displayIgnoreScheduleChanges(){
+    if(sensorMapEntry.'attribute' != 'switch') return
+    if(!settings['startAction'] || !settings['stopAction']) return
+    displayIgnoreScheduleChangesEnabled('ignoreScheduleChanges')
+    displayIgnoreScheduleChangesDisabled('ignoreScheduleChanges')
+}
+def displayIgnoreScheduleChangesEnabled(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'When ' + sensorMapEntry.'attribute' + ' is changed with any Schedule, do NOT perform action.'
+    fieldTitleFalse = 'Click to change.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+def displayIgnoreScheduleChangesDisabled(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'Click to NOT perform action if ' + sensorMapEntry.'attribute' + ' is changed with any Schedule.'
+    fieldTitleFalse = ''
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+
+def displayIgnorePicoChanges(){
+    if(sensorMapEntry.'attribute' != 'switch') return
+    if(!settings['startAction'] || !settings['stopAction']) return
+    displayIgnorePicoChangesEnabled('ignorePicoChanges')
+    displayIgnorePicoChangesDisabled('ignorePicoChanges')
+}
+def displayIgnorePicoChangesEnabled(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'When ' + sensorMapEntry.'attribute' + ' is changed with any Pico, do NOT perform action.'
+    fieldTitleFalse = 'Click to change.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+def displayIgnorePicoChangesDisabled(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'Click to NOT perform action if ' + sensorMapEntry.'attribute' + ' is changed with any Pico.'
+    fieldTitleFalse = ''
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+
+def displayIgnoreMagicCubeChanges(){
+    if(sensorMapEntry.'attribute' != 'switch') return
+    if(!settings['startAction'] || !settings['stopAction']) return
+    displayIgnoreMagicCubeChangesEnabled('ignoreMagicCubeChanges')
+    displayIgnoreMagicCubeChangesDisabled('ignoreMagicCubeChanges')
+}
+def displayIgnoreMagicCubeChangesEnabled(fieldName){
+    if(!settings[fieldName]) return
+    fieldTitleTrue = 'When ' + sensorMapEntry.'attribute' + ' is changed with any MagicCube, do NOT perform action.'
+    fieldTitleFalse = 'Click to change.'
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+}
+def displayIgnoreMagicCubeChangesDisabled(fieldName){
+    if(settings[fieldName]) return
+    fieldTitleTrue = 'Click to NOT perform action if ' + sensorMapEntry.'attribute' + ' is changed with any MagicCube.'
+    fieldTitleFalse = ''
+    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
 }
 
 def getActionOptionsList(){
@@ -327,7 +401,7 @@ def displayActionOptionCompleted(fieldName,type,fieldOptions){
     if(!settings[fieldName]) return
     if(type == 'start') typeText = startText
     if(type == 'stop') typeText = stopText
-    fieldTitle = typeText.capitalize() + ' action:'
+    fieldTitle = typeText.capitalize() + ', then'
     displaySelectField(fieldName,fieldTitle,fieldOptions,false,true)
 }
 def displayActionOptionIncompleted(fieldName,type,fieldOptions){
@@ -500,7 +574,7 @@ def displayComparisonOption(){
     
     fieldOptions = getComparisonDeviceList()
     if(!fieldOptions) {
-        putLog(503,'error','Failed building comparison device list (comparisonOptionProcessControlDeviceList).')
+        putLog(577,'error','Failed building comparison device list (comparisonOptionProcessControlDeviceList).')
         return
     }
     if(fieldOptions) {
@@ -1291,19 +1365,19 @@ def getPlainAction(action){
 
 
 def installed() {
-    putLog(1294,'trace','Installed')
+    putLog(1368,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(1300,'trace','Updated')
+    putLog(1374,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(1306,'trace','^')
+    putLog(1380,'trace','^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     
     atomicState.remove('routineStartTime')
@@ -1336,18 +1410,19 @@ def initialize() {
     
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1339,'trace','¬')
+    putLog(1413,'trace','¬')
 }
 
 // Somewhat duplicated in handleScheduleStart and handleScheduleStop
 def handleSensorUpdate(event) {
-    putLog(1344,'info','^ handleSensorUpdate ^')
+    putLog(1418,'info','^ handleSensorUpdate ^')
     unschedule('handleScheduleStop')
     unschedule('handleScheduleStart')
     if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
     
+    
     if(!state.sensorMapEntry.'type') {
-        putLog(1350,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
+        putLog(1425,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
         return
     }
     
@@ -1368,15 +1443,15 @@ def handleSensorUpdate(event) {
     }
     
     if(startConditionsMet) {
-        putLog(1371,'trace','Start conditions met.')
+        putLog(1446,'trace','Start conditions met.')
         performStart(event.value,event.device.id)
     }
     if(stopConditionsMet) {
-        putLog(1375,'trace','Stop conditions met.')
+        putLog(1450,'trace','Stop conditions met.')
         performStop(event.device.id)
     }
     
-    putLog(1379,'info','¬ handleSensorUpdate ¬')
+    putLog(1454,'info','¬ handleSensorUpdate ¬')
 }
 
 // With start, returns true to start, false to not start
@@ -1384,6 +1459,17 @@ def handleSensorUpdate(event) {
 def checkStartOrStopCondititions(startType,singleDevice){
     if(!singleDevice) return    // log error
     levelValue = singleDevice.('current' + state.sensorMapEntry.'attribute'.capitalize())
+    if(state.sensorMapEntry.'attribute' == 'switch'){
+        if(settings['displayIgnoreScheduleChanges']){
+            if(parent.getDeviceLastChangedApp(singleDevice.id, app.id) == 'time') return false
+        }
+        if(settings['displayIgnorePicoChanges']){
+            if(parent.getDeviceLastChangedApp(singleDevice.id, app.id) == 'pico') return false
+        }
+        if(settings['displayIgnoreMagicCubeChanges']){
+            if(parent.getDeviceLastChangedApp(singleDevice.id, app.id) == 'cube') return false
+        }
+    }
     if(state.sensorMapEntry.'type' == 'bool') {
         if(levelValue == state.sensorMapEntry."${startType}") return true
         return false
@@ -1469,7 +1555,7 @@ def performStart(levelValue,singleDeviceId){
 }
 // Called from performStart and scheduleDelay
 def performStartActions(levelValue){
-    putLog(1472,'info','^ performStartActions')
+    putLog(1558,'info','^ performStartActions')
     scheduleMaximumRunTime()
     unschedule('performStopAction')
     atomicState.routineStartTime = now()
@@ -1478,7 +1564,7 @@ def performStartActions(levelValue){
     if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
 
     if(settings['startAction'] == 'resume')  {
-        putLog(1481,'trace','[' + singleDevice + '] attempting schedule resume')
+        putLog(1567,'trace','[' + singleDevice + '] attempting schedule resume')
         parent.resumeDeviceScheduleMulti(settings['controlDevice'],app.id)
         return
     }
@@ -1487,10 +1573,10 @@ def performStartActions(levelValue){
     settings['controlDevice'].each{singleDevice->
         stateValue = performToggle(settings['startAction'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(1490,'info','[' + singleDevice + '] sensor Start ' + stateValue)
+        putLog(1576,'info','[' + singleDevice + '] sensor Start ' + stateValue)
     }
-    parent.setDeviceMulti(settings['controlDevice'],app.id)
-    putLog(1493,'info','¬ performStartActions ¬')
+    parent.setDeviceMulti(settings['controlDevice'],'sensor',app.id)
+    putLog(1579,'info','¬ performStartActions ¬')
 }
 
 // Called from scheduleMaximumRunTime?
@@ -1505,8 +1591,9 @@ def performStop(singleDeviceId){
 }
 // Called from performStop and scheduleDelay
 def performStopActions(levelValue = ''){        // levelValue is sent by scheduleDelay (for caompatibility with 'start')
-    putLog(1508,'info','^ performStopActions')
+    putLog(1594,'info','^ performStopActions')
     atomicState.remove('levelAtRoutineStart')
+    atomicState.remove('routineStartTime')
     atomicState.remove('scheduleBeginTime')
     atomicState.remove('stopDelayActive')
     
@@ -1520,10 +1607,10 @@ def performStopActions(levelValue = ''){        // levelValue is sent by schedul
     settings['controlDevice'].each{singleDevice->
         stateValue = performToggle(settings['stopAction'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(1523,'info','[' + singleDevice + '] sensorStop ' + stateValue)
+        putLog(1610,'info','[' + singleDevice + '] sensorStop ' + stateValue)
     }
-    parent.setDeviceMulti(settings['controlDevice'],app.id)
-    putLog(1526,'info','¬ performStopActions ¬')
+    parent.setDeviceMulti(settings['controlDevice'],'sensor',app.id)
+    putLog(1613,'info','¬ performStopActions ¬')
 }
 
 // Called with minimumWaitTime
@@ -1626,7 +1713,7 @@ def checkMinimumWaitTime(){
     elapsedTime = now() - atomicState.scheduleEndTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1629,'trace','Minimum wait time exceeded.')
+    putLog(1716,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1637,7 +1724,7 @@ def scheduleMaximumRunTime(){
     unschedule('performStop')
     
     timeMillis = (atomicState.routineStartTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
-    putLog(1640,'trace','Scheduled off in ' + timeMillis + 'ms as max runtime')
+    putLog(1727,'trace','Scheduled off in ' + timeMillis + 'ms as max runtime')
     parent.scheduleChildEvent(timeMillis,'','performStop','',app.id)
 }
 
@@ -1670,7 +1757,7 @@ def scheduleDelay(type,singleDeviceId = ''){
     if(type == 'stop' && settings['startDelay'] == settings['stopDelay']) timeMillis += 500        // Add delay for if start and stop trigger at the same "minute" (if allowing second units, change this to a fraction of a second)
     if(type == 'start') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions',singleDeviceId,app.id)
     if(type == 'stop') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions','',app.id)
-    putLog(1673,'trace','Delaying ' + type + ' action ' + settings[type + 'Delay'] + ' minutes')
+    putLog(1760,'trace','Delaying ' + type + ' action ' + settings[type + 'Delay'] + ' minutes')
     //atomicState[type + 'DelayActive'] = true
     return true
 }
@@ -2487,7 +2574,7 @@ def setTime(){
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(2490,'error','Schedule error with starting time.')
+        putLog(2577,'error','Schedule error with starting time.')
         return
     }
 
