@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.12
+*  Version: 0.4.2.13
 * 
 ***********************************************************************************************************************/
 
@@ -653,7 +653,7 @@ def doActions(device,action){
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
     }
     if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)
-    parent.setDeviceMulti(device,app.id)
+    parent.setDeviceMulti(device,'cube',app.id)
 }
 
 // Sets atomicState.buttonNumber to string of action
