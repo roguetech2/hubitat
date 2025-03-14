@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2024 roguetech
+*  Copyright (C) 2025 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.22
+*  Version: 0.4.3.23
 *
 ***********************************************************************************************************************/
 
@@ -1377,7 +1377,7 @@ def updated() {
 }
 
 def initialize() {
-    putLog(1380,'trace','^')
+    putLog(1380,'trace','^ initialize ^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     
     atomicState.remove('routineStartTime')
@@ -1410,7 +1410,7 @@ def initialize() {
     
     subscribe(settings['controlDevice'], 'switch', handleStateChange)
     
-    putLog(1413,'trace','¬')
+    putLog(1413,'trace','¬ initialize ¬')
 }
 
 // Somewhat duplicated in handleScheduleStart and handleScheduleStop
@@ -1418,11 +1418,10 @@ def handleSensorUpdate(event) {
     putLog(1418,'info','^ handleSensorUpdate ^')
     unschedule('handleScheduleStop')
     unschedule('handleScheduleStart')
+
     if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
-    
-    
     if(!state.sensorMapEntry.'type') {
-        putLog(1425,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
+        putLog(1424,'error','No sensor type defined, which means the setup is somehow incorrect. Try resaving it.')
         return
     }
     
@@ -1436,22 +1435,22 @@ def handleSensorUpdate(event) {
     
     startConditionsMet = checkStartOrStopCondititions('start',event.device)
     stopConditionsMet = checkStartOrStopCondititions('stop',event.device)
-    
+
     if(startConditionsMet && stopConditionsMet) {
         if(atomicState.routineStartTime) startConditionsMet = false // What are we doing here?
         if(!atomicState.routineStartTime) stopConditionsMet = false
     }
     
     if(startConditionsMet) {
-        putLog(1446,'trace','Start conditions met.')
+        putLog(1445,'trace','Start conditions met.')
         performStart(event.value,event.device.id)
     }
     if(stopConditionsMet) {
-        putLog(1450,'trace','Stop conditions met.')
+        putLog(1449,'trace','Stop conditions met.')
         performStop(event.device.id)
     }
     
-    putLog(1454,'info','¬ handleSensorUpdate ¬')
+    putLog(1453,'info','¬ handleSensorUpdate ¬')
 }
 
 // With start, returns true to start, false to not start
@@ -1540,7 +1539,7 @@ def checkControlValue(startType){
 }
 def performStart(levelValue,singleDeviceId){
     if(!getActive()) return
-    if(atomicState.routineStartTime) return        // May need to come up with a solution for if only starting?
+// Need to have Pico/MagicCube override sensors
     if(!state.sensorMapEntry) return       // log error...?
     if(!checkMinimumWaitTime()){
         scheduleMinimumWaitTime(singleDeviceId)
@@ -1548,14 +1547,14 @@ def performStart(levelValue,singleDeviceId){
     }
 
     unschedule('performStopAction')
-    atomicState.routineStartTime = now()
+    if(!atomicState.routineStartTime) atomicState.routineStartTime = now()
     if(state.sensorMapEntry.'type' == 'range' && settings['levelDelta']) atomicState.levelAtRoutineStart = levelValue
     
     if(!scheduleDelay('start',singleDeviceId)) performStartActions(levelValue)
 }
 // Called from performStart and scheduleDelay
 def performStartActions(levelValue){
-    putLog(1558,'info','^ performStartActions')
+    putLog(1557,'info','^ performStartActions')
     scheduleMaximumRunTime()
     unschedule('performStopAction')
     atomicState.routineStartTime = now()
@@ -1564,7 +1563,7 @@ def performStartActions(levelValue){
     if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
 
     if(settings['startAction'] == 'resume')  {
-        putLog(1567,'trace','[' + singleDevice + '] attempting schedule resume')
+        putLog(1566,'trace','[' + singleDevice + '] attempting schedule resume')
         parent.resumeDeviceScheduleMulti(settings['controlDevice'],app.id)
         return
     }
@@ -1573,10 +1572,10 @@ def performStartActions(levelValue){
     settings['controlDevice'].each{singleDevice->
         stateValue = performToggle(settings['startAction'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(1576,'info','[' + singleDevice + '] sensor Start ' + stateValue)
+        putLog(1575,'info','[' + singleDevice + '] sensor Start ' + stateValue)
     }
     parent.setDeviceMulti(settings['controlDevice'],'sensor',app.id)
-    putLog(1579,'info','¬ performStartActions ¬')
+    putLog(1578,'info','¬ performStartActions ¬')
 }
 
 // Called from scheduleMaximumRunTime?
@@ -1591,15 +1590,14 @@ def performStop(singleDeviceId){
 }
 // Called from performStop and scheduleDelay
 def performStopActions(levelValue = ''){        // levelValue is sent by scheduleDelay (for caompatibility with 'start')
-    putLog(1594,'info','^ performStopActions')
+    putLog(1593,'info','^ performStopActions')
     atomicState.remove('levelAtRoutineStart')
     atomicState.remove('routineStartTime')
-    atomicState.remove('scheduleBeginTime')
     atomicState.remove('stopDelayActive')
     
     unschedule('scheduleDelay')
     unschedule('performStartAction')
-    atomicState.scheduleEndTime = now()
+    atomicState.routineStopTime = now()
 // Notifications
     if(settings['stopMode']) parent.changeMode(settings['stopMode'],app.id)
 
@@ -1607,10 +1605,10 @@ def performStopActions(levelValue = ''){        // levelValue is sent by schedul
     settings['controlDevice'].each{singleDevice->
         stateValue = performToggle(settings['stopAction'],singleDevice)
         parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-        putLog(1610,'info','[' + singleDevice + '] sensorStop ' + stateValue)
+        putLog(1608,'info','[' + singleDevice + '] sensorStop ' + stateValue)
     }
     parent.setDeviceMulti(settings['controlDevice'],'sensor',app.id)
-    putLog(1613,'info','¬ performStopActions ¬')
+    putLog(1611,'info','¬ performStopActions ¬')
 }
 
 // Called with minimumWaitTime
@@ -1708,12 +1706,12 @@ def checkMinimumRunTime(){
 def checkMinimumWaitTime(){
 // Need a way to check is already set
     if(!settings['runTimeMinimum']) return true
-    if(!atomicState.scheduleEndTime) return true
+    if(!atomicState.routineStopTime) return true
     
-    elapsedTime = now() - atomicState.scheduleEndTime
+    elapsedTime = now() - atomicState.routineStopTime
 
     if(elapsedTime < settings['runTimeMinimum'] * parent.CONSTMinuteInMilli()) return
-    putLog(1716,'trace','Minimum wait time exceeded.')
+    putLog(1714,'trace','Minimum wait time exceeded.')
     return true
 }
 
@@ -1724,7 +1722,7 @@ def scheduleMaximumRunTime(){
     unschedule('performStop')
     
     timeMillis = (atomicState.routineStartTime + (settings['runTimeMaximum'] * parent.CONSTMinuteInMilli())) - now()
-    putLog(1727,'trace','Scheduled off in ' + timeMillis + 'ms as max runtime')
+    putLog(1725,'trace','Scheduled off in ' + timeMillis + 'ms as max runtime')
     parent.scheduleChildEvent(timeMillis,'','performStop','',app.id)
 }
 
@@ -1757,7 +1755,7 @@ def scheduleDelay(type,singleDeviceId = ''){
     if(type == 'stop' && settings['startDelay'] == settings['stopDelay']) timeMillis += 500        // Add delay for if start and stop trigger at the same "minute" (if allowing second units, change this to a fraction of a second)
     if(type == 'start') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions',singleDeviceId,app.id)
     if(type == 'stop') parent.scheduleChildEvent(timeMillis,'','perform' + type.capitalize() + 'Actions','',app.id)
-    putLog(1760,'trace','Delaying ' + type + ' action ' + settings[type + 'Delay'] + ' minutes')
+    putLog(1758,'trace','Delaying ' + type + ' action ' + settings[type + 'Delay'] + ' minutes')
     //atomicState[type + 'DelayActive'] = true
     return true
 }
@@ -1766,9 +1764,7 @@ def scheduleDelay(type,singleDeviceId = ''){
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
-    if(atomicState.scheduleBeginTime && atomicState.scheduleEndTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
-    }
+    if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
 
     if(settings['personHome']){
         if(!parent.checkPeopleHome(settings['personHome'],app.id)) return
@@ -1823,8 +1819,10 @@ def buildActionMap(thisType){
         ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
         ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
         ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
-        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
-        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
+        ['action':'setLevel', 'actionText':'set brightness','descriptionActive':'Sets brightness', 'description': 'Set brightness', 'type':'dim', 'advanced':true],
+        ['action':'setTemp', 'actionText':'set temperature','descriptionActive':'Sets color temperature', 'description': 'Set color temperature', 'type':'color', 'advanced':true],
+        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'color', 'advanced':true],
+        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'color', 'advanced':true]]
 }
                                      
 def setUILinks(){
@@ -2343,7 +2341,7 @@ def validateLevel(value){
 def validateTemp(value){
     if(!value) return true
         value = value as int
-            if(value < 1800) return false
+            if(value < 1800) return false // needs to be set as const
             if(value > 6500) return false
             return true
 }
@@ -2522,9 +2520,9 @@ def getNextYearWithMondayChristmas(currentYear = null) {
 // Returns 'start' or 'stop' time (of day) in millis
 // Must be converted with getDatetimeFromTimeInMillis if compared to now()
 def getBaseStartStopDateTime(type){
-    if(!settings[type + '_timeType']) return
-    if(settings[type + '_timeType'] == 'none') return
-    
+    if(type == 'stop' && !settings['stop_timeType']) return
+    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(type == 'start' && !settings['start_timeType']) return
     if(settings[type + '_timeType'] == 'time') {
         if(!settings[type + '_time']) return
         return timeToday(settings[type + '_time']).getTime()
@@ -2574,7 +2572,7 @@ def setTime(){
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(2577,'error','Schedule error with starting time.')
+        putLog(2575,'error','Schedule error with starting time.')
         return
     }
 
