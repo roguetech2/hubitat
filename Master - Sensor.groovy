@@ -13,7 +13,7 @@
 *
 *  Name: Master - Sensor
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Sensor.groovy
-*  Version: 0.4.3.23
+*  Version: 0.4.3.24
 *
 ***********************************************************************************************************************/
 
@@ -1558,7 +1558,7 @@ def performStartActions(levelValue){
     scheduleMaximumRunTime()
     unschedule('performStopAction')
     atomicState.routineStartTime = now()
-    atomicState.remove('scheduleEndTime')
+    atomicState.remove('routineStopTime')
 // Notifications
     if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
 
@@ -1763,7 +1763,7 @@ def scheduleDelay(type,singleDeviceId = ''){
 // Return true if disabled
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
-    
+
     if(!parent.checkNowBetweenTimes(atomicState.scheduleBeginTime, atomicState.scheduleEndTime, app.id)) return
 
     if(settings['personHome']){
