@@ -8,7 +8,7 @@ Pico, Magic Cube and sensors can themselves be scheduled (allowing them to do so
 
 Days, dates and date-ranges are simple, with day of the week selection, and text input for dates (to include, or exclude) entered as any normal date format (such as no year "12/24-12/26", with years, or Julian dates "357-359").
 
-All the apps have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide flexibility and power with a simple but adaptive interface. Plain-language summaries of settings, collapsing sections, "Advanced" display option, and dynamic display of relevant options minimize complexity while maximizing maintainability and powerful automations.
+All the apps have the same look and feel with intuitive, dynamic "wizard" type UI, using help tips, warnings, and errors, designed to provide flexibility and power with a simple but adaptive interface. Plain-language summaries of settings, collapsing sections, "Advanced" display option, and dynamic display of relevant options minimize complexity while maximizing maintainability and control.
 
 Obviously, the Pico app is designed for Lutron Caseta devices. However, it should function correctly with most switches/remotes that have 2, 4 or 5 buttons.
 
