@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.47
+*  Version: 0.4.1.48
 *
 ***********************************************************************************************************************/
 
@@ -483,7 +483,7 @@ def checkAnyOnMulti(multiDevice, appId = app.id){
 // Any people home
 def checkPeopleHome(multiDevice, appId = app.id){
     if(!multiDevice) return true
-    peopleHome = true
+    peopleHome = false
     multiDevice.each{it ->
         if(it.currentPresence == 'present') peopleHome = true
     }
@@ -600,13 +600,14 @@ def getDeviceList(){
 
 
 
-def processDates(includeDates, excludeDates, days, processErrors = false, appId){
-// Need to figure out how to have error message
+def processDates(includeDates, excludeDates, days, processErrors = false, appId = app.id){
     currentYear = new Date(now()).format('yyyy').toInteger()
     daysInYear = Date.parse('yyyyMMdd', currentYear + '1231').format('D').toInteger()
     includeList = []
     excludeList = []
 
+    if(!atomicState?.'dateProcessingErrors') atomicState.'dateProcessingErrors' = ''
+    
     if(!includeDates){
         for (int day = 1; day <= daysInYear; day++) {
             if(days){
@@ -621,26 +622,27 @@ def processDates(includeDates, excludeDates, days, processErrors = false, appId)
     }
     includeDates = cleanDateString(includeDates)
     excludeDates = cleanDateString(excludeDates)
+    if(getDateProcessingErrors(appId)) return
     
     if(includeDates){
         includeDateStrings = includeDates.split(",|;")
         includeDateStrings.each { dateString ->
             if(!dateString.contains('-')) {
-                dateValue = processDateStringIndividual(dateString,appId, processErrors)
+                dateValue = processDateStringIndividual(dateString, processErrors,appId)
                 if(!dateValue) return
                 if (dateValue.format('yyyy') == String.valueOf(currentYear)) includeList.add(dateValue.format('D').toInteger())
             }
-            if(dateString.contains('-')) includeList += processDateStringRange(dateString, appId, processErrors)
+            if(dateString.contains('-')) includeList += processDateStringRange(dateString, processErrors, appId)
         }
     }
     if(excludeDates){
         excludeDateStrings = excludeDates.split(",|;")
         excludeDateStrings.each { dateString ->
             if(!dateString.contains('-')) {
-                dateValue = processDateStringIndividual(dateString,appId, processErrors)
+                dateValue = processDateStringIndividual(dateString, processErrors,appId)
                 if(dateValue.format('yyyy') == String.valueOf(currentYear)) excludeList.add(dateValue.format('D').toInteger())
             }
-            if(dateString.contains('-')) excludeList += processDateStringRange(dateString, appId, processErrors)
+            if(dateString.contains('-')) excludeList += processDateStringRange(dateString, processErrors, appId)
         }
     }
     finalList = includeList.findAll { !excludeList.contains(it) }
@@ -657,15 +659,19 @@ def cleanDateString(dateString,appId = app.id){
     return dateString
 }
 
-def processDateStringIndividual(dateString, processErrors,appId = app.id){
+def processDateStringIndividual(dateString, processErrors, appId = app.id){
     if(dateString.contains('-')) return
     
     currentYear = new Date(now()).format('yyyy').toInteger()
     // Check for ddd format
     if (dateString.matches('\\d{1,3}')) {
+        if(dateString.toInteger() > 366) {
+            atomicState.'dateProcessingErrors' += 'WARNING: ' + dateString + ' is a Julian date format, but too large.<br>'
+            return
+        }
         returnDate = Date.parse('D yyyy', dateString + ' ' + currentYear)
         if(dateString.toInteger() == returnDate.format('D').toInteger()) return returnDate
-        if(processErrors) atomicState.'dateProcessingErrors' += 'WARNING: Invalid date dateString = ' + dateString + ' resolves to ' + dateValue + '<br>'
+        if(processErrors) atomicState.'dateProcessingErrors' += 'WARNING: Invalid date dateString = ' + dateString + ' Julian dateis not valid<br>'
         return
     }
     if(!dateString.contains('/') && !dateString.contains('.')){
@@ -700,7 +706,6 @@ def processDateStringIndividual(dateString, processErrors,appId = app.id){
 
 def processDateStringRange(dateString, processErrors,appId = app.id){
     if(!dateString.contains('-')) return
-    
     dates = dateString.split('-')
     if(dates.size() != 2) {
         if(processErrors) atomicState.'dateProcessingErrors' += 'WARNING: Invalid date "' + dateString + '".<br>'
@@ -709,8 +714,8 @@ def processDateStringRange(dateString, processErrors,appId = app.id){
 
     listOfDays = []
     currentYear = new Date(now()).format('yyyy').toInteger()
-    firstDate = processDateStringIndividual(dates[0], appId, processErrors)
-    secondDate = processDateStringIndividual(dates[1], appId, processErrors)
+    firstDate = processDateStringIndividual(dates[0], processErrors, appId)
+    secondDate = processDateStringIndividual(dates[1], processErrors, appId)
     if(dates[0].length() < 6 && dates[1].length() < 6) {
         if(firstDate > secondDate) {
             numberDaysInYear = new Date(currentYear, 11, 31).format('D').toInteger()
@@ -731,14 +736,14 @@ def processDateStringRange(dateString, processErrors,appId = app.id){
     }
 
     if(dates[0].length() > 5 && dates[1].length() < 6) {
-        firstYear = processDateStringIndividual(dates[0], appId, processErrors).format('yyyy').toInteger()
-        secondYear = processDateStringIndividual(dates[1], appId, processErrors).format('yyyy').toInteger()
+        firstYear = processDateStringIndividual(dates[0], processErrors, appId).format('yyyy').toInteger()
+        secondYear = processDateStringIndividual(dates[1], processErrors, appId).format('yyyy').toInteger()
         yearDifference = secondYear - firstYear
         firstDate = Date.parse('MM/dd/yyyy', firstDate.format('MM/dd/yyyy').replaceAll('\\d{4}$', (firstDate.format('yyyy').toInteger() + yearDifference).toString()))
     }
     if(dates[0].length() < 6 && dates[1].length() > 5) {
-        firstYear = processDateStringIndividual(dates[0], appId, processErrors).format('yyyy').toInteger()
-        secondYear = processDateStringIndividual(dates[1], appId, processErrors).format('yyyy').toInteger()
+        firstYear = processDateStringIndividual(dates[0], processErrors, appId).format('yyyy').toInteger()
+        secondYear = processDateStringIndividual(dates[1], processErrors, appId).format('yyyy').toInteger()
         yearDifference = firstYear - secondYear
         secondDate = Date.parse('MM/dd/yyyy', secondDate.format('MM/dd/yyyy').replaceAll('\\d{4}$', (secondDate.format('yyyy').toInteger() + yearDifference).toString()))
     }
@@ -860,7 +865,7 @@ def setLockMulti(multiDevice, action, appId = app.id){
 def _setLockSingle(singleDevice, action, appId = app.id){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(863,'info','[' + singleDevice + '] ' + action + 'ed ',appId)
+    putLog(868,'info','[' + singleDevice + '] ' + action + 'ed ',appId)
 }
 
 // setDeviceMulti passes to both setDeviceLevelMulti and setDeviceStateMulti
@@ -880,21 +885,25 @@ def setDeviceMulti(multiDevice, appType = 'manual', appId = app.id){
 def setDeviceSingle(singleDevice,appType = 'manual', appId = app.id){
     if(!singleDevice) return
 
+    // brightness
     newLevel = getDeviceLevelSingleChange('brightness',singleDevice,appId)
     if(newLevel){
         pauseActions()
         setDeviceLevelSingle('brightness',singleDevice,newLevel,appId)
     }
+    // saturation
     newLevel = getDeviceLevelSingleChange('sat',singleDevice,appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('sat',singleDevice,appId)
+        setDeviceLevelSingle('sat',singleDevice,newLevel,appId)
     }
+    // hue
     newLevel = getDeviceLevelSingleChange('hue',singleDevice,appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('hue',singleDevice,appId)
+        setDeviceLevelSingle('hue',singleDevice,newLevel,appId)
     }
+    // temperature
     newLevel = getDeviceLevelSingleChange('temp',singleDevice,appId)
     if(newLevel){
         pauseActions()
@@ -902,7 +911,7 @@ def setDeviceSingle(singleDevice,appType = 'manual', appId = app.id){
     }
     if(getDeviceStateChangeSingle(singleDevice, appId)){
         pauseActions()
-        setDeviceStateSingle(singleDevice, appType,appId)
+        setDeviceStateSingle(singleDevice, appType,newLevel,appId)
     }
 }
 
@@ -958,7 +967,7 @@ def setDeviceLevelSingle(type, singleDevice, newLevel,appId = app.id){
     if(type == 'hue') singleDevice.setHue(newLevel)
     if(type == 'sat') singleDevice.setSaturation(newLevel)
     
-    putLog(961,'info','[' + singleDevice + '] ' + type + ' ' + newLevel, appId)
+    putLog(970,'info','[' + singleDevice + '] ' + type + ' ' + newLevel, appId)
     return true
 }
 
@@ -989,7 +998,7 @@ def setDeviceStateSingle(singleDevice, appType = 'manual',appId = app.id){
     }
     
     setDeviceLastChangedApp(singleDevice.id, appType, appId)
-    putLog(992,'info','[' + singleDevice + '] ' + stateValue,appId)
+    putLog(1001,'info','[' + singleDevice + '] ' + stateValue,appId)
     return true
 }
 
@@ -1011,7 +1020,7 @@ def changeMode(mode, appId = app.id){
     message = 'Changed Mode from ' + oldMode + ' to ' + mode + '.'
     pauseActions()
     setLocationMode(mode)
-    putLog(1014,'debug',message + mode,appId)
+    putLog(1023,'debug',message + mode,appId)
 }
 
 // Send SMS text message to $phone with $message
@@ -1020,14 +1029,14 @@ def sendPushNotification(phone, message, appId = app.id){
     def now = new Date().getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1023,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
+        putLog(1032,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
         return
     }
     pauseActions()
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1030,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
+            if(it.deviceNotification(message)) putLog(1039,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
         }
     }
 }
@@ -1037,7 +1046,7 @@ def sendVoiceNotification(deviceId,message, appId = app.id){
     pauseActions()
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1040,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
+            if(it.speak(text)) putLog(1049,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
         }
     }
 }
@@ -1195,7 +1204,7 @@ def updateTableCapturedState(singleDevice,action,appType = 'manual',appId = app.
     stateValue = atomicState?.'state'?."${singleDevice.id}"
     if(stateValue == action) return
     if(action != 'on' && action != 'off') return
-    putLog(1198, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + stateValue + '; actually was ' + singleDevice.currentState + ')',appId)
+    putLog(1207, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + stateValue + '; actually was ' + singleDevice.currentState + ')',appId)
     stateMap = getStateMapSingle(singleDevice,action,app.id)
     mergeMapToTable('state',singleDevice.id,stateMap,appId)
     if(action == 'on') setDeviceSingle(singleDevice,appType,appId)    // With device on, set levels
@@ -1220,11 +1229,11 @@ def mergeMapToTable(tableName, singleDeviceId, newMap, appId = app.id){
     if(!newMap) return
     
     if(tableName != 'state' && tableName != 'nonSchedule' && tableName != 'schedule' && tableName != 'incremental') {
-        putLog(1223,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
+        putLog(1232,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
         return
     }
 
-    if(tableName == 'schedule') scheduleFlag = True         // Flip "incremental" to "schedule" and set flag to prevent clearing nonSchedule below
+    if(tableName == 'schedule') scheduleFlag = true         // Flip "incremental" to "schedule" and set flag to prevent clearing nonSchedule below
     if(tableName == 'incremental') tableName = 'schedule'
 
     tempMap = atomicState?."${tableName}"
@@ -1334,7 +1343,7 @@ def updateTableCapturedLevel(singleDeviceId,type,newLevel,appId = app.id){
     if(type == 'hue'){
         if(Math.abs(newLevel - tableLevel) < 4) return
     }
-    putLog(1337,'trace','[Device Id: ' + singleDeviceId + '] captured ' + type + ' to ' + newLevel + ' (current/table/default was ' + tableLevel + ')',appId)
+    putLog(1346,'trace','[Device Id: ' + singleDeviceId + '] captured ' + type + ' to ' + newLevel + ' (current/table/default was ' + tableLevel + ')',appId)
     levelMap = getNonScheduleLevelMap(type,newLevel,appId)
     mergeMapToTable('nonSchedule',singleDeviceId,levelMap,appId)
 }
@@ -1447,7 +1456,7 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1450,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
+        putLog(1459,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
         return
     }
     if(timeValue) {
