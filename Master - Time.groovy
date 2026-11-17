@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.43
+*  Version: 0.7.2.44
 *
 ***********************************************************************************************************************/
 
@@ -62,7 +62,6 @@ preferences {
             processDates()
 
             deviceCount = getDeviceCount(device)
-            peopleError = compareDeviceLists(personHome,personNotHome)
             plainStartAction = getPlainAction(settings['start_action'])
             plainStopAction = getPlainAction(settings['stop_action'])
 
@@ -109,7 +108,7 @@ def formComplete(){
         app.removeSetting('stop_hue')
     	app.removeSetting('stop_sat')
     	app.removeSetting('stop_temp')
-    	app.removeSetting('stop_level')
+    	app.removeSetting('stop_brightness')
     }
     if(!app.label) return false
     if(!settings['controlDevice']) return false
@@ -120,7 +119,7 @@ def formComplete(){
     if(!validateLevels('start')) return false
     if(!validateLevels('stop')) return false
     //if(!validateColor) return false		// Can't do this due to validateColor using parent; move to common functions?
-    if(settings['start_hue'] && settings['stop_hue'] && !settings['hueDirection']) return false
+    if(settings['start_hue'] && settings['stop_hue'] && settings['start_hue'] != settings['stop_hue'] && !settings['hueDirection']) return false
     if(compareDeviceLists(personHome,personNotHome)) return false
     return true
 }
@@ -160,6 +159,7 @@ def checkIfStopTimeEntered(){
 
 def displayScheduleSection(){
     if(!settings['controlDevice']) return
+    parent.clearDateProcessingErrors()
     
     hidden = true
     if(!settings['stop_timeType']) hidden = false
@@ -396,7 +396,7 @@ def displayColorOption(){
         displayLevelsField('sat', 'start')
         displayLevelsField('sat', 'stop')
 
-        if(settings['start_hue'] && settings['stop_hue']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
+        if(settings['start_sat'] && settings['stop_sat']) message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color. If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
         if(!settings['start_sat'] || !settings['stop_sat']){
             message = 'Saturation is the percentage amount of color tint displayed, from 1 to 100, where 1 is hardly any color tint and 100 is full color.'
             if(validateTimes('stop') && checkIfStopTimeEntered()) message += ' If entering both starting and ending saturation, it will transition from starting to ending saturation for the duration of the schedule.'
@@ -657,8 +657,6 @@ def runDailyStartSchedule(){
 
     if(!checkIncludeDates()) return
 
-    if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
-
     if(settings['stop_timeType'] && settings['stop_timeType'] != 'none') setScheduleTime()
     if(checkIfIncremental()) parent.scheduleChildEvent(atomicState.baseFrequency,'','runIncrementalSchedule','',app.id)
 
@@ -667,6 +665,8 @@ def runDailyStartSchedule(){
         return
     }
     if(atomicState.stopTime) atomicState.activeAtStart = true
+    
+    if(settings['startMode']) parent.changeMode(settings['startMode'],app.id)
 
     brightnessMap = getLevelMap('brightness','start')
     tempMap = getLevelMap('temp','start')
@@ -749,6 +749,7 @@ def runIncrementalSchedule(){
     
     //putLog(750,'info','^ runIncrementalSchedule ^')
     allDevicesOff = true           // True is to set time as CONSTScheduleMinimumInactiveFrequencyMilli; not using checkAnyOnMulti because already looping devices
+    incrementalUpdate = false
     settings['controlDevice'].each{singleDevice->
         if(parent.checkIsOn(singleDevice,app.id)) allDevicesOff = false
         brightnessMap = getIncrementalMaps(singleDevice,'brightness')
@@ -758,10 +759,11 @@ def runIncrementalSchedule(){
         if(hueMap || satMap) tempMap = ''
         incrementalMap = parent.combineMaps(brightnessMap, tempMap, hueMap, satMap,'',app.id)
         if(incrementalMap) {
-            putLog(761,'debug','[' + singleDevice + '] incremental ' + incrementalMap)
+            putLog(762,'debug','[' + singleDevice + '] incremental ' + incrementalMap)
+            incrementalUpdate = true
             parent.mergeMapToTable('incremental',singleDevice.id, incrementalMap,app.id)    // There is no 'incremental' table, mergeMapToTable uses to not clear nonSchedule setting(s)
         }
-        if(!incrementalMap) putLog(764,'debug','[' + singleDevice + '] incremental no changes.')
+        if(!incrementalMap) putLog(766,'debug','[' + singleDevice + '] incremental no changes.')
     }
     
     timeMillis = atomicState.baseFrequency
@@ -769,9 +771,9 @@ def runIncrementalSchedule(){
     
     parent.scheduleChildEvent(timeMillis, '', 'runIncrementalSchedule', '', app.id)        // Reschedule
     
-    if(incrementalMap) parent.setDeviceMulti(settings['controlDevice'], 'time',app.id)
+    if(incrementalUpdate) parent.setDeviceMulti(settings['controlDevice'], 'time',app.id)
     setLastActionTime()
-    //putLog(774,'info','¬ runIncrementalSchedule ¬')
+    //putLog(776,'info','¬ runIncrementalSchedule ¬')
 }
 
 def getLevelMap(type,startStop){
@@ -813,7 +815,7 @@ def clearSchedule(){
 
 def clearScheduleDevicesFromTable(){                        // Called from schedule start and stop, or else devices won't have changed
     if(getBaseStartStopDateTime('start') == getBaseStartStopDateTime('stop')) return    // Prevents lights returning to default settings (and flickering)
-    putLog(816,'debug','Removing scheduled settings from master device table.')
+    putLog(818,'debug','Removing scheduled settings from master device table.')
     settings['controlDevice'].each{singleDevice->
         parent.clearTableByDeviceAndAppId('schedule',singleDevice.id,app.id)
     }
@@ -821,7 +823,7 @@ def clearScheduleDevicesFromTable(){                        // Called from sched
 
 def clearScheduleFromTable(){                               // called from initialize or where devices may have changed
     if(getBaseStartStopDateTime('start') == getBaseStartStopDateTime('stop')) return    // Prevents lights returning to default settings (and flickering)
-    putLog(824,'debug','Removing scheduled settings from master device table.')
+    putLog(826,'debug','Removing scheduled settings from master device table.')
     parent.clearTableByAppId('schedule',app.id)
 }
 
@@ -872,7 +874,7 @@ def getIncrementalLevelSingle(singleDevice,type){
     if(type == 'hue'){
         if(settings['hueDirection'] == 'reverse' && timeStart > timeStop) totalRange = timeStart - timeStop
         if(settings['hueDirection'] == 'forward' && timeStart > timeStop) totalRange = (360 - timeStart) + timeStop
-        if(settings['hueDirection'] == 'reverse' && timeStart < timeStop) totalRange = (360 - timeStart) + timeStop
+        if(settings['hueDirection'] == 'reverse' && timeStart < timeStop) totalRange = timeStart + (360 - timeStop)
     }
     
     if(forward) resultLevel = Math.round(totalRange * percentComplete + timeStart)
@@ -1311,6 +1313,13 @@ def validateTimes(type){
 def validateSunriseMinutes(type){
     if(!settings[type + '_sunOffset']) return true
     if(settings[type + '_sunOffset'] > 719) return false
+    if(settings[type + '_sunOffset'] < 719) return false
+    // If sunrise/set offset is negative, make positive and invert before/after
+    if(settings[type + '_sunOffset'] < 0){
+        if(settings[type + '_sunType'] == 'before') settings[type + '_sunType'] = 'after'
+        if(settings[type + '_sunType'] == 'after') settings[type + '_sunType'] = 'before'
+        settings[type + '_sunOffset'] = settings[type + '_sunOffset'] * -1
+    }
     return true
 }
 
@@ -1444,7 +1453,9 @@ def displayDaysAndDatesSection(thisType){
     if(!validateTimes('stop')) return
     if(!settings['advancedSetup'] && !settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     hidden = true
-
+    
+    parent.processDates(settings['includeDates'],settings['excludeDates'],settings['days'],true,app.id)
+	if(parent.getDateProcessingErrors(app.id)) hidden = false
     sectionTitle = '<b>Days/Dates:'
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) sectionTitle = 'Click to set days/dates (optional)'
     List dayList=[]
@@ -1458,7 +1469,6 @@ def displayDaysAndDatesSection(thisType){
     if(settings['days'] || settings['includeDates'] || settings['excludeDates']) sectionTitle += '</b>'
     if((!settings['days'] || !settings['includeDates'] || !settings['excludeDates']) && (settings['days'] || settings['includeDates'] || settings['excludeDates'])) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
-
     displayDaysOption()
     displayIncludeDates()
     displayExcludeDates(thisType)
@@ -1705,7 +1715,7 @@ def setTime(){
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(1708,'error','Schedule error with starting time.')
+        putLog(1718,'error','Schedule error with starting time.')
         return
     }
 
