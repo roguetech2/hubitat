@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.35
+*  Version: 0.6.2.36
 *
 ***********************************************************************************************************************/
 
@@ -1513,6 +1513,13 @@ def validateTimes(type){
 def validateSunriseMinutes(type){
     if(!settings[type + '_sunOffset']) return true
     if(settings[type + '_sunOffset'] > 719) return false
+    if(settings[type + '_sunOffset'] < 719) return false
+    // If sunrise/set offset is negative, make positive and invert before/after
+    if(settings[type + '_sunOffset'] < 0){
+        if(settings[type + '_sunType'] == 'before') settings[type + '_sunType'] = 'after'
+        if(settings[type + '_sunType'] == 'after') settings[type + '_sunType'] = 'before'
+        settings[type + '_sunOffset'] = settings[type + '_sunOffset'] * -1
+    }
     return true
 }
 
@@ -1646,7 +1653,9 @@ def displayDaysAndDatesSection(thisType){
     if(!validateTimes('stop')) return
     if(!settings['advancedSetup'] && !settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     hidden = true
-
+    
+    parent.processDates(settings['includeDates'],settings['excludeDates'],settings['days'],true,app.id)
+	if(parent.getDateProcessingErrors(app.id)) hidden = false
     sectionTitle = '<b>Days/Dates:'
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) sectionTitle = 'Click to set days/dates (optional)'
     List dayList=[]
@@ -1660,7 +1669,6 @@ def displayDaysAndDatesSection(thisType){
     if(settings['days'] || settings['includeDates'] || settings['excludeDates']) sectionTitle += '</b>'
     if((!settings['days'] || !settings['includeDates'] || !settings['excludeDates']) && (settings['days'] || settings['includeDates'] || settings['excludeDates'])) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
-
     displayDaysOption()
     displayIncludeDates()
     displayExcludeDates(thisType)
@@ -1907,7 +1915,7 @@ def setTime(){
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(1910,'error','Schedule error with starting time.')
+        putLog(1918,'error','Schedule error with starting time.')
         return
     }
 
