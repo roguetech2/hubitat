@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-*  Copyright (C) 2025 roguetech
+*  Copyright (C) 2026 roguetech
 *
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
@@ -13,14 +13,14 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.16
+*  Version: 0.4.2.17
 * 
 ***********************************************************************************************************************/
 
 // TO-DO: Allow actions per side (rather than flip90 or flip180)
 // TO-DO: Allow selecting rooms??
 // TO-DO: Add support for Hubitat Package Manager? https://community.hubitat.com/t/beta-hubitat-package-manager/38016
-
+// added parent.storePicoSide(singleDevice, buttonNumber, app.id)
 definition(
     name: 'Master - MagicCube',
     namespace: 'master',
@@ -41,7 +41,7 @@ definition(
 // 4 for trace + info + errors + warnings
 // 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 4
+    return 2
 }
 
 preferences {
@@ -115,8 +115,6 @@ def checkAnyErrors(){
         
         for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         //actionMap.any{it->
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action')
-            if(anyErrors) break
             anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action')
             if(anyErrors) break
         }
@@ -202,7 +200,7 @@ def getDefineActionsWarningValue(){
     returnValue = ''
     for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
         if(returnValue) continue
-        if(settings['button_' + buttonNumber] && !settings['button_' + buttonNumber + '_' + settings['button_' + buttonNumber]]){
+        if(settings['button_' + (buttonNumber + 1)] && !settings['button_' + (buttonNumber + 1) + '_' + settings['button_' + (buttonNumber + 1)]]){
             actionMap.find{it->
                 if(it.'action' == settings['button_' + buttonNumber]){
                     returnValue = it.'description'
@@ -294,7 +292,7 @@ def displayCustomizeActionsAndDevicesSections() {
                 if(actionMap[actionMapItem].'action' == 'setLevel' && !settings['button_' + (buttonNumber + 1) + '_level']) hidden = false
                 if(actionMap[actionMapItem].'action' == 'setTemp' && !settings['button_' + (buttonNumber + 1) + '_temp']) hidden = false
                 if(actionMap[actionMapItem].'action' == 'setColor' && !settings['button_' + (buttonNumber + 1) + '_color']) hidden = false
-                if(actionMap[actionMapItem].'action' == 'cycleColors' && !settings['button_' + (buttonNumber + 1) + '_colorCount']) hidden = false
+                if(actionMap[actionMapItem].'action' == 'cycleColor' && !settings['button_' + (buttonNumber + 1) + '_colorCount']) hidden = false
             }
         }
         if(anyErrors && !setErrors) hidden = true
@@ -505,7 +503,8 @@ def displayScheduleSection(){
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
         displayDaysOption()
-        displayDatesOptions()
+        log.debug thisType
+        displayDatesOptions(thisType)
     }
 }
 
@@ -608,7 +607,7 @@ def checkAnyDeviceSet(){
         for(int actionNumber = 0; actionNumber < actionMap.size(); actionNumber++){
             if(settings['button_' + (buttonNumber + 1)] == actionMap[actionNumber].'action' && settings['controlDevice'].size() == 1) return true
             if(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionNumber].'action']) return true
-            return true
+            //return true
         }
     }
     return false
@@ -652,7 +651,7 @@ def buildButtonMap(){
             ['fullName':'flip 180°', 'shortName':'flip180', 'type':'on','eventType':'push','advanced':false],
             ['fullName':'rotate clockwise', 'shortName':'clockwise', 'type':'dim','eventType':'released','advanced':false],
     ['fullName':'rotate counter-clockwise', 'shortName':'counterClockwise', 'type':'dim','eventType':'held','advanced':false],
-        ['fullName':'shake', 'shortName':'shake', 'type':'on','eventType':'doubleTap','advanced':true]]
+        ['fullName':'shake', 'shortName':'shake', 'type':'on','eventType':'doubleTapped','advanced':true]]
 }
 
 def getActionFromButtonNumber(buttonNumber){
@@ -694,19 +693,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(697,'trace','Installed')
+    putLog(696,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(703,'trace','Updated')
+    putLog(702,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(709,'trace','^ initialize ^')
+    putLog(708,'trace','^ initialize ^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(controllerDevice, "pushed.1", buttonEvent)
@@ -725,91 +724,103 @@ def initialize() {
     if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
     atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
     dimValue = 20
-    if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
+    if(settings['heldDimmingProgressionSteps']) dimValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    putLog(730,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(729,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(734,'trace','¬ initialize ¬')
+    putLog(733,'trace','¬ initialize ¬')
 }
 
 def buttonEvent(evt){
+    putLog(737,'info','^')
+    
+	buttonNumber = convertDriver(evt,parent.getCubeSide(evt.device, app.id))
+    storeCubeSide(evt.device,evt.value.toInteger())
+
     // If not correct day, return nulls
-    if(!checkIncludeDates()) return
-
-    // if not between start and stop time, return nulls
-    if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime, app.id)) return
-    if(!getActive()) return
-
-    buttonNumber = convertDriver(evt)     // Sets atomicState.buttonNumber to action corresponding to cubeActions
-    if(!buttonNumber && buttonNumber != 0) {
-        putLog(747,'warning','No action assigned for event ' + evt.name + '.')
+    if(!checkIncludeDates()){
+        storeCubeSide(evt.device,evt.value.toInteger())
         return
     }
-    putLog(750,'info','^ buttonEvent name: ' + evt.name + ' value: ' + evt.value + ' ^')
-    actionMap = buildActionMap('cube')
-
-    for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
-        if(!settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) continue
-        putLog(755,'debug','' + settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'] + ' action captured as ' + actionMap[actionMapItem].'action' + ' (event = ' + evt.name + '; side = ' + evt.value + ').')
-        doActions(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action'],actionMap[actionMapItem].'action')
+    // if not between start and stop time, return nulls
+    if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.id)){
+        storeCubeSide(evt.device,evt.value.toInteger())
+        return
     }
-    putLog(758,'trace','¬ buttonEvent name: ' + evt.name + ' value: ' + evt.value + ' ¬')
+    if(!getActive()){
+        storeCubeSide(evt.device,evt.value.toInteger())
+        return
+    }
+
+    // Needs to be state since we're passing back and forth to parent for progressive dim and brightening
+    if(evt.name == 'pushed') pushType = 'push'
+
+    if(!actionMap) switchActions = buildActionMap('cube')
+
+    switchActions.each{switchAction ->
+        log.debug 'button_' + (buttonNumber + 1) + '_' + switchAction.'action'
+        device = settings['button_' + (buttonNumber + 1) + '_' + switchAction.'action']
+
+     //   if(!device) device = settings['controlDevice']
+        device.each{singleDevice->
+            level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
+            if(switchAction.'action' == 'setLevel')  level = settings['button_' + buttonNumber + '_level']
+            if(switchAction.'action' == 'setTemp')  tempMap = ['temp':settings['button_' + buttonNumber + '_' + '_level']]
+            brightnessMap = parent.getNonScheduleLevelMap('brightness',level, app.id)         // dim, brighten
+            //setColorMap = getColorMap(switchAction, buttonNumber, pushType, singleDevice)
+            //setCycleMap = getCycleColorMap(switchAction, buttonNumber, pushType, singleDevice)
+            //fullMap = parent.combineMaps(setColorMap,setCycleMap,brightnessMap,tempMap,'',app.id)
+            fullMap = parent.combineMaps(brightnessMap,tempMap,'','','',app.id)
+            stateValue =  performToggle(switchAction.'action',singleDevice)
+            if(brightnessMap) stateValue = 'on'
+
+            if(fullMap) putLog(779,'trace','[' + singleDevice + '] settings ' + fullMap)
+            parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
+            parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
+        }
+        if(pushType == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)       //??? this function needs to be rewritten, I think
+        //if(pushType == 'hold') holdNextLevelMulti(device,switchAction.'action')
+
+        parent.setDeviceMulti(device,'cube',app.id)
+    }
+    putLog(788,'info','¬')
+    storeCubeSide(evt.device,evt.value.toInteger())
 }
 
-def doActions(device,action){
-    if(!device) return
-    putLog(763,'trace','Set ' + device + ' as ' + action)
-    
-    device.each{singleDevice->
-        if(action == 'dim' || action == 'brighten') level = parent._getNextLevelDimmable(singleDevice, action, settings['dimmingProgressionSteps'],app.id)        // dimmingProgressionSteps has not been added to UI (yet?)
-        levelMap = parent.getNonScheduleLevelMap('brightness',level,app.id)         // dim, brighten
-
-        stateValue =  performToggle(action,singleDevice)
-        if(levelMap) stateValue = 'on'
-        
-        if(fullMap) putLog(772,'trace','Updating settings for ' + singleDevice + ' to ' + levelMap)
-        parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
-        parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-    }
-    if(action == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)
-    parent.setDeviceMulti(device,'cube',app.id)
+def storeCubeSide(singleDevice,priorSide){
+    parent.storeCubeSide(singleDevice, priorSide, app.id)
 }
 
 // Sets atomicState.buttonNumber to string of action
 // Currently converts from kkossev's T1 driver to match veeceeoh's Aqara Mi driver
 // Is there a way to determine which driver is used?
-// (1) shaking
-// (2) 90flip
-// (3) 180flip
-// (4) slide
-// (5) knock
-// (6) clockwise
-// (7) counterclockwise
-def convertDriver(evt){
+// (0) 90flip
+// (1) 180flip
+// (2) clockwise
+// (3) counterclockwise
+// (4) shake
+def convertDriver(evt,priorSide){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
-    if(!atomicState.priorSide) putLog(792,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
-
-    // Need to check if "scene" or "action" mode (singleDevice.currentValue("operationMode"))
-// Could be multiple priors sides (if multiple cubes) - need to make it a map
-    priorSide = atomicState.priorSide
-    atomicState.priorSide = evt.value
-
+    if(!priorSide) {
+        putLog(807,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+    	return 0
+    }
+    
+    eventValue = evt.value.toInteger()
     if(evt.name == 'pushed'){
-        if(evt.value == '1' && priorSide == '6') return 1
-        if(evt.value == '2' && priorSide == '5') return 1
-        if(evt.value == '3' && priorSide == '4') return 1
-        if(evt.value == '4' && priorSide == '3') return 1
-        if(evt.value == '5' && priorSide == '2') return 1
-        if(evt.value == '6' && priorSide == '1') return 1
-        return 0
+        if(eventValue == '1' && priorSide == 6) return 1
+        if(eventValue == '2' && priorSide == 5) return 1
+        if(eventValue == '3' && priorSide == 4) return 1
+        if(eventValue == '4' && priorSide == 3) return 1
+        if(eventValue == '5' && priorSide == 2) return 1
+        if(eventValue == '6' && priorSide == 1) return 1
+        if(eventValue != priorSide) return 0
     }
     buttonMap = buildButtonMap()
     for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
-        if(evt.name == buttonMap[buttonNumber].'eventType'){
-            return buttonNumber
-        }
+        if(evt.name == buttonMap[buttonNumber].'eventType') return buttonNumber
     }
 }
 
@@ -817,8 +828,8 @@ def convertDriver(evt){
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
-    if(atomicState.scheduleStartTime && atomicState.stopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.startTime, atomicState.stopTime,app.id)) return
+    if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
+        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
     }
 
     if(settings['personHome']){
@@ -874,10 +885,8 @@ def buildActionMap(thisType){
         ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
         ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
         ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
-        ['action':'setLevel', 'actionText':'set brightness','descriptionActive':'Sets brightness', 'description': 'Set brightness', 'type':'dim', 'advanced':true],
-        ['action':'setTemp', 'actionText':'set temperature','descriptionActive':'Sets color temperature', 'description': 'Set color temperature', 'type':'color', 'advanced':true],
-        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'color', 'advanced':true],
-        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'color', 'advanced':true]]
+        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
+        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
 }
                                      
 def setUILinks(){
@@ -918,6 +927,7 @@ def displayError(text,noDisplayIcon = null, width=12){
     if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
     if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
     errorMessage = ''
+   
 }
 
 def displayWarning(text,noDisplayIcon = null, width=12){
@@ -966,16 +976,14 @@ def displayControllerOption(){
     if(state['controllerButtonValue'] == null) state['controllerButtonValue'] = true
     if(state['controllerButtonValue']){
         fieldOptions = controllerDeviceOptions
-        
         if(parent.getDeviceList() && !fieldOptions) return
     }
     if(fieldOptions) {
-        
         fieldName += 'Id'
         newValue = []
         if(fieldOptions.size() == 1) {
             app.updateSetting(fieldName, [type: 'enum', value: fieldOptions.keySet()])
-            //return
+            return
         }
     }
     
@@ -986,7 +994,7 @@ def displayControllerOptionComplete(fieldName,fieldOptions){
     if(!settings[fieldName]) return
     if(thisType == 'cube') fieldTitle = 'MagicCube'
     if(thisType == 'pico') fieldTitle = 'Pico controller'
-    if(thisType == 'sensor')fieldTitle = 'Sensor'
+    if(thisType == 'sensor') fieldTitle = 'Sensor'
     if(settings[fieldName].size() > 1) fieldTitle += 's:'
     capability = 'capability.pushableButton'
     if(thisType == 'sensor') capability = 'capability.' + sensorMapEntry.'capability'
@@ -1111,13 +1119,13 @@ def displayIfModeOption(){
 def displayIfModeFieldComplete(fieldName){
     if(!settings[fieldName]) return
     fieldTitle = 'Only with Mode:'
-    displayModeSelectField(fieldName,fieldTitle,options,true,false)
+    displayModeSelectField(fieldName,fieldTitle,true,false)
 }
 def displayIfModeFieldIncomplete(fieldName){
     if(settings[fieldName]) return
     displayInfo('This will limit the ' + thisDescription + ' from being active to only when Hubitat\'s Mode is as selected. You can create another ' + thisDescription + ' "app" to do something else for other Modes.')
     fieldTitle = 'Only when the Mode is:'
-    displayModeSelectField(fieldName,fieldTitle,options,true,false)
+    displayModeSelectField(fieldName,fieldTitle,true,false)
 }
 
 def displayPeopleOption(){
@@ -1181,7 +1189,7 @@ def displayPersonNotHomeComplete(fieldName, fieldCapability){
 }
 def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
     if(settings[fieldName]) return
-    fieldTitle = 'Only if any of these people are not home (Optional)'
+    fieldTitle = 'Only if all of these people are not home (Optional)'
     displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
 }
 
@@ -1240,7 +1248,7 @@ def displayTimeTypeOption(type){
     
     if(labelText) displayLabel(labelText)
 
-    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset']) / 60) + ' hours. That\'s probably wrong.')
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset'] / 60)) + ' hours. That\'s probably wrong.')
     
     fieldName = type + '_timeType'
     fieldTitle = type.capitalize() + ' time:'
@@ -1248,7 +1256,7 @@ def displayTimeTypeOption(type){
         fieldTitle = type.capitalize() + ' time?'
         if(type == 'stop' && thisType == 'schedule') fieldTitle += ' (Select "Don\'t stop" for none)'
         if(type == 'stop' && thisType != 'schedule') fieldTitle += ' (Required with Start time.)'
-        highlightText(fieldTitle)
+        fieldTitle = highlightText(fieldTitle)
     }
     fieldTitle = addFieldName(fieldTitle,fieldName)
     fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
@@ -1303,7 +1311,7 @@ def getSunriseTime(type,sunOffset,sunriseType){
     if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1),app.id)).format('hh:mm a') + ')'
     if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset,app.id)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1),app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset,app.id)).format('hh:mm a') + ')'
     if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0,app.id)).format('hh:mm a') + ')'
     if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0,app.id)).format('hh:mm a') + ')'   
 }
@@ -1325,7 +1333,7 @@ def displaySunriseOffsetOption(type){
     if(!validateSunriseMinutes(type)) displayWarning(message)
 }
 
-def displayDaysAndDatesSection(){
+def displayDaysAndDatesSection(thisType){
     if(thisType != 'schedule' && !settings['controlDevice']) return
     if(!settings['controlDevice']) return
     if(!settings['start_timeType']) return
@@ -1334,14 +1342,13 @@ def displayDaysAndDatesSection(){
     if(!settings['advancedSetup'] && !settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     hidden = true
 
-    defaultSectionTitle = '<b>Days/Dates:'
+    sectionTitle = '<b>Days/Dates:'
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) sectionTitle = 'Click to set days/dates (optional)'
     List dayList=[]
     settings['days'].each{
         dayList.add(it)
     }
     dayText = dayList.join(', ')
-    sectionTitle = ''
     if(settings['days']) sectionTitle += ' ' + dayText
     if(settings['includeDates']) sectionTitle += ' +[included dates]'
     if(settings['excludeDates']) sectionTitle += ' +[excluded dates]'
@@ -1351,7 +1358,7 @@ def displayDaysAndDatesSection(){
 
     displayDaysOption()
     displayIncludeDates()
-    displayExcludeDates()
+    displayExcludeDates(thisType)
     }
 }
 
@@ -1369,56 +1376,20 @@ def displayDaysOption(){
     //input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
-def displayDatesOptions(){
+def displayDatesOptions(thisType){
     displayIncludeDates()
-    displayExcludeDates()
+    displayExcludeDates(thisType)
 }
 
 def displayIncludeDates(){
     if(!settings['advancedSetup'] && !settings['includeDates']) return
     displayWarning(parent.getDateProcessingErrors(app.id))
-    displayInfo(dateList)
+    parent.clearDateProcessingErrors(app.id)
     fieldName = 'includeDates'
     fieldTitle = 'Only on dates:'
     if(thisType == 'schedule') fieldTitle = 'Dates on which to run ("include"):'
     fieldTitle = addFieldName(fieldTitle,fieldName)
     input fieldName, "textarea", title: fieldTitle, submitOnChange:true
-}
- 
-// Returns true if level value is either valid or null
-def validateLevel(value){
-    if(!value) return true
-    value = value as int
-        if(value < 1) return false
-        if(value > 100) return false
-    return true
-}
-
-// Returns true if temp value is either valid or null
-def validateTemp(value){
-    if(!value) return true
-        value = value as int
-            if(value < 1800) return false // needs to be set as const
-            if(value > 6500) return false
-            return true
-}
-
-
-// Returns true if temp value is either valid or null
-def validateHue(value){
-    if(!value) return true
-    value = value as int
-    if(value < 1) return false
-
-    if(value > 360) return false
-    return true
-}
-
-def getMinutesError(value){
-    if(!value) return
-    if(value == 0) return
-    if(value > 1440) return 'Maximum minutes is 1,440 (24 hours).'
-    if(value < 1) return 'Minimum minutes is 1.'
 }
 
 def displayTextField(fieldName,fieldTitle,fieldType,required = true){
@@ -1457,14 +1428,14 @@ def displayDeviceSelectField(fieldName,fieldTitle,capability,multiple, button = 
     input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true, width: width
     if(button) displayFilterButton(button)
 }
-def displayModeSelectField(fieldName,fieldTitle,options,multiple = false,required = true){
+def displayModeSelectField(fieldName,fieldTitle,multiple = false,required = true){
     width = 10
     if(!settings[fieldName]) width = 12
     fieldTitle = addFieldName(fieldTitle,fieldName)
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
-    input name: fieldName, type: 'mode', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
+    input name: fieldName, type: 'mode', title: '', width:width, multiple: multiple, submitOnChange:true
 }
 
 def appButtonHandler(buttonValue){
@@ -1587,23 +1558,25 @@ def getBaseStartStopDateTime(type){
     if(!settings[type + '_sunType']) return
 
     if(settings[type + '_timeType'] == 'sunrise') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunrise(settings[type + '_sunOffset'],app.id)
+        if(settings[type + '_sunType'] == 'before') return parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
+        if(settings[type + '_sunType'] == 'after') return parent.getSunrise(settings[type + '_sunOffset'],app.id)
+        if(settings[type + '_sunType'] == 'at') return parent.getSunrise(0,app.id)
     }
     if(settings[type + '_timeType'] == 'sunset') {
-        if(settings[type + '_sunType'] == 'before') returnValue = parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
-        if(settings[type + '_sunType'] == 'after') returnValue = parent.getSunset(settings[type + '_sunOffset'],app.id)
+        if(settings[type + '_sunType'] == 'before') return parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
+        if(settings[type + '_sunType'] == 'after') return parent.getSunset(settings[type + '_sunOffset'],app.id)
+        if(settings[type + '_sunType'] == 'at') return parent.getSunset(0,app.id)
     }
-    return returnValue
 }
+
 // Date map is [yyyy:[ddd,ddd,ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
     
-    if(!atomicState.'includeDates'?.currentYear) processDates()        // If a new year
+    if(!atomicState.includeDates?."${currentYear}") processDates()        // If a new year
     
-    if(atomicState.includeDates.(currentYear.toInteger()).contains(new Date(now()).format('D').toInteger())) return true
+    if(atomicState.includeDates."${currentYear}".contains(new Date(now()).format('D').toInteger())) return true
 }
 def processDates(){
     atomicState.remove('includeDates')
@@ -1611,7 +1584,7 @@ def processDates(){
     currentYear = new Date().format('yyyy').toInteger()
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
-    atomicState.'includeDates' = [(currentYear):parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)]
+    atomicState.'includeDates' = [(currentYear):parent.processDates(includeDatesValue, settings['excludeDates'], settings['days'], true, app.id)]
 }
 
 // Not used with scheduler app
@@ -1625,11 +1598,11 @@ def setTime(){
     if(!settings['stop_timeType']) return
     
     // Not sure is resyncing scheduleBeginTime and scheduleEndTime is neccesary if set a specific times (not sunrise/set)
-    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - weird times to stagger the load
+    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - add arbitrary seconds to stagger the load
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(1632,'error','Schedule error with starting time.')
+        putLog(1605,'error','Schedule error with starting time.')
         return
     }
 
@@ -1661,7 +1634,7 @@ def performToggle(action,singleDevice){
     return 'on'
 }
 
-def displayExcludeDates(){
+def displayExcludeDates(appType){
     fieldName = 'excludeDates'
     if(!settings['advancedSetup'] && !settings[fieldName]) return
     fieldTitle = 'Not on dates:'
