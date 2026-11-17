@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.17
+*  Version: 0.4.2.18
 * 
 ***********************************************************************************************************************/
 
@@ -275,9 +275,11 @@ def displayCustomizeActionsAndDevicesSections() {
         sectionLabel = ''
         if(!checkIfShowButton(buttonNumber)) continue
         fieldOptions = setActionsPerButton(buttonNumber)
-        hidden = false
+        hidden = true
+        if(buttonNumber + 1 == 1) hidden = false		// Don't hide flip 90 if empty
+        
         setErrors = ''
-        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){ 
+        for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
             if(settings['button_' + (buttonNumber + 1) + '_' + actionMap[actionMapItem].'action']) {
                 if(sectionLabel) sectionLabel += '\n'
                 sectionLabel += '  ' + actionMap[actionMapItem].'descriptionActive'
@@ -503,7 +505,6 @@ def displayScheduleSection(){
         displayTimeOption('stop')
         displaySunriseTypeOption('stop')
         displayDaysOption()
-        log.debug thisType
         displayDatesOptions(thisType)
     }
 }
@@ -693,19 +694,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(696,'trace','Installed')
+    putLog(697,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(702,'trace','Updated')
+    putLog(703,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(708,'trace','^ initialize ^')
+    putLog(709,'trace','^ initialize ^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(controllerDevice, "pushed.1", buttonEvent)
@@ -726,7 +727,7 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) dimValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    putLog(729,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(730,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
@@ -734,7 +735,7 @@ def initialize() {
 }
 
 def buttonEvent(evt){
-    putLog(737,'info','^')
+    putLog(738,'info','^')
     
 	buttonNumber = convertDriver(evt,parent.getCubeSide(evt.device, app.id))
     storeCubeSide(evt.device,evt.value.toInteger())
@@ -760,7 +761,6 @@ def buttonEvent(evt){
     if(!actionMap) switchActions = buildActionMap('cube')
 
     switchActions.each{switchAction ->
-        log.debug 'button_' + (buttonNumber + 1) + '_' + switchAction.'action'
         device = settings['button_' + (buttonNumber + 1) + '_' + switchAction.'action']
 
      //   if(!device) device = settings['controlDevice']
