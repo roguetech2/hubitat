@@ -13,7 +13,7 @@
 *
 *  Name: Master - MagicCube
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20MagicCube.groovy
-*  Version: 0.4.2.18
+*  Version: 0.4.2.19
 * 
 ***********************************************************************************************************************/
 
@@ -161,7 +161,6 @@ def displayDefineActions(){
     if(settings['customActionsSetup'] != 'actions') return
     if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
-    if(!numberOfButtons) return
     section(hideable: true, hidden: false, 'Button actions: ' + getDefineActionsSectionTitle()) {
         if(settings['controlDevice'].size() > 1){
             warningValue = getDefineActionsWarningValue()
@@ -192,7 +191,6 @@ def displayDefineActions(){
             if(!checkIfShowButton(i)) continue
             displayDefineActionsButton(i)
         }
-        if(!setHold) displaySetHoldOption()
         if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
     }
 }
@@ -694,19 +692,19 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(697,'trace','Installed')
+    putLog(695,'trace','Installed')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(703,'trace','Updated')
+    putLog(701,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(709,'trace','^ initialize ^')
+    putLog(707,'trace','^ initialize ^')
     app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
 
     subscribe(controllerDevice, "pushed.1", buttonEvent)
@@ -727,7 +725,7 @@ def initialize() {
     dimValue = 20
     if(settings['heldDimmingProgressionSteps']) dimValue = settings['heldDimmingProgressionSteps']
     atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    putLog(730,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    putLog(728,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
@@ -735,7 +733,7 @@ def initialize() {
 }
 
 def buttonEvent(evt){
-    putLog(738,'info','^')
+    putLog(736,'info','^')
     
 	buttonNumber = convertDriver(evt,parent.getCubeSide(evt.device, app.id))
     storeCubeSide(evt.device,evt.value.toInteger())
@@ -776,7 +774,7 @@ def buttonEvent(evt){
             stateValue =  performToggle(switchAction.'action',singleDevice)
             if(brightnessMap) stateValue = 'on'
 
-            if(fullMap) putLog(779,'trace','[' + singleDevice + '] settings ' + fullMap)
+            if(fullMap) putLog(777,'trace','[' + singleDevice + '] settings ' + fullMap)
             parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
             parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
         }
@@ -785,7 +783,7 @@ def buttonEvent(evt){
 
         parent.setDeviceMulti(device,'cube',app.id)
     }
-    putLog(788,'info','¬')
+    putLog(786,'info','¬')
     storeCubeSide(evt.device,evt.value.toInteger())
 }
 
@@ -804,7 +802,7 @@ def storeCubeSide(singleDevice,priorSide){
 def convertDriver(evt,priorSide){
    // cubeActions = ['shake', 'flip90', 'flip180', 'slide', 'knock', 'clockwise', 'counterClockwise'] // Need to put this in the UI, should be state variable
     if(!priorSide) {
-        putLog(807,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
+        putLog(805,'warn','Prior button not known. If this is not the first run of the app, this indicates a problem.')
     	return 0
     }
     
@@ -1415,6 +1413,7 @@ def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = 
     if(button) width--
     if(settings[fieldName]) width = width - 2
     fieldTitle = addFieldName(fieldTitle,fieldName)
+
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
@@ -1602,7 +1601,7 @@ def setTime(){
     
     scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
     if(!scheduleBeginTime) {
-        putLog(1605,'error','Schedule error with starting time.')
+        putLog(1604,'error','Schedule error with starting time.')
         return
     }
 
