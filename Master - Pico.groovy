@@ -13,7 +13,7 @@
 *
 *  Name: Master - Pico
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Pico.groovy
-*  Version: 0.6.2.36
+*  Version: 0.6.2.37
 *
 ***********************************************************************************************************************/
 
@@ -43,7 +43,7 @@ definition(
 // 4 for trace + info + errors + warnings
 // 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 2
+    return 5
 }
 
 preferences {
@@ -57,14 +57,14 @@ preferences {
     thisType = 'pico'
     thisDescription = 'Pico'        // Used with schedule, people, ifMode
     thisDescriptionPlural = 'Picos'
-
-    page(name: 'setup', install: install, uninstall: true) {
-        
+    
+    page(name: 'setup', install: install, uninstall: true){
         if(!app.label){
             section(){
                 displayNameOption()
             }
         }
+      
         if(app.label){
             setUILinks()
             // Sometimes UI doesn refresh with controller
@@ -78,7 +78,11 @@ preferences {
                     displayInfo('Caseta/Pico devices are identified by having a "pushableButton" setting, and 2, 4 or 5 buttons. If you have a Caseta/Picos installed, check the device status page.') 
                 }
             }
+            
             processDates()
+            
+            peopleError = compareDeviceLists(personHome, personNotHome)
+            
             section(){
                 displayNameOption()
                 displayControllerOption()
@@ -94,7 +98,6 @@ preferences {
             displayPeopleOption()
             displayIfModeOption()
         }
-
     }
 }
 
@@ -104,12 +107,12 @@ def formComplete(){
     if(!numberOfButtons) return false
     if(!controlDevice) return false
     if(!checkAnyDeviceSet()) return false
-    if(inputStartType == 'time' && !inputStartTime) return false
-    if(inputStopType == 'time' && !inputStopTime) return false
-    if((inputStartType == 'sunrise' || inputStartType == 'sunset') && !inputStartSunriseType) return false
-    if((inputStopType == 'sunrise' || inputStopType == 'sunset') && !inputStopSunriseType) return false
-    if((inputStartSunriseType == 'before' || inputStartSunriseType == 'after') && !inputStartBefore) return false
-    if((inputStopSunriseType == 'before' || inputStopSunriseType == 'after') && !inputStopBefore) return false
+    if(timeTypeStart == 'time' && !timeStart) return false
+    if(timeTypeStop == 'time' && !timeStop) return false
+    if((timeTypeStart == 'sunrise' || timeTypeStart == 'sunset') && !timeSunTypeStart) return false
+    if((timeTypeStop == 'sunrise' || timeTypeStop == 'sunset') && !timeSunTypeStop) return false
+    if((timeSunTypeStart == 'before' || timeSunTypeStart == 'after') && !timeSunOffsetStart) return false
+    if((timeSunTypeStop == 'before' || timeSunTypeStop == 'after') && !timeSunOffsetStop) return false
     if(anyErrors) return false
     return true
 }
@@ -126,9 +129,9 @@ def checkAnyErrors(){
         
         for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){
         //actionMap.any{it->
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', 'push')
+            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber, fieldOptions, actionMap[actionMapItem].'action', 'push')
             if(anyErrors) break
-            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', 'hold')
+            anyErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber, fieldOptions, actionMap[actionMapItem].'action', 'hold')
             if(anyErrors) break
         }
         if(anyErrors) break
@@ -158,8 +161,8 @@ def displayCustomActionsOption(){
     fieldName = 'customActionsSetup'
     options = ['automap':'Automap actions','actions':'Assign action and devices to each button','actionsAndDevices':'Customize actions and devices for each button']
     if(settings['controlDevice'].size() == 1 && settings[fieldName] != 'actionsAndDevices') options = ['automap':'Automap actions','actions':'Assign action and devices to each button']
-    displayCustomActionsOptionComplete(fieldName,options)
-    displayCustomActionsOptionIncomplete(fieldName,options)
+    displayCustomActionsOptionComplete(fieldName, options)
+    displayCustomActionsOptionIncomplete(fieldName, options)
     devicesText = 'device'
     if(settings['controlDevice'].size() > 1) devicesText = 'devices'
     if(settings['customActionsSetup'] == 'automap') displayInfo('This option will automap what each button does (click "Automapped buttons" below for details), and will be applied to the ' + devicesText + ' selected.')
@@ -167,15 +170,15 @@ def displayCustomActionsOption(){
     if(settings['customActionsSetup'] == 'actions' && settings['controlDevice'].size() > 1) displayInfo('This option allows setting what each button does, then assign ' + devicesText + ' to it.')
     if(settings['customActionsSetup'] == 'actionsAndDevices') displayInfo('This option allows setting what each button does, and which devices for each button/action.')
 }
-def displayCustomActionsOptionComplete(fieldName,options){
+def displayCustomActionsOptionComplete(fieldName, options){
     if(!settings[fieldName]) return
     fieldTitle = 'Selection type:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
+    displaySelectField(fieldName, fieldTitle, options, false, true)
 }
-def displayCustomActionsOptionIncomplete(fieldName,options){
+def displayCustomActionsOptionIncomplete(fieldName, options){
     if(settings[fieldName]) return
     fieldTitle = 'Select how to assign devices and buttons actions:'
-    displaySelectField(fieldName,fieldTitle,options,false,true)
+    displaySelectField(fieldName, fieldTitle, options, false, true)
 }
 
 def displayAutoMappingMessage(){
@@ -231,14 +234,14 @@ def displayDefineActions(){
         }
         for(int i = 0; i < buttonMap.size(); i++){
             if(!checkIfShowButton(i)) continue
-            if(!settings['button_' + (i + 1) + '_' + pushType]) continue
-            if(settings['button_' + (i + 1) + '_' + pushType] != 'setColor' && settings['button_' + (i + 1) + '_' + pushType] != 'cycleColor') {
-                app.removeSetting('button_' + (i + 1) + '_' + pushType + '_color')
-                app.removeSetting('button_' + (i + 1) + '_' + pushType + '_colorCount')
+            if(!settings['button_' + (i + 1) + '_push']) continue
+            if(settings['button_' + (i + 1) + '_push'] != 'setColor' && settings['button_' + (i + 1) + '_push'] != 'cycleColor') {
+                app.removeSetting('button_' + (i + 1) + '_push_color')
+                app.removeSetting('button_' + (i + 1) + '_push_colorCount')
                 continue
             }
-            if(settings['button_' + (i + 1) + '_' + pushType] == 'setColor' && !settings['button_' + (i + 1) + '_' + pushType + '_color']) infoText = 'Use the color picker to select what color. Note that the brightness value will not be used, only hue and saturation. (Default red.)'
-            if(settings['button_' + (i + 1) + '_' + pushType] == 'cycleColor' && !settings['button_' + (i + 1) + '_' + pushType + '_colorCount']) infoText = 'Enter the number of colors to cycle through (default is 6 for primary and secondary colors). Note that saturation will be 100%, and brightness based on defaults.'
+            if(settings['button_' + (i + 1) + '_push'] == 'setColor' && !settings['button_' + (i + 1) + '_push_color']) infoText = 'Use the color picker to select what color. Note that the brightness value will not be used, only hue and saturation. (Default red.)'
+            if(settings['button_' + (i + 1) + '_push'] == 'cycleColor' && !settings['button_' + (i + 1) + '_push_colorCount']) infoText = 'Enter the number of colors to cycle through (default is 6 for primary and secondary colors). Note that saturation will be 100%, and brightness based on defaults.'
             if(infoText){
                 displayInfo(infoText)
                 break
@@ -263,12 +266,12 @@ def displayDefineActions(){
     }
 }
 def getDefineActionsWarningValue(pushType){
-    returnValue = ''
+    def returnValue
     for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
         if(returnValue) continue
-        if(settings['button_' + buttonNumber + '_' + pushType] && !settings['button_' + buttonNumber + '_' + pushType + '_' + settings['button_' + buttonNumber + '_' + pushType]]){
+        if(settings['button_' + (buttonNumber + 1) + '_' + pushType] && !settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + settings['button_' + (buttonNumber + 1) + '_' + pushType]]){
             actionMap.find{it->
-                if(it.'action' == settings['button_' + buttonNumber + '_' + pushType]){
+                if(it.'action' == settings['button_' + (buttonNumber + 1) + '_' + pushType]){
                     returnValue = it.'description'
                 }
             }
@@ -293,23 +296,23 @@ def getDefineActionsSectionTitle(pushType){
     if(!sectionTitle) sectionTitle = 'Select device(s) for each/any action:' + expandText
     return sectionTitle
 }
-def displayDefineActionsButton(buttonNumber,pushType){
+def displayDefineActionsButton(buttonNumber, pushType){
     fieldName = 'button_' + (buttonNumber + 1) + '_' + pushType
     fieldTitle = buttonMap[buttonNumber]['fullName'].capitalize() + ' action:'
-    fieldOptions = setActionsPerButton(buttonNumber,pushType,settings[fieldName], true)
+    fieldOptions = setActionsPerButton(buttonNumber, pushType, settings[fieldName], true)
     width = 12
     if(settings[fieldName] && settings[fieldName] == 'setLevel') width = 11
     if(settings[fieldName] && settings[fieldName] == 'setTemp') width = 11
     if(settings[fieldName] && settings[fieldName] == 'setColor') width = 11
     if(settings[fieldName] && settings[fieldName] == 'cycleColor') width = 11
-    displaySelectField(fieldName,fieldTitle,fieldOptions,false,false,'',width)
-    displaySetLevelOption(buttonNumber,'setLevel',pushType)
-    displaySetTempOption(buttonNumber,'setTemp',pushType)
-    displaySetColorOption(buttonNumber,'setColor',pushType)
-    displayCycleColorOption(buttonNumber,'cycleColor',pushType)
-    displayDefineActionsDevice(buttonNumber,fieldOptions,pushType) 
+    displaySelectField(fieldName, fieldTitle, fieldOptions, false, false,'', width)
+    displaySetLevelOption(buttonNumber,'setLevel', pushType)
+    displaySetTempOption(buttonNumber,'setTemp', pushType)
+    displaySetColorOption(buttonNumber,'setColor', pushType)
+    displayCycleColorOption(buttonNumber,'cycleColor', pushType)
+    displayDefineActionsDevice(buttonNumber, fieldOptions, pushType) 
 }
-def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
+def displayDefineActionsDevice(buttonNumber, fieldOptions, pushType){
     buttonAction = settings['button_' + (buttonNumber + 1) + '_' + pushType]
     if(!buttonAction) return
     actionMap.find{it->
@@ -323,12 +326,13 @@ def displayDefineActionsDevice(buttonNumber,fieldOptions,pushType){
     fieldTitle = ' '
     if(!settings[fieldName]) fieldTitle = 'Device to ' + fieldText + ':'
     deviceOptions = [:]
+    
     settings['controlDevice'].each{it->
-        deviceOptions.put([it.'id',it.'label'])
+        deviceOptions.put([it.'id', it.'label'])
     }
     newVar = []
 
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,true)
+    displaySelectField(fieldName, fieldTitle, deviceOptions, true, true)
 }
 
 def displayCustomizeActionsAndDevices(){
@@ -348,16 +352,16 @@ def displayCustomizeActionsAndDevicesSections(pushType) {
     if(pushType == 'hold' && !setHold) return
     if(setHold){
         section(){
-            if(pushTye == 'push') paragraph('<b>Push:</b>')
-            if(pushTye == 'hold') paragraph('<b>Push and hold:</b>')
+            if(pushType == 'push') paragraph('<b>Push:</b>')
+            if(pushType == 'hold') paragraph('<b>Push and hold:</b>')
         }
     }
     for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
         sectionLabel = ''
         if(!checkIfShowButton(buttonNumber)) continue
-        fieldOptions = setActionsPerButton(buttonNumber,pushType)
+        fieldOptions = setActionsPerButton(buttonNumber, pushType)
         hidden = false
-        setErrors = ''
+        def setErrors
         for(int actionMapItem = 0; actionMapItem < actionMap.size(); actionMapItem++){ 
             if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action']) {
                 if(sectionLabel) sectionLabel += '\n'
@@ -367,7 +371,7 @@ def displayCustomizeActionsAndDevicesSections(pushType) {
                 sectionLabel += ' ' + settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionMapItem].'action']
                 hidden = true
                 
-                setErrors = displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, actionMap[actionMapItem].'action', pushType)
+                setErrors += displayCustomizeActionsAndDevicesErrors(buttonNumber, fieldOptions, actionMap[actionMapItem].'action', pushType)
                 if(setErrors) hidden = false
                 
                 if(actionMap[actionMapItem].'action' == 'setLevel' && !settings['button_' + (buttonNumber + 1) + '_' + pushType + '_level']) hidden = false
@@ -380,7 +384,7 @@ def displayCustomizeActionsAndDevicesSections(pushType) {
         if(sectionLabel) sectionLabel = '\n' + sectionLabel
         sectionLabel = buttonMap[buttonNumber].'fullName'.capitalize() + expandText + sectionLabel
         section(hideable: true, hidden: hidden, sectionLabel) {
-            displayCustomizeActionsAndDevicesButtons(buttonNumber,fieldOptions, pushType)
+            displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions, pushType)
             if(!settings['advancedSetup']) displayInfo('Select Advanced Setup for more options.')
         }
     }
@@ -388,20 +392,20 @@ def displayCustomizeActionsAndDevicesSections(pushType) {
 def displayCustomizeActionsAndDevicesButtons(buttonNumber, fieldOptions, pushType) {
     deviceOptions = [:]
     settings['controlDevice'].each{it->
-        deviceOptions.put(it.'id',it.'label')
+        deviceOptions.put([it.'id', it.'label'])
     }
     deviceOptions = deviceOptions.sort()        // If deviceOptions customized per field (removing contradictory ones, or moving selected to top), move to within displayDefineActionsAndDeviceField
     fieldOptions.eachWithIndex{fieldAction, fieldOptionNumber ->
         actionMap.each{it->
             if(it.'action' == fieldAction.key){
                 displayDefineActionsAndDeviceField(buttonNumber, it, pushType, deviceOptions)
-                if(anyErrors) displayError(displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, fieldAction.key,pushType))
+                if(anyErrors) displayError(displayCustomizeActionsAndDevicesErrors(buttonNumber, fieldOptions, fieldAction.key, pushType))
             }
         }
     }
 }
 
-def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,deviceOptions){
+def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType, deviceOptions){
     fieldName = 'buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionLine.'action'
     fieldTitle = '<b>' + actionLine.'descriptionActive' + '</b>:'
     if(!settings[fieldName]) fieldTitle = actionLine.'description' + ' <font color="gray">(Select devices)</font>'
@@ -411,15 +415,15 @@ def displayDefineActionsAndDeviceField(buttonNumber, actionLine, pushType,device
     if(settings[fieldName] && actionLine.'action' == 'setTemp') width = 11
     if(settings[fieldName] && actionLine.'action' == 'setColor') width = 11
     if(settings[fieldName] && actionLine.'action' == 'cycleColor') width = 11
-    displaySelectField(fieldName,fieldTitle,deviceOptions,true,false,'',width)
+    displaySelectField(fieldName, fieldTitle, deviceOptions, true, false,'', width)
 
-    displaySetLevelOption(buttonNumber,actionLine.'action', pushType)
-    displaySetTempOption(buttonNumber,actionLine.'action', pushType)
-    displaySetColorOption(buttonNumber,actionLine.'action', pushType)
-    displayCycleColorOption(buttonNumber,actionLine.'action', pushType)
+    displaySetLevelOption(buttonNumber, actionLine.'action', pushType)
+    displaySetTempOption(buttonNumber, actionLine.'action', pushType)
+    displaySetColorOption(buttonNumber, actionLine.'action', pushType)
+    displayCycleColorOption(buttonNumber, actionLine.'action', pushType)
 }
 
-def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action, pushType){
+def displayCustomizeActionsAndDevicesErrors(buttonNumber, fieldOptions, action, pushType){
     if(customActionsSetup == 'automap') return
     if(!fieldOptions) return
     firstActionNumber = fieldOptions.findIndexOf{it.key==action}
@@ -427,10 +431,10 @@ def displayCustomizeActionsAndDevicesErrors(buttonNumber,fieldOptions, action, p
     errorMessage = ''
     firstDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + action
     if(!settings[firstDeviceName]) return
-    fieldOptions.find{it->
+    fieldOptions.findAll{it->
         if(it.key == action) return
         secondDeviceName = 'button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.key
-        if(compareDeviceLists(settings[firstDeviceName],settings[secondDeviceName],action,it.key)) {
+        if(compareDeviceLists(settings[firstDeviceName], settings[secondDeviceName], action, it.key)) {
             if(errorMessage) errorMessage += '\n'
             errorMessage += 'Can\'t set the same device to both ' + action + ' and ' + it.key + ' with the same button.'        // This should use actionText; don't know how to get it from .key
         }
@@ -448,7 +452,7 @@ def displaySetLevelOption(buttonNumber, buttonAction, pushType){
     fieldSet = false
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == buttonAction) fieldSet = true
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction]) fieldSet = true
-    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_level', type: 'number', title:'',width: 1,submitOnChange:true
+    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_level', type: 'number', title:'', width: 1, submitOnChange:true
     
     infoText = 'Specify brightness level (percentage).'
     if(fieldSet) {
@@ -467,7 +471,7 @@ def displaySetTempOption(buttonNumber, buttonAction, pushType){
     fieldSet = false
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == buttonAction) fieldSet = true
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction]) fieldSet = true
-    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_temp', type: 'number', title:'',width: 1,submitOnChange:true
+    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_temp', type: 'number', title:'', width: 1, submitOnChange:true
     
     infoText = 'Specify color tempertaure level (1800 to 6500, lower is more yellow).'
     if(fieldSet) {
@@ -486,7 +490,7 @@ def displaySetColorOption(buttonNumber, buttonAction, pushType){
     fieldSet = false
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == buttonAction) fieldSet = true
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction]) fieldSet = true
-    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_color', type: 'color', title:'',width: 1,submitOnChange:true
+    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_color', type: 'color', title:'', width: 1, submitOnChange:true
     
     infoText = 'Use the color picker. If you want a light to be set to a specific color whenever turned on, using scheduler is preferred. Note: If device is already set to color, it will toggle back to white.'
     if(fieldSet) {
@@ -499,7 +503,7 @@ def displayCycleColorOption(buttonNumber, buttonAction, pushType){
     fieldSet = false
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == buttonAction) fieldSet = true
     if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + buttonAction]) fieldSet = true
-    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_colorCount', type: 'number', title:'',width: 1,submitOnChange:true
+    if(fieldSet) input name: 'button_' + (buttonNumber + 1) + '_' + pushType + '_colorCount', type: 'number', title:'', width: 1, submitOnChange:true
     infoText = 'Specify the number of colors (ie 3 for primary, 6 for secondary, 12 for tertiary, etc.).'
     if(fieldSet) {
         if(!settings['button_' + (buttonNumber + 1) + '_' + pushType + '_colorCount']) displayInfo(infoText)
@@ -526,17 +530,15 @@ def displaySetHoldOption(){
 }
 def displaySetHoldOptionEnabled(fieldName){
     if(!settings[fieldName]) return
-    fieldTitleTrue = 'Automapping Long Push to the same things. Click to disable.'
+    def fieldTitleTrue = 'Automapping Long Push to the same things. Click to disable.'
     if(customActionsSetup != 'automap') fieldTitleTrue = 'Click to not set Long Push options.'
-    fieldTitleFalse = ''
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false,true)
+    displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false, true)
 }
 def displaySetHoldOptionDisabled(fieldName){
     if(settings[fieldName]) return
-    fieldTitleTrue = 'Click to automap Long Push to the same things.'
+    def fieldTitleTrue = 'Click to automap Long Push to the same things.'
     if(customActionsSetup != 'automap') fieldTitleTrue = 'Click to set Long Push options.'
-    fieldTitleFalse = ''
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false,true)
+    displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false, true)
 }
 
 def displayDimmingProgressionOption(){
@@ -554,6 +556,7 @@ def displayDimmingProgressionOption(){
             if(settings['button_' + (buttonNumber + 1) + '_hold'] == 'dim' && settings['button_' + (buttonNumber + 1) + '_hold' + '_dim']) dimmingSet = true
         }
     }
+// UI unexplained error occurs here
     if(!dimmingSet) return
     sectionTitle = 'Click to set dimming steps (Optional)'
     if(settings['pushedDimmingProgressionSteps']) sectionTitle = 'Push dimming steps: ' + settings['pushedDimmingProgressionSteps']
@@ -592,7 +595,7 @@ def displayDimmingProgressionOptionComplete(fieldName, pushType){
     fieldTitle = 'Dimming steps for Push:'
     if(pushType == 'hold') fieldTitle = 'Dimming steps for Long Push:'
 
-    displayTextField(fieldName,fieldTitle,'number',false)
+    displayTextField(fieldName, fieldTitle,'number', false)
 }
 def displayDimmingProgressionOptionIncomplete(fieldName, pushType){
     if(settings[fieldName]) return
@@ -610,18 +613,19 @@ def displayDimmingProgressionOptionIncomplete(fieldName, pushType){
     if(customActionsSetup == 'actionsAndDevices'){
         for(int buttonNumber = 0; buttonNumber < buttonMap.size(); buttonNumber++){
             actionMap.each{it->
-                if(actionMap.'type' == 'dim' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']) dimmingSet = true
+                if(it.'type' == 'dim' && settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + it.'action']) dimmingSet = true
             }
         }
     }
     if(!dimmingSet) return
-    fieldTitle = 'Enter dimming steps for Push (optional, default 8):'
-    if(pushType == 'hold') fieldTitle = 'Enter dimming steps for Long Push (optional, default 20):'
-    displayTextField(fieldName,fieldTitle,'number',false)
+    fieldTitle = 'Enter dimming steps for Push (optional, default ' + parent.CONSTHoldDimmingTotalSteps() + '):'
+    if(pushType == 'hold') fieldTitle = 'Enter dimming steps for Long Push (optional, default ' + parent.CONSTHoldDimmingTotalSteps() + '):'
+    displayTextField(fieldName, fieldTitle,'number', false)
 // Need to figure out how to display this for either Push or Hold, not both
 }
 
 def displayScheduleSection(){
+
     if(!settings['controllerDevice']) return
     if(!settings['controlDevice']) return
     if(!settings['advancedSetup']) return
@@ -629,16 +633,15 @@ def displayScheduleSection(){
     if(anyErrors) return
     
     section(){}
-    
     hidden = true
-    if(settings['start_timeType'] && !settings['stop_timeType']) hidden = false
-    if(settings['start_time'] && settings['start_time'] == settings['stop_time']) hidden = false
+    if(settings['timeTypeStart'] && !settings['timeTypeStop']) hidden = false
+    if(settings['timeStart'] && settings['timeStart'] == settings['timeStop']) hidden = false
     if(!validateTimes('start')) hidden = false
     if(!validateTimes('stop')) hidden = false
 
     section(hideable: true, hidden: hidden, getTimeSectionTitle()){
-        if(!settings['start_timeType'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + appDescription + ' is active. You can create another ' + appDescription + ' "app" to do something else for opposite times/days.')
-        if(settings['start_time'] && settings['start_time'] == settings['stop_time']) displayError('You can\'t have the same time to start and stop.')
+        if(!settings['timeTypeStart'] && validateTimes('start') && validateTimes('stop') && !settings['days']  && !settings['includeDates'] && !settings['excludeDates']) displayInfo('This will limit when this ' + thisDescription + ' is active. You can create another ' + thisDescription + ' "app" to do something else for opposite times/days.')
+        if(settings['timeStart'] && settings['timeStart'] == settings['timeStop']) displayError('You can\'t have the same time to start and stop.')
 
         displayTimeTypeOption('start')
         displayTimeOption('start')
@@ -663,17 +666,15 @@ def checkIfShowButton(number){
                                      
 def getButtonNumbers(){
     if(!settings['controllerDevice']) return
+    def number = 1
     settings['controllerDevice'].each{singleDevice->
-        if(!singleDevice.currentValue('numberOfButtons')) numberOfButtons = 5
         if(singleDevice.currentValue('numberOfButtons')) {
-            if(numberOfButtons){
-                if(numberOfButtons < singleDevice.currentValue('numberOfButtons')) numberOfButtons = singleDevice.currentValue('numberOfButtons').toInteger()
-            }
-            if(!numberOfButtons) numberOfButtons = singleDevice.currentValue('numberOfButtons').toInteger()
+            if(singleDevice.currentValue('numberOfButtons').toInteger() > number) number = singleDevice.currentValue('numberOfButtons').toInteger()
         }
     }
+    if(number == 1) number = 5
     
-    return numberOfButtons
+    return number
 }
 
 def checkDefineActionButNoDevice(){
@@ -682,13 +683,13 @@ def checkDefineActionButNoDevice(){
             if(!settings['button_' + (buttonNumber + 1) + '_push_' + settings['button_' + (buttonNumber + 1) + '_push']]) return settings['button_' + (buttonNumber + 1) + '_push']
         }
         if(settings['button_' + (buttonNumber + 1) + '_hold']){
-            if(settings['button_' + (buttonNumber + 1) + '_hold_' + settings['button_' + (buttonNumber + 1) + '_hold']]) return settings['button_' + (buttonNumber + 1) + '_hold']
+            if(!settings['button_' + (buttonNumber + 1) + '_hold_' + settings['button_' + (buttonNumber + 1) + '_hold']]) return settings['button_' + (buttonNumber + 1) + '_hold']
         }
     }
     return false
 }
                                      
-def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondAction){
+def compareDeviceLists(firstDeviceMulti, secondDeviceMulti, firstAction, secondAction){
     if(!firstDeviceMulti) return
     if(!secondDeviceMulti) return
     // This should use action.type, rather than defining conflicts
@@ -715,12 +716,12 @@ def compareDeviceLists(firstDeviceMulti,secondDeviceMulti,firstAction,secondActi
 }
 
 // Returns an ordered map of actions per button
-def setActionsPerButton(buttonNumber,pushType,fieldValue = false, unique = false){
+def setActionsPerButton(buttonNumber, pushType, fieldValue = false, unique = false){
     fieldOptions = [:]
-    fieldOptions = setActionsPerButtonPreset(fieldOptions,fieldValue)
-    fieldOptions = setActionsPerButtonDefault(fieldOptions,fieldValue,pushType,buttonNumber)
-    fieldOptions = setActionsPerButtonType(fieldOptions,fieldValue,pushType,buttonNumber)
-    fieldOptions = setActionsPerButtonOther(fieldOptions,fieldValue,pushType,buttonNumber)
+    fieldOptions = setActionsPerButtonPreset(fieldOptions, fieldValue)
+    fieldOptions = setActionsPerButtonDefault(fieldOptions, fieldValue, pushType, buttonNumber)
+    fieldOptions = setActionsPerButtonType(fieldOptions, fieldValue, pushType, buttonNumber)
+    fieldOptions = setActionsPerButtonOther(fieldOptions, fieldValue, pushType, buttonNumber)
     
     if(!settings['advancedSetup']) {        // Remove any already picked
         for(int i = 0; i < buttonMap.size(); i++){
@@ -734,7 +735,7 @@ def setActionsPerButton(buttonNumber,pushType,fieldValue = false, unique = false
     return fieldOptions
 }
 // Return actionMap line of what it's set to
-def setActionsPerButtonPreset(fieldOptions,fieldValue){
+def setActionsPerButtonPreset(fieldOptions, fieldValue){
     if(!fieldValue) return
     actionMap.find{it->      // 1) What fieldValue is
         if(it.'action' == fieldValue) {
@@ -743,31 +744,31 @@ def setActionsPerButtonPreset(fieldOptions,fieldValue){
     }
     return fieldOptions
 }
-def setActionsPerButtonDefault(fieldOptions,fieldValue,pushType,buttonNumber){
+def setActionsPerButtonDefault(fieldOptions, fieldValue, pushType, buttonNumber){
     if(!fieldOptions) fieldOptions = [:]
     it = getActionFromButtonNumber(buttonNumber)      // 2) Default
-    if(setActionsPerButtonProcess(fieldOptions,it,fieldValue,pushType,buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
+    if(setActionsPerButtonProcess(fieldOptions, it, fieldValue, pushType, buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
     return fieldOptions
 }
-def setActionsPerButtonType(fieldOptions,fieldValue,pushType,buttonNumber){
+def setActionsPerButtonType(fieldOptions, fieldValue, pushType, buttonNumber){
     if(!fieldOptions) fieldOptions = [:]
     actionMap.findAll{it->      // 3) Correct "type"
         if(it.'type' == buttonMap[buttonNumber].'type') {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue,pushType,buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
+            if(setActionsPerButtonProcess(fieldOptions, it, fieldValue, pushType, buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
         }
     }
     return fieldOptions
 }
-def setActionsPerButtonOther(fieldOptions,fieldValue,pushType,buttonNumber){
+def setActionsPerButtonOther(fieldOptions, fieldValue, pushType, buttonNumber){
     actionMap.findAll{it->      // 4) The rest
         if(it.'type' != buttonMap[buttonNumber]['type'] && it.'defaultButton' != buttonNumber + 1) {
-            if(setActionsPerButtonProcess(fieldOptions,it,fieldValue,pushType,buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
+            if(setActionsPerButtonProcess(fieldOptions, it, fieldValue, pushType, buttonNumber)) fieldOptions[it.action] = it.'actionText'.capitalize()
         }
     }
     return fieldOptions
 }
 // Returns false if not showing action option
-def setActionsPerButtonProcess(fieldOptions,actionMapLine,fieldValue,pushType,buttonNumber){
+def setActionsPerButtonProcess(fieldOptions, actionMapLine, fieldValue, pushType, buttonNumber){
     if(!actionMapLine) return
     if(actionMapLine?.'advanced' && !advancedSetup){
         if(!settings['buttonId_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMapLine.'action'] || fieldValue) return
@@ -788,7 +789,6 @@ def checkAnyDeviceSet(){
             for(int actionNumber = 0; actionNumber < actionMap.size(); actionNumber++){
                 if(settings['button_' + (buttonNumber + 1) + '_' + pushType] == actionMap[actionNumber].'action' && settings['controlDevice'].size() == 1) return true
                 if(settings['button_' + (buttonNumber + 1) + '_' + pushType + '_' + actionMap[actionNumber].'action']) return true
-                return true
             }
         }
     }
@@ -800,7 +800,7 @@ def resetControllerDevices(deviceName){
     app.removeSetting(deviceName)
     setControllerDeviceById(deviceName + 'Id', deviceName,'pushableButton')
 }
-def setControllerDeviceById(deviceIdName, deviceName,capability){
+def setControllerDeviceById(deviceIdName, deviceName, capability){
     if(!settings[deviceIdName]) return
     if(!(parentDeviceList = parent.getDeviceList())) return
     newVar = []
@@ -813,7 +813,7 @@ def setControllerDeviceById(deviceIdName, deviceName,capability){
     }
     app.updateSetting(deviceName, [type: 'capability.' + capability, value: newVar])
 }
-def setControlDeviceById(deviceIdName, deviceName,capability){
+def setControlDeviceById(deviceIdName, deviceName, capability){
     if(!settings[deviceIdName]) return
     if(!(parentDeviceList = parent.getDeviceList())) return
     newVar = []
@@ -878,6 +878,7 @@ def buildButtonMap(){
 }
 
 def getActionFromButtonNumber(buttonNumber){
+    def returnValue
      actionMap.find{it->
            if(it.'defaultButton' == (buttonNumber + 1)) returnValue = it
      }
@@ -915,45 +916,45 @@ def getActionFromButtonNumber(buttonNumber){
 /* ************************************************************************ */
 
 def installed() {
-    putLog(918,'trace', 'Installed')
-    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
+    putLog(919,'trace', 'Installed')
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(), app.getName()))
     initialize()
 }
 
 def updated() {
-    putLog(924,'trace','Updated')
+    putLog(925,'trace','Updated')
     unsubscribe()
     initialize()
 }
 
 def initialize() {
-    putLog(930,'trace','^')
-    app.updateLabel(parent.appendChildAppTitle(app.getLabel(),app.getName()))
+    putLog(931,'trace','^')
+    app.updateLabel(parent.appendChildAppTitle(app.getLabel(), app.getName()))
 
     subscribe(settings['controllerDevice'], 'pushed', buttonPushed)
     subscribe(settings['controllerDevice'], 'held', buttonPushed)
     subscribe(settings['controllerDevice'], 'released', buttonReleased)
     
-    dimValue = 8
+    dimValue = parent.CONSTPushDimmingTotalSteps()
     if(settings['pushedDimmingProgressionSteps']) dimValue = settings['pushedDimmingProgressionSteps']
-    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    dimValue = 20
-    if(settings['heldDimmingProgressionSteps']) pushedValue = settings['heldDimmingProgressionSteps']
-    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue,app.id)
-    putLog(943,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
+    atomicState.pushedDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue, app.id)
+    dimValue = parent.CONSTHoldDimmingTotalSteps()
+    if(settings['heldDimmingProgressionSteps']) dimValue = settings['heldDimmingProgressionSteps']
+    atomicState.heldDimmingProgressionFactor = parent.computeOptiomalGeometricProgressionFactor(dimValue, app.id)
+    putLog(944,'info','Brightening/dimming factor: push ' + atomicState.pushedDimmingProgressionFactor + '; held = ' + atomicState.heldDimmingProgressionFactor + '.')
 
     setTime()
 
-    putLog(947,'trace','¬')
+    putLog(946,'trace','¬')
 }
 
 def buttonPushed(evt){
-    putLog(951,'info','^')
+    putLog(952,'info','^')
 
     // If not correct day, return nulls
     if(!checkIncludeDates()) return
     // if not between start and stop time, return nulls
-    if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime, app.id)) return
+    if(!parent.checkNowBetweenTimes(atomicState.timestampStart, atomicState.scheduleEndTime, app.id)) return
     if(!getActive()) return
 
     buttonNumber = assignButtonNumber(evt.value.toInteger())
@@ -962,59 +963,60 @@ def buttonPushed(evt){
     if(evt.name == 'pushed') pushType = 'push'
     if(evt.name == 'held') pushType = 'hold'
 
-    putLog(965,'trace',pushType.capitalize() + ' button ' + buttonNumber + ' of ' + evt.device)
+    putLog(966,'trace', pushType.capitalize() + ' button ' + buttonNumber + ' of ' + evt.device)
 
-    if(!actionMap) switchActions = buildActionMap('pico')
-    switchActions.each{switchAction ->
+    if(!actionMap) actionMap = buildActionMap('pico')
+    actionMap.each{switchAction ->
         device = settings['button_' + buttonNumber + '_' + pushType + '_' + switchAction.'action']
      //   if(!device) device = settings['controlDevice']
         device.each{singleDevice->
-            if(pushType == 'push') level = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
-            if(switchAction.'action' == 'setLevel')  level = settings['button_' + buttonNumber + '_' + pushType + '_level']
-            if(switchAction.'action' == 'setTemp')  tempMap = ['temp':settings['button_' + buttonNumber + '_' + pushType + '_level']]
-            brightnessMap = parent.getNonScheduleLevelMap('brightness',level, app.id)         // dim, brighten
-            setColorMap = getColorMap(switchAction, buttonNumber, pushType, singleDevice)
-            setCycleMap = getCycleColorMap(switchAction, buttonNumber, pushType, singleDevice)
-            fullMap = parent.combineMaps(setColorMap,setCycleMap,brightnessMap,tempMap,'',app.id)
-            stateValue =  performToggle(switchAction.'action',singleDevice)
+            brightness = ''
+            tempMap = ''
+            if(pushType == 'push') brightness = parent._getNextLevelDimmable(singleDevice, switchAction.'action', atomicState.pushedDimmingProgressionFactor, app.id)
+            if(switchAction.'action' == 'setLevel')  brightness = settings['button_' + buttonNumber + '_' + pushType + '_level']
+            if(switchAction.'action' == 'setTemp')  tempMap = ['temp':settings['button_' + buttonNumber + '_' + pushType + '_temp']]
+            brightnessMap = parent.getNonScheduleLevelMap('brightness', brightness, app.id)         // dim, brighten
+            setColorMap = getColorMap(singleDevice, switchAction.'action', buttonNumber, pushType)
+            setCycleMap = getCycleColorMap(singleDevice, switchAction.'action', buttonNumber, pushType)
+            fullMap = parent.combineMaps(setColorMap, setCycleMap, brightnessMap, tempMap, '', app.id)
+            stateValue =  performToggle(singleDevice, switchAction.'action')
             if(brightnessMap) stateValue = 'on'
 
-            if(fullMap) putLog(982,'trace','[' + singleDevice + '] settings ' + fullMap)
-            parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-            parent.mergeMapToTable('nonSchedule',singleDevice.id,fullMap,app.id)
+            if(fullMap) putLog(985, 'trace', '[' + singleDevice + '] settings ' + fullMap)
+            parent.mergeMapToTable(singleDevice.id, 'state', stateValue, app.id)
+            parent.mergeMapToTable(singleDevice.id, 'nonSchedule', fullMap, app.id)
         }
-        if(pushType == 'resume') parent.resumeDeviceScheduleMulti(device,app.id)       //??? this function needs to be rewritten, I think
-        if(pushType == 'hold') holdNextLevelMulti(device,switchAction.'action')
+        if(switchAction.'action' == 'resume') parent.resumeDeviceScheduleMulti(device, app.id)       //??? this function needs to be rewritten, I think
+        if(pushType == 'hold') holdNextLevelMulti(device, switchAction.'action')
 
-        parent.setDeviceMulti(device,'pico',app.id)
+        parent.setDeviceMulti(device, 'pico', app.id)
     }
-    putLog(991,'info','¬')
+    putLog(994, 'info', '¬')
 }
 
 // This is fucked up - returning map, and merging maps
 // SHould just merge it here?
-def getColorMap(switchAction, buttonNumber, pushType, singleDevice){
+def getColorMap(singleDevice, switchAction, buttonNumber, pushType){
     if(switchAction != 'setColor') return
-    hueValue = getHueFromHex(buttonNumber, pushType, singleDevice)
-    satValue = getSatFromHex(buttonNumber, pushType, singleDevice)
-    if(hueValue) hueMap = parent.getNonScheduleLevelMap('hue',hueValue,app.id)
-    if(satValue) satMap = parent.getNonScheduleLevelMap('sat',satValue,app.id)
-    stateMap = 'on'
-    parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-    return parent.combineMaps(hueMap, satMap,'','',app.id)
+    hueValue = getHueFromHex(singleDevice, buttonNumber, pushType)
+    satValue = getSatFromHex(singleDevice, buttonNumber, pushType, )
+    if(hueValue) def hueMap = parent.getNonScheduleLevelMap('hue', hueValue, app.id)
+    if(satValue) def satMap = parent.getNonScheduleLevelMap('sat', satValue, app.id)
+    parent.mergeMapToTable(singleDevice.id, 'state', 'on', app.id)
+    return parent.combineMaps(hueMap, satMap, '', '', '', app.id)
 }
-def getHueFromHex(buttonNumber, pushType, singleDevice){
-    if(!parent.checkIsColor(singleDevice,app.id)) return
+def getHueFromHex(singleDevice, buttonNumber, pushType){
+    if(!parent.checkIsColor(singleDevice, app.id)) return
     colorHex = settings['button_' + buttonNumber + '_' + pushType + '_color']
     if(!colorHex) colorHex = '#FF0000'
     colorRgb = hubitat.helper.ColorUtils.hexToRGB(colorHex)
     colorHsv = hubitat.helper.ColorUtils.rgbToHSV(colorRgb)
-    returnValue = Math.round(colorHsv[0] * 3.6)
+    def returnValue = Math.round(colorHsv[0] * 3.6)
     if(returnValue == 0) returnValue = 1
     return returnValue
 }
-def getSatFromHex(buttonNumber, pushType, singleDevice){
-    if(!parent.checkIsColor(singleDevice,app.id)) return
+def getSatFromHex(singleDevice, buttonNumber, pushType){
+    if(!parent.checkIsColor(singleDevice, app.id)) return
     colorHex = settings['button_' + buttonNumber + '_' + pushType + '_color']
     if(!colorHex) colorHex = '#FF0000'
     colorRgb = hubitat.helper.ColorUtils.hexToRGB(colorHex)
@@ -1024,30 +1026,29 @@ def getSatFromHex(buttonNumber, pushType, singleDevice){
 
 // This is fucked up - returning map, and merging maps
 // SHould just merge it here?
-def getCycleColorMap(switchAction, buttonNumber, pushType, singleDevice){
+def getCycleColorMap(singleDevice, switchAction, buttonNumber, pushType){
     if(switchAction != 'cycleColor') return
-    nextColor = getCycleColorValue(buttonNumber, pushType, singleDevice)
+    nextColor = getCycleColorValue(singleDevice, buttonNumber, pushType)
     if(!nextColor) {
-        parent.clearTableByDeviceAndType('nonSchedule',singleDevice.id,'hue',app.id)
-        parent.clearTableByDeviceAndType('nonSchedule',singleDevice.id,'sat',app.id)
+        parent.clearTableByDeviceAndType(singleDevice.id, 'nonSchedule', 'hue', app.id)
+        parent.clearTableByDeviceAndType(singleDevice.id, 'nonSchedule', 'sat', app.id)
         return
     }
-    hueMap = parent.getNonScheduleLevelMap('hue',nextColor,app.id)
-    satMap = parent.getNonScheduleLevelMap('sat',100,app.id)
-    stateMap = 'on'
-    parent.mergeMapToTable('state',singleDevice.id,stateValue,app.id)
-    return parent.combineMaps(stateMap, hueMap, satMap,'','',app.id)
+    def hueMap = parent.getNonScheduleLevelMap('hue', nextColor, app.id)
+    def satMap = parent.getNonScheduleLevelMap('sat',100, app.id)
+    parent.mergeMapToTable(singleDevice.id, 'state', 'on', app.id)
+    return parent.combineMaps(hueMap, satMap, '', '', '', app.id)
 }
-def getCycleColorValue(buttonNumber, pushType, singleDevice){
+def getCycleColorValue(singleDevice, buttonNumber, pushType){
     if(!singleDevice) return
-    if(!parent.checkIsColor(singleDevice,app.id)) return
+    if(!parent.checkIsColor(singleDevice, app.id)) return
     colorCount = settings['button_' + buttonNumber + '_' + pushType + '_colorCount']
     if(!colorCount) colorCount = 6
     firstColor = Math.round(360 / (colorCount * 2))
     lastColor = 360 - Math.round(360 / (colorCount * 2))
-    currentColor = parent.getCurrentLevelFromTable('hue',singleDevice.id,app.id)
+    currentColor = parent.getCurrentLevelFromTable(singleDevice.id, 'hue', app.id)
     //if(!hiRezHue) currentColor = Math.round(currentColor * 3.6)
-    if(!parent.checkIsOn(singleDevice,app.id)) return firstColor
+    if(!parent.checkIsOn(singleDevice, app.id)) return firstColor
     if(!currentColor) return firstColor
     if(currentColor >= lastColor){
         // set white/resume schedule
@@ -1066,8 +1067,7 @@ def buttonHeld(evt){
 
 def buttonReleased(evt){
     buttonNumber = assignButtonNumber(evt.value.toInteger())
-
-    putLog(1070,'trace','Button ' + buttonNumber + ' of ' + device + ' released, unscheduling all')
+    putLog(1070, 'trace', 'Button ' + buttonNumber + ' of ' + evt.device + ' released, unscheduling all')
     unschedule()
 }
 
@@ -1081,48 +1081,56 @@ def assignButtonNumber(originalButton){
 }
 
 // This is the schedule function that sets the level for progressive dimming
-def runSetProgressiveLevel(data){
-    if(!getSetProgressiveLevelDevice(data.device, data.action)) {
-        putLog(1086,'trace','Function runSetProgressiveLevel returning (no matching device)')
+def runSetProgressiveLevel(parameters){
+    def device = settings['controllerDeviceId']?.find { it.id == deviceId.toString() }
+    if(!getSetProgressiveLevelDevice(device.id, parameters.action)) {
+        putLog(1087, 'trace', 'Function runSetProgressiveLevel returning (no matching device)')
         return
     }
-    holdNextLevelSingle(singleDevice,action)
+    holdNextLevelSingle(device, parameters.action)
 }
 
 def getSetProgressiveLevelDevice(deviceId, action){
-    for(int i = 0; i < switchActions.size(); i++) {
+    if(!actionMap) actionMap = buildActionMap('pico')
+    def brightness
+    for(int i = 0; i < actionMap.size(); i++) {
         if(action == 'dim'){
             settings['button_' + (i + 1) + '_hold_dim'].each{
-                if (it.id == deviceId) returnValue = it
+                if (it.id == deviceId) brightness = it
             }
         }
         if(action == 'brighten'){
             settings['button_' + (i + 1) + '_hold_brighten'].each{
-                if (it.id == deviceId) returnValue = it
+                if (it.id == deviceId) brightness = it
             }
         }
     }
-    return returnValue
+    return brightness
 }
 // Has to be in child app for schedule
-def holdNextLevelMulti(multiDevice,action){
+def holdNextLevelMulti(multiDevice, action){
     if(action != 'dim' && action != 'brighten') return
 
-    device.each{singleDevice->
-        holdNextLevelSingle(singleDevice,action)
+    multiDevice.each{singleDevice->
+        holdNextLevelSingle(singleDevice, action)
     }
 }
 
 // Has to be in child app for schedule
-def holdNextLevelSingle(singleDevice,action){
-    if(!parent.checkIsDimmable(singleDevice,app.id)) return
-    level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.label)
+def holdNextLevelSingle(singleDevice, action){
+    if(!parent.checkIsDimmable(singleDevice, app.id)) return
+    level = parent._getNextLevelDimmable(singleDevice, action, atomicState.heldDimmingProgressionFactor, app.id)
     if(!level) return
-    levelMap = parent.getNonScheduleLevelMap(type,level,app.id)         // dim, brighten
-    parent.mergeMapToTable('nonSchedule',singleDevice.id,levelMap,app.id)
+    if(level == 100 && action == 'brighten') return
+    levelMap = parent.getNonScheduleLevelMap('brightness', level, app.id)         // dim, brighten
+    parent.mergeMapToTable(singleDevice.id, 'nonSchedule', levelMap, app.id)
+    parent.setDeviceSingle(singleDevice, 'pico', app.id)
+
+    if(level == 100 && action == 'brighten') return
+    if(level == 1 && action == 'dim') return
     
-    parameters = [device: singleDevice.id, action: action]
-    parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(),'','runSetProgressiveLevel',parameters,app.id)
+    parameters = [deviceId: singleDevice.id, action: action]
+    parent.scheduleChildEvent(parent.CONSTProgressiveDimmingDelayTimeMillis(), '', 'runSetProgressiveLevel', parameters, app.id)
 }
 
 def getDevices(){
@@ -1133,15 +1141,15 @@ def getDevices(){
 def getActive(){
     if(settings['ifMode'] && location.mode != settings['ifMode']) return
     
-    if(atomicState.scheduleStartTime && atomicState.scheduleStopTime){
-        if(!parent.checkNowBetweenTimes(atomicState.scheduleStartTime, atomicState.scheduleStopTime,app.id)) return
+    if(atomicState.timestampStart && atomicState.scheduleEndTime){
+        if(!parent.checkNowBetweenTimes(atomicState.timestampStart, atomicState.scheduleEndTime, app.id)) return
     }
 
     if(settings['personHome']){
-        if(!parent.checkPeopleHome(settings['personHome'],app.id)) return
+        if(!parent.checkAnyPeopleHome(settings['personHome'], app.id)) return
     }
     if(settings['personNotHome']){
-        if(!parent.checkNoPeopleHome(settings['personNotHome'],app.id)) return
+        if(!parent.checkAllPeopleNotHome(settings['personNotHome'], app.id)) return
     }
 
     return true
@@ -1184,14 +1192,14 @@ def buildActionMap(thisType){
     if(thisType == 'schedule') return
     if(thisType == 'sensor') return
 
-    return [['action':'on','actionText':'turn on','descriptionActive':'Turns on', 'description': 'Turn on','type':'on', 'defaultButton':1,'advanced':false],
-        ['action':'off', 'actionText':'turn off','descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
-        ['action':'brighten', 'actionText':'brighten','descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
-        ['action':'dim', 'actionText':'dim','descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
-        ['action':'toggle', 'actionText':'toggle','descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
-        ['action':'resume', 'actionText':'resume schedule','descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
-        ['action':'setColor', 'actionText':'set color','descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
-        ['action':'cycleColor', 'actionText':'cycle through colors','descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
+    return [['action':'on', 'actionText':'turn on', 'descriptionActive':'Turns on', 'description': 'Turn on', 'type':'on', 'defaultButton':1, 'advanced':false],
+        ['action':'off', 'actionText':'turn off', 'descriptionActive':'Turns off', 'description': 'Turn off', 'type':'on', 'defaultButton':5, 'advanced':false],
+        ['action':'brighten', 'actionText':'brighten', 'descriptionActive':'Brightens', 'description': 'Brighten', 'type':'dim', 'defaultButton':2, 'advanced':false],
+        ['action':'dim', 'actionText':'dim', 'descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
+        ['action':'toggle', 'actionText':'toggle', 'descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
+        ['action':'resume', 'actionText':'resume schedule', 'descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
+        ['action':'setColor', 'actionText':'set color', 'descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
+        ['action':'cycleColor', 'actionText':'cycle through colors', 'descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
 }
                                      
 def setUILinks(){
@@ -1211,34 +1219,34 @@ def setUILinks(){
 
 def displayLabel(text, width = 12){
     if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>', width:width)
 }
 
 
-def displayInfo(text,noDisplayIcon = null, width=12){
+def displayInfo(text, noDisplayIcon = null, width=12){
     if(!text) return
     //tooltipName = 'tooltip' + tooltipNumber
     //tooltipComputedValueName = 'tooltipValue' + tooltipNumber
     //paragraph('<div onclick="var ' + tooltipName + ' = document.getElementById(\'' + tooltipName + '\'); var ' + tooltipComputedValueName + ' = window.getComputedStyle(' + tooltipName + '); if (' + tooltipComputedValueName + '.display === \'block\') { ' + tooltipName + '.style.display = \'none\'; } else { ' + tooltipName + '.style.display = \'block\'; ' + tooltipName + '.innerText = \'' + text + '\'; }">' + infoIcon + '</div><div id="' + tooltipName + '" style="display: none; background-color:AliceBlue"></div>', width:width)
 
     //tooltipNumber++
-    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>', width:width)
     text = ''
 }
 
-def displayError(text,noDisplayIcon = null, width=12){
+def displayError(text, noDisplayIcon = null, width=12){
     if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>', width:width)
     errorMessage = ''
    
 }
 
-def displayWarning(text,noDisplayIcon = null, width=12){
+def displayWarning(text, noDisplayIcon = null, width=12){
     if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>', width:width)
     warningMessage = ''
 }
 
@@ -1247,7 +1255,7 @@ def highlightText(text, width=12){
     return '<div style="background-color:Wheat">' + text + '</div>'
 }
 
-def addFieldName(text,fieldName){
+def addFieldName(text, fieldName){
     if(!fieldName) return
     if(getLogLevel() != 5) return text
     return text + ' [' + fieldName + ']'
@@ -1260,7 +1268,7 @@ def displayNameOption(){
 def displayNameOptionComplete(){
     if(!app.label) return
     displayLabel(thisDescription.capitalize() + ' name:',2)
-    label title: '', required: false, width: 10,submitOnChange:true
+    label title: '', required: false, width: 10, submitOnChange:true
 }
 def displayNameOptionIncomplete(){
     if(app.label) return
@@ -1292,10 +1300,10 @@ def displayControllerOption(){
         }
     }
     
-    displayControllerOptionComplete(fieldName,fieldOptions)
-    displayControllerOptionIncomplete(fieldName,fieldOptions)
+    displayControllerOptionComplete(fieldName, fieldOptions)
+    displayControllerOptionIncomplete(fieldName, fieldOptions)
 }
-def displayControllerOptionComplete(fieldName,fieldOptions){
+def displayControllerOptionComplete(fieldName, fieldOptions){
     if(!settings[fieldName]) return
     if(thisType == 'cube') fieldTitle = 'MagicCube'
     if(thisType == 'pico') fieldTitle = 'Pico controller'
@@ -1306,7 +1314,7 @@ def displayControllerOptionComplete(fieldName,fieldOptions){
     if(fieldOptions) displaySelectField(fieldName, fieldTitle, fieldOptions, true, true, 'controllerButton')
     if(!fieldOptions) displayDeviceSelectField(fieldName, fieldTitle, capability, true, 'controllerButton')
 }
-def displayControllerOptionIncomplete(fieldName,fieldOptions){
+def displayControllerOptionIncomplete(fieldName, fieldOptions){
     if(settings[fieldName]) return
     if(thisType == 'pico') displayInfo('Select which Lutron Caseta(s) and/or Pico(s) to control. You can select multiple devices, but all should have the same number of buttons.')
     if(fieldOptions) displayInfo('If you don\'t see the device you want, make sure you have it selected in the Master app.')
@@ -1326,16 +1334,16 @@ def controllerOptionProcessParentDeviceList(capability){
     allDeviceOptions.each{singleDevice->
         if(singleDevice.hasCapability(capability.capitalize())){
             controllerMatch = controllerOptionProcessParentDeviceListMatch(singleDevice)
-            if(controllerMatch) controllerList.put([singleDevice.'id',getDeviceName(singleDevice)])
-            //if(!controllerMatch) fullList.put([singleDevice.'id',getDeviceName(singleDevice)])
+            if(controllerMatch) controllerList.put([singleDevice.'id', getDeviceName(singleDevice)])
+            //if(!controllerMatch) fullList.put([singleDevice.'id', getDeviceName(singleDevice)])
         }
     }
     if(settings['controllerDeviceId']){
         settings['controllerDeviceId'].each{controllerDeviceIdValue->
             if(!controllerList.containsKey(controllerDeviceIdValue)){
-                controllerList.put([controllerDeviceIdValue,'test'])
-               }
-               }
+                controllerList.put([controllerDeviceIdValue, 'test'])
+            }
+        }
     }
     if(!controllerList) return
     return controllerList.sort{it.value.toLowerCase()}
@@ -1352,8 +1360,8 @@ def displayAdvancedOption(){
     if(thisType == 'schedule'){
         if(!validateTimes('start')) return
         if(!validateTimes('stop')) return
-        if(!settings['start_action']) return
-        if(!settings['stop_action']) return
+        if(!settings['actionStart']) return
+        if(!settings['actionStop']) return
     }
     
     displayAdvancedOptionEnabled(fieldName)
@@ -1361,14 +1369,14 @@ def displayAdvancedOption(){
 }
 def displayAdvancedOptionEnabled(fieldName){
     if(!settings[fieldName]) return
-    fieldTitleTrue = 'Showing advanced setup.'
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+    def fieldTitleTrue = 'Showing advanced setup.'
+    displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false)
 }
 def displayAdvancedOptionDisabled(fieldName){
     if(settings[fieldName]) return
-    fieldTitleTrue = 'Keeping it simple.'
-    fieldTitleFalse = 'Click to show advanced setup.'
-    displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse, false)
+    def fieldTitleTrue = 'Keeping it simple.'
+    def fieldTitleFalse = 'Click to show advanced setup.'
+    displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false)
 }
 
 def displayControlDeviceOption(){
@@ -1388,7 +1396,7 @@ def displayControlDeviceOptionComplete(fieldName){
     if(state['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
     if(state['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
 
-    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
+    displayDeviceSelectField(fieldName, fieldTitle, 'capability.' + capabilitiesType, true, 'controlButton')
 }
 def displayControlDeviceOptionIncomplete(fieldName){
     if(settings[fieldName]) return
@@ -1399,7 +1407,7 @@ def displayControlDeviceOptionIncomplete(fieldName){
     if(state['controlButtonValue'] == 1) capabilitiesType = 'switchLevel'
     if(state['controlButtonValue'] == 2) capabilitiesType = 'colorMode'
 
-    displayDeviceSelectField(fieldName,fieldTitle,'capability.' + capabilitiesType,true, 'controlButton')
+    displayDeviceSelectField(fieldName, fieldTitle, 'capability.' + capabilitiesType, true, 'controlButton')
 }
 
 def displayIfModeOption(){
@@ -1424,13 +1432,13 @@ def displayIfModeOption(){
 def displayIfModeFieldComplete(fieldName){
     if(!settings[fieldName]) return
     fieldTitle = 'Only with Mode:'
-    displayModeSelectField(fieldName,fieldTitle,true,false)
+    displayModeSelectField(fieldName, fieldTitle, true, false)
 }
 def displayIfModeFieldIncomplete(fieldName){
     if(settings[fieldName]) return
     displayInfo('This will limit the ' + thisDescription + ' from being active to only when Hubitat\'s Mode is as selected. You can create another ' + thisDescription + ' "app" to do something else for other Modes.')
     fieldTitle = 'Only when the Mode is:'
-    displayModeSelectField(fieldName,fieldTitle,true,false)
+    displayModeSelectField(fieldName, fieldTitle, true, false)
 }
 
 def displayPeopleOption(){
@@ -1479,114 +1487,116 @@ def displayPeopleOption(){
 def displayPersonHomeComplete(fieldName, fieldCapability){
     if(!settings[fieldName]) return
     fieldTitle = 'Only if home:'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+    displayDeviceSelectField(fieldName, fieldTitle, fieldCapability, true)
 }
 def displayPersonHomeIncomplete(fieldName, fieldCapability){
     if(settings[fieldName]) return
     if(!settings['personNotHome']) displayInfo('This will limit the ' + thisDescription + ' from being active to only when those selected are home and/or away. They can be combined (as if Person A is home AND Person B is away). You can create another ' + thisDescription + ' "app" to do something else for the opposite.')
     fieldTitle = 'Only if any of these people are home (Optional)'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+    displayDeviceSelectField(fieldName, fieldTitle, fieldCapability, true)
 }
 def displayPersonNotHomeComplete(fieldName, fieldCapability){
     if(!settings[fieldName]) return
     fieldTitle = 'Only if away:'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+    displayDeviceSelectField(fieldName, fieldTitle, fieldCapability, true)
 }
 def displayPersonNotHomeIncomplete(fieldName, fieldCapability){
     if(settings[fieldName]) return
     fieldTitle = 'Only if all of these people are not home (Optional)'
-    displayDeviceSelectField(fieldName,fieldTitle,fieldCapability,true)
+    displayDeviceSelectField(fieldName, fieldTitle, fieldCapability, true)
 }
 
 def validateTimes(type){
-    if(type == 'stop' && settings['start_timeType'] && !settings['stop_timeType']) return false
-    if(thisType == 'schedule' && type == 'stop' && settings['stop_timeType'] == 'none') return true
-    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) return false
-    if(settings[type + '_timeType'] == 'sunrise' && !settings[type + '_sunType']) return false
-    if(settings[type + '_timeType'] == 'sunset' && !settings[type + '_sunType']) return false
-    if(settings[type + '_sunType'] == 'before' && !settings[type + '_sunOffset']) return false
-    if(settings[type + '_sunType'] == 'after' && !settings[type + '_sunOffset']) return false
+    if(type == 'stop' && settings['timeTypeStart'] && !settings['timeTypeStop']) return false
+    if(thisType == 'schedule' && type == 'stop' && settings['timeTypeStop'] == 'none') return true
+    if(settings['timeType' + type.capitalize()] == 'time' && !settings['time' + type.capitalize()]) return false
+    if(settings['timeType' + type.capitalize()] == 'sunrise' && !settings['timeSunType' + type.capitalize()]) return false
+    if(settings['timeType' + type.capitalize()] == 'sunset' && !settings['timeSunType' + type.capitalize()]) return false
+    if(settings['timeSunType' + type.capitalize()] == 'before' && !settings['timeSunOffset' + type.capitalize()]) return false
+    if(settings['timeSunType' + type.capitalize()] == 'after' && !settings['timeSunOffset' + type.capitalize()]) return false
     if(!validateSunriseMinutes(type)) return false
     return true
 }
 
 def validateSunriseMinutes(type){
-    if(!settings[type + '_sunOffset']) return true
-    if(settings[type + '_sunOffset'] > 719) return false
-    if(settings[type + '_sunOffset'] < 719) return false
+    if(!settings['timeSunOffset' + type.capitalize()]) return true
     // If sunrise/set offset is negative, make positive and invert before/after
-    if(settings[type + '_sunOffset'] < 0){
-        if(settings[type + '_sunType'] == 'before') settings[type + '_sunType'] = 'after'
-        if(settings[type + '_sunType'] == 'after') settings[type + '_sunType'] = 'before'
-        settings[type + '_sunOffset'] = settings[type + '_sunOffset'] * -1
+    if(settings['timeSunOffset' + type.capitalize()] < 0){
+        if(settings['timeSunType' + type.capitalize()] == 'before') {
+            app.updateSetting('timeSunType' + type.capitalize(), [type:'enum', value:'after'])
+        } else if(settings['timeSunType' + type.capitalize()] == 'after'){
+            app.updateSetting('timeSunType' + type.capitalize(), [type:'enum', value:'before'])
+        }
+        app.updateSetting('timeSunOffset' + type.capitalize(), [type:'number', value:settings['timeSunOffset' + type.capitalize()] * -1])
     }
+    if(settings['timeSunOffset' + type.capitalize()] > 719) return false
     return true
 }
 
 def getTimeSectionTitle(){
     sectionTitle = ''
-    if(!settings['start_timeType'] && !settings['stop_timeType']) return 'Click to set with schedule (Optional)'
-    if(settings['start_timeType']) sectionTitle = '<b>Starting: ' + getTimeSectionStartStopTitle('start') + '</b>'
-    if(settings['start_timeType'] && settings['stop_timeType']) sectionTitle += '\n'
-    if(settings['stop_timeType']) sectionTitle += '<b>Stopping: ' + getTimeSectionStartStopTitle('stop') + '</b>'
-    if(thisType == 'schedule' && settings['start_time'] && settings['stop_time'] && settings['start_time'] == settings['stop_time']) sectionTitle = '<b>Always</b>'
+    if(!settings['timeTypeStart'] && !settings['timeTypeStop']) return 'Click to set with schedule (Optional)'
+    if(settings['timeTypeStart']) sectionTitle = '<b>Starting: ' + getTimeSectionStartStopTitle('start') + '</b>'
+    if(settings['timeTypeStart'] && settings['timeTypeStop']) sectionTitle += '\n'
+    if(settings['timeTypeStop']) sectionTitle += '<b>Stopping: ' + getTimeSectionStartStopTitle('stop') + '</b>'
+    if(thisType == 'schedule' && settings['timeStart'] && settings['timeStop'] && settings['timeStart'] == settings['timeStop']) sectionTitle = '<b>Always</b>'
     return sectionTitle
 }
 def getTimeSectionStartStopTitle(type){
     sectionTitle = ''
-    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 'No end'
-    if(settings[type + '_timeType'] == 'time') sectionTitle += 'At '
-    if(settings[type + '_timeType'] == 'time' && !settings[type + '_time']) sectionTitle += 'specific time'
-    if(settings[type + '_timeType'] == 'time' && settings[type + '_time']) sectionTitle += Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings[type + '_time']).format('h:mm a', location.timeZone)
-    if(settings[type + '_timeType'] == 'sunrise' || settings[type + '_timeType'] == 'sunset'){
-        if(!settings[type + '_sunType']) sectionTitle += 'Based on ' + settings[type + '_timeType']
-        if(settings[type + '_sunType'] == 'at') sectionTitle += 'At ' + settings[type + '_timeType']
-        if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at' && !settings[type + '_sunOffset']) sectionTitle += settings[type + '_sunType'].capitalize() + ' ' + settings[type + '_timeType']
-        if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at' && settings[type + '_sunOffset']) sectionTitle += settings[type + '_sunOffset'] + ' minutes ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType']
-        if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at' && settings[type + '_sunOffset'] && validateTimes(type)) sectionTitle += ' ' + getSunriseTime(settings[type + '_timeType'],settings[type + '_sunOffset'],settings[type + '_sunType'])
+    if(type == 'stop' && settings['timeType' + type.capitalize()] == 'none') return 'No end'
+    if(settings['timeType' + type.capitalize()] == 'time') sectionTitle += 'At '
+    if(settings['timeType' + type.capitalize()] == 'time' && !settings['time' + type.capitalize()]) sectionTitle += 'specific time'
+    if(settings['timeType' + type.capitalize()] == 'time' && settings['time' + type.capitalize()]) sectionTitle += Date.parse("yyyy-MM-dd'T'HH:mm:ss", settings['time' + type.capitalize()]).format('h:mm a', location.timeZone)
+    if(settings['timeType' + type.capitalize()] == 'sunrise' || settings['timeType' + type.capitalize()] == 'sunset'){
+        if(!settings['timeSunType' + type.capitalize()]) sectionTitle += 'Based on ' + settings['timeType' + type.capitalize()]
+        if(settings['timeSunType' + type.capitalize()] == 'at') sectionTitle += 'At ' + settings['timeType' + type.capitalize()]
+        if(settings['timeSunType' + type.capitalize()] && settings['timeSunType' + type.capitalize()] != 'at' && !settings['timeSunOffset' + type.capitalize()]) sectionTitle += settings['timeSunType' + type.capitalize()].capitalize() + ' ' + settings['timeType' + type.capitalize()]
+        if(settings['timeSunType' + type.capitalize()] && settings['timeSunType' + type.capitalize()] != 'at' && settings['timeSunOffset' + type.capitalize()]) sectionTitle += settings['timeSunOffset' + type.capitalize()] + ' minutes ' + settings['timeSunType' + type.capitalize()] + ' ' + settings['timeType' + type.capitalize()]
+        if(settings['timeSunType' + type.capitalize()] && settings['timeSunType' + type.capitalize()] != 'at' && settings['timeSunOffset' + type.capitalize()] && validateTimes(type)) sectionTitle += ' ' + getSunriseTime(settings['timeType' + type.capitalize()], settings['timeSunOffset' + type.capitalize()], settings['timeSunType' + type.capitalize()])
     }
     return sectionTitle
 }
 
 def displayTimeTypeOption(type){
-    if(type == 'stop' && (!settings['start_timeType'] || !validateTimes('start'))) return
+    if(type == 'stop' && (!settings['timeTypeStart'] || !validateTimes('start'))) return
     ingText = type
     if(type == 'stop') ingText = 'stopp'
     
     labelText = 'Schedule ' + type
     if(validateTimes('start')) labelText = ''
-    if(type == 'start' && (!validateTimes('start') || !settings[type + '_timeType'])) labelText = ''
-    if(!validateTimes('start') || !settings[type + '_timeType']) labelText = 'Schedule ' + ingText + 'ing time'
+    if(type == 'start' && (!validateTimes('start') || !settings['timeType' + type.capitalize()])) labelText = ''
+    if(!validateTimes('start') || !settings['timeType' + type.capitalize()]) labelText = 'Schedule ' + ingText + 'ing time'
     
     if(labelText) displayLabel(labelText)
 
-    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' is ' + (Math.round(settings[type + '_sunOffset'] / 60)) + ' hours. That\'s probably wrong.')
+    if(!validateSunriseMinutes(type)) displayWarning('Time ' + settings['timeSunType' + type.capitalize()] + ' ' + settings['timeType' + type.capitalize()] + ' is ' + (Math.round(settings['timeSunOffset' + type.capitalize()] / 60)) + ' hours. That\'s probably wrong.')
     
-    fieldName = type + '_timeType'
+    fieldName = 'timeType' + type.capitalize()
     fieldTitle = type.capitalize() + ' time:'
-    if(!settings[type + '_timeType']){
+    if(!settings[fieldName]){
         fieldTitle = type.capitalize() + ' time?'
         if(type == 'stop' && thisType == 'schedule') fieldTitle += ' (Select "Don\'t stop" for none)'
         if(type == 'stop' && thisType != 'schedule') fieldTitle += ' (Required with Start time.)'
         fieldTitle = highlightText(fieldTitle)
     }
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    if(type == 'stop' && thisType == 'schedule') fieldList = ['none':'Don\'t stop','time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
-    if(type == 'stop' && thisType != 'schedule') fieldList = ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)','sunset':'Sunset (at, before or after)']
+    fieldTitle = addFieldName(fieldTitle, fieldName)
+    fieldList = ['time':'Start at specific time', 'sunrise':'Sunrise (at, before or after)', 'sunset':'Sunset (at, before or after)']
+    if(type == 'stop' && thisType == 'schedule') fieldList = ['none':'Don\'t stop', 'time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)', 'sunset':'Sunset (at, before or after)']
+    if(type == 'stop' && thisType != 'schedule') fieldList = ['time':'Stop at specific time', 'sunrise':'Sunrise (at, before or after)', 'sunset':'Sunset (at, before or after)']
     input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: fieldList, submitOnChange:true
-    if(!settings['start_timeType']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
+    if(!settings['timeTypeStart']) displayInfo('Select whether to enter a specific time, or have start time based on sunrise and sunset for the Hubitat location. Required.')
 }
 
 def displayTimeOption(type){
     if(type == 'stop' && !validateTimes('start')) return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(settings[type + '_timeType'] != 'time') return
-    if(type == 'stop' && (!settings['start_timeType'] || !validateTimes('start'))) return
+    if(type == 'stop' && settings['timeTypeStop'] == 'none') return
+    if(settings['timeType' + type.capitalize()] != 'time') return
+    if(type == 'stop' && (!settings['timeTypeStart'] || !validateTimes('start'))) return
 
-    fieldName = type + '_time'
+    fieldName = 'time' + type.capitalize()
     fieldTitle = type.capitalize() + ' time:'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
     input fieldName, 'time', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
     // Add separate alert for if noon or midnight are actually entered
@@ -1594,67 +1604,67 @@ def displayTimeOption(type){
 }
                                      
 def getTypeOptionWidth(type){
-    if(!settings[type + '_timeType']) return 12
-    if(type == 'stop' && settings[type + '_timeType'] == 'none') return 12
-    if(settings[type + '_sunType'] && settings[type + '_sunType'] != 'at') return 4
+    if(!settings['timeType' + type.capitalize()]) return 12
+    if(type == 'stop' && settings['timeType' + type.capitalize()] == 'none') return 12
+    if(settings['timeSunType' + type.capitalize()] && settings['timeSunType' + type.capitalize()] != 'at') return 4
     return 6
 }
 
 def displaySunriseTypeOption(type){
-    if(!settings[type + '_timeType']) return
-    if(settings[type + '_timeType'] == 'time') return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
+    if(!settings['timeType' + type.capitalize()]) return
+    if(settings['timeType' + type.capitalize()] == 'time') return
+    if(type == 'stop' && settings['timeTypeStop'] == 'none') return
     if(type == 'stop' && !validateTimes('start')) return
-    if(settings[type + '_timeType'] != 'sunrise' && settings[type + '_timeType'] != 'sunset') return
+    if(settings['timeType' + type.capitalize()] != 'sunrise' && settings['timeType' + type.capitalize()] != 'sunset') return
     
-    sunTime = getSunriseAndSunset()[settings[type + '_timeType']].format('hh:mm a')
+    sunTime = getSunriseAndSunset()[settings['timeType' + type.capitalize()]].format('hh:mm a')
 
-    fieldName = type + '_sunType'
-    fieldTitle = 'At, before or after ' + settings[type + '_timeType'] + ' (' + sunTime + '):'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldName = 'timeSunType' + type.capitalize()
+    fieldTitle = 'At, before or after ' + settings['timeType' + type.capitalize()] + ' (' + sunTime + '):'
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     if(!settings[fieldName]) fieldTitle = highlightText(fieldTitle)
-    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings[type + '_timeType'], 'before':'Before ' + settings[type + '_timeType'], 'after':'After ' + settings[type + '_timeType']], submitOnChange:true
+    input fieldName, 'enum', title: fieldTitle, multiple: false, width: getTypeOptionWidth(type), options: ['at':'At ' + settings['timeType' + type.capitalize()], 'before':'Before ' + settings['timeType' + type.capitalize()], 'after':'After ' + settings['timeType' + type.capitalize()]], submitOnChange:true
     
-    if(!settings[fieldName]) displayInfo('Select whether scheduling starts exactly at ' + settings[type + '_timeType'] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings[type + '_timeType'] + ', select "Before ' + settings[type + '_timeType'] + '" or "After ' + settings[type + '_timeType'] + '". Required.')
+    if(!settings[fieldName]) displayInfo('Select whether scheduling starts exactly at ' + settings['timeType' + type.capitalize()] + ' (currently ' + sunTime + '). To allow entering minutes prior to or after ' + settings['timeType' + type.capitalize()] + ', select "Before ' + settings['timeType' + type.capitalize()] + '" or "After ' + settings['timeType' + type.capitalize()] + '". Required.')
     displaySunriseOffsetOption(type)
 }
 
-def getSunriseTime(type,sunOffset,sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1),app.id)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset,app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1),app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset,app.id)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0,app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0,app.id)).format('hh:mm a') + ')'   
+def getSunriseTime(type, sunOffset, sunriseType){
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1), app.id)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset, app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1), app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset, app.id)).format('hh:mm a') + ')'
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0, app.id)).format('hh:mm a') + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0, app.id)).format('hh:mm a') + ')'   
 }
 
 def displaySunriseOffsetOption(type){
     if(type == 'stop' && !validateTimes('start')) return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(!settings[type + '_sunType']) return
-    if(settings[type + '_sunType'] == 'at') return
+    if(type == 'stop' && settings['timeTypeStop'] == 'none') return
+    if(!settings['timeSunType' + type.capitalize()]) return
+    if(settings['timeSunType' + type.capitalize()] == 'at') return
 
-    fieldName = type + '_sunOffset'
+    fieldName = 'timeSunOffset' + type.capitalize()
     timeUnits = 'minutes'
-    fieldTitle = timeUnits.capitalize() + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ':'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = timeUnits.capitalize() + ' ' + settings['timeSunType' + type.capitalize()] + ' ' + settings['timeType' + type.capitalize()] + ':'
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     input fieldName, 'number', title: fieldTitle, width: getTypeOptionWidth(type), submitOnChange:true
 
-    message = 'Enter the number of ' + timeUnits + ' ' + settings[type + '_sunType'] + ' ' + settings[type + '_timeType'] + ' for schedule to ' + type + '. Required.'
-    if(!settings[type + '_sunOffset']) displayInfo(message)
+    message = 'Enter the number of ' + timeUnits + ' ' + settings['timeSunType' + type.capitalize()] + ' ' + settings['timeType' + type.capitalize()] + ' for schedule to ' + type + '. Required.'
+    if(!settings[fieldName]) displayInfo(message)
     if(!validateSunriseMinutes(type)) displayWarning(message)
 }
 
 def displayDaysAndDatesSection(thisType){
     if(thisType != 'schedule' && !settings['controlDevice']) return
     if(!settings['controlDevice']) return
-    if(!settings['start_timeType']) return
+    if(!settings['timeTypeStart']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
     if(!settings['advancedSetup'] && !settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     hidden = true
     
-    parent.processDates(settings['includeDates'],settings['excludeDates'],settings['days'],true,app.id)
+    parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)
 	if(parent.getDateProcessingErrors(app.id)) hidden = false
     sectionTitle = '<b>Days/Dates:'
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) sectionTitle = 'Click to set days/dates (optional)'
@@ -1676,7 +1686,7 @@ def displayDaysAndDatesSection(thisType){
 }
 
 def displayDaysOption(){
-    if(thisType == 'schedule' && !settings['start_timeType']) return
+    if(thisType == 'schedule' && !settings['timeTypeStart']) return
     if(!validateTimes('start')) return
     if(!validateTimes('stop')) return
 
@@ -1685,7 +1695,7 @@ def displayDaysOption(){
     fieldTitle = 'On these days (Optional; defaults to all days):'
     if(!settings[fieldName]) fieldTitle = 'On which days (Optional; defaults to all days)?'
     options = ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday']
-    displaySelectField(fieldName,fieldTitle,options,true,false)
+    displaySelectField(fieldName, fieldTitle, options, true, false)
     //input fieldName, 'enum', title: fieldTitle, multiple: true, width: 12, options: ['Monday': 'Monday', 'Tuesday': 'Tuesday', 'Wednesday': 'Wednesday', 'Thursday': 'Thursday', 'Friday': 'Friday', 'Saturday': 'Saturday', 'Sunday': 'Sunday'], submitOnChange:true
 }
 
@@ -1701,50 +1711,50 @@ def displayIncludeDates(){
     fieldName = 'includeDates'
     fieldTitle = 'Only on dates:'
     if(thisType == 'schedule') fieldTitle = 'Dates on which to run ("include"):'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     input fieldName, "textarea", title: fieldTitle, submitOnChange:true
 }
 
-def displayTextField(fieldName,fieldTitle,fieldType,required = true){
+def displayTextField(fieldName, fieldTitle, fieldType, required = true){
     width = 10
     if(!settings[fieldName]) width = 12
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
     input name: fieldName, type: fieldType, title: '', width:width, submitOnChange:true
 }
-def displayBoolField(fieldName,fieldTitleTrue,fieldTitleFalse,required = true,defaultValue = false){
+def displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, required = true, defaultValue = false){
     if(!fieldTitleTrue) fieldTitleTrue = ''
     if(!fieldTitleFalse) fieldTitleFalse = ''
     if(required && fieldTitleTrue) fieldTitleTrue = highlightText(fieldTitleTrue)
     if(fieldTitleTrue) fieldTitle = fieldTitleTrue
     if(required) fieldTitle += ' ' + fieldTitleFalse
     if(!required) fieldTitle += '<br> ' + fieldTitleFalse
-    fieldTitle = addFieldName(fieldTitle,fieldName)
-    input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue,submitOnChange:true
+    fieldTitle = addFieldName(fieldTitle, fieldName)
+    input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue, submitOnChange:true
 }
-def displaySelectField(fieldName,fieldTitle,options,multiple = false,required = true, button = '', width = 12){
+def displaySelectField(fieldName, fieldTitle, options, multiple = false, required = true, button = '', width = 12){
     if(button) width--
     if(settings[fieldName]) width = width - 2
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
     input name: fieldName, type: 'enum', title: '', options: options, width:width, multiple: multiple, submitOnChange:true
     if(button) displayFilterButton(button)
 }
-def displayDeviceSelectField(fieldName,fieldTitle,capability,multiple, button = ''){
+def displayDeviceSelectField(fieldName, fieldTitle, capability, multiple, button = ''){
     width = 12
     if(button) width = 11
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     input name: fieldName, type: capability, title:fieldTitle, multiple: multiple, submitOnChange:true, width: width
     if(button) displayFilterButton(button)
 }
-def displayModeSelectField(fieldName,fieldTitle,multiple = false,required = true){
+def displayModeSelectField(fieldName, fieldTitle, multiple = false, required = true){
     width = 10
     if(!settings[fieldName]) width = 12
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     if(settings[fieldName]) displayLabel(fieldTitle,2)
     if(required && !settings[fieldName]) displayLabel(highlightText(fieldTitle))
     if(!required && !settings[fieldName]) displayLabel(fieldTitle)
@@ -1851,7 +1861,7 @@ def getNextYearWithMondayChristmas(currentYear = null) {
     mondayChristmas = false
     while (!mondayChristmas) {
         currentYear++
-        christmas = Date.parse('yyyyMMdd',currentYear + '1225')
+        christmas = Date.parse('yyyyMMdd', currentYear + '1225')
         if (christmas.format('EEEE') == 'Monday') mondayChristmas = true
         
     }
@@ -1861,28 +1871,28 @@ def getNextYearWithMondayChristmas(currentYear = null) {
 // Returns 'start' or 'stop' time (of day) in millis
 // Must be converted with getDatetimeFromTimeInMillis if compared to now()
 def getBaseStartStopDateTime(type){
-    if(type == 'stop' && !settings['stop_timeType']) return
-    if(type == 'stop' && settings['stop_timeType'] == 'none') return
-    if(type == 'start' && !settings['start_timeType']) return
-    if(settings[type + '_timeType'] == 'time') {
-        if(!settings[type + '_time']) return
-        return timeToday(settings[type + '_time']).getTime()
+    if(type == 'stop' && !settings['timeTypeStop']) return
+    if(type == 'stop' && settings['timeTypeStop'] == 'none') return
+    if(type == 'start' && !settings['timeTypeStart']) return
+    if(settings['timeType' + type.capitalize()] == 'time') {
+        if(!settings['time' + type.capitalize()]) return
+        return timeToday(settings['time' + type.capitalize()]).getTime()
     }
-    if(!settings[type + '_sunType']) return
+    if(!settings['timeSunType' + type.capitalize()]) return
 
-    if(settings[type + '_timeType'] == 'sunrise') {
-        if(settings[type + '_sunType'] == 'before') return parent.getSunrise(settings[type + '_sunOffset'] * -1,app.id)
-        if(settings[type + '_sunType'] == 'after') return parent.getSunrise(settings[type + '_sunOffset'],app.id)
-        if(settings[type + '_sunType'] == 'at') return parent.getSunrise(0,app.id)
+    if(settings['timeType' + type.capitalize()] == 'sunrise') {
+        if(settings['timeSunType' + type.capitalize()] == 'before') return parent.getSunrise(settings['timeSunOffset' + type.capitalize()] * -1, app.id)
+        if(settings['timeSunType' + type.capitalize()] == 'after') return parent.getSunrise(settings['timeSunOffset' + type.capitalize()], app.id)
+        if(settings['timeSunType' + type.capitalize()] == 'at') return parent.getSunrise(0, app.id)
     }
-    if(settings[type + '_timeType'] == 'sunset') {
-        if(settings[type + '_sunType'] == 'before') return parent.getSunset((settings[type + '_sunOffset'] * -1),app.id)
-        if(settings[type + '_sunType'] == 'after') return parent.getSunset(settings[type + '_sunOffset'],app.id)
-        if(settings[type + '_sunType'] == 'at') return parent.getSunset(0,app.id)
+    if(settings['timeType' + type.capitalize()] == 'sunset') {
+        if(settings['timeSunType' + type.capitalize()] == 'before') return parent.getSunset((settings['timeSunOffset' + type.capitalize()] * -1), app.id)
+        if(settings['timeSunType' + type.capitalize()] == 'after') return parent.getSunset(settings['timeSunOffset' + type.capitalize()], app.id)
+        if(settings['timeSunType' + type.capitalize()] == 'at') return parent.getSunset(0, app.id)
     }
 }
 
-// Date map is [yyyy:[ddd,ddd,ddd......]]
+// Date map is [yyyy:[ddd, ddd, ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
     currentYear = new Date().format('yyyy').toInteger()
@@ -1896,42 +1906,42 @@ def processDates(){
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     currentYear = new Date().format('yyyy').toInteger()
     includeDatesValue = settings['includeDates']
-    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = '1/1-12/31'
+    if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = ''
     atomicState.'includeDates' = [(currentYear):parent.processDates(includeDatesValue, settings['excludeDates'], settings['days'], true, app.id)]
 }
 
 // Not used with scheduler app
 // If time, sets persistent variables for:
-// scheduleBeginTime = time of day (no date) for start
-// scheduleEndTime = time of day (no date) for stop
+// timestampStart = time of day (no date) for start
+// timestampStop = time of day (no date) for stop
 def setTime(){
-    atomicState.remove('scheduleBeginTime')
-    atomicState.remove('scheduleEndTime')
-    if(!settings['start_timeType']) return
-    if(!settings['stop_timeType']) return
+    atomicState.remove('timestampStart')
+    atomicState.remove('timestampStop')
+    if(!settings['timeTypeStart']) return
+    if(!settings['timeTypeStop']) return
     
-    // Not sure is resyncing scheduleBeginTime and scheduleEndTime is neccesary if set a specific times (not sunrise/set)
-    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500,'','setTime','',app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - add arbitrary seconds to stagger the load
+    // Not sure is resyncing timestampStart and timestampStop is neccesary if set a specific times (not sunrise/set)
+    parent.scheduleChildEvent(parent.CONSTDayInMilli(), '', 'setTime', '', app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate
     
-    scheduleBeginTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
-    if(!scheduleBeginTime) {
-        putLog(1918,'error','Schedule error with starting time.')
+    timestampStart = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
+    if(timestampStart == null) {		// Use null for midnight = 0
+        putLog(1928, 'error', 'Schedule error with starting time.')
         return
     }
 
-    scheduleEndTime = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('stop'), app.id)
+    timestampStop = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('stop'), app.id)
 
-    if(scheduleEndTime == 0) scheduleEndTime += 1                         // If midnight, don't have zero to prevent false null checks.
+    if(timestampStop == 0) timestampStop += 1                         // If midnight, don't have zero to prevent false null checks.
     
-    atomicState.scheduleBeginTime = scheduleBeginTime
+    atomicState.timestampStart = timestampStart
     
-    if(!scheduleEndTime) return
-    atomicState.scheduleEndTime = scheduleEndTime
+    if(!timestampStop) return
+    atomicState.timestampStop = timestampStop
 }
 
 // Called from parent.scheduleChildEvent
-def setScheduleFromParent(timeMillis,scheduleFunction,scheduleParameters = null){
-    runInMillis(timeMillis,scheduleFunction,scheduleParameters)
+def setScheduleFromParent(timeMillis, scheduleFunction, scheduleParameters = null){
+    runInMillis(timeMillis, scheduleFunction, scheduleParameters)
 }
 
 def getDeviceName(singleDevice){
@@ -1940,10 +1950,10 @@ def getDeviceName(singleDevice){
     return singleDevice.name
 }
 
-def performToggle(action,singleDevice){
+def performToggle(singleDevice, action){
     if(action != 'on' && action != 'off' && action != 'toggle') return
     if(action != 'toggle') return action
-    if(parent.checkIsOn(singleDevice,app.id)) return 'off'
+    if(parent.checkIsOn(singleDevice, app.id)) return 'off'
     return 'on'
 }
 
@@ -1952,7 +1962,7 @@ def displayExcludeDates(appType){
     if(!settings['advancedSetup'] && !settings[fieldName]) return
     fieldTitle = 'Not on dates:'
     if(appType == 'schedule') fieldTitle = 'Dates on which to <u>not</u> run ("exclude"):'
-    fieldTitle = addFieldName(fieldTitle,fieldName)
+    fieldTitle = addFieldName(fieldTitle, fieldName)
     input fieldName, "textarea", title: fieldTitle, submitOnChange:true
     deviceText = 'the device'
     if(thisType == 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
@@ -1982,8 +1992,8 @@ def displayExcludeDates(appType){
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
-def putLog(lineNumber,type = 'trace',message = null){
+def putLog(lineNumber, type = 'trace', message = null){
     appId = app.id
 
-    return parent.putLog(lineNumber,type,message,app.id,'True')
+    return parent.putLog(lineNumber, type, message, app.id, 'True')
 }
