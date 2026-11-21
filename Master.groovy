@@ -13,7 +13,7 @@
 *
 *  Name: Master
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master.groovy
-*  Version: 0.4.1.48
+*  Version: 0.4.1.49
 *
 ***********************************************************************************************************************/
 
@@ -60,27 +60,27 @@ def getLogLevel(){
 
 def displayLabel(text, width = 12){
     if(!text) return
-    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>',width:width)
+    paragraph('<div style="background-color:#DCDCDC"><b>' + text + '</b></div>', width:width)
 }
 
-def displayInfo(text,noDisplayIcon = null, width=12){
+def displayInfo(text, noDisplayIcon = null, width=12){
     if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:AliceBlue">' + infoIcon + ' ' + text + '</div>', width:width)
     helpTip = ''
 }
 
-def displayError(text,noDisplayIcon = null, width=12){
+def displayError(text, noDisplayIcon = null, width=12){
     if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>', width:width)
     errorMessage = ''
 }
 
-def displayWarning(text,noDisplayIcon = null, width=12){
+def displayWarning(text, noDisplayIcon = null, width=12){
     if(!text) return
-    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>',width:width)
-    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>',width:width)
+    if(noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + text + '</div>', width:width)
+    if(!noDisplayIcon) paragraph('<div style="background-color:LemonChiffon">' + warningIcon  + ' ' + text + '</div>', width:width)
     warningMessage = ''
 }
 
@@ -134,12 +134,12 @@ def displayAllDevicesOption(){
     if(allDevices){
         section(){
             displayInfo('All devices should be selected. This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
-            input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
+            input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true, width:12, submitOnChange:true
         }
     }
     if(!allDevices) {
         
-    input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true,width:12,submitOnChange:true
+    input name: fieldName, title: fieldTitle, type: 'capability.*', multiple: true, filter:true, width:12, submitOnChange:true
     displayInfo('Select all devices ("Toggle All On"). This is used to make the app suite of easier to use, but is not required. You can deselect any devices that are never used and/or any virtual devices.')
     }
 }
@@ -299,13 +299,13 @@ def initialize() {
 }
 
 // Returns app name with app title prepended
-def appendAppTitle(appName,appTitle){
+def appendAppTitle(appName, appTitle){
     //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
     if(appName.length() < appTitle.length() - 6){
-        returnValue = appTitle.substring(9,appTitle.length()) + ' - ' + appName
+        returnValue = appTitle.substring(9, appTitle.length()) + ' - ' + appName
         //Compare first part of name (eg "Testing") to middle part of appTitle (eg "Master - Time" minus "Master - " plus " - ")
-    } else if(appName.substring(0,appTitle.length() - 9) != appTitle.substring(9,appTitle.length())){
-        returnValue = appTitle.substring(9,appTitle.length()) + ' - ' + appName
+    } else if(appName.substring(0, appTitle.length() - 9) != appTitle.substring(9, appTitle.length())){
+        returnValue = appTitle.substring(9, appTitle.length()) + ' - ' + appName
     } else {
         returnValue = appName
     }
@@ -316,20 +316,20 @@ def appendAppTitle(appName,appTitle){
 // Lock or unlock a group of locks
 def multiLock(action, multiDevice, appId = app.id){
     multiDevice.each{
-        singleLock(action,it,appId)
+        singleLock(action, it, appId)
     }
 }
 
 // Lock or unlock a single lock
-def singleLock(action, singleDevice, appId = app.id){
+def singleLock(singleDevice, action, appId = app.id){
     if(action == 'lock'){
         singleDevice.lock()
     } else if(action == 'unlock'){
         singleDevice.unlock()
     } else {
-        putLog(330,'error','Invalid value for action "' + action + '" sent to singleLock function',appId)
+        putLog(330, 'error', 'Invalid value for action "' + action + '" sent to singleLock function', appId)
     }
-    putLog(332,'info',action + 'ed ' + singleDevice,appId)
+    putLog(332, 'info', action + 'ed ' + singleDevice, appId)
 }
 
 
@@ -374,7 +374,7 @@ def validateSat(value, appId = app.id){
 def validateMultiplier(value, appId = app.id){
     if(value){
         if(value < 1 || value > 100){
-            putLog(377,'error',"ERROR: Multiplier $value is not valid",appId)
+            putLog(377, 'error', "ERROR: Multiplier $value is not valid", appId)
             return
         }
     }
@@ -439,20 +439,20 @@ def checkIsColor(singleDevice, appId = app.id){
 // Used by child apps to determine if UI shows dim/brighten, temp or color options
 def checkIsDimmableMulti(multiDevice, appId = app.id){
     if(!multiDevice) return
-    for(int i = 0; i < multiDevice.size(); i++){
-        if(multiDevice[i].hasCapability('SwitchLevel')) return true
+    multiDevice.each{singleDevice->
+        if(checkIsDimmable(singleDevice, appId)) return true
     }
 }
 def checkIsTempMulti(multiDevice, appId = app.id){
     if(!multiDevice) return
-    for(int i = 0; i < multiDevice.size(); i++){
-        if(multiDevice[i].hasCapability('ColorTemperature')) return true
+    multiDevice.each{singleDevice->
+        if(checkIsTemp(singleDevice, appId)) return true
     }
 }
 def checkIsColorMulti(multiDevice, appId = app.id){
     if(!multiDevice) return
-    for(int i = 0; i < multiDevice.size(); i++){
-        if(multiDevice[i].hasCapability('ColorMode')) return true
+    multiDevice.each{singleDevice->
+        if(checkIsColor(singleDevice, appId)) return true
     }
 }
 
@@ -475,13 +475,12 @@ def checkAnyOnMulti(multiDevice, appId = app.id){
     if(!multiDevice) return
     returnStatus = false
     multiDevice.each{singleDevice->
-        if(checkIsOn(singleDevice,appId)) returnStatus = true
+        if(checkIsOn(singleDevice, appId)) returnStatus = true
     }
     return returnStatus
 }
 
-// Any people home
-def checkPeopleHome(multiDevice, appId = app.id){
+def checkAnyPeopleHome(multiDevice, appId = app.id){
     if(!multiDevice) return true
     peopleHome = false
     multiDevice.each{it ->
@@ -490,8 +489,7 @@ def checkPeopleHome(multiDevice, appId = app.id){
     return peopleHome
 }
 
-// All people not home
-def checkNoPeopleHome(multiDevice, appId = app.id){
+def checkAllPeopleNotHome(multiDevice, appId = app.id){
     if(!multiDevice) return true
     nooneHome = true
     multiDevice.each{it ->
@@ -567,24 +565,24 @@ def CONSTDeviceDefaultTemp(){
     return 3250
 }
 
-def getTimeOfDayInMillis(time,appId = app.id){
+def getTimeOfDayInMillis(time, appId = app.id){
     if(!time) return
     timeAtMidnight = new Date(time).clearTime().getTime()
     return time - timeAtMidnight
 }
 
-def getDatetimeFromTimeInMillis(time,appId = app.id){
+def getDatetimeFromTimeInMillis(time, appId = app.id){
     if(!time) return
     timeAtMidnight = new Date(now()).clearTime().getTime()
     return time + timeAtMidnight
 }
 
 // Returns app name with app title prepended
-def appendChildAppTitle(appName,appTitle){
+def appendChildAppTitle(appName, appTitle){
     //Compare length of name (eg "test") to appTitle length minus 6 (eg "Master - Time - " minus "Master - "; "Time - " is min length)
-    if(appName.length() < appTitle.length() - 6) return appTitle.substring(9,appTitle.length()) + ' - ' + appName
+    if(appName.length() < appTitle.length() - 6) return appTitle.substring(9, appTitle.length()) + ' - ' + appName
     //Compare first part of name (eg "Testing") to middle part of appTitle (eg "Master - Time" minus "Master - " plus " - ")
-    if(appName.substring(0,appTitle.length() - 9) != appTitle.substring(9,appTitle.length())) return appTitle.substring(9,appTitle.length()) + ' - ' + appName
+    if(appName.substring(0, appTitle.length() - 9) != appTitle.substring(9, appTitle.length())) return appTitle.substring(9, appTitle.length()) + ' - ' + appName
     return appName
 }
 
@@ -608,17 +606,17 @@ def processDates(includeDates, excludeDates, days, processErrors = false, appId 
 
     if(!atomicState?.'dateProcessingErrors') atomicState.'dateProcessingErrors' = ''
     
+    // This could be reworked to use checkDateInDayList
+    // if(checkDateInDayList([day], days, appId)) includeList.add(finalDate) ??
     if(!includeDates){
         for (int day = 1; day <= daysInYear; day++) {
             if(days){
-                def date = new Date(currentYear, 0, day)
+                def date = Date.parse('yyyyMMdd', currentYear + '01' + day)
                 def weekday = date.format('EEEE')
                 if (days.contains(weekday)) includeList.add(day)
             }
             if(!days) includeList.add(day)
         }
-       //if(includeList.size() == new Date(currentYear, 11, 31).format('D').toInteger()) return    // If all days, return
-        //return includeList
     }
     includeDates = cleanDateString(includeDates)
     excludeDates = cleanDateString(excludeDates)
@@ -628,31 +626,45 @@ def processDates(includeDates, excludeDates, days, processErrors = false, appId 
         includeDateStrings = includeDates.split(",|;")
         includeDateStrings.each { dateString ->
             if(!dateString.contains('-')) {
-                dateValue = processDateStringIndividual(dateString, processErrors,appId)
+                dateValue = processDateStringIndividual(dateString, processErrors, appId)
                 if(!dateValue) return
-                if (dateValue.format('yyyy') == String.valueOf(currentYear)) includeList.add(dateValue.format('D').toInteger())
+                if(dateValue.format('yyyy') == String.valueOf(currentYear)) def finalDate = dateValue.format('D').toInteger()
             }
-            if(dateString.contains('-')) includeList += processDateStringRange(dateString, processErrors, appId)
+            if(dateString.contains('-')) def finalDate = processDateStringRange(dateString, processErrors, appId)
+            if(checkDateInDayList(finalDate, days, appId)) includeList.add(finalDate)
         }
     }
     if(excludeDates){
         excludeDateStrings = excludeDates.split(",|;")
         excludeDateStrings.each { dateString ->
             if(!dateString.contains('-')) {
-                dateValue = processDateStringIndividual(dateString, processErrors,appId)
-                if(dateValue.format('yyyy') == String.valueOf(currentYear)) excludeList.add(dateValue.format('D').toInteger())
+                dateValue = processDateStringIndividual(dateString, processErrors, appId)
+                if(dateValue && dateValue.format('yyyy') == String.valueOf(currentYear)) excludeList.add(dateValue.format('D').toInteger())
             }
             if(dateString.contains('-')) excludeList += processDateStringRange(dateString, processErrors, appId)
         }
     }
     finalList = includeList.findAll { !excludeList.contains(it) }
-    finalList = cleanCompleteDateList(finalList)
+    finalList = finalList.unique().sort()
     if(finalList.size() == daysInYear) return    // If all days, return
     
     return finalList
 }
 
-def cleanDateString(dateString,appId = app.id){
+def checkDateInDayList(dateValue, days, appId = app.id){
+    if(!dateValue) return false
+    if(!days) return true
+    
+    def year = new Date(now()).format('yyyy', location.timeZone)
+    def dateFormat = new java.text.SimpleDateFormat('EEEE')
+    dateFormat.setTimeZone(location.timeZone)
+    def parser = new java.text.SimpleDateFormat('yyyyD') // convert year + day to date object
+    parser.setTimeZone(location.timeZone)
+    def testDay = dateFormat.format(parser.parse(year + dateValue.toString())) // format as day of the week ('EEEE')
+    return days.contains(testDay)
+}
+
+def cleanDateString(dateString, appId = app.id){
     if(!dateString) return
     dateString = dateString.replaceAll("\\\\", "/")
     dateString = dateString.replaceAll("\\s","")
@@ -704,7 +716,7 @@ def processDateStringIndividual(dateString, processErrors, appId = app.id){
     return returnDate
 }
 
-def processDateStringRange(dateString, processErrors,appId = app.id){
+def processDateStringRange(dateString, processErrors, appId = app.id){
     if(!dateString.contains('-')) return
     dates = dateString.split('-')
     if(dates.size() != 2) {
@@ -768,31 +780,9 @@ def clearDateProcessingErrors(appId = app.id){
     atomicState.remove('dateProcessingErrors')
 }
 
-def checkDateInDayList(dateValue,dateList,appId = app.id){
-    if(dateValue) return true
-    
-    dateFormat = new java.text.SimpleDateFormat('EEEE')
-    dateFormat.setTimeZone(location.timeZone)
-    testDay = dateFormat.format(Date.parse('D', dateValue.toString()))
-    if(dateList.contains(testDay)) return true
-}
-
-def cleanCompleteDateList(dateList, appId = app.id){
-    if(!dateList) return
-    filteredDateList = []
-    dateList.each { value ->
-        if(value){
-            if (checkDateInDayList(value,dateList,appId)) filteredDateList.add(value)
-        }
-    }
-    if(!filteredDateList) return
-    dateList = filteredDateList.unique().sort()
-    return dateList
-}
-
 // Returns true if today is in $days map
 // Returns true for null values
-def checkNowInDayList(days,appId = app.id){
+def checkNowInDayList(days, appId = app.id){
     if(!days) return true
     
     dateFormat = new java.text.SimpleDateFormat('EEEE')
@@ -803,11 +793,11 @@ def checkNowInDayList(days,appId = app.id){
 
 // Returns true if now is between two times
 // Returns true for null values
-def checkNowBetweenTimes(startTime, stopTime,appId = app.id){
+def checkNowBetweenTimes(startTime, stopTime, appId = app.id){
     if(!startTime) return true
     if(!stopTime) return true
 
-    currentTime = getTimeOfDayInMillis(now(),appId)
+    currentTime = getTimeOfDayInMillis(now(), appId)
 
     if(startTime == stopTime) return true
 
@@ -822,8 +812,8 @@ def getPrintDateTimeFormat(datetime, appId = app.id){
 
 def getSunriseSunset(type, appId = app.id){
     if(!type) return
-    if(type == 'sunrise') return getSunrise('',appId)
-    if(type == 'sunset') return getSunset('',appId)
+    if(type == 'sunrise') return getSunrise('', appId)
+    if(type == 'sunset') return getSunset('', appId)
 }
 
 // Returns date/time of sunrise in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
@@ -834,12 +824,12 @@ def getSunrise(offset = false, appId = app.id){
 }
 
 // Returns date/time of sunset in format of yyyy-MM-dd'T'HH:mm:ss.SSSZZZZ
-def getSunset(offset = false,appId = app.id){
+def getSunset(offset = false, appId = app.id){
     if(offset) return getSunriseAndSunset().sunset.getTime() + (offset * CONSTMinuteInMilli())
     if(!offset) return getSunriseAndSunset().sunset.getTime()
 }
 
-def checkToday(time,appId = app.id){
+def checkToday(time, appId = app.id){
     if(time + CONSTDayInMilli() > now()) return true
 }
 
@@ -857,15 +847,15 @@ def checkToday(time,appId = app.id){
 def setLockMulti(multiDevice, action, appId = app.id){
     if(!multiDevice) return
     multiDevice.each{singleDevice->
-        setLockSingle(singleDevice,action,appId)
+        setLockSingle(singleDevice, action, appId)
     }
 }
 
 // Lock or unlock a single lock
-def _setLockSingle(singleDevice, action, appId = app.id){
+def setLockSingle(singleDevice, action, appId = app.id){
     if(action == 'lock') singleDevice.lock()
     if(action == 'unlock') singleDevice.unlock()
-    putLog(868,'info','[' + singleDevice + '] ' + action + 'ed ',appId)
+    putLog(858, 'info', '[' + singleDevice + '] ' + action + 'ed ', appId)
 }
 
 // setDeviceMulti passes to both setDeviceLevelMulti and setDeviceStateMulti
@@ -875,69 +865,69 @@ def _setLockSingle(singleDevice, action, appId = app.id){
 def setDeviceMulti(multiDevice, appType = 'manual', appId = app.id){
     if(!multiDevice) return
 
-    setDeviceLevelMulti('brightness',multiDevice,appId)
-    setDeviceLevelMulti('sat',multiDevice,appId)
-    setDeviceLevelMulti('hue',multiDevice,appId)
-    setDeviceLevelMulti('temp',multiDevice,appId)
-    setDeviceStateMulti(multiDevice, appType,appId)
+    setDeviceLevelMulti(multiDevice, 'brightness', appId)
+    setDeviceLevelMulti(multiDevice, 'sat', appId)
+    setDeviceLevelMulti(multiDevice, 'hue', appId)
+    setDeviceLevelMulti(multiDevice, 'temp', appId)
+    setDeviceStateMulti(multiDevice, appType, appId)
 }
 
-def setDeviceSingle(singleDevice,appType = 'manual', appId = app.id){
+def setDeviceSingle(singleDevice, appType = 'manual', appId = app.id){
     if(!singleDevice) return
 
     // brightness
-    newLevel = getDeviceLevelSingleChange('brightness',singleDevice,appId)
+    newLevel = getDeviceLevelSingleChange(singleDevice, 'brightness', appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('brightness',singleDevice,newLevel,appId)
+        setDeviceLevelSingle(singleDevice, 'brightness', newLevel, appId)
     }
     // saturation
-    newLevel = getDeviceLevelSingleChange('sat',singleDevice,appId)
+    newLevel = getDeviceLevelSingleChange(singleDevice, 'sat', appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('sat',singleDevice,newLevel,appId)
+        setDeviceLevelSingle(singleDevice, 'sat', newLevel, appId)
     }
     // hue
-    newLevel = getDeviceLevelSingleChange('hue',singleDevice,appId)
+    newLevel = getDeviceLevelSingleChange(singleDevice, 'hue', appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('hue',singleDevice,newLevel,appId)
+        setDeviceLevelSingle(singleDevice, 'hue', newLevel, appId)
     }
     // temperature
-    newLevel = getDeviceLevelSingleChange('temp',singleDevice,appId)
+    newLevel = getDeviceLevelSingleChange(singleDevice, 'temp', appId)
     if(newLevel){
         pauseActions()
-        setDeviceLevelSingle('temp',singleDevice,newLevel,appId)
+        setDeviceLevelSingle(singleDevice, 'temp', newLevel, appId)
     }
     if(getDeviceStateChangeSingle(singleDevice, appId)){
         pauseActions()
-        setDeviceStateSingle(singleDevice, appType,newLevel,appId)
+        setDeviceStateSingle(singleDevice, appType, newLevel, appId)
     }
 }
 
-def setDeviceLevelMulti(type, multiDevice, appId = app.id){
+def setDeviceLevelMulti(multiDevice, type, appId = app.id){
     multiDevice.each{singleDevice->
-        newLevel = getDeviceLevelSingleChange(type,singleDevice,appId)
+        newLevel = getDeviceLevelSingleChange(singleDevice, type, appId)
         if(newLevel){
             pauseActions()
-            setDeviceLevelSingle(type,singleDevice,newLevel,appId)
+            setDeviceLevelSingle(singleDevice, type, newLevel, appId)
         }
     }
 }
 
 // If any, return value of new level
 // Used to determine if a change is occuring for pausing execution
-def getDeviceLevelSingleChange(type, singleDevice,appId = app.id){
+def getDeviceLevelSingleChange(singleDevice, type, appId = app.id){
     if(!singleDevice) return
     
     stateValue = atomicState.'state'?."${singleDevice.id}"
     if(!stateValue) return       // Should set state to current device state?
     if(stateValue == 'off') return
     
-    if(type == 'brightness' && !checkIsDimmable(singleDevice,appId)) return
-    if(type == 'temp' && !checkIsTemp(singleDevice,appId)) return
-    if(type == 'hue' && !checkIsColor(singleDevice,appId)) return
-    if(type == 'sat' && !checkIsColor(singleDevice,appId)) return
+    if(type == 'brightness' && !checkIsDimmable(singleDevice, appId)) return
+    if(type == 'temp' && !checkIsTemp(singleDevice, appId)) return
+    if(type == 'hue' && !checkIsColor(singleDevice, appId)) return
+    if(type == 'sat' && !checkIsColor(singleDevice, appId)) return
 
     if(type == 'temp'){
         if(atomicState.'nonSchedule'?."${singleDevice.id}"?.'hue') return
@@ -947,19 +937,19 @@ def getDeviceLevelSingleChange(type, singleDevice,appId = app.id){
     }
     
     // Need to somehow get the default into nonSchedule? Otherwise, it gets set on capture
-    newLevel = getCurrentLevelFromTableOrDefault(type, singleDevice, appId)
+    newLevel = getCurrentLevelFromTableOrDefault(singleDevice, type, appId)
     
     if(!newLevel) return
     
     if(singleDevice.currentValue('switch') == 'on'){
-        if(!checkLevelDifferent(type, newLevel,singleDevice,appId)) return
+        if(!checkLevelDifferent(singleDevice, type, newLevel, appId)) return
     }
     return newLevel
 }
 
-def setDeviceLevelSingle(type, singleDevice, newLevel,appId = app.id){
+def setDeviceLevelSingle(singleDevice, type, newLevel, appId = app.id){
     if(type == 'brightness'){
-        checkFan = checkIsFan(singleDevice,appId)
+        checkFan = checkIsFan(singleDevice, appId)
         if(checkFan) singleDevice.setSpeed(newLevel)
         if(!checkFan) singleDevice.setLevel(newLevel)
     }
@@ -967,15 +957,15 @@ def setDeviceLevelSingle(type, singleDevice, newLevel,appId = app.id){
     if(type == 'hue') singleDevice.setHue(newLevel)
     if(type == 'sat') singleDevice.setSaturation(newLevel)
     
-    putLog(970,'info','[' + singleDevice + '] ' + type + ' ' + newLevel, appId)
+    putLog(960, 'info', '[' + singleDevice + '] ' + type + ' ' + newLevel, appId)
     return true
 }
 
 def setDeviceStateMulti(multiDevice, appType = 'manual', appId = app.id){
     multiDevice.each{singleDevice->
-        if(getDeviceStateChangeSingle(singleDevice,appId)){
+        if(getDeviceStateChangeSingle(singleDevice, appId)){
             pauseActions()
-            setDeviceStateSingle(singleDevice,appType,appId)
+            setDeviceStateSingle(singleDevice, appType, appId)
         }
     }
 }
@@ -987,32 +977,32 @@ def getDeviceStateChangeSingle(singleDevice, appId = app.id){
     return true
 }
 
-def setDeviceStateSingle(singleDevice, appType = 'manual',appId = app.id){
-    stateValue = atomicState.'state'."${singleDevice.id}"
+def setDeviceStateSingle(singleDevice, appType = 'manual', appId = app.id){
+    stateValue = atomicState.'state'?."${singleDevice.id}"
     if(stateValue == 'on') singleDevice.on()
     if(stateValue == 'off') {
         singleDevice.off()
         // clear state settings
-        clearTableByDeviceAndAppId('nonSchedule', singleDevice.id,appId)
-       // clearNonScheduleDeviceSetting(singleDevice.id,appId)
+        clearTableByDeviceAndAppId(singleDevice.id, 'nonSchedule', appId)
+       // clearNonScheduleDeviceSetting(singleDevice.id, appId)
     }
     
     setDeviceLastChangedApp(singleDevice.id, appType, appId)
-    putLog(1001,'info','[' + singleDevice + '] ' + stateValue,appId)
+    putLog(991, 'info', '[' + singleDevice + '] ' + stateValue, appId)
     return true
 }
 
-def storeCubeSide(singleDevice, side, appId = app.id){
+def storeCubeSide(singleDeviceId, side, appId = app.id){
     // Need to read in whole variable, and resave the entire thing, because of some hubitat stupiditiness
     stateValue = atomicState?.cube
     if(!stateValue) stateValue = [:]
-    stateValue."${singleDevice.id}" = side
+    stateValue."${singleDeviceId}" = side
     atomicState.'cube' = stateValue
 }
 
-def getCubeSide(singleDevice, appId = app.id){
+def getCubeSide(singleDeviceId, appId = app.id){
     // Need to read in whole variable, and resave the entire thing, because of some hubitat stupiditiness
-    return atomicState?.'cube'?."${singleDevice.id}"
+    return atomicState?.'cube'?."${singleDeviceId}"
 
 }
 def changeMode(mode, appId = app.id){
@@ -1020,41 +1010,42 @@ def changeMode(mode, appId = app.id){
     message = 'Changed Mode from ' + oldMode + ' to ' + mode + '.'
     pauseActions()
     setLocationMode(mode)
-    putLog(1023,'debug',message + mode,appId)
+    putLog(1013, 'debug', message + mode, appId)
 }
 
 // Send SMS text message to $phone with $message
 //SMS IS NO LONGER SUPPORTED
+// Needs to be rewritten fro whatever supported method(s)
 def sendPushNotification(phone, message, appId = app.id){
     def now = new Date().getTime()
     seconds = (now - atomicState.contactLastNotification) / 1000
     if(seconds < 361) {
-        putLog(1032,'info','Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.',appId)
+        putLog(1023, 'info', 'Did not send push notice for ' + evt.displayName + ' ' + evt.value + 'due to notification sent ' + seconds + ' ago.', appId)
         return
     }
     pauseActions()
     atomicState.contactLastNotification = now
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.deviceNotification(message)) putLog(1039,'debug','Sent phone message to ' + phone + ' "' + message + '"',appId)
+            if(it.deviceNotification(message)) putLog(1030, 'debug', 'Sent phone message to ' + phone + ' "' + message + '"', appId)
         }
     }
 }
 
-def sendVoiceNotification(deviceId,message, appId = app.id){
+def sendVoiceNotification(deviceId, message, appId = app.id){
     if(!deviceId)  return
     pauseActions()
     speechDevice.find{it ->
         if(it.id == deviceId) {
-            if(it.speak(text)) putLog(1049,'debug','Played voice message on ' + deviceId + ' "' + message + '"',appId)
+            if(it.speak(text)) putLog(1040, 'debug', 'Played voice message on ' + deviceId + ' "' + message + '"', appId)
         }
     }
 }
 
-def getCurrentLevelFromTableOrDefault(type, singleDevice, appId = app.id){
-    levelValue = getCurrentLevelFromTable(type, singleDevice.id, appId)
-    if(type == 'brightness' && checkIsFan(singleDevice,appId)) return levelValue       // Fans do not use default levels
-    if(!levelValue) levelValue = getDeviceLevelDefault(type,appId)
+def getCurrentLevelFromTableOrDefault(singleDevice, type, appId = app.id){
+    levelValue = getCurrentLevelFromTable(singleDevice.id, type, appId)
+    if(type == 'brightness' && checkIsFan(singleDevice, appId)) return levelValue       // Fans do not use default levels
+    if(!levelValue) levelValue = getDeviceLevelDefault(type, appId)
     if(type == 'hue'){
         if(levelValue){
             if(!settings['hiRezHue']) levelValue = Math.round(levelValue / 3.6) as Integer
@@ -1062,14 +1053,14 @@ def getCurrentLevelFromTableOrDefault(type, singleDevice, appId = app.id){
     }
     if(type == 'sat'){
         if(!levelValue){
-            if(getCurrentLevelFromTable('hue',singleDevice.id,appId)){
+            if(getCurrentLevelFromTable(singleDevice.id, 'hue', appId)){
                 levelValue = 100
             }
         }
     }
     return levelValue
 }
-def getCurrentLevelFromTable(type, singleDeviceId, appId = app.id){
+def getCurrentLevelFromTable(singleDeviceId, type, appId = app.id){
     nonScheduleValue = atomicState?.'nonSchedule'?."${singleDeviceId}"?."${type}"
     if(nonScheduleValue) return nonScheduleValue
     scheduleValue = atomicState?.'schedule'?."${singleDeviceId}"?."${type}"?.'currentLevel'
@@ -1084,8 +1075,8 @@ def getDeviceLevelDefault(type, appId = app.id){
 }
 
 def setDeviceLastChangedApp(singleDeviceId, appType, appId = app.id){
+    tempMap = [:]
     tempMap = atomicState?.'stateChangeApp'
-    if(!tempMap) tempMap = [:]
     tempMap."${singleDeviceId}" = appType
     atomicState.'stateChangeApp' = tempMap
 }
@@ -1095,19 +1086,19 @@ def getDeviceLastChangedApp(singleDeviceId, appId = app.id){
     if(changedAppId) return changedAppId
 }
 
-def getCurrentLevelFromDevice(type, singleDevice, appId = app.id){
+def getCurrentLevelFromDevice(singleDevice, type, appId = app.id){
     if(type == 'brightness') {
         if(checkIsFan(singleDevice)) return singleDevice.currentSpeed
         return singleDevice.currentLevel as Integer
     }
     if(type == 'temp' && singleDevice.currentColorMode != 'RGB') return singleDevice.currentColorTemperature as Integer
-    if(type == 'hue' && singleDevice.currentColorMode == 'RGB') return convertHueValue(type,singleDevice.currentHue,appId) as Integer
+    if(type == 'hue' && singleDevice.currentColorMode == 'RGB') return convertHueValue(singleDevice.currentHue, type, appId) as Integer
     if(type == 'sat' && singleDevice.currentColorMode == 'RGB') return singleDevice.currentSaturation as Integer
 }
 
-def convertLevelValue(type,levelValue,appId = app.id){
+def convertLevelValue(type, levelValue, appId = app.id){
     if(!levelValue) return
-    return convertHueValue(type,levelValue,appId)
+    return convertHueValue(type, levelValue, appId)
 }
 
 def convertHueValue(type, hueValue, appId = app.id){
@@ -1119,9 +1110,9 @@ def convertHueValue(type, hueValue, appId = app.id){
 
 // If newLevel is different from oldLevel, return true
 // If newLevel is null, return false
-def checkLevelDifferent(type, newLevel, singleDevice, appId = app.id){
+def checkLevelDifferent(singleDevice, type, newLevel, appId = app.id){
     if(!newLevel) return
-    oldLevel = getCurrentLevelFromDevice(type, singleDevice, appId)     // This should only happen with temp in color mode, or color in CT mode
+    oldLevel = getCurrentLevelFromDevice(singleDevice, type, appId)     // This should only happen with temp in color mode, or color in CT mode
     if(!oldLevel) return true
     if(type == 'temp'){
         if(Math.abs(newLevel - oldLevel) < 25) return false
@@ -1141,20 +1132,20 @@ def checkTempWithinVariance(originalTemp, newTemp, colorMode, appId = app.id){
 }
 
 // Do reverse, and wrap around
-// Shouldn't be needed?
-def _computeIncrementalHueRange(singleDevice,appId = app.id){
-    if(atomicState.'schedule'."${singleDevice.id}".'hue'?.'hueDirection' == 'reverse') return 360 - Math.abs(atomicState.'schedule'."${singleDevice.id}".'hue'.'stopLevel' + atomicState.'schedule'."${singleDevice.id}".'hue'.'startLevel')
-    if(atomicState.'schedule'."${singleDevice.id}".'hue'?.'hueDirection' != 'reverse') return Math.abs(atomicState.'schedule'."${singleDevice.id}".'hue'.'stopLevel' - atomicState.'schedule'."${singleDevice.id}".'hue'.'startLevel')
+// Not used
+def _computeIncrementalHueRange(singleDeviceId, appId = app.id){
+    if(atomicState.'schedule'."${singleDeviceId}".'hue'?.'hueDirection' == 'reverse') return 360 - Math.abs(atomicState.'schedule'."${singleDeviceId}".'hue'.'stopLevel' + atomicState.'schedule'."${singleDeviceId}".'hue'.'startLevel')
+    if(atomicState.'schedule'."${singleDeviceId}".'hue'?.'hueDirection' != 'reverse') return Math.abs(atomicState.'schedule'."${singleDeviceId}".'hue'.'stopLevel' - atomicState.'schedule'."${singleDeviceId}".'hue'.'startLevel')
 }
 
-def resumeDeviceScheduleMulti(multiDevice,appId = app.id){
+def resumeDeviceScheduleMulti(multiDevice, appId = app.id){
     if(!multiDevice) return
     multiDevice.each{singleDevice->
-        clearNonScheduleDeviceSetting(singleDevice.id,appId)
+        clearNonScheduleDeviceSetting(singleDeviceId, appId)
     }
 }
 
-def clearNonScheduleDeviceSetting(singleDeviceId,appId = app.id){
+def clearNonScheduleDeviceSetting(singleDeviceId, appId = app.id){
     if(!singleDeviceId) return
     if(!atomicState.'nonSchedule'?."${singleDeviceId}") return
 
@@ -1167,7 +1158,7 @@ def clearNonScheduleDeviceSetting(singleDeviceId,appId = app.id){
     atomicState.'nonSchedule' = newVar
 }
 
-def getStateMapSingle(singleDevice,action,appId = app.id){
+def getStateMapSingle(singleDevice, action, appId = app.id){
     if(!action) return
     if(!singleDevice) return
     if(action != 'on' && action != 'off' && action != 'toggle') return
@@ -1183,7 +1174,7 @@ def getStateMapSingle(singleDevice,action,appId = app.id){
     return action    // appId used by sensor
 }
 
-def getNonScheduleLevelMap(type,level,appId = app.id){
+def getNonScheduleLevelMap(type, level, appId = app.id){
     if(!type) return
     if(!level) return
     if(!appId) return
@@ -1191,27 +1182,27 @@ def getNonScheduleLevelMap(type,level,appId = app.id){
       
     return [(type):level]
 }
-def getScheduleLevelMap(type,level,appId = app.id){
+def getScheduleLevelMap(type, level, appId = app.id){
     if(!type) return
     if(!level) return
     if(!appId) return
     if(type != 'brightness' && type != 'temp' && type != 'hue' && type != 'sat') return
       
-    return [(type):['currentLevel':level,'appId':appId]]
+    return [(type):['currentLevel':level, 'appId':appId]]
 }
 
-def updateTableCapturedState(singleDevice,action,appType = 'manual',appId = app.id){
+def updateTableCapturedState(singleDevice, action, appType = 'manual', appId = app.id){
     stateValue = atomicState?.'state'?."${singleDevice.id}"
     if(stateValue == action) return
     if(action != 'on' && action != 'off') return
-    putLog(1207, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + stateValue + '; actually was ' + singleDevice.currentState + ')',appId)
-    stateMap = getStateMapSingle(singleDevice,action,app.id)
-    mergeMapToTable('state',singleDevice.id,stateMap,appId)
-    if(action == 'on') setDeviceSingle(singleDevice,appType,appId)    // With device on, set levels
+    putLog(1198, 'trace', '[' + singleDevice + '] captured state ' + action + ' (table was ' + stateValue + '; actually was ' + singleDevice.currentState + ')', appId)
+    stateMap = getStateMapSingle(singleDevice, action, app.id)
+    mergeMapToTable(singleDevice.id, 'state', stateMap, appId)
+    if(action == 'on') setDeviceSingle(singleDevice, appType, appId)    // With device on, set levels
 }
 
 
-def combineMaps(map1, map2, map3 = '', map4 = '', map5 = '',appId = app.id){
+def combineMaps(map1, map2, map3 = '', map4 = '', map5 = '', appId = app.id){
     returnMap = [:]
     if(map1) returnMap += map1
     if(map2) returnMap += map2
@@ -1223,36 +1214,35 @@ def combineMaps(map1, map2, map3 = '', map4 = '', map5 = '',appId = app.id){
 
 //THIS CAN BE REWRITTEN TO OVERWRITE WITH SUBKEYS FROM NEW MAP
 
-// newMap in format of [[type:'brightness/temp/sat/hus',time:datetime as long,stopTime:datetime as long,addId:nnnn,appType:string],ETC]
-def mergeMapToTable(tableName, singleDeviceId, newMap, appId = app.id){
+// newMap in format of [[type:'brightness/temp/sat/hue', time:datetime as long, stopTime:datetime as long, addId:nnnn, appType:string], ETC]
+def mergeMapToTable(singleDeviceId, tableName, newMap, appId = app.id){
     if(!singleDeviceId) return
     if(!newMap) return
     
     if(tableName != 'state' && tableName != 'nonSchedule' && tableName != 'schedule' && tableName != 'incremental') {
-        putLog(1232,'error','Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)',appId)
+        putLog(1223, 'error', 'Invalid table name ' + tableName + ' sent to mergeMapToTable (ignore if new install)', appId)
         return
     }
 
-    if(tableName == 'schedule') scheduleFlag = true         // Flip "incremental" to "schedule" and set flag to prevent clearing nonSchedule below
     if(tableName == 'incremental') tableName = 'schedule'
 
+    tempMap = [:]
     tempMap = atomicState?."${tableName}"
-    if(!tempMap) tempMap = [:]
 
     if(tableName == 'state') {
-        tempMap[(singleDeviceId)] = newMap
+        tempMap."${singleDeviceId}" = newMap
         atomicState."${tableName}" =  tempMap
         return true
     }
     if(!tempMap?."${singleDeviceId}") tempMap[(singleDeviceId)] = [:]
-    newMap.each{newKey,newValue->
+    newMap.each{newKey, newValue->
         tempMap."${singleDeviceId}"."${newKey}" = newValue
-        if(scheduleFlag) clearTableByDeviceAndType('nonSchedule',singleDeviceId,newKey,appId)    //On schedule start, clear non-schedule
+        if(tableName == 'schedule') clearTableByDeviceAndType(singleDeviceId, 'nonSchedule', newKey, appId)    //On schedule start, clear non-schedule
     }
     atomicState."${tableName}" = tempMap
 }
 
-def clearTableByDeviceAndTypeAndAppId(tableName,singleDeviceId, type, appId = app.id){
+def clearTableByDeviceAndTypeAndAppId(singleDeviceId, tableName, type, appId = app.id){
     if(!singleDeviceId) return
     if(!atomicState?."${tableName}"?."${singleDeviceId}"?."${type}") return
 
@@ -1272,7 +1262,7 @@ def clearTableByDeviceAndTypeAndAppId(tableName,singleDeviceId, type, appId = ap
     atomicState."${tableName}" = newVar.findAll{ it.value!=[:] }
 }
 
-def clearTableByDeviceAndAppId(tableName, singleDeviceId, appId = app.id){
+def clearTableByDeviceAndAppId(singleDeviceId, tableName, appId = app.id){
     if(!singleDeviceId) return
     if(!atomicState?."${tableName}"?."${singleDeviceId}") return
     // if schedule, need to loop through and delete only itself (appId)
@@ -1298,7 +1288,7 @@ def clearTableByDeviceAndAppId(tableName, singleDeviceId, appId = app.id){
     return true
 }
 
-def clearTableByDeviceAndType(tableName, singleDeviceId, type, appId = app.id){
+def clearTableByDeviceAndType(singleDeviceId, tableName, type, appId = app.id){
     if(!singleDeviceId) return
     if(!atomicState?."${tableName}"?."${singleDeviceId}"?."${type}") return
     newVar = atomicState?."${tableName}"
@@ -1311,7 +1301,7 @@ def clearTableByDeviceAndType(tableName, singleDeviceId, type, appId = app.id){
 def clearTableByAppId(tableName, appId = app.id){
     newVar = atomicState?."${tableName}"
     if(!newVar) newVar = [:]
-    newVar?.each{key,value ->      // Devices
+    newVar?.each{key, value ->      // Devices
         toRemove = []
         newVar?."${key}".each{key2, value2 -> // Levels
             if(value2?.'appId'){
@@ -1326,7 +1316,7 @@ def clearTableByAppId(tableName, appId = app.id){
     return true
 }
 
-def updateTableCapturedLevel(singleDeviceId,type,newLevel,appId = app.id){
+def updateTableCapturedLevel(singleDeviceId, type, newLevel, appId = app.id){
     if(!newLevel) return
     tableLevel = atomicState?.'nonSchedule'?."${singleDeviceId}"?."${type}"
     if(!tableLevel) tableLevel = atomicState?.'schedule'?."${singleDeviceId}"?."${type}"?.'currentLevel'
@@ -1343,32 +1333,32 @@ def updateTableCapturedLevel(singleDeviceId,type,newLevel,appId = app.id){
     if(type == 'hue'){
         if(Math.abs(newLevel - tableLevel) < 4) return
     }
-    putLog(1346,'trace','[Device Id: ' + singleDeviceId + '] captured ' + type + ' to ' + newLevel + ' (current/table/default was ' + tableLevel + ')',appId)
-    levelMap = getNonScheduleLevelMap(type,newLevel,appId)
-    mergeMapToTable('nonSchedule',singleDeviceId,levelMap,appId)
+    putLog(1336, 'trace', '[Device Id: ' + singleDeviceId + '] captured ' + type + ' to ' + newLevel + ' (current/table/default was ' + tableLevel + ')', appId)
+    levelMap = getNonScheduleLevelMap(type, newLevel, appId)
+    mergeMapToTable(singleDeviceId, 'nonSchedule', levelMap, appId)
 }
 
-def _getNextLevelDimmable(singleDevice, action, dimFactor = 1.61,appId = app.id){
+def _getNextLevelDimmable(singleDevice, action, dimFactor = 1.61, appId = app.id){
     if(action != 'dim' && action != 'brighten') return
     if(!dimFactor) dimFactor = 1.61
 
-    if(checkIsFan(singleDevice,childLabel)) return _getNextLevelFan(singleDevice,action,childLabel)
+    if(checkIsFan(singleDevice, appId)) return _getNextLevelFan(singleDevice, action, appId)
 
-    if(!checkIsDimmable(singleDevice,childLabel)) return
-    oldLevel = getCurrentLevelFromTable('brightness', singleDevice.id, appId)
-    if(!oldLevel && checkIsOn(singleDevice,appId)) oldLevel = getCurrentLevelFromDevice('brightness',singleDevice,appId)
+    if(!checkIsDimmable(singleDevice, appId)) return
+    oldLevel = getCurrentLevelFromTable(singleDevice.id, 'brightness', appId)
+    if(!oldLevel && checkIsOn(singleDevice, appId)) oldLevel = getCurrentLevelFromDevice(singleDevice, 'brightness', appId)
     if(!oldLevel){
         if(action == 'brighten') return 1
         if(action == 'dim') return 100
     }
     if (action == 'dim'){
         newLevel = Math.round(convertToInteger(oldLevel) / dimFactor)
-        if (newLevel == level) newLevel -= 1
+        if (newLevel == oldLevel) newLevel -= 1
         if(newLevel < 1) newLevel = 1
     }
     if (action == 'brighten'){
         newLevel = Math.round(convertToInteger(oldLevel) * dimFactor)
-        if (newLevel == level) newLevel++
+        if (newLevel == oldLevel) newLevel++
         if(newLevel > 100) newLevel = 100
     }
 
@@ -1376,11 +1366,11 @@ def _getNextLevelDimmable(singleDevice, action, dimFactor = 1.61,appId = app.id)
 }
 
 def _getNextLevelFan(singleDevice, action, appId = app.id){
-    if(!checkIsFan(singleDevice,appId)) return
+    if(!checkIsFan(singleDevice, appId)) return
     if(action != 'dim' && action != 'brighten') return
     brightnessValue = atomicState.'schedule'."${singleDevice.id}"?.'brightness'?.'currentLevel'
     if(brightnessValue) level = brightnessValue
-    if(!brightnessValue) level = getCurrentLevelFromDevice('brightness',singleDevice,appId)
+    if(!brightnessValue) level = getCurrentLevelFromDevice(singleDevice, 'brightness', appId)
 
     if(action == 'brighten'){
         if(level == 'off') return 'low'
@@ -1398,7 +1388,7 @@ def _getNextLevelFan(singleDevice, action, appId = app.id){
     if(level == 'medium-low') return 'low'
 }
 
-def computeOptiomalGeometricProgressionFactor(numberOfSteps,appId = app.id){   
+def computeOptiomalGeometricProgressionFactor(numberOfSteps, appId = app.id){   
     if(!numberOfSteps) return                                                                                         
     currentTotal = 1
     factor = 1.5
@@ -1431,15 +1421,18 @@ def computeOptiomalGeometricProgressionFactor(numberOfSteps,appId = app.id){
 }
                                                                                                        
 // computes the number of steps to get from 1 to 100 by x * 1.y
-def computeGeometricProgressionSteps(factor,appId = app.id){
+def computeGeometricProgressionSteps(factor, appId = app.id){
     if(factor < 1) return
     if(factor > 2) return
     priorStep = 1
     count = 0
     while (priorStep < 100) {
         thisStep = Math.round(factor * priorStep)
-        if(thisStep > priorStep) priorStep = thisStep
-        if(thisStep == priorStep) priorStep++
+        if(thisStep > priorStep) {
+            priorStep = thisStep
+        } else if(thisStep == priorStep) {
+            priorStep++
+        } 
         count++
     }
     return count
@@ -1450,13 +1443,13 @@ def computeGeometricProgressionSteps(factor,appId = app.id){
 //      timeValue = time in timestamp
 // Checks child app getDisabled
 // If active, passes cronString, functionName, and formated parameters back to child app, to set the schedule
-def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,appId = app.id){
+def scheduleChildEvent(timeMillis = 0, timeValue = '', functionName, parameters, appId = app.id){
     // noPerformDisableCheck is reversed, so that null does not equal False
     // true = not check, False = check
     if(!appId) return
     if(!timeMillis && !timeValue) return
     if(timeMillis < 0) {
-        putLog(1459,'warn','scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')',appId)
+        putLog(1452, 'warn', 'scheduleChildEvent given negative timeMillis from appId ' + appId + ' (' + functionName + ' timeMillis = ' + timeMillis + ')', appId)
         return
     }
     if(timeValue) {
@@ -1465,17 +1458,18 @@ def scheduleChildEvent(timeMillis = '',timeValue = '',functionName,parameters,ap
         timeMillis = targetTimeMillis - currentTimeMillis
         if(timeMillis < 0) timeMillis += CONSTDayInMilli()
     }
+    parametersMap = [:]
     if(parameters) parametersMap = ['data':parameters]
 
     childApps.find {Child->
         if(Child.id == appId) {
                 if(!functionName) {
-                    putLog(1464,'warn','scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + TimeValue + ')',appId)
+                    putLog(1467, 'warn', 'scheduleChildEvent given null for functionName from appId ' + appId + ' (timeMillis = ' + timeMillis + ', timeValue = ' + timeValue + ')', appId)
                     return
                 }
-                Child.setScheduleFromParent(timeMillis,functionName,parametersMap)
-                if(parameters) parameters = ' (with parameters: ' + parameters + ')'
-                putLog(1469,'debug','Scheduled ' + functionName + parameters + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)',appId)
+                Child.setScheduleFromParent(timeMillis, functionName, parametersMap)
+                if(parameters) parametersText = ' (with parameters: ' + parameters + ')'
+                putLog(1472, 'debug', 'Scheduled ' + functionName + parametersText + ' for ' + new Date(timeMillis + now()).format('hh:mma MM/dd ') + ' (in ' + Math.round(timeMillis / 1000) + ' seconds)', appId)
         }
     }
 }
@@ -1497,7 +1491,7 @@ def pauseActions(appId = app.id){
 
     delayTime = CONSTDeviceActionDelayMillis() - (now() - lastAction)
     if(delayTime < 1) return        // Just in case the computing time to compute it makes it less than 0
-    putLog(1491,'debug','Pausing execution: ' + delayTime + 'ms',appId)
+    putLog(1494, 'debug', 'Pausing execution: ' + delayTime + 'ms', appId)
     
     pauseExecution(delayTime)
 }
@@ -1563,7 +1557,7 @@ Use cases:<br>\
     }
 }
                                                                                                        
-def checkLog(type,logLevel){
+def checkLog(type, logLevel){
     switch(type) {
         case 'error':
         if(logLevel > 0) return true
@@ -1595,7 +1589,7 @@ def putLog(lineNumber, type = 'trace', message, appId = app.id, isChild = null){
         if(getChildAppById(appId)) logLevel = (getChildAppById(appId)).getLogLevel()
     }
     
-    if(!checkLog(type,logLevel)) return
+    if(!checkLog(type, logLevel)) return
     if(isChild)  text = '[' + appLabel + ' :: ' + lineNumber + '] -- ' + message
     if(!isChild && appId != app.id) text = '[' + appLabel + '] [Master :: ' + lineNumber + '] -- ' + message        // Within parent, but called from app
     if(!isChild && appId == app.id) text = '[Master :: ' + lineNumber + '] -- ' + message        // Within parent, and not called from app
