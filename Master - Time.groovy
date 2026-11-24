@@ -13,7 +13,7 @@
 *
 *  Name: Master - Time
 *  Source: https://github.com/roguetech2/hubitat/edit/master/Master%20-%20Time.groovy
-*  Version: 0.7.2.45
+*  Version: 0.7.2.46
 *
 ***********************************************************************************************************************/
 
@@ -39,7 +39,7 @@ definition(
 // 4 for trace + info + errors + warnings
 // 5 for debug + trace + info + errors + warnings
 def getLogLevel(){
-    return 5
+    return 2
 }
 
 setUILinks()
@@ -59,15 +59,10 @@ preferences {
             }
         } else {
             if(!settings) settings = [:]
-            processDates()
-            
-            peopleError = compareDeviceLists(personHome, personNotHome)
 
             deviceCount = getDeviceCount(settings['controlDevice'])
             plainStartAction = getPlainAction(settings['actionStart'])
             plainStopAction = getPlainAction(settings['actionStop'])
-
-            peopleError = compareDeviceLists(personHome, personNotHome)
             
             section(){
                 displayNameOption()
@@ -161,7 +156,6 @@ def checkIfStopTimeEntered(){
 
 def displayScheduleSection(){
     if(!settings['controlDevice']) return
-    parent.clearDateProcessingErrors()
     
     hidden = true
     if(!settings['timeTypeStop']) hidden = false
@@ -224,14 +218,14 @@ def displayActionField(startType){
     displayActionFieldComplete(startType, fieldName)
     displayActionFieldIncomplete(startType, fieldName)
  }
- def displayActionFieldComplete(startType, fieldName){
+def displayActionFieldComplete(startType, fieldName){
     if(!settings[fieldName]) return
     fieldTitle = 'On ' + startType
     fieldOptions = ['none': 'Don\'t turn on or off (leave as is)','on': 'Turn On', 'off': 'Turn Off', 'toggle': 'Toggle']
     displaySelectField(fieldName, fieldTitle, fieldOptions, false, required = true, '')
 
  }
- def displayActionFieldIncomplete(startType, fieldName){
+def displayActionFieldIncomplete(startType, fieldName){
     if(settings[fieldName]) return
     app.removeSetting(fieldName)
     // if no action on start, default to none at stop (then call displayActionFieldComplete)
@@ -496,14 +490,12 @@ def displayModeField(startType){
     input fieldName, 'mode', title: fieldTitle, width: fieldWidth, submitOnChange:true
 }
 
-def compareDeviceLists(list1, list2){
-    returnValue = false
-    list1.each{first->
-        list2.each{second->
-            if(first.id == second.id) returnValue = true
+def compareDeviceLists(multiDevice1, multiDevice2){
+    multiDevice1?.any{first->
+        multiDevice2?.any{second->
+            if(first.id == second.id) return true
         }
     }
-    return returnValue
 }
 
 def getPlainAction(action){
@@ -560,12 +552,15 @@ def uninstalled(){
     clearSchedule(uninstall = true)
 }
 def initialize() {
-    putLog(563,'info','^ Initialize ^')
+    putLog(555,'info','^ Initialize ^')
+
+
     subscribeDevices()
 
     resume()
+    setScheduleProcessDates()
     
-    putLog(568,'info','¬ Initialize ¬')
+    putLog(563,'info','¬ Initialize ¬')
 }
 def resume() {
     runStartSchedule = false
@@ -589,12 +584,10 @@ def resume() {
     }
     if(!runStartSchedule) return
 
-    putLog(592, 'info', '^ runResumeSchedule ^')
+    putLog(587, 'info', '^ runResumeSchedule ^')
 
     setStartSchedule()        // Reschedule
     setStopSchedule()    // Need to do this for first time it runs (could be in initialize instead)
-
-    if(!checkIncludeDates()) return
 
     if(settings['timeTypeStop'] && settings['timeTypeStop'] != 'none') setScheduleTime()
     if(checkIfIncremental()) parent.scheduleChildEvent(atomicState.baseFrequency, '', 'runIncrementalSchedule', '', app.id)
@@ -612,7 +605,7 @@ def resume() {
     settings['controlDevice'].each{singleDevice->
         clearNonScheduleFromTable(singleDevice.id, scheduleMap) // clear out any "manual overrides"
         parent.mergeMapToTable(singleDevice.id, 'schedule', scheduleMap, app.id)
-        putLog(615, 'debug', '[' + singleDevice + '] schedule resume ' + scheduleMap)
+        putLog(608, 'debug', '[' + singleDevice + '] schedule resume ' + scheduleMap)
     }
     parent.setDeviceMulti(settings['controlDevice'], 'time', app.id)
     setLastActionTime()
@@ -621,9 +614,8 @@ def resume() {
         atomicState.remove('startTime')
         clearScheduleDevicesFromTable()
     }
-    putLog(624, 'info', '¬ runResumeSchedule ¬')
+    putLog(617, 'info', '¬ runResumeSchedule ¬')
 }
-
 def handleStateChange(event){
     parent.updateTableCapturedState(event.device, event.value, 'time', app.id)
 }
@@ -631,25 +623,25 @@ def handleStateChange(event){
 // this does level, temp, hue, and sat
 def handleBrightnessChange(event){
     if(!handleChangeCheckTime()) return
-    newLevel = parent.getCurrentLevelFromDevice('brightness', event.device, app.id)
+    newLevel = parent.getCurrentLevelFromDevice(event.device, 'brightness', app.id)
     parent.updateTableCapturedLevel(event.device.id, 'brightness', newLevel, app.id)
 }
 
 def handleTempChange(event){
     if(!handleChangeCheckTime()) return
-    newLevel = parent.getCurrentLevelFromDevice('temp', event.device, app.id)
+    newLevel = parent.getCurrentLevelFromDevice(event.device, 'temp', app.id)
     parent.updateTableCapturedLevel(event.device.id, 'temp', newLevel, app.id)
 }
 
 def handleHueChange(event){
     if(!handleChangeCheckTime()) return
-    newLevel = parent.getCurrentLevelFromDevice('hue', event.device, app.id)
+    newLevel = parent.getCurrentLevelFromDevice(event.device, 'hue', app.id)
     parent.updateTableCapturedLevel(event.device.id, 'hue', newLevel, app.id)
 }
 
 def handleSatChange(event){
     if(!handleChangeCheckTime()) return
-    newLevel = parent.getCurrentLevelFromDevice('sat', event.device, app.id)
+    newLevel = parent.getCurrentLevelFromDevice(event.device, 'sat', app.id)
     parent.updateTableCapturedLevel(event.device.id, 'sat', newLevel, app.id)
 }
 
@@ -686,12 +678,10 @@ def setStopSchedule(){
 // Performs actual changes at time set with actionStart
 // Called only by schedule set in incrementalSchedule
 def runDailyStartSchedule(){
-    putLog(689, 'info', '^ runDailyStartSchedule ^')
+    putLog(681, 'info', '^ runDailyStartSchedule ^')
 
     setStartSchedule()        // Reschedule
     setStopSchedule()    // Need to do this for first time it runs (could be in initialize instead)
-
-    if(!checkIncludeDates()) return
 
     if(settings['timeTypeStop'] && settings['timeTypeStop'] != 'none') setScheduleTime()
     if(checkIfIncremental()) parent.scheduleChildEvent(atomicState.baseFrequency, '', 'runIncrementalSchedule', '', app.id)
@@ -715,7 +705,7 @@ def runDailyStartSchedule(){
         parent.mergeMapToTable(singleDevice.id, 'schedule', scheduleMap, app.id)
         stateValue = performToggle(singleDevice, settings['actionStart'])
         parent.mergeMapToTable(singleDevice.id, 'state', stateValue, app.id)
-        putLog(718, 'debug', '[' + singleDevice + '] schedule Start ' + scheduleMap)
+        putLog(708, 'debug', '[' + singleDevice + '] schedule Start ' + scheduleMap)
         //if(stateValue || parent.checkIsOn(singleDevice, app.id)) parent.setDeviceSingle(singleDevice, app.id)
     }
     parent.setDeviceMulti(settings['controlDevice'], 'time', app.id)
@@ -725,13 +715,13 @@ def runDailyStartSchedule(){
         atomicState.remove('startTime')
         clearScheduleDevicesFromTable()
     }
-    putLog(728, 'info', '¬ runDailyStartSchedule ¬')
+    putLog(718, 'info', '¬ runDailyStartSchedule ¬')
 }
 
 // Performs actual changes at time set with actionStart
 // Called only by schedule set in incrementalSchedule
 def runDailyStopSchedule(){
-    putLog(734, 'info', '^ runDailyStopSchedule')
+    putLog(724, 'info', '^ runDailyStopSchedule')
 
     unschedule('runIncrementalSchedule')    //This doesn't seem to work
     setStopSchedule()        // Don't run Start Schedule, because we don't want to trigger setScheduleTime within dailyStopSchedule - if we do, it must be prior to removing state vars
@@ -747,7 +737,7 @@ def runDailyStopSchedule(){
     clearSchedule()        // Clear schedule from master table
     
     if(!activeAtStart) {
-        putLog(750, 'trace', 'Inactive at start; skipping stop actions.')
+        putLog(740, 'trace', 'Inactive at start; skipping stop actions.')
         return
     }
 
@@ -760,15 +750,15 @@ def runDailyStopSchedule(){
     if(hueMap || satMap) tempMap = ''
     scheduleMap = parent.combineMaps(brightnessMap, tempMap, hueMap, satMap, '', app.id)
     settings['controlDevice'].each{singleDevice->
-        parent.mergeMapToTable('schedule', scheduleMap, app.id)
+        parent.mergeMapToTable(singleDevice.id, 'schedule', scheduleMap, app.id)
         stateValue = performToggle(singleDevice, settings['actionStop'])
 
         parent.mergeMapToTable(singleDevice.id, 'state', stateValue, app.id)
-        if(scheduleMap.size() > 0) putLog(767, 'debug', '[' + singleDevice + '] schedule Stop ' + scheduleMap)
+        if(scheduleMap.size() > 0) putLog(757, 'debug', '[' + singleDevice + '] schedule Stop ' + scheduleMap)
     }
     parent.setDeviceMulti(settings['controlDevice'], 'time', app.id)
     setLastActionTime()
-    putLog(771, 'info', '¬ runDailyStopSchedule ¬')
+    putLog(761, 'info', '¬ runDailyStopSchedule ¬')
 }
 
 // Is unscheduled from runDailyStopSchedule
@@ -783,7 +773,7 @@ def runIncrementalSchedule(){
         return
     }
     
-    //putLog(786, 'info', '^ runIncrementalSchedule ^')
+    //putLog(776, 'info', '^ runIncrementalSchedule ^')
     allDevicesOff = true           // True is to set time as CONSTScheduleMinimumInactiveFrequencyMilli; not using checkAnyOnMulti because already looping devices
     incrementalUpdate = false
     settings['controlDevice'].each{singleDevice->
@@ -795,11 +785,11 @@ def runIncrementalSchedule(){
         if(hueMap || satMap) tempMap = ''
         incrementalMap = parent.combineMaps(brightnessMap, tempMap, hueMap, satMap, '', app.id)
         if(incrementalMap) {
-            putLog(798, 'debug', '[' + singleDevice + '] incremental ' + incrementalMap)
+            putLog(788, 'debug', '[' + singleDevice + '] incremental ' + incrementalMap)
             incrementalUpdate = true
             parent.mergeMapToTable(singleDevice.id, 'incremental', incrementalMap, app.id)    // There is no 'incremental' table, mergeMapToTable uses to not clear nonSchedule setting(s)
         }
-        if(!incrementalMap) putLog(802, 'debug', '[' + singleDevice + '] incremental no changes.')
+        if(!incrementalMap) putLog(792, 'debug', '[' + singleDevice + '] incremental no changes.')
     }
     
     timeMillis = atomicState.baseFrequency
@@ -809,7 +799,7 @@ def runIncrementalSchedule(){
     
     if(incrementalUpdate) parent.setDeviceMulti(settings['controlDevice'], 'time', app.id)
     setLastActionTime()
-    //putLog(812, 'info', '¬ runIncrementalSchedule ¬')
+    //putLog(802, 'info', '¬ runIncrementalSchedule ¬')
 }
 
 def getLevelMap(type, startStop){
@@ -851,7 +841,7 @@ def clearSchedule(uninstall = false){
 
 def clearScheduleDevicesFromTable(uninstall = false){                        // Called from schedule start and stop, or else devices won't have changed
     if(!uninstall && getBaseStartStopDateTime('start') == getBaseStartStopDateTime('stop')) return    // Prevents lights returning to default settings (and flickering)
-    putLog(854, 'debug', 'Removing scheduled settings from master device table.')
+    putLog(844, 'debug', 'Removing scheduled settings from master device table.')
     settings['controlDevice'].each{singleDevice->
         parent.clearTableByDeviceAndAppId(singleDevice.id, 'schedule', app.id)
     }
@@ -859,7 +849,7 @@ def clearScheduleDevicesFromTable(uninstall = false){                        // 
 
 def clearScheduleFromTable(){                               // called from initialize or where devices may have changed
     if(getBaseStartStopDateTime('start') == getBaseStartStopDateTime('stop')) return    // Prevents lights returning to default settings (and flickering)
-    putLog(862, 'debug', 'Removing scheduled settings from master device table.')
+    putLog(852, 'debug', 'Removing scheduled settings from master device table.')
     parent.clearTableByAppId('schedule', app.id)
 }
 
@@ -935,10 +925,11 @@ def checkIfIncremental(){
 }
 
 def getEnvironmentActive(){
-    if(settings['ifMode'] && location.mode != settings['ifMode']) return		// This needs to check both ifMode and new mode is one is changed; otherwise, having ifmode and changing mode would never allow progressive settings
+    if(settings['ifMode'] && !settings['ifMode'].contains(location.mode)) return		// This needs to check both ifMode and new mode is one is changed; otherwise, having ifmode and changing mode would never allow progressive settings
     
     if(!parent.checkAnyPeopleHome(settings['personHome'], app.id)) return
     if(!parent.checkAllPeopleNotHome(settings['personNotHome'], app.id)) return
+    if(!checkIncludeDates()) return
     return true
 }
 
@@ -1026,6 +1017,8 @@ def buildActionMap(thisType){
         ['action':'dim', 'actionText':'dim', 'descriptionActive':'Dims', 'description': 'Dim', 'type':'dim', 'defaultButton':4, 'advanced':false],
         ['action':'toggle', 'actionText':'toggle', 'descriptionActive':'Toggles', 'description': 'Toggle', 'type':'other', 'defaultButton':3, 'advanced':false],
         ['action':'resume', 'actionText':'resume schedule', 'descriptionActive':'Resumes schedule (if none, turn off)', 'description': 'Resume schedule (if none, turn off)', 'type':'other', 'advanced':true],
+        ['action':'setBrightness', 'actionText':'set brightness', 'descriptionActive':'Sets brightness', 'description': 'Set brightness', 'type':'other', 'advanced':true],
+        ['action':'setTemp', 'actionText':'set color temperature', 'descriptionActive':'Sets color temperature', 'description': 'Set color temperature', 'type':'other', 'advanced':true],
         ['action':'setColor', 'actionText':'set color', 'descriptionActive':'Sets color', 'description': 'Set color', 'type':'other', 'advanced':true],
         ['action':'cycleColor', 'actionText':'cycle through colors', 'descriptionActive':'Cycles through colors', 'description': 'Cycle through colors', 'type':'other', 'advanced':true]]
 }
@@ -1068,7 +1061,6 @@ def displayError(text, noDisplayIcon = null, width=12){
     if(noDisplayIcon) paragraph('<div style="background-color:Bisque">' + text + '</div>', width:width)
     if(!noDisplayIcon) paragraph('<div style="background-color:Bisque">' + errorIcon  + ' ' + text + '</div>', width:width)
     errorMessage = ''
-   
 }
 
 def displayWarning(text, noDisplayIcon = null, width=12){
@@ -1162,7 +1154,7 @@ def controllerOptionProcessParentDeviceList(capability){
     allDeviceOptions.each{singleDevice->
         if(singleDevice.hasCapability(capability.capitalize())){
             controllerMatch = controllerOptionProcessParentDeviceListMatch(singleDevice)
-            if(controllerMatch) controllerList.put([singleDevice.'id', getDeviceName(singleDevice)])
+            if(controllerMatch) controllerList.put([singleDevice.'id', getDeviceName(singleDevice)])    // This confirmed works
             //if(!controllerMatch) fullList.put([singleDevice.'id', getDeviceName(singleDevice)])
         }
     }
@@ -1197,13 +1189,13 @@ def displayAdvancedOption(){
 }
 def displayAdvancedOptionEnabled(fieldName){
     if(!settings[fieldName]) return
-    fieldTitleTrue = 'Showing advanced setup.'
+    def fieldTitleTrue = 'Showing advanced setup.'
     displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false)
 }
 def displayAdvancedOptionDisabled(fieldName){
     if(settings[fieldName]) return
-    fieldTitleTrue = 'Keeping it simple.'
-    fieldTitleFalse = 'Click to show advanced setup.'
+    def fieldTitleTrue = 'Keeping it simple.'
+    def fieldTitleFalse = 'Click to show advanced setup.'
     displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, false)
 }
 
@@ -1294,6 +1286,7 @@ def displayPeopleOption(){
     withoutPeople = peopleList2.join(', ')
     
     hidden = true
+    peopleError = compareDeviceLists(personHome, personNotHome)
     if(peopleError) hidden = false
     
     if(!settings['personHome'] && !settings['personNotHome']) sectionTitle = 'Click to select with people (Optional)'
@@ -1350,9 +1343,12 @@ def validateSunriseMinutes(type){
     if(!settings['timeSunOffset' + type.capitalize()]) return true
     // If sunrise/set offset is negative, make positive and invert before/after
     if(settings['timeSunOffset' + type.capitalize()] < 0){
-        if(settings['timeSunType' + type.capitalize()] == 'before') settings['timeSunType' + type.capitalize()] = 'after'
-        if(settings['timeSunType' + type.capitalize()] == 'after') settings['timeSunType' + type.capitalize()] = 'before'
-        settings['timeSunOffset' + type.capitalize()] = settings['timeSunOffset' + type.capitalize()] * -1
+        if(settings['timeSunType' + type.capitalize()] == 'before') {
+            app.updateSetting('timeSunType' + type.capitalize(), [type:'enum', value:'after'])
+        } else if(settings['timeSunType' + type.capitalize()] == 'after'){
+            app.updateSetting('timeSunType' + type.capitalize(), [type:'enum', value:'before'])
+        }
+        app.updateSetting('timeSunOffset' + type.capitalize(), [type:'number', value:settings['timeSunOffset' + type.capitalize()] * -1])
     }
     if(settings['timeSunOffset' + type.capitalize()] > 719) return false
     return true
@@ -1455,12 +1451,12 @@ def displaySunriseTypeOption(type){
 }
 
 def getSunriseTime(type, sunOffset, sunriseType){
-    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1), app.id)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset, app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1), app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset, app.id)).format('hh:mm a') + ')'
-    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0, app.id)).format('hh:mm a') + ')'
-    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0, app.id)).format('hh:mm a') + ')'   
+    if(type == 'sunrise' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunrise((sunOffset * -1), app.id)).format('hh:mm a', location.timeZone) + ')'
+    if(type == 'sunrise' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunrise(sunOffset, app.id)).format('hh:mm a', location.timeZone) + ')'
+    if(type == 'sunset' && sunriseType == 'before' && sunOffset) return '(' + new Date(parent.getSunset((sunOffset * -1), app.id)).format('hh:mm a', location.timeZone) + ')'
+    if(type == 'sunset' && sunriseType == 'after' && sunOffset) return '(' + new Date(parent.getSunset(sunOffset, app.id)).format('hh:mm a', location.timeZone) + ')'
+    if(type == 'sunrise' && sunriseType == 'at') return '(' + new Date(parent.getSunrise(0, app.id)).format('hh:mm a', location.timeZone) + ')'
+    if(type == 'sunset' && sunriseType == 'at') return '(' + new Date(parent.getSunset(0, app.id)).format('hh:mm a', location.timeZone) + ')'   
 }
 
 def displaySunriseOffsetOption(type){
@@ -1489,8 +1485,10 @@ def displayDaysAndDatesSection(thisType){
     if(!settings['advancedSetup'] && !settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
     hidden = true
     
-    parent.processDates(settings['includeDates'], settings['excludeDates'], settings['days'], true, app.id)
-	if(parent.getDateProcessingErrors(app.id)) hidden = false
+    processDates(true)
+	message = parent.getDateProcessingErrors(app.id)
+    if(message) hidden = false
+
     sectionTitle = '<b>Days/Dates:'
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) sectionTitle = 'Click to set days/dates (optional)'
     List dayList=[]
@@ -1504,9 +1502,10 @@ def displayDaysAndDatesSection(thisType){
     if(settings['days'] || settings['includeDates'] || settings['excludeDates']) sectionTitle += '</b>'
     if((!settings['days'] || !settings['includeDates'] || !settings['excludeDates']) && (settings['days'] || settings['includeDates'] || settings['excludeDates'])) sectionTitle += moreOptions
     section(hideable: true, hidden: hidden, sectionTitle){
-    displayDaysOption()
-    displayIncludeDates()
-    displayExcludeDates(thisType)
+        if(message) displayWarning(message)
+        displayDaysOption()
+        displayIncludeDates()
+        displayExcludeDates(thisType)
     }
 }
 
@@ -1532,7 +1531,6 @@ def displayDatesOptions(thisType){
 def displayIncludeDates(){
     if(!settings['advancedSetup'] && !settings['includeDates']) return
     displayWarning(parent.getDateProcessingErrors(app.id))
-    parent.clearDateProcessingErrors(app.id)
     fieldName = 'includeDates'
     fieldTitle = 'Only on dates:'
     if(thisType == 'schedule') fieldTitle = 'Dates on which to run ("include"):'
@@ -1557,7 +1555,7 @@ def displayBoolField(fieldName, fieldTitleTrue, fieldTitleFalse, required = true
     if(required) fieldTitle += ' ' + fieldTitleFalse
     if(!required) fieldTitle += '<br> ' + fieldTitleFalse
     fieldTitle = addFieldName(fieldTitle, fieldName)
-    input name: fieldName, type: 'bool', title:fieldTitle, default:defaultValue, submitOnChange:true
+    input name: fieldName, type: 'bool', title:fieldTitle, defaultValue:defaultValue, submitOnChange:true
 }
 def displaySelectField(fieldName, fieldTitle, options, multiple = false, required = true, button = '', width = 12){
     if(button) width--
@@ -1680,14 +1678,13 @@ def displayFilterButton(buttonName){
         return
     }
 }
-//Used in UI tooltip example
-def getNextYearWithMondayChristmas(currentYear = null) {
-    if(!currentYear) currentYear = new Date().format('yyyy').toInteger() - 1
-    mondayChristmas = false
+//Used in UI tooltip example getCurrentYear(location.timeZone)
+def getNextYearWithMondayChristmas(currentYear) {
+    def mondayChristmas = false
     while (!mondayChristmas) {
         currentYear++
-        christmas = Date.parse('yyyyMMdd', currentYear + '1225')
-        if (christmas.format('EEEE') == 'Monday') mondayChristmas = true
+        christmas = parent.getCalendar(currentYear, 12, 25, location.timeZone)
+        if (parent.getCalendarWeekday(christmas, location.timeZone) == 'Monday') mondayChristmas = true
         
     }
     return currentYear
@@ -1720,19 +1717,22 @@ def getBaseStartStopDateTime(type){
 // Date map is [yyyy:[ddd, ddd, ddd......]]
 def checkIncludeDates(){
     if(!atomicState?.includeDates) return true
-    currentYear = new Date().format('yyyy').toInteger()
+    currentYear = parent.getCurrentYear(location.timeZone)
     
     if(!atomicState.includeDates?."${currentYear}") processDates()        // If a new year
     
-    if(atomicState.includeDates."${currentYear}".contains(new Date(now()).format('D').toInteger())) return true
+    if(atomicState.includeDates."${currentYear}".contains(new Date(now()).format('D', location.timeZone).toInteger())) return true
 }
-def processDates(){
+
+def processDates(retrieveErrors = false){
     atomicState.remove('includeDates')
     if(!settings['days'] && !settings['includeDates'] && !settings['excludeDates']) return
-    currentYear = new Date().format('yyyy').toInteger()
+    currentYear = new Date().format('yyyy', location.timeZone).toInteger()
     includeDatesValue = settings['includeDates']
     if(!settings['includeDates'] && (settings['days'] || settings['excludeDates'])) includeDatesValue = ''
-    atomicState.'includeDates' = [(currentYear):parent.processDates(includeDatesValue, settings['excludeDates'], settings['days'], true, app.id)]
+    dateMap = parent.processDates(includeDatesValue, settings['excludeDates'], settings['days'], retrieveErrors, app.id)
+    if(dateMap == null) return
+    atomicState.'includeDates' = [(currentYear):dateMap]
 }
 
 // Not used with scheduler app
@@ -1746,10 +1746,10 @@ def setTime(){
     if(!settings['timeTypeStop']) return
     
     // Not sure is resyncing timestampStart and timestampStop is neccesary if set a specific times (not sunrise/set)
-    parent.scheduleChildEvent(parent.CONSTDayInMilli()+8500, '', 'setTime', '', app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate - add arbitrary seconds to stagger the load
+    parent.scheduleChildEvent(parent.CONSTDayInMilli(), '', 'setTime', '', app.id)    // Schedule setting time every for each day, to keep sunrise/set accurate
     
     timestampStart = parent.getTimeOfDayInMillis(getBaseStartStopDateTime('start'), app.id)
-    if(!timestampStart) {
+    if(timestampStart == null) {		// Use null for midnight = 0
         putLog(1753, 'error', 'Schedule error with starting time.')
         return
     }
@@ -1764,8 +1764,16 @@ def setTime(){
     atomicState.timestampStop = timestampStop
 }
 
+def setScheduleProcessDates(){
+    if(!settings['includeDates'] && !settings['excludeDates'] && !settings['days']) return
+    nextYearTimestamp = java.time.Year.now().plusYears(1).atDay(1).atStartOfDay(location.timeZone.toZoneId()).toInstant().toEpochMilli() + 1
+    parent.scheduleChildEvent('', nextYearTimestamp, 'processDates', '', app.id)
+    putLog(1771, 'trace', 'Scheduled updating days, include dates and/or exclude dates for next year: ' + nextYearTimestamp)
+}
+
 // Called from parent.scheduleChildEvent
 def setScheduleFromParent(timeMillis, scheduleFunction, scheduleParameters = null){
+    if(!scheduleParameters) scheduleParameters = [:]
     runInMillis(timeMillis, scheduleFunction, scheduleParameters)
 }
 
@@ -1792,28 +1800,28 @@ def displayExcludeDates(appType){
     deviceText = 'the device'
     if(thisType == 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
     if(thisType != 'schedule' && settings['controlDevice'].size() > 1) deviceText = 'the devices'
-    currentYear = new Date(now()).format('yyyy').toInteger()
-    christmasMondayYear = getNextYearWithMondayChristmas()
-    infoTip = 'Enter which date(s) to restrict or exclude this ' + thisDescription + ' routine. "Only on dates" are when this ' + thisDescription + ' will work, for instance if you want ' + deviceText + ' to do a specific thing on Christmas. \
-"Not on" dates are when this ' + thisDescription + ' will not apply, for instance to set ' + deviceText + ' to do something any other day. Rules:\n\
+    
+    currentYear = parent.getCurrentYear(location.timeZone)
+    christmasMondayYear = getNextYearWithMondayChristmas(currentYear)
+    infoTip = 'Enter which date(s) to allow or restrict this ' + thisDescription + ' routine. "Only on dates" are when this ' + thisDescription + ' will work. \
+"Not on" dates are when this ' + thisDescription + ' will not apply. Rules:\n\
 	• Year is optional, but would only apply to that <i>one day</i>. If no year is entered, it will repeat annually. \
-<i>Example: "12/25/' + (new Date(now()).format('yyyy').toInteger() - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
+<i>Example: "12/25/' + (currentYear - 1) + '" will never occur in the future, because that\'s how time works.</i>\n\
 	• Use month/day ("mm/dd") format, or day.month ("dd.mm"). You can also use Julian days of the year as a 3-digit number ("ddd"). \
 <i>Example: Christmas could be entered as "12/25", "25.12" or "359" (the latter only true for non-leap years, otherwise "360").</i>\n\
 	• Separate multiple dates with a comma (or semicolon). \
 <i>Example: "12/25, 1/1" is Christmas and New Year\'s Day.</i>\n\
 	• Use a hyphen to indicate a range of dates. \
 <i>Example: "12/25-1/6" are the 12 days of Christmas.</i>\n\
-    	• The "days" options above will combine with the dates. \
-<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow the ' + thisDescription + ' to activate on 12/25/' + christmasMondayYear + ', 12/25/' + getNextYearWithMondayChristmas((christmasMondayYear + 1)) + ', etc. when Christmas is on a Monday.</i>\n\
+    	• The "days" options above will restrict include the dates. \
+<i>Example: Selecting Monday and entering "12/25" as an "only on" date would only allow activation on 12/25/' + christmasMondayYear + ', 12/25/' + getNextYearWithMondayChristmas((christmasMondayYear + 1)) + ', etc. when Christmas is on a Monday.</i>\n\
 	• You can mix and match formats (even tho you probably shouldn\'t), and individual dates with ranges. And the order doesn\'t matter. \
-<i>Example: "001, 31.10, 12/25/' + (new Date(now()).format('yy').toInteger()) + '-12/31/' + (new Date(now()).format('yyyy').toInteger()) + '" is every Halloween, Christmas to New Years\' Eve of ' + (new Date(now()).format('yyyy').toInteger()) + ', and every New Years\' Day.</i>\n\
-	• If a date falls within both "only on" and "not on", it will be treated as "not on".\n\
-	• If any date within a date range is invalid, the entire date range will be ignored. <i>Example: 02/01-02/29 would only be used on a Leap Year (to do all of February including 2/29, enter "2/1-2/28, 2/29").</i>'
+<i>Example: "001, 31.10, 12/25/' + (currentYear.toString().substring(2)) + '-12/31/' + (currentYear) + '" is every Halloween, Christmas to New Years\' Eve of ' + (currentYear) + ', and every New Years\' Day.</i>\n\
+	• If a date falls within both "only on" and "not on", it will be treated as "not on".</i>'
 
     displayInfo(infoTip)
-    
 }
+
 //lineNumber should be a number, but can be text
 //message is the log message, and is not required
 //type is the log type: error, warn, info, debug, or trace, not required; defaults to trace
